@@ -34,18 +34,21 @@ src/
 │   ├── ArrangeTrackRow.svelte    track-list row placeholder
 │   ├── ChannelBank.svelte        horizontal track bank and pinned rail
 │   ├── ChannelStrip.svelte       neutral channel-strip placeholder
+│   ├── MixerChannelStrip.svelte  selectable Mixer channel placeholder
 │   ├── RoomNav.svelte            Console / Arrange / Mixer navigation
 │   ├── RoomPlaceholder.svelte    labeled empty-room placeholder
 │   └── RoomShell.svelte          shared room header and content boundary
 ├── lib/
 │   ├── arrange.ts                Arrange placeholder counts and labels
+│   ├── mixer.ts                  Mixer placeholder channels and kinds
 │   └── rooms.ts                  room definitions and hash parsing
 └── rooms/
     ├── ConsoleRoom.svelte
     ├── ArrangeRoom.svelte
     └── MixerRoom.svelte
 scripts/
-└── check-arrange-structure.mjs   Arrange layout contract check
+├── check-arrange-structure.mjs   Arrange layout contract check
+└── check-mixer-structure.mjs     Mixer layout contract check
 ```
 
 ## Commands
@@ -55,6 +58,7 @@ npm install
 npm run dev       # development server
 npm run check          # svelte-check + TypeScript diagnostics
 npm run check:arrange  # Arrange structural contract check (no geometry)
+npm run check:mixer    # Mixer structural contract check (no geometry)
 npm run build          # production build
 npm run preview   # serve the production build
 ```
@@ -92,7 +96,18 @@ vertical scrolling moves rows and lanes together. 20 placeholder track rows,
 56 bars, and the seven canonical structure markers are placeholders only — no
 waveforms, audio, or project state.
 
+## Mixer room
+
+The Mixer is a two-column skeleton: a scrollable channel-strip column on the
+left and a processing-detail panel on the right. Selecting a strip (mouse or
+keyboard) marks it and updates the panel's selected-channel identification. The
+detail panel holds neutral placeholders for the selected channel, processing
+chain, EQ curve, compressor/gain reduction, sends, Auto/Manual, original-vs-
+current indicators, and "what changed and why". Selection is local UI state
+only — no shared project state, no cross-room sync, no processing. The panel
+does not yet branch by channel type; that is Task 2.9.
+
 ## Status
 
-Tasks 0.1–0.4 are implemented. Tasks 0.5–0.6, design tokens, room detail,
+Tasks 0.1–0.5 are implemented. Task 0.6, design tokens, room detail,
 shared project state, and audio functionality are **not** implemented.
