@@ -112,7 +112,7 @@
   .channel-strip__name {
     display: block;
     margin: 0;
-    min-height: 2.25em;
+    min-height: 1.2em;
     font-size: 0.75rem;
     font-weight: 700;
     line-height: 1.2;
@@ -151,11 +151,11 @@
   .channel-strip__slot--switches,
   .channel-strip__slot--peak {
     flex: 0 0 auto;
-    min-height: 1.75rem;
+    min-height: 1.25rem;
   }
 
   .channel-strip__slot--fader {
     flex: 1 1 auto;
-    min-height: 3rem;
+    min-height: 2rem;
   }
 </style>

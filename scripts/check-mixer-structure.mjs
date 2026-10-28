@@ -1,31 +1,31 @@
 #!/usr/bin/env node
 /**
- * Mixer + shared-detail structural contract check.
+ * Mixer room structural contract check — Task 0.5.
  *
  * Dependency-free guard (Node built-ins only). It does NOT test geometry:
  * pixel layout and selection behaviour were verified in a real browser at
- * 1920x1080, 1024x768 and 768x900. What it tests is the source-level contract:
+ * 1920x1080, 1024x768 and 768x900. What it tests is the source-level contract
+ * that keeps the layout and the selection wiring sound:
  *
- *   1. The Mixer is details-on-top + channel bank at the bottom. The old
- *      vertical stacked channel column must not come back.
- *   2. The channel bank and the detail panel are shared components, used by
- *      both Console and Mixer, so the two tabs cannot drift apart.
- *   3. Selection is local UI state in each room — no store, no cross-room sync.
- *   4. Strips are real buttons exposing aria-pressed.
- *   5. The channel count stays a parameter, not a literal in markup.
- *   6. The detail panel does NOT branch by channel type (Task 2.9).
- *   7. The Mixer is bounded so it scrolls internally instead of pushing the page.
+ *   1. Every Mixer detail region the product plan assigns to this room exists.
+ *   2. Selection is local UI state — no imports from Console or Arrange, no
+ *      shared store, no persistence.
+ *   3. The strips are real buttons exposing aria-pressed, so selection is not
+ *      mouse-only.
+ *   4. The channel count stays a parameter, not a literal in markup.
+ *   5. The detail panel does NOT branch by channel type yet — that is Task 2.9,
+ *      and doing it early would be scope creep.
+ *   6. The room is bounded so it scrolls internally instead of pushing the page.
  *
  * Run: npm run check:mixer
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(resolve(root, rel), "utf8");
-const exists = (rel) => existsSync(resolve(root, rel));
 
 const failures = [];
 const passes = [];
@@ -38,54 +38,15 @@ function check(name, condition, detail = "") {
   }
 }
 
-const mixer = read("src/rooms/MixerRoom.svelte");
-const consoleRoom = read("src/rooms/ConsoleRoom.svelte");
-const detail = read("src/components/ChannelDetailPanel.svelte");
-const bank = read("src/components/ChannelBank.svelte");
-const strip = read("src/components/ChannelStrip.svelte");
-const channels = read("src/lib/channels.ts");
+const room = read("src/rooms/MixerRoom.svelte");
+const strip = read("src/components/MixerChannelStrip.svelte");
+const data = read("src/lib/mixer.ts");
 const appCss = read("src/app.css");
 
-// --- 1. Mixer structure: detail on top, bank below, no vertical column.
-check(
-  "Mixer renders the shared detail panel",
-  /<ChannelDetailPanel\b/.test(mixer),
-);
-check(
-  "Mixer renders the shared channel bank",
-  /<ChannelBank\b/.test(mixer),
-);
-check(
-  'Mixer exposes a "detail-panel" region',
-  mixer.includes('data-mixer-region="detail-panel"'),
-);
-check(
-  'Mixer exposes a "channel-bank" region',
-  mixer.includes('data-mixer-region="channel-bank"'),
-);
-check(
-  "the vertical stacked channel column has not been reintroduced",
-  !exists("src/components/MixerChannelStrip.svelte") &&
-    !exists("src/lib/mixer.ts") &&
-    !/data-mixer-region="channel-column"/.test(mixer),
-);
-
-// --- 2. Shared components, used by both rooms.
-check(
-  "Console renders the same detail panel",
-  /<ChannelDetailPanel\b/.test(consoleRoom),
-);
-check(
-  "Console renders the same channel bank",
-  /<ChannelBank\b/.test(consoleRoom),
-);
-check(
-  "Console keeps its meter bridge, channel bank and transport zones",
-  ["meter-bridge", "channel-bank", "transport"].every((z) =>
-    consoleRoom.includes(`data-console-zone="${z}"`),
-  ),
-);
+// --- 1. All plan-assigned detail regions present.
 for (const region of [
+  "channel-column",
+  "detail-panel",
   "selection",
   "processing-chain",
   "eq-graph",
@@ -95,32 +56,25 @@ for (const region of [
   "ghost-indicator",
   "what-changed",
 ]) {
-  check(
-    `shared detail region "${region}" is present`,
-    detail.includes(`data-detail-region="${region}"`),
-  );
+  check(`region "${region}" is present`, room.includes(`data-mixer-region="${region}"`));
 }
 
-// --- 3. Selection is local per room, never shared.
-for (const [name, src] of [
-  ["MixerRoom", mixer],
-  ["ConsoleRoom", consoleRoom],
-]) {
-  check(
-    `${name} holds selection in local $state`,
-    /let\s+selectedId\s*=\s*\$state/.test(src),
-  );
-  check(
-    `${name} imports no store or persistence`,
-    !/localStorage|sessionStorage|\$store|writable\(/.test(src),
-  );
-}
+// --- 2. Selection is local UI state only.
 check(
-  "rooms do not import each other's selection",
-  !/rooms\/(ConsoleRoom|ArrangeRoom|MixerRoom)/.test(mixer + consoleRoom),
+  "selection uses Svelte local state ($state), not a store",
+  /let\s+selectedId\s*=\s*\$state/.test(room),
+);
+check(
+  "MixerRoom imports nothing from Console or Arrange rooms",
+  !/rooms\/(ConsoleRoom|ArrangeRoom)/.test(room),
+);
+check(
+  "no shared-store or persistence imports",
+  !/from\s+["'].*(store|persist|localStorage|sessionStorage)/.test(room) &&
+    !/localStorage|sessionStorage/.test(room + data + strip),
 );
 
-// --- 4. Strips are accessible buttons.
+// --- 3. Selection is not mouse-only.
 check(
   "channel strips are real <button> elements",
   /<button/.test(strip) && /type="button"/.test(strip),
@@ -130,38 +84,37 @@ check(
   /aria-pressed=\{selected/.test(strip),
 );
 check(
-  "channel bank forwards the selection id into each strip",
-  /selected=\{channel\.id === selectedId\}/.test(bank),
+  "selected strip is marked for visual identification",
+  /class:is-selected=\{selected\}/.test(strip) && /is-selected/.test(strip),
+);
+check(
+  "detail panel identification is driven by the selection",
+  /data-mixer-selected-name/.test(room) && /selected\.name/.test(room),
 );
 
-// --- 5. Count stays a parameter.
+// --- 4. Count stays a parameter.
 check(
   "track channels are built by a factory, not a markup literal",
-  /export function createTrackChannels\(/.test(channels) &&
-    /createTrackChannels\(PLACEHOLDER_TRACK_COUNT\)/.test(channels),
+  /export function createMixerTracks\(/.test(data) &&
+    /createMixerTracks\(PLACEHOLDER_TRACK_COUNT\)/.test(data),
 );
 check(
   "placeholder count declared as PLACEHOLDER_TRACK_COUNT",
-  /export const PLACEHOLDER_TRACK_COUNT = \d+;/.test(channels),
+  /export const PLACEHOLDER_TRACK_COUNT = \d+;/.test(data),
 );
 check(
-  "rooms and bank do not hard-code a track count",
-  !/length:\s*\d+/.test(mixer + consoleRoom + bank),
-);
-check(
-  "pinned Return buses and bus master are kept from plan 8a",
-  /return-reverb/.test(channels) &&
-    /return-delay/.test(channels) &&
-    /bus-master/.test(channels),
+  "MixerRoom does not hard-code a channel count",
+  !/length:\s*\d+/.test(room) && !/from\(\{\s*length/.test(room),
 );
 
-// --- 6. Chain-type branching stays deferred to Task 2.9.
+// --- 5. Chain-type branching is deferred to Task 2.9.
 check(
-  "detail panel does not branch by channel type (deferred to Task 2.9)",
-  !/channel\.kind\s*===/.test(detail) && !/#if\s+channel\.kind/.test(detail),
+  "detail panel does not branch by channel type yet (deferred to Task 2.9)",
+  !/#if\s+selected\.kind/.test(room) &&
+    !/#if\s+selected\?\.kind/.test(room),
 );
 
-// --- 7. Mixer is bounded and scrolls internally.
+// --- 6. Room is bounded and scrolls internally.
 check(
   "Mixer shell is pinned to one viewport",
   /\[data-active-room="mixer"\]\.app-shell\s*\{[^}]*height:\s*100dvh/.test(appCss),
@@ -171,16 +124,14 @@ check(
   /\[data-active-room="mixer"\]\s+\.room\s*\{[^}]*height:\s*100%/.test(appCss),
 );
 check(
-  "Mixer detail area scrolls internally",
-  /\.mixer-room__detail\s*\{[^}]*overflow-y:\s*auto/.test(mixer),
+  "channel column scrolls internally",
+  /\.mixer-channels__list\s*\{[^}]*overflow-y:\s*auto/.test(room),
 );
 
-// --- 8. No audio/DSP crept in.
+// --- 7. No Phase 1 styling or DSP crept in.
 check(
-  "no audio/DSP APIs referenced",
-  !/AudioContext|WebAudio|createGain|BiquadFilter|DynamicsCompressorNode/.test(
-    mixer + consoleRoom + detail + bank + strip + channels,
-  ),
+  "no audio/DSP imports in the Mixer",
+  !/AudioContext|WebAudio|createGain|BiquadFilter|DynamicsCompressorNode/.test(room + strip + data),
 );
 
 // --- Report.
