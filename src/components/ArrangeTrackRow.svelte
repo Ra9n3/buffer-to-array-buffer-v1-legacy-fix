@@ -11,7 +11,13 @@
 </script>
 
 <!-- Track-list cell for one track. A direct grid child of the Arrange grid, so
-     it always shares its row with exactly one timeline lane. -->
+     it always shares its row with exactly one timeline lane.
+
+     The Instrument / Role placeholder line was removed at the owner's request;
+     the row is now track code plus track name only. Instrument and role labels
+     still belong to Arrange per the product plan, but they arrive with real
+     session data in Task 2.5 — until then the line was empty clutter taking
+     vertical space away from the lane. -->
 <div
   class="arrange-track-row"
   data-arrange-region="track-row"
@@ -21,11 +27,6 @@
   <p class="arrange-track-row__identity">
     <span class="arrange-track-row__code">{code}</span>
     <span class="arrange-track-row__name">{name}</span>
-  </p>
-  <p class="arrange-track-row__meta">
-    <span class="arrange-track-row__meta-label">Instrument</span>
-    <span class="arrange-track-row__meta-sep" aria-hidden="true">·</span>
-    <span class="arrange-track-row__meta-label">Role</span>
   </p>
 </div>
 
@@ -37,7 +38,6 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.0625rem;
     min-width: 0;
     height: var(--arrange-row-height);
     padding: 0.25rem 0.5rem;
@@ -66,33 +66,10 @@
   .arrange-track-row__name {
     min-width: 0;
     overflow: hidden;
-    font-size: 0.8125rem;
+    font-size: 0.875rem;
     font-weight: 600;
     line-height: 1.2;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .arrange-track-row__meta {
-    display: flex;
-    align-items: baseline;
-    gap: 0.25rem;
-    min-width: 0;
-    margin: 0;
-    overflow: hidden;
-    color: #5d5d5d;
-    font-size: 0.625rem;
-    line-height: 1.2;
-    white-space: nowrap;
-  }
-
-  .arrange-track-row__meta-label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .arrange-track-row__meta-sep {
-    flex: 0 0 auto;
-    opacity: 0.6;
   }
 </style>

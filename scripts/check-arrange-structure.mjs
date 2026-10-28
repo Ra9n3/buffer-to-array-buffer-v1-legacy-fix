@@ -159,7 +159,6 @@ for (const region of [
   "structure-markers",
   "tempo-track",
   "timeline-ruler",
-  "organisational-groups",
 ]) {
   check(`region "${region}" is present`, room.includes(`data-arrange-region="${region}"`));
 }
@@ -170,6 +169,30 @@ check(
 check(
   'region "track-row" is present',
   trackRow.includes('data-arrange-region="track-row"'),
+);
+
+// The organizational-groups / bus-routing placeholder was removed from the
+// skeleton on owner instruction. Guard against silent reintroduction of a
+// fixed-height block that would compete with the timeline for space.
+check(
+  "the removed organisational placeholder has not been reintroduced",
+  !room.includes('data-arrange-region="organisational-groups"'),
+);
+
+// The room header must not consume vertical space, but its <h1> must still name
+// the section for assistive technology.
+const shell = read("src/components/RoomShell.svelte");
+check(
+  "RoomShell supports a visually hidden header",
+  /hideHeader\s*=\s*false/.test(shell) && /is-visually-hidden/.test(shell),
+);
+check(
+  "RoomShell keeps the room <h1> for the section's accessible name",
+  /<h1/.test(shell) && /aria-labelledby/.test(shell),
+);
+check(
+  "ArrangeRoom hides its header",
+  /hideHeader/.test(room),
 );
 
 // --- 6. Data invariants: marker spans must cover the timeline exactly.

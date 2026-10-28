@@ -24,6 +24,7 @@
   roomId="arrange"
   title="Arrange"
   purpose="Import and organize the session."
+  hideHeader
 >
   <div class="arrange-room" data-arrange-room>
     <!-- One scroller drives both axes. The grid inside it holds the track-list
@@ -44,7 +45,7 @@
           aria-hidden="true"
         >
           <p class="arrange-corner__eyebrow">Track list</p>
-          <p class="arrange-corner__columns">Track / Instrument · Role</p>
+          <p class="arrange-corner__columns">Track</p>
         </div>
 
         <div
@@ -112,35 +113,6 @@
       </div>
     </div>
 
-    <!-- Compact placeholder. Two short definitions, side by side on wide
-         viewports and stacked when narrow, so the area explains itself without
-         competing with the timeline for height. -->
-    <section
-      class="arrange-organisation"
-      data-arrange-region="organisational-groups"
-      aria-labelledby="arrange-organisation-title"
-    >
-      <h2 class="arrange-organisation__title" id="arrange-organisation-title">
-        Placeholder<span class="arrange-organisation__title-sep" aria-hidden="true">·</span>
-        <span class="arrange-organisation__title-note">not functional yet</span>
-      </h2>
-      <dl class="arrange-organisation__list">
-        <div class="arrange-organisation__item">
-          <dt>Organizational groups</dt>
-          <dd>
-            Name tracks into groups, with organizational colors later. Grouping
-            alone does not sum or process audio.
-          </dd>
-        </div>
-        <div class="arrange-organisation__item">
-          <dt>Bus routing</dt>
-          <dd>
-            Chooses which audio bus receives a track's signal. A bus can later
-            sum and process its input tracks.
-          </dd>
-        </div>
-      </dl>
-    </section>
   </div>
 </RoomShell>
 
@@ -152,30 +124,30 @@
     gap: 0.375rem;
     min-width: 0;
     min-height: 0;
-    /* Bounded to the viewport so the track list scrolls inside its own region
-       instead of pushing the page taller. The shell's app header, the room
-       header, and the shell paddings sit above this room; the Console room
-       deliberately keeps page-level scrolling, so this bound is Arrange-only.
-       The room is sized slightly conservatively: if the chrome is shorter than
-       estimated the room ends a few pixels early rather than forcing a page
-       scroll. */
-    --arrange-chrome-height: 8.25rem;
-    height: clamp(22rem, calc(100dvh - var(--arrange-chrome-height)), 72rem);
+    /* Fill the room canvas exactly. The Arrange room header is visually hidden
+       and the canvas is a single 1fr grid row, so the canvas already has a
+       definite height tied to the viewport — no measured chrome constant is
+       needed, and the workspace cannot fall short of the available space or
+       push the page taller. min-height keeps it usable on very short viewports. */
+    height: 100%;
+    min-height: 22rem;
     /* Shared geometry. Both the track rows and the timeline lanes take their
        height from --arrange-row-height, and the timeline header spans exactly
        --arrange-timeline-width, so rows and lanes stay aligned by construction. */
-    /* Row / lane height. Raised from 2.75rem at the owner's request: at 44px
-       the rows read as thin strips and the track name plus its Instrument·Role
-       line sat cramped. 3.5rem = 56px gives each row real breathing room while
-       keeping 15 rows visible at 1920x1080. Single value — every track row and
-       timeline lane inherits it, so alignment is unaffected. */
-    --arrange-row-height: 3.5rem;
+    /* Row / lane height. Owner requirement: the lane must be tall enough to
+       carry a stereo waveform and audio editing later, so it is sized for that
+       future content rather than for the current single text label.
+       5rem = 80px gives two 30px+ halves with margin between them.
+       Single value — every track row and timeline lane inherits it, so
+       alignment cannot be affected by changing it. */
+    --arrange-row-height: 5rem;
     --arrange-track-list-width: clamp(10rem, 16vw, 15rem);
     --arrange-timeline-width: 2400px;
-    /* Three header bands (ruler, tempo, structure). Kept at 22px: enough for
-       the 10-11px labels these bands carry, but a third of what the old 28px
-       bands cost across three rows. */
+    /* Ruler and structure bands are compact reference strips (22px).
+       The tempo band is taller because it holds a real timeline (tempo values
+       over bars) rather than a single label row. */
     --arrange-band-height: 1.375rem;
+    --arrange-tempo-height: 2.25rem;
   }
 
   .arrange-scroll {
@@ -278,7 +250,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    height: var(--arrange-band-height);
+    height: var(--arrange-tempo-height);
     min-width: 0;
     padding: 0 0.5rem;
     border-bottom: 1px solid #b5b5b5;
@@ -305,6 +277,9 @@
 
   .arrange-ruler {
     height: var(--arrange-band-height);
+    /* Separation between the time bar and the tempo track. Darker and heavier
+       than the per-bar ticks so the two bands read as distinct rows. */
+    border-bottom: 2px solid #6d6d6d;
   }
 
   .arrange-ruler__bar {
@@ -327,113 +302,10 @@
     color: #454545;
   }
 
-  .arrange-organisation {
-    display: flex;
-    flex: 0 0 auto;
-    flex-wrap: wrap;
-    align-items: baseline;
-    column-gap: 0.625rem;
-    row-gap: 0.125rem;
-    min-width: 0;
-    padding: 0.3125rem 0.625rem;
-    border: 1px dashed #8a8a8a;
-    background: #f1f1f1;
-  }
-
-  .arrange-organisation__title {
-    display: flex;
-    flex: 0 0 auto;
-    align-items: baseline;
-    gap: 0.25rem;
-    margin: 0;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    line-height: 1.25;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: #4d4d4d;
-  }
-
-  .arrange-organisation__title-sep {
-    opacity: 0.5;
-  }
-
-  .arrange-organisation__title-note {
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: none;
-    color: #5d5d5d;
-  }
-
-  .arrange-organisation__list {
-    display: flex;
-    flex: 1 1 24rem;
-    flex-wrap: wrap;
-    gap: 0.125rem 1rem;
-    min-width: 0;
-    margin: 0;
-  }
-
-  .arrange-organisation__item {
-    display: flex;
-    flex: 1 1 16rem;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 0 0.3125rem;
-    min-width: 0;
-  }
-
-  .arrange-organisation__item dt {
-    flex: 0 0 auto;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    line-height: 1.35;
-    color: #3a3a3a;
-  }
-
-  .arrange-organisation__item dt::after {
-    content: "—";
-    padding-left: 0.3125rem;
-    font-weight: 400;
-    color: #8a8a8a;
-  }
-
-  .arrange-organisation__item dd {
-    flex: 1 1 10rem;
-    min-width: 0;
-    margin: 0;
-    font-size: 0.6875rem;
-    line-height: 1.35;
-    color: #4d4d4d;
-    overflow-wrap: break-word;
-  }
-
-  @media (max-width: 56rem) {
-    /* Stack each definition term above its description. Side by side, the two
-       descriptions wrap into a ragged indent at tablet widths. */
-    .arrange-organisation__list,
-    .arrange-organisation__item {
-      flex-basis: 100%;
-    }
-
-    .arrange-organisation__item {
-      flex-direction: column;
-      gap: 0;
-    }
-
-    .arrange-organisation__item dt::after {
-      content: none;
-    }
-
-    .arrange-organisation__item dd {
-      flex: 0 0 auto;
-    }
-  }
-
   @media (max-width: 40rem) {
     .arrange-room {
       --arrange-track-list-width: 8.5rem;
-      --arrange-row-height: 3rem;
+      --arrange-row-height: 4.25rem;
     }
 
 
