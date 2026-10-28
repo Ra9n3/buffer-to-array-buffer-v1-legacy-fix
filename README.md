@@ -1,11 +1,13 @@
 # ALLOY
 
 Rule-based automatic rough-mixing application. The current build is the Phase 0
-application shell: one shared shell with three rooms — **Console**, **Arrange**
+application shell: one shared shell with three rooms — **Arrange**, **Console**
 and **Mixer** — and working navigation between them. The Console room has its
 structural skeleton: meter bridge, a horizontally scrollable 20-strip channel
 bank (11 tracks fit by default) with pinned Return and bus-master channels, and
-a transport placeholder zone.
+a transport placeholder zone. The Mixer room has its skeleton too: a vertically
+scrollable channel column on the left and a selected-channel processing-detail
+panel on the right, with local placeholder selection.
 
 ## Sources of truth
 
@@ -34,18 +36,22 @@ src/
 │   ├── ArrangeTrackRow.svelte    track-list row placeholder
 │   ├── ChannelBank.svelte        horizontal track bank and pinned rail
 │   ├── ChannelStrip.svelte       neutral channel-strip placeholder
-│   ├── RoomNav.svelte            Console / Arrange / Mixer navigation
+│   ├── MixerChannelStrip.svelte  selectable Mixer channel header
+│   ├── MixerDetailPanel.svelte   selected-channel processing-detail panel
+│   ├── RoomNav.svelte            Arrange / Console / Mixer navigation
 │   ├── RoomPlaceholder.svelte    labeled empty-room placeholder
 │   └── RoomShell.svelte          shared room header and content boundary
 ├── lib/
 │   ├── arrange.ts                Arrange placeholder counts and labels
+│   ├── mixer.ts                  Mixer placeholder channels and chain steps
 │   └── rooms.ts                  room definitions and hash parsing
 └── rooms/
     ├── ConsoleRoom.svelte
     ├── ArrangeRoom.svelte
     └── MixerRoom.svelte
 scripts/
-└── check-arrange-structure.mjs   Arrange layout contract check
+├── check-arrange-structure.mjs   Arrange layout contract check
+└── check-mixer-structure.mjs     Mixer + navigation contract check
 ```
 
 ## Commands
@@ -55,6 +61,7 @@ npm install
 npm run dev       # development server
 npm run check          # svelte-check + TypeScript diagnostics
 npm run check:arrange  # Arrange structural contract check (no geometry)
+npm run check:mixer    # Mixer + navigation contract check (no geometry)
 npm run build          # production build
 npm run preview   # serve the production build
 ```
@@ -68,8 +75,10 @@ Hash routes keep the shell static-host friendly:
 - `#/mixer`
 
 The navigation stays visible across room changes, marks the active room with
-`aria-current="page"`, and each room exposes its own labeled content. The top
-bar is sticky, and the Console transport panel is hidden until the page is
+`aria-current="page"`, and each room exposes its own labeled content. Tabs read
+left to right **Arrange | Console | Mixer**, sit on the right of the top bar with
+the ALLOY wordmark on the left, and are deliberately compact (28px tall). The
+top bar is sticky, and the Console transport panel is hidden until the page is
 scrolled. The Console channel bank shows 11 of its 20 tracks by default and
 scrolls horizontally; its Return and bus-master rail stays pinned at the right.
 
@@ -92,7 +101,28 @@ vertical scrolling moves rows and lanes together. 20 placeholder track rows,
 56 bars, and the seven canonical structure markers are placeholders only — no
 waveforms, audio, or project state.
 
+## Mixer room
+
+A two-pane bounded workspace. The left column is a vertically scrollable list of
+23 selectable placeholder channels (20 tracks, then the Reverb and Delay Returns
+and the bus master). The right pane is the selected channel's processing detail:
+chain steps in the product plan's order, EQ curve, compressor and gain
+reduction, sends, Auto/Manual, original-versus-current ghost indicators, and the
+"what changed and why" area — all neutral placeholders.
+
+Selection is local per-room UI state only, held in `$state`; there is no store,
+no persistence, and no cross-room synchronisation. Strips are real `<button>`
+elements carrying `aria-pressed`, so selection works with mouse and keyboard.
+
+The Mixer track headers are dimensioned to match the Arrange track headers — row
+height, padding, label alignment, typography scale and border treatment. The
+shared geometry lives as `--track-header-*` custom properties in `app.css`, and
+`npm run check:mixer` fails if the Mixer tokens and the Arrange row values ever
+disagree. Selection is drawn with a background change and an inset ring, so
+selecting a channel never changes the header's size.
+
 ## Status
 
-Tasks 0.1–0.4 are implemented. Tasks 0.5–0.6, design tokens, room detail,
-shared project state, and audio functionality are **not** implemented.
+Tasks 0.1–0.5 are implemented. Task 0.6, design tokens, channel-type-aware
+Mixer detail, shared project state, and audio functionality are **not**
+implemented. Task 0.5 is awaiting explicit owner approval.

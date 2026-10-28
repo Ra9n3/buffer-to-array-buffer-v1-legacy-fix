@@ -6,16 +6,24 @@ export interface RoomDefinition {
   readonly purpose: string;
 }
 
+/**
+ * Room navigation order, left to right: Arrange | Console | Mixer.
+ *
+ * This is an explicit owner instruction for Task 0.5. Product plan §14 lists the
+ * rooms as "Console/Arrange/Mixer"; the visible tab order intentionally differs
+ * because the owner specified it. The room identities, routes, and purposes are
+ * unchanged — only the display order.
+ */
 export const ROOMS = [
-  {
-    id: "console",
-    label: "Console",
-    purpose: "Primary overview and automatic-mix workspace.",
-  },
   {
     id: "arrange",
     label: "Arrange",
     purpose: "Import and organize the session.",
+  },
+  {
+    id: "console",
+    label: "Console",
+    purpose: "Primary overview and automatic-mix workspace.",
   },
   {
     id: "mixer",
