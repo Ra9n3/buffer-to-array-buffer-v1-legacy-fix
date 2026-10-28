@@ -18,6 +18,16 @@
   --track-header-gap: 0.375rem;
   --track-header-code-size: 0.6875rem;
   --track-header-name-size: 0.875rem;
+
+  /* -------------------------------------------------------------------------
+     Persistent mini transport height — Task 0.6.
+
+     Declared once. The transport strip is fixed to the viewport bottom and the
+     application shell reserves exactly this much space beneath its content, so
+     the strip is always in the same place, never scrolls away with room
+     content, and never covers it.
+     ------------------------------------------------------------------------- */
+  --mini-transport-height: 2.75rem;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   line-height: 1.5;
@@ -56,6 +66,9 @@ a {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   grid-template-columns: minmax(0, 1fr);
+  /* Reserves the space the fixed mini transport occupies, so no room's content
+     can end up underneath it. */
+  padding-bottom: var(--mini-transport-height);
   background: #e4e4e4;
 }
 
@@ -246,6 +259,80 @@ a {
 @media (max-width: 30rem) {
   [data-active-room="arrange"] .room-host {
     padding: 0.5rem;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Arrange room bounding — Task 0.6.
+
+   Previously the Arrange shell grew to the height of its content (1799px in a
+   713px viewport), so the page scrolled and the fixed mini transport sat over
+   the middle of the timeline area. The transport must never cover room content,
+   and Task 0.6 requires room content to occupy the remaining space without
+   forcing page-level scrolling, so the Arrange shell is now bounded like the
+   other two rooms.
+
+   This changes only page-level scrolling. The Arrange room's own two-dimensional
+   timeline scroller — its shared grid, sticky headers, sticky track column, row
+   and lane alignment — is untouched and still scrolls exactly as before.
+   --------------------------------------------------------------------------- */
+.app-shell[data-active-room="arrange"] {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+[data-active-room="arrange"] .room-host {
+  min-height: 0;
+}
+
+/* A definite height is required for the 1fr canvas row to resolve; without it
+   the row sizes to the timeline's content height and the room overflows the
+   viewport (which is exactly what used to make the page scroll). */
+[data-active-room="arrange"] .room {
+  height: 100%;
+  max-height: 100%;
+}
+
+[data-active-room="arrange"] .room__canvas {
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Console room shell bounding — Task 0.6.
+
+   The Console's scroll-revealed transport placeholder was removed when the
+   shared persistent mini transport arrived, so the Console no longer needs the
+   page to scroll in order to reveal anything. Its two remaining zones now fill
+   the space between the app header and the transport strip.
+   --------------------------------------------------------------------------- */
+[data-active-room="console"] .room {
+  height: 100%;
+  max-height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+[data-active-room="console"] .room__canvas {
+  min-height: 0;
+}
+
+.app-shell[data-active-room="console"] {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+[data-active-room="console"] .room-host {
+  min-height: 0;
+}
+
+[data-active-room="console"] .room__header {
+  padding: 0.5rem 0.75rem;
+}
+
+@media (max-width: 30rem) {
+  :root {
+    --mini-transport-height: 2.5rem;
   }
 }
 

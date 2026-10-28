@@ -1,31 +1,14 @@
 <script lang="ts">
-  import { onMount } from "svelte";
   import ChannelBank from "../components/ChannelBank.svelte";
   import RoomShell from "../components/RoomShell.svelte";
 
-  let transportVisible = $state(false);
-
-  onMount(() => {
-    let frame = 0;
-
-    const update = (): void => {
-      frame = 0;
-      transportVisible = window.scrollY > 24;
-    };
-
-    const onScroll = (): void => {
-      if (frame) return;
-      frame = requestAnimationFrame(update);
-    };
-
-    update();
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  });
+  /* The Console's own scroll-revealed transport placeholder was removed in
+     Task 0.6: the persistent mini transport is now rendered once by the shell
+     and is visible in every room, so a second, page-scroll-dependent transport
+     placeholder here would duplicate it and could not be shown at the same time
+     as the shared strip without overlapping it. The Console's full vintage
+     transport, status/time display and MIX button are scheduled as Task 2.3 in
+     the product plan. */
 </script>
 
 <RoomShell
@@ -74,36 +57,17 @@
       </section>
     </div>
   </div>
-
-  <section
-    class="console-zone console-transport"
-    class:is-visible={transportVisible}
-    data-console-zone="transport"
-    data-transport-visible={transportVisible}
-    aria-hidden={!transportVisible}
-    aria-labelledby="console-transport-title"
-  >
-    <header class="console-zone__header">
-      <p class="console-zone__eyebrow">Zone 03</p>
-      <h2 class="console-zone__title" id="console-transport-title">Transport</h2>
-      <p class="console-zone__detail">
-        Reserved for transport controls and status/time information.
-      </p>
-    </header>
-    <div class="console-zone__body" aria-hidden="true">
-      <span>Transport placeholder</span>
-    </div>
-  </section>
 </RoomShell>
 
 <style>
   .console-room {
     display: flex;
+    flex: 1 1 auto;
     flex-direction: column;
     gap: 1rem;
     min-width: 0;
-    min-height: calc(100dvh - 7.5rem);
-    padding-bottom: 6rem;
+    min-height: 0;
+    height: 100%;
   }
 
   .console-layout {
@@ -191,29 +155,6 @@
     background: #e8e8e8;
   }
 
-  .console-transport {
-    position: fixed;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 30;
-    min-height: 5.5rem;
-    padding: 0.75rem 1rem;
-    border: 0;
-    border-top: 2px dashed #8a8a8a;
-    background: #f1f1f1;
-    transform: translateY(100%);
-    visibility: hidden;
-    transition:
-      transform 180ms ease,
-      visibility 180ms ease;
-  }
-
-  .console-transport.is-visible {
-    transform: translateY(0);
-    visibility: visible;
-  }
-
   @media (max-width: 40rem) {
     .console-layout {
       grid-template-rows:
@@ -223,12 +164,6 @@
 
     .console-zone__detail {
       flex-basis: 100%;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .console-transport {
-      transition: none;
     }
   }
 </style>

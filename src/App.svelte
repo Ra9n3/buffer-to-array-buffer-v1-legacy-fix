@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import MiniTransport from "./components/MiniTransport.svelte";
   import RoomNav from "./components/RoomNav.svelte";
   import ArrangeRoom from "./rooms/ArrangeRoom.svelte";
   import ConsoleRoom from "./rooms/ConsoleRoom.svelte";
@@ -42,4 +43,8 @@
       <MixerRoom />
     {/if}
   </main>
+
+  <!-- Rendered once, outside the room switch, so the transport is never
+       remounted and never moves when the room changes. -->
+  <MiniTransport />
 </div>

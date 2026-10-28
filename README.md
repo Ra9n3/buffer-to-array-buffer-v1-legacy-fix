@@ -2,7 +2,8 @@
 
 Rule-based automatic rough-mixing application. The current build is the Phase 0
 application shell: one shared shell with three rooms — **Arrange**, **Console**
-and **Mixer** — and working navigation between them. The Console room has its
+and **Mixer** — working navigation between them, and a persistent mini transport
+strip that stays put across all three. The Console room has its
 structural skeleton: meter bridge, a horizontally scrollable 20-strip channel
 bank (11 tracks fit by default) with pinned Return and bus-master channels, and
 a transport placeholder zone. The Mixer room has its skeleton too: a vertically
@@ -36,6 +37,7 @@ src/
 │   ├── ArrangeTrackRow.svelte    track-list row placeholder
 │   ├── ChannelBank.svelte        horizontal track bank and pinned rail
 │   ├── ChannelStrip.svelte       neutral channel-strip placeholder
+│   ├── MiniTransport.svelte      persistent transport strip (shared shell)
 │   ├── MixerChannelStrip.svelte  selectable Mixer channel header
 │   ├── MixerDetailPanel.svelte   selected-channel processing-detail panel
 │   ├── RoomNav.svelte            Arrange / Console / Mixer navigation
@@ -51,7 +53,8 @@ src/
     └── MixerRoom.svelte
 scripts/
 ├── check-arrange-structure.mjs   Arrange layout contract check
-└── check-mixer-structure.mjs     Mixer + navigation contract check
+├── check-mixer-structure.mjs     Mixer + navigation contract check
+└── check-transport-structure.mjs Mini transport contract check
 ```
 
 ## Commands
@@ -62,6 +65,7 @@ npm run dev       # development server
 npm run check          # svelte-check + TypeScript diagnostics
 npm run check:arrange  # Arrange structural contract check (no geometry)
 npm run check:mixer    # Mixer + navigation contract check (no geometry)
+npm run check:transport # Mini transport contract check (no geometry)
 npm run build          # production build
 npm run preview   # serve the production build
 ```
@@ -78,9 +82,11 @@ The navigation stays visible across room changes, marks the active room with
 `aria-current="page"`, and each room exposes its own labeled content. Tabs read
 left to right **Arrange | Console | Mixer**, sit on the right of the top bar with
 the ALLOY wordmark on the left, and are deliberately compact (28px tall). The
-top bar is sticky, and the Console transport panel is hidden until the page is
-scrolled. The Console channel bank shows 11 of its 20 tracks by default and
+top bar is sticky. The Console channel bank shows 11 of its 20 tracks by default and
 scrolls horizontally; its Return and bus-master rail stays pinned at the right.
+
+All three rooms are bounded to the viewport: room content scrolls inside its own
+pane rather than the page, so the mini transport below it can never cover it.
 
 ## Retired documentation site
 
@@ -121,8 +127,21 @@ shared geometry lives as `--track-header-*` custom properties in `app.css`, and
 disagree. Selection is drawn with a background change and an inset ring, so
 selecting a channel never changes the header's size.
 
+## Mini transport
+
+One `MiniTransport` component is rendered by `App.svelte` outside the room
+switch, so switching rooms neither remounts it nor moves it. It is fixed to the
+bottom of the shell, its height is declared once as `--mini-transport-height`,
+and the shell reserves exactly that height beneath its content. Content that
+narrows gives way in a fixed order rather than clipping.
+
+It is a **placeholder**: Previous / Play / Stop / Next are inert, the position
+readout is static, and the strip says so in visible text that also describes the
+buttons for screen readers. No audio engine, project state, or playback is
+connected — that is Phase 3+ work, per the plan's build-order rule.
+
 ## Status
 
-Tasks 0.1–0.5 are implemented and **approved**. Task 0.6, design tokens,
-channel-type-aware Mixer detail, shared project state, and audio functionality
-are **not** implemented.
+Tasks 0.1–0.6 are implemented; 0.1–0.5 are approved and Task 0.6 awaits owner
+review. Design tokens, channel-type-aware Mixer detail, shared project state,
+and audio functionality are **not** implemented.
