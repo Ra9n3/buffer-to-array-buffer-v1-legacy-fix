@@ -123,6 +123,6 @@ selecting a channel never changes the header's size.
 
 ## Status
 
-Tasks 0.1–0.5 are implemented. Task 0.6, design tokens, channel-type-aware
-Mixer detail, shared project state, and audio functionality are **not**
-implemented. Task 0.5 is awaiting explicit owner approval.
+Tasks 0.1–0.5 are implemented and **approved**. Task 0.6, design tokens,
+channel-type-aware Mixer detail, shared project state, and audio functionality
+are **not** implemented.
