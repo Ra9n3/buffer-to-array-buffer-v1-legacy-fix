@@ -30,16 +30,22 @@ src/
 ├── app.css                       flat gray-box Phase 0 styles
 ├── main.ts                       app mount
 ├── components/
+│   ├── ArrangeTimelineLane.svelte empty structural timeline lane
+│   ├── ArrangeTrackRow.svelte    track-list row placeholder
 │   ├── ChannelBank.svelte        horizontal track bank and pinned rail
 │   ├── ChannelStrip.svelte       neutral channel-strip placeholder
 │   ├── RoomNav.svelte            Console / Arrange / Mixer navigation
 │   ├── RoomPlaceholder.svelte    labeled empty-room placeholder
 │   └── RoomShell.svelte          shared room header and content boundary
-├── lib/rooms.ts                  room definitions and hash parsing
+├── lib/
+│   ├── arrange.ts                Arrange placeholder counts and labels
+│   └── rooms.ts                  room definitions and hash parsing
 └── rooms/
     ├── ConsoleRoom.svelte
     ├── ArrangeRoom.svelte
     └── MixerRoom.svelte
+scripts/
+└── check-arrange-structure.mjs   Arrange layout contract check
 ```
 
 ## Commands
@@ -47,8 +53,9 @@ src/
 ```bash
 npm install
 npm run dev       # development server
-npm run check     # svelte-check + TypeScript diagnostics
-npm run build     # production build
+npm run check          # svelte-check + TypeScript diagnostics
+npm run check:arrange  # Arrange structural contract check (no geometry)
+npm run build          # production build
 npm run preview   # serve the production build
 ```
 
@@ -73,7 +80,19 @@ The previous React documentation/playground site is preserved in
 The product documents themselves remain at the repository root and in
 `task-reports/`.
 
+## Arrange room
+
+The Arrange room is a bounded two-dimensional scroller. A single scroll
+container holds a CSS grid whose rows are shared between the track-list column
+and the timeline, so a track row and its lane are literally the same grid row
+and cannot drift apart. The track-list header and the timeline header
+(structure markers, tempo track, ruler) stick to the top; the track-list column
+sticks to the left. Horizontal scrolling moves only the timeline content, and
+vertical scrolling moves rows and lanes together. 20 placeholder track rows,
+56 bars, and the seven canonical structure markers are placeholders only — no
+waveforms, audio, or project state.
+
 ## Status
 
-Tasks 0.1–0.3 are implemented. Tasks 0.4–0.6, design tokens, room detail,
+Tasks 0.1–0.4 are implemented. Tasks 0.5–0.6, design tokens, room detail,
 shared project state, and audio functionality are **not** implemented.

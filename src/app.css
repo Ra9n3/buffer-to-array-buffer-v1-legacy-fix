@@ -184,6 +184,51 @@ a {
   overflow-wrap: break-word;
 }
 
+/* ---------------------------------------------------------------------------
+   Arrange room shell compaction — Task 0.4 refinement.
+
+   The arranger is the workspace of this room, so the room chrome above it is
+   reduced to a single identification line and the surrounding padding is
+   tightened. Scoped to [data-active-room="arrange"] so the Console and Mixer
+   rooms keep their existing spacing exactly.
+   --------------------------------------------------------------------------- */
+[data-active-room="arrange"] .room-host {
+  padding: 0.5rem 0.75rem;
+}
+
+[data-active-room="arrange"] .room {
+  gap: 0.5rem;
+}
+
+[data-active-room="arrange"] .room__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.5rem;
+  row-gap: 0;
+  padding: 0.3125rem 0.75rem;
+}
+
+[data-active-room="arrange"] .room__eyebrow {
+  margin: 0;
+}
+
+[data-active-room="arrange"] .room__title {
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+[data-active-room="arrange"] .room__purpose {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 30rem) {
+  [data-active-room="arrange"] .room-host {
+    padding: 0.5rem;
+  }
+}
+
 @media (max-width: 40rem) {
   .app-header {
     grid-template-columns: minmax(0, 1fr);
