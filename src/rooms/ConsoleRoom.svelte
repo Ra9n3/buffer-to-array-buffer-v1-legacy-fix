@@ -1,7 +1,17 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import ChannelBank from "../components/ChannelBank.svelte";
+  import ChannelDetailPanel from "../components/ChannelDetailPanel.svelte";
   import RoomShell from "../components/RoomShell.svelte";
+  import {
+    ALL_CHANNELS,
+    DEFAULT_CHANNEL_SELECTION,
+  } from "../lib/channels";
+
+  // Local UI state only — no shared project state, no cross-room sync.
+  let selectedId = $state<string>(DEFAULT_CHANNEL_SELECTION);
+
+  const selected = $derived(ALL_CHANNELS.find((c) => c.id === selectedId));
 
   let transportVisible = $state(false);
 
@@ -54,12 +64,31 @@
       </section>
 
       <section
+        class="console-zone console-zone--detail"
+        data-console-zone="channel-detail"
+        aria-labelledby="console-detail-title"
+      >
+        <header class="console-zone__header">
+          <p class="console-zone__eyebrow">Zone 02</p>
+          <h2 class="console-zone__title" id="console-detail-title">
+            Selected channel &amp; processing chain
+          </h2>
+          <p class="console-zone__detail">
+            The same panel the Mixer tab shows, driven by the channel bank below.
+          </p>
+        </header>
+        <div class="console-detail">
+          <ChannelDetailPanel channel={selected} />
+        </div>
+      </section>
+
+      <section
         class="console-zone console-zone--channels"
         data-console-zone="channel-bank"
         aria-labelledby="console-channels-title"
       >
         <header class="console-zone__header">
-          <p class="console-zone__eyebrow">Zone 02</p>
+          <p class="console-zone__eyebrow">Zone 03</p>
           <h2 class="console-zone__title" id="console-channels-title">
             Channel bank
           </h2>
@@ -69,7 +98,7 @@
           </p>
         </header>
         <div class="console-bank">
-          <ChannelBank />
+          <ChannelBank {selectedId} onselect={(id) => (selectedId = id)} />
         </div>
       </section>
     </div>
@@ -84,7 +113,7 @@
     aria-labelledby="console-transport-title"
   >
     <header class="console-zone__header">
-      <p class="console-zone__eyebrow">Zone 03</p>
+      <p class="console-zone__eyebrow">Zone 04</p>
       <h2 class="console-zone__title" id="console-transport-title">Transport</h2>
       <p class="console-zone__detail">
         Reserved for transport controls and status/time information.
@@ -111,8 +140,9 @@
     flex: 1 1 auto;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows:
-      minmax(7rem, 0.9fr)
-      minmax(16rem, 2.4fr);
+      minmax(6rem, 0.7fr)
+      minmax(12rem, 1.6fr)
+      minmax(13rem, 1.9fr);
     gap: 1rem;
     min-width: 0;
     min-height: 0;
@@ -181,6 +211,19 @@
     overflow-wrap: break-word;
   }
 
+  .console-detail {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.25rem;
+    border: 1px dashed #a3a3a3;
+    background: #e8e8e8;
+  }
+
   .console-bank {
     display: flex;
     flex: 1 1 auto;
@@ -217,8 +260,9 @@
   @media (max-width: 40rem) {
     .console-layout {
       grid-template-rows:
-        minmax(7rem, auto)
-        minmax(16rem, auto);
+        minmax(6rem, auto)
+        minmax(12rem, auto)
+        minmax(13rem, auto);
     }
 
     .console-zone__detail {

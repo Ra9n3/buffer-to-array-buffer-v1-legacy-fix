@@ -1,22 +1,27 @@
 <script lang="ts">
   import ChannelStrip from "./ChannelStrip.svelte";
+  import {
+    createTrackChannels,
+    PINNED_CHANNELS,
+    PLACEHOLDER_TRACK_COUNT,
+  } from "../lib/channels";
 
-  const tracks = Array.from({ length: 20 }, (_, index) => {
-    const code = String(index + 1).padStart(2, "0");
-    return { code, name: `Track ${code}` };
-  });
+  let {
+    trackCount = PLACEHOLDER_TRACK_COUNT,
+    selectedId = "",
+    onselect,
+  }: {
+    trackCount?: number;
+    selectedId?: string;
+    onselect?: (id: string) => void;
+  } = $props();
 
-  const pinnedStrips: Array<{
-    code: string;
-    name: string;
-    kind: "bus" | "return";
-  }> = [
-    { code: "R1", name: "Reverb Return", kind: "return" },
-    { code: "R2", name: "Delay Return", kind: "return" },
-    { code: "BUS", name: "Bus master", kind: "bus" },
-  ];
+  const tracks = $derived(createTrackChannels(trackCount));
 </script>
 
+<!-- The channel bank, shared by the Console and Mixer rooms so both tabs show
+     the same channels. Horizontally scrollable, with the Return buses and bus
+     master pinned at the right end (product plan 8a). -->
 <div class="channel-bank" data-channel-bank>
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div
@@ -24,11 +29,15 @@
     data-channel-bank-tracks
     role="region"
     tabindex="0"
-    aria-label="Track channel strips, 20 placeholders, horizontally scrollable"
+    aria-label="Track channel strips, horizontally scrollable"
   >
-    <ol class="channel-bank__track-row" aria-label="Tracks 01 through 20">
-      {#each tracks as track}
-        <ChannelStrip code={track.code} name={track.name} kind="track" />
+    <ol class="channel-bank__track-row" aria-label="Tracks">
+      {#each tracks as channel (channel.id)}
+        <ChannelStrip
+          {channel}
+          selected={channel.id === selectedId}
+          {onselect}
+        />
       {/each}
     </ol>
   </div>
@@ -40,12 +49,11 @@
   >
     <p class="channel-bank__pinned-title">Pinned bus / Returns</p>
     <ul class="channel-bank__pinned-row">
-      {#each pinnedStrips as strip}
+      {#each PINNED_CHANNELS as channel (channel.id)}
         <ChannelStrip
-          code={strip.code}
-          name={strip.name}
-          kind={strip.kind}
-          pinned
+          {channel}
+          selected={channel.id === selectedId}
+          {onselect}
         />
       {/each}
     </ul>
@@ -124,6 +132,10 @@
     flex: 1 1 auto;
     min-height: 0;
     padding: 0;
+  }
+
+  .channel-bank__pinned-row > :global(.channel-strip-item) {
+    flex: 0 0 6rem;
   }
 
   @media (max-width: 40rem) {
