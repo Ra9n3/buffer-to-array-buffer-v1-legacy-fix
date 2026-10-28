@@ -1,0 +1,212 @@
+:root {
+  color-scheme: light;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  line-height: 1.5;
+  background: #e4e4e4;
+  color: #1b1b1b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid #1f5fbf;
+  outline-offset: 2px;
+}
+
+.app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  background: #e4e4e4;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 1rem;
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  background: #d2d2d2;
+  border-bottom: 2px solid #6d6d6d;
+}
+
+.app-brand {
+  justify-self: start;
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-decoration: none;
+  padding: 0.25rem 0.125rem;
+}
+
+.room-nav {
+  justify-self: center;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.room-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.room-nav__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #8a8a8a;
+  background: #f3f3f3;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+}
+
+.room-nav__link:hover {
+  background: #ffffff;
+}
+
+.room-nav__link.is-active {
+  background: #3b3b3b;
+  border-color: #1b1b1b;
+  color: #ffffff;
+}
+
+.room-nav__index {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  opacity: 0.78;
+}
+
+.room-host {
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+  padding: 1rem;
+}
+
+.room {
+  min-width: 0;
+  min-height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.room__header {
+  min-width: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid #a3a3a3;
+  background: #efefef;
+}
+
+.room__eyebrow {
+  margin: 0 0 0.125rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #5d5d5d;
+}
+
+.room__title {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.room__purpose {
+  margin: 0.25rem 0 0;
+  color: #454545;
+  overflow-wrap: break-word;
+}
+
+.room__canvas {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+}
+
+.room-placeholder {
+  display: grid;
+  place-content: center;
+  gap: 0.375rem;
+  min-width: 0;
+  min-height: 12rem;
+  padding: 2rem 1rem;
+  border: 2px dashed #8a8a8a;
+  background: #f1f1f1;
+  text-align: center;
+}
+
+.room-placeholder__label {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.room-placeholder__detail {
+  margin: 0;
+  max-width: 34rem;
+  color: #4d4d4d;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 40rem) {
+  .app-header {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    row-gap: 0.5rem;
+  }
+
+  .app-brand {
+    justify-self: center;
+  }
+
+  .room-nav {
+    justify-self: center;
+  }
+}
+
+@media (max-width: 30rem) {
+  .app-header,
+  .room-host {
+    padding: 0.625rem;
+  }
+
+  .room-nav__link {
+    padding: 0.4375rem 0.625rem;
+  }
+}

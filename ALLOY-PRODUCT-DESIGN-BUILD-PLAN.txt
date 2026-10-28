@@ -1,0 +1,899 @@
+ALLOY
+
+Rule-Based Automatic Rough-Mixing Application
+
+Product vision • UX • audio engine • architecture • implementation roadmap
+
+A consolidated working document based on the full design conversation
+
+Working product specification • Consolidated from the design discussion
+
+ALLOY  /  PRODUCT DESIGN & BUILD PLAN
+
+1. Executive Summary
+
+Alloy is a rule-based audio mixing application for hobbyists, bedroom producers, and creators who know little about mixing but want their productions to sound more balanced and intentional. The user imports raw audio stems, confirms the app’s track guesses, optionally sets priorities and manual preferences, then presses one prominent MIX button to generate a demo/rough mix.
+
+The product is not intended to replace a professional mix engineer, and it does not perform mastering. Its value is a useful, explainable first-pass mix that avoids common problems—poor balance, frequency masking, harshness, muddiness, excessive level differences, and stereo conflicts—while allowing the user to inspect and edit every decision.
+
+The system uses deterministic, explainable rules and signal-processing math. No AI/ML model participates in the audio analysis or mixing signal path. The app should explain what it changed and why, while remaining approachable enough that a beginner can obtain a useful result without understanding every control.
+
+Core product principles
+
+The MIX button is the visual and functional centrepiece, but it must never take control away from the user.
+
+Beginner-friendly by default; detailed control is available when the user wants it.
+
+Every automatic decision is visible, explainable, reversible, and adjustable.
+
+No mastering or loudness maximization. Preserve headroom for a later mastering stage.
+
+Build and validate the complete web application first; native Windows packaging and the Rust engine come later.
+
+Vintage hardware aesthetics must not compromise legibility, responsiveness, accessibility, or correct functionality.
+
+2. Target User, Use Case, and Scope
+
+Target user
+
+The primary user is a non-engineer or hobbyist producer who has exported instrument and vocal stems from a DAW and wants a better-sounding demo mix without having to learn professional mixing from scratch.
+
+Primary workflow
+
+Create a new project or reopen a recent project.
+
+Import stems and hear them in sync as raw audio.
+
+Review auto-suggested instrument and role labels; correct any mistakes.
+
+Set track priority and any preferences the user wants to control manually.
+
+Optionally organize tracks and route them to buses.
+
+Press MIX and review the generated result.
+
+Inspect changed knobs, faders, EQ curves, and processing decisions; compare the result with the unprocessed starting point.
+
+Adjust any parameters, rerun the mix, and export the full mix, processed individual stems, and/or buses.
+
+In scope
+
+Automatic rough mixing through deterministic rules and DSP.
+
+Track analysis, gain staging, leveling, EQ, dynamics, panning, spatial sends, masking resolution, automation, and bus processing.
+
+Raw playback, lightweight live preview, and full processed render.
+
+Visible Auto/Manual control, explanations, comparison indicators, autosave, undo/redo, routing, and export.
+
+External editable genre rulebook data, with actual numeric values tuned later by listening.
+
+Explicitly out of scope
+
+AI/ML-based audio decisions.
+
+Mastering, loudness maximization, or forcing the mix to a streaming loudness target such as -14 LUFS.
+
+Promising that an automated rough mix replaces a professional engineer.
+
+Final genre-rulebook tuning before the actual DSP and listening workflow exist.
+
+Native Tauri + Rust implementation during the initial Arena AI web-app phase.
+
+Third-party plugin hosting (VST/AU/CLAP) in v1 — Alloy’s engine performs its own deterministic DSP and does not host external plugins; see Section 13 for future direction if this is ever pursued.
+
+3. Application Layout and User Experience
+
+The application uses one cohesive shell with three main workspaces or “rooms.” They share the same project state, transport conventions, controls, and design system. The rooms may be popped out into separate operating-system windows for multi-monitor users, but the default experience is a unified application rather than three disconnected windows.
+
+Room
+
+Purpose
+
+Main contents
+
+Console
+
+The primary overview and automatic-mix workspace.
+
+Vintage meter bridge; VU and level meters; stereo correlation/goniometer; spectrum display; transport; time/status display; channel strips; bank selection; large illuminated MIX button.
+
+Arrange
+
+Import and organize the session.
+
+Timeline and raw waveforms; track names; instrument/role labels; song structure markers; tempo track; organizational groups; bus-routing controls/patchbay.
+
+Mixer
+
+Inspect and edit processing in detail.
+
+Channel strips; selected-track processing chain; EQ curve; compressor and gain-reduction display; sends; Auto/Manual controls; original-versus-current ghost indicators; plain-language “what changed and why” panel.
+
+Console room
+
+The upper section is a vintage meter bridge: master stereo VU meters, channel meters for the current bank, stereo correlation display, spectrum ladder, transport, status and estimated processing time.
+
+The lower section contains channel strips. Each strip should remain legible and relatively simple: name label, fader, pan, mute/solo, input trim, and a peak indicator.
+
+Console strips deliberately exclude instrument-tagging and Prominence Tier controls, which live in Arrange and Mixer — this is an intentional simplicity decision, not an oversight.
+
+For large sessions, use a channel-bank/paging system. Group/bus masters should remain pinned or easily accessible.
+
+The MIX button must be visually dominant and unmistakably different from Play. It starts the full processing/render process, not ordinary playback.
+
+During processing, show meaningful status stages and a hardware-informed estimate rather than a generic spinner.
+
+Arrange room
+
+Support importing stems, renaming tracks, changing track order, selecting multiple tracks, and applying organizational labels/colors.
+
+Provide song structure markers such as Intro, Verse, Pre-Chorus, Chorus, Bridge, Solo, and Outro, plus a tempo track.
+
+Display waveforms derived from the source audio for navigation and scrubbing.
+
+Auto-suggest instrument and role from filenames using a deterministic dictionary; the user confirms or corrects suggestions.
+
+Keep a persistent mini transport/master-feedback strip so changing rooms does not feel like entering another DAW.
+
+Mixer room and transparency
+
+Selecting a track exposes its complete processing chain and all meaningful settings.
+
+Every processing module can be bypassed and its parameters inspected or edited.
+
+Display the original/previous setting as a subtle ghost indicator: original fader position, knob pointer, or dotted EQ curve alongside the current result.
+
+Provide a concise “What changed?” list with explanations such as “Reduced energy around 3 kHz to make room for the lead vocal.” Explanations must come from actual engine decisions, not fabricated placeholder reasoning in the final product.
+
+The detailed room may expose advanced controls, but the default route to a useful result should remain simple.
+
+The processing-chain detail panel must render differently depending on channel type — a standard track, a regular bus, or a Return bus each expose a different, relevant set of controls (see Section 8a). The panel must not assume one universal chain layout for every channel type.
+
+4. Visual Design System
+
+The visual direction is a modernized late-1970s/early-1980s TASCAM/TEAC-style recording console. It should feel like one piece of carefully modernized hardware across all rooms. The skin is vintage; the interaction model is modern.
+
+Material, lighting, and typography
+
+Warm near-black/charcoal and dark grey-green control surfaces, with walnut or rosewood side trim.
+
+Recessed meter windows with cream faces and a soft incandescent amber/gold lamp glow. Glow should bloom softly rather than look like a crisp LED outline.
+
+All control labels should look engraved or machined into the panel, using compact industrial/condensed typography. Avoid modern floating-label UI styling.
+
+Controls should look mechanical: visible switch travel, tactile knobs and faders, and subtle press/depress animations.
+
+No LED aesthetic. Indicators use a warm lamp-like golden glow; avoid cold blue/green VFD styling.
+
+Use subtle metal texture, panel bevels, and screw details where they help the illusion, without sacrificing contrast or readability.
+
+Functional color coding
+
+Color family
+
+Meaning
+
+Cream / off-white
+
+Input trim and gain staging
+
+Amber / gold
+
+EQ and tonal controls
+
+Red
+
+Compression and dynamics
+
+Blue-grey
+
+Pan, stereo image, and spatial placement
+
+Green
+
+Sends, auxiliary paths, and reverb
+
+Orange
+
+Bus/group masters and the recurring console accent stripe
+
+Modern interaction requirements
+
+Knobs and faders support click-drag as well as direct numeric entry (for example, double-click to type a value).
+
+Support undo/redo, multi-select, copy/paste settings between channels, keyboard shortcuts, and sensible snapping.
+
+Scale and resize cleanly, including high-DPI displays.
+
+Use one shared component library across all rooms so the same kind of knob, fader, switch, meter, label, and lamp behaves and looks the same everywhere.
+
+Prioritize usable data density in Arrange/Mixer rooms while retaining the same vintage design language.
+
+5. Project Model, Tracks, Groups, Buses, and Routing
+
+Track metadata
+
+Each track has a name, source audio reference, mono/stereo status, instrument label, role, priority, routing destination, mute/solo state, and channel-strip state.
+
+Instrument identifies what the source is (for example kick, snare, bass, electric guitar, keys, synth, lead vocal, backing vocal, or other).
+
+Role identifies the track’s function (lead/main, rhythm, stacked/double, or background/harmony).
+
+Priority is a separate user-editable value from 1 to 10. It represents how important the track is when resolving conflicts, setting prominence, and anchoring the stereo image. Keep one fixed priority per track in v1; per-section priority is a possible future enhancement.
+
+Each track also stores one send-level value for every active Return bus, with an independent Auto/Manual mode for each send.
+
+Organizational groups versus audio buses
+
+These are separate concepts and must not be conflated.
+
+Organizational grouping is for track organization, shared naming/coloring, and convenience. It does not automatically sum or process audio.
+
+An audio bus is a real signal destination that sums its input tracks and may have its own processing chain.
+
+Bus creation and routing interaction
+
+Users can multi-select tracks in Arrange or Mixer, then use a right-click menu, dropdown, or output field.
+
+Routing offers two clear actions: route to an existing bus, or create a new bus and route the selected tracks to it.
+
+Each track’s output field shows its current destination. The same mechanism applies to buses, allowing bus-to-bus chaining.
+
+A newly created bus starts flat/untouched. It receives automatic bus processing only when the user runs MIX.
+
+Reject circular routes (for example Bus A → Bus B → Bus A) using graph cycle detection and show a clear explanation.
+
+Changes to track names, order, colors, groups, buses, routing, and settings appear immediately in all rooms because they share one project model.
+
+5a. Instrument Identification and Prominence Tier
+
+On import, use deterministic filename-to-instrument dictionary matching. When the match is confident, automatically assign the instrument label, the corresponding genre-rulebook Prominence Tier, and the default per-category bus routing. Show all suggestions visibly and let the user edit them.
+
+When no confident instrument match exists, prompt the user to enter an instrument name as free text and choose a Prominence Tier manually. Default the tier to Supporting and mark it “needs confirmation” until the user confirms it. Routing is optional; do not force a bus assignment when the rulebook or user has not specified one.
+
+Prominence Tier has three values: Primary, Supporting, and Background. It is backed by the existing per-track Priority value (1–10); the user can switch tiers in the track header in Arrange and on the channel strip in Mixer, and can use a numeric Priority override in Mixer. The instrument-name combobox appears in the same Arrange and Mixer locations. These controls are intentionally absent from Console strips.
+
+Role and Prominence Tier are independent properties, exactly as Role and Priority were already defined to be independent in Section 5. A track’s Role describes its musical function (e.g., background/harmony vocal); its Prominence Tier describes how it should be treated in mix conflicts (Primary/Supporting/Background). The two may combine in any way — for example, a background/harmony vocal may still be set to Primary prominence if the user wants it to cut through clearly. The shared word “Background” in both systems is coincidental; they are not linked.
+
+5b. Organizational Color System and Templates
+
+Provide a curated palette of no more than 24 organizational swatches, plus a distinct Unassigned/Neutral state. Organizational colors are for visual grouping and identification only; they are independent of the functional color coding of controls in Section 4. New tracks start Neutral. A group or bus may have an organizational color, and that color is shown consistently in Arrange, Mixer, and Console.
+
+When a track joins an organizational group or is routed into a bus that has an organizational color, it inherits that color and the inherited color overrides its previous color. A manually overridden track color persists if the group/bus color changes. That override clears only if the track leaves and then rejoins the group/bus. If the track is removed and does not rejoin, its color resets to Neutral.
+
+Organizational templates are external files and store only group/bus names, hierarchy (including bus-to-bus chains), and organizational colors. They do not store routed tracks or processing settings. Applying a template creates/reuses the organizational structure only; it must not silently change track routing or audio processing.
+
+6. Audio Playback Modes
+
+Mode
+
+Purpose
+
+Expected behavior
+
+Raw stem playback
+
+Listen to the imported session before mixing.
+
+Synchronized playback of source tracks with no mix processing. Used to check files, takes, and section boundaries.
+
+Lightweight live preview
+
+Hear quick balance changes while preparing the mix.
+
+Responsive preview for basic gain, pan, mute, solo, and routing-related monitoring. It is explicitly not a substitute for the full DSP render.
+
+Full rendered mix
+
+Hear the actual processed result.
+
+Uses the real analysis, DSP, masking, routing, sends, bus processing, and automation pipeline. This is the authoritative sound.
+
+The same transport controls should work consistently across rooms. Mute/solo state is part of the shared project model and should behave consistently in raw playback and preview. The MIX button is separate from Play and signals a longer, committed render.
+
+7. Audio Analysis: What the Engine Measures
+
+Analysis and mixing decisions must be kept conceptually separate. Measurements provide evidence to the rules; they do not automatically determine musical intent. “Timbre” is not a single scalar value, and a spectral measurement alone cannot decide whether an instrument should be brighter or darker.
+
+Measurement family
+
+Examples
+
+Why it matters
+
+Level and dynamics
+
+Sample peak, true peak where supported, RMS/loudness over time, crest factor
+
+Gain staging, level consistency, transient/dynamic assessment, output safety.
+
+Frequency content
+
+Energy by frequency band over time, spectral centroid, low/mid/high balance
+
+Identify tonal imbalance and possible overlap; guide EQ decisions against genre/instrument targets.
+
+Transient behavior
+
+Transient activity and changes in short-time energy
+
+Help characterize punch and guide suitable dynamics settings.
+
+Stereo behavior
+
+Stereo correlation, channel energy, width/mono compatibility checks
+
+Avoid risky widening and reveal possible phase cancellation.
+
+Input integrity
+
+DC offset, silence/near-silence, file format, channel count, sample rate, duration
+
+Catch problematic or unsupported files and prevent invalid measurements.
+
+The analysis stage should produce reusable time-based measurements where useful, rather than only one whole-song average. Frequency conflicts must be considered in time as well as frequency: two instruments can share a band without colliding if they rarely play loudly at the same time.
+
+8. Automatic Mixing Logic and Processing Chain
+
+The app should not be implemented as a rigid, irreversible five-stage assembly line. Analysis happens first, but the actual mix is a signal-flow graph with explicit routing, user constraints, editable parameters, and rerunnable processing. Dependencies may require recalculation when an upstream decision changes.
+
+Proposed channel chain
+
+1. Input trim and gain staging.
+
+2. Cleanup / expander where justified by the track and rules.
+
+3. Static multiband EQ.
+
+4. Dynamic EQ for time-varying conflicts or tonal control.
+
+5. Compressor, with a selectable character: VCA, Opto, FET, or Vari-Mu.
+
+6. Panning and stereo placement.
+
+7. Channel fader / final channel level.
+
+8. Sends to shared spatial effects such as reverb/delay returns (post-fader by default, per Section 8a), followed by routing to the assigned bus.
+
+The chain order is a proposed v1 contract from the discussion. Each block must be bypassable. If implementation testing demonstrates that a different internal order is necessary, document the reason and preserve an understandable user-facing chain.
+
+Bus and master path
+
+Tracks route to buses or Master; buses can route to other buses or Master.
+
+Buses have their own channel-strip state and may receive EQ/dynamics when MIX is run.
+
+Shared effects returns are part of the routing model; reverb/depth is included because a completely dry mix may sound artificial or amateurish.
+
+Basic sidechain relationships may be used where rules and measurements justify them, especially to resolve masking.
+
+The final output stage performs safety checks and only transparent peak protection if needed. It must not perform loudness maximization or mastering.
+
+Frequency masking resolution
+
+Measure overlapping band energy per track over time.
+
+Identify tracks that overlap both in frequency and in time; do not cut merely because two instruments share a frequency range.
+
+Resolve by track priority. The higher-priority track is protected while the lower-priority track yields space.
+
+If the conflict is persistent, prefer a proportional static EQ cut on the lower-priority track.
+
+If the conflict is intermittent, prefer a sidechain-triggered dynamic EQ dip so the lower-priority track is only reduced when needed.
+
+Re-measure after the EQ move. Escalate to sidechain compression only if meaningful conflict remains.
+
+For several competing tracks, resolve in priority order and enforce a cumulative-cut safety limit so a track cannot be hollowed out by many small cuts.
+
+Priority, panning, and manual control
+
+Priority is independent of role and should influence frequency-conflict resolution, relative gain prominence, and centre-versus-outward panning. Genre defaults can provide sensible starting values, but the user can override them. A typical pop example might keep kick, bass, snare, and lead vocal near the centre while lower-priority supporting parts are distributed around them; exact placement remains context-dependent.
+
+Every parameter has Auto or Manual mode. Manual protects only that specific parameter from recalculation; the track still participates in masking resolution according to its Prominence Tier/Priority. Manual means the engine must not overwrite that parameter’s base value. However, manual base values do not automatically disable arrangement-driven movement across song sections. Bulk controls such as “Panning: Manual” set base values for the category, while section automation may still operate. The user can always return after a render and adjust the final mix.
+
+No mastering
+
+The application does not target -14 LUFS or another distribution loudness target. It leaves appropriate headroom for a separate mastering process. The exact numerical headroom target remains deliberately unspecified until listening and export testing establish a useful default. Any final limiter is for safety against accidental overs, not loudness maximization.
+
+8a. Send/Return Architecture
+
+Reverb and delay are implemented as real, visible Return bus channels—not hidden per-track effect parameters. Return buses are first-class channels that can be selected, inspected, edited, muted, soloed, bypassed, and switched between Auto and Manual like other channels, while using a processing chain appropriate to their type.
+
+Signal path: Track → post-fader send control → Reverb Return or Delay Return → that Return’s processing chain → Master. A Return bus is a specific audio-bus type intended to receive sends rather than directly routed tracks.
+
+Version 1 starts with two default Return buses: Reverb Return and Delay Return. If MIX determines ambience is beneficial, the engine creates/configures the relevant Return bus automatically; the user may also create one manually. A manually created Return starts flat until MIX is run.
+
+Each track has one send-level control for each active Return bus. Send controls use the green functional color family defined in Section 4. Sends are post-fader by default in v1; pre-fader sends are deferred. Each send has its own Auto/Manual mode: Auto values may be recalculated on a MIX rerun, while Manual values are preserved.
+
+Return processing controls include effect character/algorithm (for example Room, Hall, or Plate for reverb, and delay-line character for delay), decay or delay time, pre-delay, tone/damping, delay feedback, Return output level, and bypass. Exact DSP algorithm choice and impulse-response sourcing/licensing remain deferred.
+
+Wet reverb and delay tails participate in frequency-and-time masking analysis. If a persistent dry-versus-wet conflict remains, reduce the send proportionally on the lower-priority contributor; for intermittent conflicts, escalate to dynamic processing/ducking where justified.
+
+UI requirements: pin Return channels at the end of the Console channel bank alongside bus masters. Mixer chain-detail UI must branch by channel type (track, regular bus, Return bus); a Return displays its effect-specific chain. Arrange/routing visuals must distinguish send connections from primary output routing.
+
+The same shared channel-selection, mute/solo, bypass, and Auto/Manual conventions should apply, while the Return’s input is defined by its incoming sends rather than the ordinary track-output destination.
+
+9. Genre Rulebooks
+
+Genre rules are the data-driven tuning layer and should be external editable JSON files rather than hardcoded DSP decisions. The engine consumes the rulebook generically; rulebook content can be updated without rewriting the engine.
+
+Rulebooks may eventually include per-instrument tonal targets, frequency-band preferences, dynamics defaults, stereo-width guidance, panning tendencies, effect-send defaults, and section-energy behavior.
+
+The actual numeric contents are deferred. They need listening, iteration, and real-world evaluation; they should not be invented prematurely or treated as scientifically universal.
+
+A placeholder rulebook is acceptable while building the functional architecture. A later tuning phase will refine it by ear.
+
+Auto-tagging from filenames is deterministic dictionary matching, not AI. The user must be able to correct incorrect suggestions.
+
+Genre labels are starting points, not rigid definitions. Future variants or substyles can be added as separate data files.
+
+There is no universal fixed precedence among genre defaults, Prominence Tier/Priority, and masking resolution; nuanced precedence belongs in rulebook data. If a loaded rulebook does not specify a resolution order for a given interaction, the engine falls back to a default sequence: Prominence/Priority is applied first (protecting higher-priority tracks), then masking resolution runs against the result, with genre-default tonal targets treated as the lowest-precedence nudge. This fallback exists only to guarantee deterministic behavior when rulebook data is incomplete — any rulebook may override it explicitly for specific instruments or situations.
+
+10. MIX Button, Reruns, Review, and Explanations
+
+MIX button behavior
+
+The MIX button is the main call to action and must be visually dominant in the Console room.
+
+Mixing is non-destructive: retain source audio and prior/original parameter values.
+
+A rerun recomputes only parameters still in Auto; Manual values are respected as fixed base values.
+
+Show current stage, progress, hardware-informed estimated duration, and any warnings.
+
+Persist completed progress and project state continuously so a long render can recover after interruption.
+
+Review workflow
+
+Make before/after differences visible directly on controls: ghosted knob/fader positions and original/dotted EQ curves.
+
+Provide a “What changed and why?” summary in plain language.
+
+Allow the user to inspect and directly adjust the actual settings that produced the sound.
+
+Keep raw playback and processed playback available for listening comparison.
+
+Provide a clear path to rerun MIX after edits, without silently overwriting manual values.
+
+11. Hardware, Rendering, Persistence, and Import
+
+Hardware-adaptive processing
+
+The application should account for weak computers rather than assuming a powerful workstation. A calibration/benchmark step should estimate the device’s practical processing speed and choose a profile. The estimate must be based on measured performance, not an arbitrary promise.
+
+Profile
+
+Intent
+
+Lite
+
+Lowest RAM use and conservative concurrency; longer render time is acceptable.
+
+Standard
+
+Balanced concurrency, buffering, memory use, and render time.
+
+Performance
+
+Higher concurrency/buffering for capable machines to reduce render time.
+
+Where practical, benchmark a representative processing chunk, cache the result for the device/session, and estimate the time before the user commits. The user should be able to override the automatically selected profile in settings.
+
+Chunk processing and continuity
+
+Long sessions must not require loading every full-length stem and all intermediate buffers into RAM at once. The engine should process bounded chunks, while preserving filter state, compressor/limiter envelopes, lookahead, delay/reverb state, and any other history across chunk boundaries. Chunk edges must not create clicks, gain steps, pumping artifacts, or discontinuities. The exact chunk duration is an implementation choice and should be validated.
+
+Chunk processing is a firm requirement for low-spec PCs and must not be descoped. Add an automated single-pass-versus-chunked render comparison to verify that chunking introduces no clicks, gain steps, or other discontinuities.
+
+Autosave, undo/redo, and recovery
+
+Autosave is continuous; there is no need for a manual Save button as the primary save mechanism.
+
+Project state and processing progress should be persisted incrementally so interrupted renders can resume or safely restart from the latest valid checkpoint.
+
+Autosave does not replace undo/redo. Support a normal undo/redo stack for user actions.
+
+The project is a folder containing a JSON manifest for tracks, routing, markers, tempo, parameter values/modes, and settings, plus copies of imported source audio.
+
+Copy source stems into the project folder at import time to avoid broken references when the user moves or deletes the originals.
+
+Import rules and edge cases
+
+Agreed v1 target: 48 kHz audio, accepting the discussed 24-bit or 32-bit-float source formats; internally process using 32-bit floating-point samples.
+
+If a file uses an unsupported sample rate/format/bit depth, explain the issue and ask the user to convert or re-export rather than silently converting it.
+
+Accept mono files in a stereo session by duplicating the mono signal equally to left and right; visibly flag the track as mono.
+
+Accept silent/empty tracks without crashing; exclude them from meaningful analysis targets and show a mild warning.
+
+Pad shorter stems with silence to match the longest stem and identify which tracks were padded.
+
+Reject only the corrupted/unreadable file with a clear named error; continue importing other files in the batch.
+
+A stem shorter than the standard processing chunk is processed as one smaller buffer.
+
+The source conversation contained an early 32-bit-float-only proposal and later settled on accepting 24-bit or 32-bit float at 48 kHz. This document uses the later decision.
+
+12. Export
+
+The user can choose any combination of three output types. Version 1 export is WAV-only, with a user-selected destination folder.
+
+Output
+
+Definition
+
+Full mix
+
+The summed stereo rough mix, with channel/bus processing applied, but without mastering or loudness maximization.
+
+Processed individual stems
+
+One output per original track, with that track’s processing baked in so it can be imported into a DAW for further work. Routing/export behavior should be documented carefully when bus processing contributes to the sound.
+
+Processed buses
+
+One output per bus/submix (for example drums, vocals, guitars), with the bus processing applied.
+
+Export dialog requirements: choose destination folder and check which output types to include. Use predictable, collision-safe filenames and a clear folder structure. Exact naming conventions can be finalized during implementation, but should be consistent and documented.
+
+13. Technical Strategy and Build Phases
+
+Initial implementation: complete web app
+
+The initial build is a real, functional browser-based app using Svelte + TypeScript + Vite. It is not a throwaway visual mockup and it must not depend on native Rust setup. This matters because the Arena AI environment cannot fetch external dependencies or reliably establish the native toolchain. Build the actual audio workflow in the web app, test it, listen to it, and tune the rulebook before starting the native port.
+
+For the DSP, prefer custom, explicitly implemented TypeScript algorithms operating on audio sample buffers (with suitable offline rendering/AudioWorklet use where appropriate) over relying on browser-native filter/compressor nodes as the core sound. This makes behavior predictable and gives the eventual Rust implementation a reference algorithm to reproduce. Web Audio may still be used for playback/transport and lightweight preview.
+
+Later native Windows implementation
+
+Only after the web app is complete and validated should the project move to the native Windows build using Tauri + Rust. Rust serves as both the application shell (via Tauri) and the native audio engine — there is no separate C++/JUCE layer and no cross-language audio bridge. The web-first phase should keep data structures, DSP math, and module boundaries clean so the TypeScript DSP reference implementation can be ported directly into Rust, and the Svelte frontend continues to run inside Tauri’s webview unchanged. Do not ask the current offline Arena AI phase to scaffold Rust, set up Cargo workspaces, or implement native IPC — this remains a separate later phase.
+
+Plugin hosting (deferred capability, not v1 scope): Alloy’s core mixing engine does not host third-party plugins and is not required to. If third-party plugin hosting is pursued in a future phase, CLAP is the preferred target format, due to its open design and strong native Rust support, with VST3 hosting as a possible secondary goal given its more involved binding requirements. This decision should not influence or complicate the v1/native-port architecture described above.
+
+Suggested code architecture
+
+Svelte + TypeScript + Vite single-page frontend; avoid SvelteKit/server-side rendering.
+
+Strict TypeScript, linting, formatting, and build checks.
+
+Shared design components for knobs, faders, switches, engraved labels, meters, and lamp glow.
+
+Shared typed project model and stores; separate UI state from project/audio state.
+
+Separate analysis, DSP, routing/pipeline, persistence, rulebook, and export modules.
+
+External JSON rulebook data and explicit module contracts.
+
+Use a stable, documented project data model from the beginning so UI, engine, and future port do not invent conflicting types.
+
+Later native port target: Tauri + Rust, with the Rust backend hosting both the application shell and the ported audio engine.
+
+14. Revised Web Build Roadmap: UI-First Phased Approach
+
+The governing rule is that UI structure and visual skin are built and explicitly approved in isolation before any shared project state, audio import, analysis, or DSP logic is connected. No task may combine new layout/visual work with new functional/data wiring. Every task in Phases 0–2 ends with a mandatory stop for user review of the running browser app before further work begins.
+
+Layout, scroll, and navigation problems are structural bugs and become difficult to diagnose if skin, skeleton, and state are built together. Each phase therefore produces a running, checkable result before the next phase starts. Every task must use task-prompt-template.md (see Section 18), read prior decisions and reports, stay within scope, and stop for explicit user review rather than continuing automatically.
+
+Phase 0 — Structural Skeleton (no visual skin)
+
+Flat, unstyled gray-box layout only. Prove navigation, scrolling, and resizing before applying the vintage visual system.
+
+0.1 — App shell: Console/Arrange/Mixer navigation, routing between rooms, and an empty labeled page per room. Review: all three rooms are reachable and navigation remains visible when switching rooms.
+
+0.2 — Console room skeleton: gray placeholder zones for meter bridge, channel bank, and transport using real CSS grid. Review: no overlap or clipping at 1920px and 1024px widths; no unintended horizontal scroll.
+
+0.3 — Console channel-strip bank: horizontally scrollable row simulating about 20 tracks, plus pinned bus/Return placeholders. Review: smooth horizontal scrolling and pinned elements remain visible.
+
+0.4 — Arrange skeleton: timeline area, track-list column, structure/tempo row, and placeholders. Review: track list scrolls vertically independently of the timeline header.
+
+0.5 — Mixer skeleton: channel-strip column on the left and processing-chain detail panel on the right, placeholders only, with stubbed channel selection. Review: selecting a placeholder visibly changes the right panel.
+
+0.6 — Persistent mini-transport strip shared across rooms. Review: remains visible in the same position across room switches.
+
+STOP — Full review and explicit approval of Phase 0 are required before Phase 1.
+
+Phase 1 — Component Playground
+
+Build a private, unlinked /dev/components route for isolated component review, following hardware-reference.md (listed in Section 19). Review each component in the playground before using it in a room.
+
+1.1 — Design tokens (colors, spacing, typography) plus a swatch page rendering every token as a labeled block.
+
+1.2 — Knob/pot component: default, dragging, focused, disabled, and numeric-entry states; show all function-colors from Section 4 side by side.
+
+1.3 — Fader component, including the finger-hollow cap profile, track/slot, and tick marks.
+
+1.4 — Tactile switch component: cap-labeled and panel-labeled variants, with default, pressed, and engaged-with-lamp states.
+
+1.5 — Analog VU meter with incandescent lamp-style illumination (not LED), plus a separate LED-segment ladder component for contexts where that style is appropriate.
+
+1.6 — Engraved label/typography component and lamp-glow indicator for switch-engaged states, peak indicators, and similar uses.
+
+STOP — Full review and explicit approval of Phase 1 are required before Phase 2.
+
+Phase 2 — Skin Applied to Skeleton
+
+Replace Phase 0 gray boxes with approved Phase 1 components, one room section at a time. No task may skin more than one section of one room.
+
+2.1 — Console meter bridge: master VU meters, spectrum ladder, and correlation display.
+
+2.2 — Console channel strip, fully skinned and repeated across the bank, including green per-track send knobs per Section 8a.
+
+2.3 — Console transport, status/time display, and dominant MIX button.
+
+2.4 — Console bus-master and Return-bus strips, pinned as established in Phase 0.3.
+
+2.5 — Arrange: track-list rows with instrument/role labels, organizational colors, and the Prominence Tier switch and instrument-name combobox per Section 5a.
+
+2.6 — Arrange timeline, waveform placeholders, and structure/tempo markers.
+
+2.7 — Mixer: channel-strip column reusing 2.2’s component, extended with the Prominence Tier switch and instrument-name combobox per Section 5a (these controls are intentionally not present on the Console strip — see Section 3).
+
+2.8 — Mixer processing-chain detail for a standard track: EQ graph, compressor/gain-reduction display, Auto/Manual controls, ghost/diff indicators, and explanation panel.
+
+2.9 — Mixer chain-type-aware detail for bus and Return-bus channels; Return channels display an effect-specific chain per Section 8a.
+
+By the end of Phase 2, the app should look and feel like the finished product, but have no real audio or shared project state behind it. Confirm or revise the visual system before state/audio work makes changes more expensive.
+
+STOP — Full review and explicit approval of Phase 2 are required before Phase 3.
+
+Phase 3 — Shared Project State and Interaction
+
+3.1 — Shared typed project model and stores; connect all three rooms to one state source instead of local/fixture data.
+
+3.2 — Track, bus, and Return-bus model; routing graph with cycle detection; Auto/Manual state plumbing.
+
+3.3 — Undo/redo, autosave foundations, copy/paste of channel settings, and cross-room synchronization verification.
+
+STOP — Full review of Phase 3 is required before Phase 4.
+
+Phase 4 — Home, Onboarding, Settings
+
+4.1 — Recent-projects home, start-empty flow, skippable first-run guidance, hardware profile override, export preferences, accessibility, and reduced-motion options.
+
+Phase 5 — Real Audio Foundation
+
+5.1 — Real audio import and validation: format checks, mono/silence/mismatched-length/corrupt-file handling, copy sources into project storage, and calculate waveform peak data.
+
+5.2 — Analysis engine: loudness/level, spectral-band, transient, stereo, and integrity measurements; benchmark-based hardware profile and time-estimate logic.
+
+Phase 6 — Core DSP
+
+6.1 — Custom TypeScript EQ and dynamic EQ modules, tested in isolation.
+
+6.2 — Four compressor characters (VCA/Opto/FET/Vari-Mu), expander, and safety limiter.
+
+6.3 — Reverb and delay DSP for the Return-bus processing chain defined in Section 8a.
+
+Phase 7 — Signal Flow Assembly
+
+7.1 — Channel-chain assembly, summing/routing, and bus processing.
+
+7.2 — Send/return plumbing per Section 8a: per-track send levels, Return-bus signal path, and sidechain plumbing.
+
+7.3 — Masking resolution: priority-based frequency/time overlap detection including wet tails per Section 8a, static-versus-dynamic EQ resolution, and escalation rules.
+
+7.4 — Bounded-chunk rendering, state continuity across chunk boundaries, and recovery integration.
+
+Phase 8 — Playback, Export, Rulebook
+
+8.1 — Connect raw synchronized playback, lightweight live preview, and full rendered mix to the shared transport across all rooms.
+
+8.2 — Export full mix, processed stems, and processed buses as WAV; load external JSON rulebook data; verify routing and bus/Return processing are reflected correctly in output.
+
+Phase 9 — Stabilization and Handoff
+
+9.1 — Fix integration issues; run full tests/build; verify edge cases and the complete sound workflow; document what works, known limitations, remaining rulebook tuning, and requirements for the later native port.
+
+15. Testing and Acceptance Expectations
+
+The app builds and runs after each task; each task leaves the repository in a coherent state.
+
+No core audio path is a mock by the end of the web build. Mock data is acceptable only for early UI tasks and must be replaced by real state/audio in later tasks.
+
+Test normal sessions and difficult cases: mono stems, silence, mismatched lengths, corrupted files, very short files, many tracks, bus chains, circular routes, heavy masking, clipping risk, and low-memory/slow-hardware profiles.
+
+Verify that Auto parameters are recalculated on rerun and Manual parameters are preserved.
+
+Verify that routing, mute/solo, names, groups, and settings remain synchronized across all rooms.
+
+Verify chunk boundaries do not create audible discontinuities and that render progress/recovery is robust.
+
+Automated single-pass-versus-chunked render comparison must pass, checking for clicks, gain steps, and discontinuities.
+
+Verify exports correspond to the selected output types and do not accidentally master or loudness-maximize the mix.
+
+Use listening tests as well as unit tests. Numerical tests alone cannot establish that a mix sounds musically good.
+
+16. Decisions Locked So Far
+
+Product goal: a better demo/rough mix for users who know little about mixing.
+
+No AI/ML in the mixing decision or audio-processing path; deterministic rules and DSP.
+
+No mastering; leave headroom and do not force -14 LUFS.
+
+One unified app shell with Console, Arrange, and Mixer rooms; optional pop-out windows for multi-monitor use.
+
+Vintage TASCAM/TEAC-inspired design, engraved text, mechanical controls, warm amber/gold lamp glow, and shared components.
+
+Svelte + TypeScript + Vite for the web-first version.
+
+Native implementation target is Tauri + Rust (no JUCE, no CMake, no cross-language audio bridge), after the functional web app is tested and tuned.
+
+Native Rust serves as both the Tauri application backend and the native audio engine; no separate C++/JUCE layer, CMake setup, or cross-language audio bridge.
+
+Three playback tiers: raw stems, lightweight live preview, full rendered mix.
+
+Three output choices: full mix, processed stems, processed buses; WAV-only in v1.
+
+External JSON genre rulebooks; exact numeric tuning deferred until listening tests.
+
+Separate organizational groups from audio buses; buses can chain; circular routing is rejected.
+
+New buses start flat until MIX is run.
+
+Every processing parameter has Auto/Manual state; reruns only recompute Auto parameters.
+
+Priority is independent of Role and is a single user-editable value per track in v1.
+
+Prominence Tier is a separate mix-conflict axis from musical Role and is backed by the existing 1–10 Priority value.
+
+Manual base values do not necessarily disable arrangement-driven movement across song sections.
+
+Continuous autosave plus undo/redo; project folder contains a JSON manifest and copies of source stems.
+
+Show original-versus-current parameter differences and explain what changed.
+
+Accept the agreed 48 kHz source formats (24-bit or 32-bit float); process internally in 32-bit float; unsupported formats prompt the user.
+
+Robust import behavior for mono, silent, mismatched, corrupted, and very short stems.
+
+Reverb and delay are real, visible Return-bus channels, not hidden per-track parameters; they are selectable and editable like other channels.
+
+Return-bus sends are post-fader by default in v1; pre-fader sends are a future enhancement.
+
+Version 1 provides two default Return buses: Reverb Return and Delay Return.
+
+Wet reverb and delay tails participate in masking measurement and conflict resolution.
+
+Organizational colors are separate from functional control colors; organizational templates store group/bus names, hierarchy, and colors only.
+
+UI structure (Phase 0) and visual skin (Phases 1–2) must be built and explicitly approved before shared project state, audio import, analysis, or DSP work begins (Phases 3+). No task combines new layout/visual work with new functional/data work.
+
+17. Deliberately Deferred / Needs Later Validation
+
+Actual numeric genre/instrument rulebook values and all by-ear tuning.
+
+Final detailed review workflow for bulk-rejecting or reverting classes of automated decisions.
+
+Exact headroom and peak-safety defaults; do not invent a universal LUFS target.
+
+Detailed export folder/file naming conventions and how bus processing is represented in processed-stem exports.
+
+Reverb/delay DSP algorithm choice (convolution versus algorithmic), implementation details, and impulse-response sourcing/licensing for the Return-bus architecture in Section 8a.
+
+Multiple parallel reverb types/algorithms beyond one default Reverb Return and one default Delay Return.
+
+A per-send pre-fader/post-fader toggle; v1 defaults to post-fader sends.
+
+Whether tempo should influence compressor timing, delay/reverb sync, or other behavior, and how strongly.
+
+Per-section priority overrides; keep fixed priority per track in v1 and revisit only if listening tests justify it.
+
+Exact genre-specific precedence combinations are deferred to rulebook tuning; the deterministic fallback in Section 9 applies when rulebook data is incomplete.
+
+Native Tauri + Rust architecture and implementation details, to be handled in a separate later phase.
+
+Whether and when third-party plugin hosting is pursued; if pursued, CLAP is the preferred format to target first, with VST3 as a possible secondary goal.
+
+Exact DSP implementation details that require measurement and listening; avoid presenting speculative parameters as final decisions.
+
+Exact organizational palette and ready-made template contents/routing setups.
+
+18. Instructions for the AI Coding Handoff
+
+Do not hand the coding agent the raw conversation as its only specification. Use this document as the product-level source of truth, together with the following linked technical documents, created and maintained as the project grows:
+
+architecture.md — code structure and module boundaries.
+
+data-model.md — shared typed project model.
+
+module-contract.md — interfaces between analysis, DSP, routing, persistence, and export modules.
+
+decisions-log.md — running record of decisions made during implementation.
+
+hardware-reference.md — required reading for any UI/component task (see Section 19).
+
+task-prompt-template.md — required format for writing every individual task prompt.
+
+glossary.md — authoritative terminology; required reading for every task.
+
+Per-task reports in /task-reports/.
+
+Governing build-order rule: UI structure (Phase 0) and visual skin (Phases 1–2) must be built and explicitly approved by the user before any shared project state, audio import, analysis, or DSP logic is connected, per Section 14. No task may combine new layout/visual work with new functional/data-wiring work.
+
+General rules for every task:
+
+Treat the locked decisions in Section 16 as requirements.
+
+The owner handles git commits and checkpoint tags manually; the coding agent must not commit or tag unless explicitly instructed.
+
+Do not silently turn deferred decisions in Section 17 into fixed requirements. If an implementation detail must be chosen to make progress, choose the simplest testable approach, record it in decisions-log.md, and preserve the ability to change it later.
+
+Keep every task tightly scoped per task-prompt-template.md. Do not rewrite unrelated rooms or shared components without a genuine, stated need.
+
+Do not use external dependencies that require internet access in the offline coding environment.
+
+Do not change dependency versions or introduce a new dependency without reporting the rationale and impact first.
+
+Use real audio processing by the end of Phases 5–7. Clearly label temporary mock/placeholder behavior and remove it when its real implementation task arrives.
+
+Every task ends with a mandatory stop for user review before the next task begins. No task should assume permission to continue automatically.
+
+If output is rejected, revert to the last approved state, revise the task prompt, and rerun; do not build further on rejected work.
+
+At the end of every task, run available tests/build checks and create a Markdown report in /task-reports/ with: work completed, tests run and results, deviations and reasons, known issues, and remaining work.
+
+Any UI or component task must explicitly reference the relevant section of hardware-reference.md and must not substitute generic modern UI styling for the physical-hardware details described there.
+
+UI task reports must state the exact implementation techniques used to satisfy each hardware visual requirement, not merely claim that the result matches the reference.
+
+Closing Vision
+
+Alloy should feel like operating a beautiful vintage console, while behaving like a modern, transparent, forgiving creative tool. A beginner should be able to import stems, press MIX, and obtain a useful rough mix. A more curious user should be able to inspect every decision, understand the reasoning, take control of individual parameters or entire stages, and refine the result. The web version is the real proving ground for the sound and workflow; only after it is reliable should the project move to the native Windows implementation.
+
+19. Supporting Documents
+
+The following files, referenced throughout this document, are maintained alongside it and are required reading for the coding agent at the points indicated:
+
+Document
+
+Purpose
+
+Required for
+
+architecture.md
+
+Code structure, module boundaries
+
+All tasks from Phase 0 onward
+
+data-model.md
+
+Shared typed project model
+
+Phase 3 onward
+
+module-contract.md
+
+Interfaces between analysis/DSP/routing/persistence/export modules
+
+Phase 5 onward
+
+decisions-log.md
+
+Running record of implementation decisions, including resolved deferred items
+
+All tasks
+
+hardware-reference.md
+
+Buildable physical-hardware visual specifications, including organizational-color tab/flag treatment
+
+All Phase 1 and Phase 2 tasks
+
+task-prompt-template.md
+
+Required structure and acceptance checks for individual task prompts
+
+Used by the human author when writing each task
+
+glossary.md
+
+Authoritative definitions and distinctions for product terminology
+
+All tasks
+
+Working product specification • Consolidated from the design discussion
