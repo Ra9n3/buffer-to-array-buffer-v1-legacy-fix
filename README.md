@@ -165,7 +165,6 @@ connected — that is Phase 3+ work, per the plan's build-order rule.
 ## Status
 
 Tasks 0.1–0.6 are implemented and **approved** — Phase 0 (UI structure) is
-complete. Task 1.1 (design tokens + swatch playground) is implemented and awaits
-owner review. Phase 1 components (1.2–1.6), Phase 2 skinning, channel-type-aware
+complete. Task 1.1 (design tokens + swatch playground) is implemented and **approved**. Phase 1 components (1.2–1.6), Phase 2 skinning, channel-type-aware
 Mixer detail, shared project state, and audio functionality are **not**
 implemented.
