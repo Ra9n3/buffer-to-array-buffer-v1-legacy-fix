@@ -83,6 +83,9 @@
     margin: 0;
   }
 
+  /* A warm-charcoal panel face: a broad key-light falloff from the top-left,
+     a faint brushed grain, and a top bevel that catches the room light.
+     Restrained — no scratches, no screws, no wear. */
   .fixture__panel {
     display: grid;
     place-items: center;
@@ -90,12 +93,25 @@
     padding: var(--al-space-md) var(--al-space-sm);
     border: 1px solid var(--al-border-strong);
     border-radius: var(--al-space-3xs);
-    background:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.25)),
-      var(--al-material-panel);
+    background-color: var(--al-material-panel);
+    background-image:
+      radial-gradient(
+        120% 100% at 18% 0%,
+        rgba(255, 255, 255, 0.07) 0%,
+        rgba(255, 255, 255, 0.015) 38%,
+        rgba(0, 0, 0, 0.22) 100%
+      ),
+      /* very fine grain, 1px period, barely there */
+      repeating-linear-gradient(
+        92deg,
+        rgba(255, 255, 255, 0.012) 0 1px,
+        rgba(0, 0, 0, 0.012) 1px 2px
+      );
     box-shadow:
       inset 0 1px 0 var(--al-bevel-light),
-      inset 0 -1px 0 var(--al-bevel-shadow);
+      inset 0 -1px 0 var(--al-bevel-shadow),
+      inset 0 12px 18px -14px rgba(0, 0, 0, 0.8),
+      0 1px 2px rgba(0, 0, 0, 0.35);
   }
 
   .fixture__caption {

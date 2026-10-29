@@ -114,38 +114,65 @@ check(
 
 // --- 3. Hardware spec §1 construction. ------------------------------------
 check(
-  "knurled base uses a repeating conic gradient",
-  /repeating-conic-gradient/.test(knobStyleSource),
+  "the knurl is generated, not hand-written",
+  /const FLUTES = (\d+)/.test(knob) &&
+    /Array\.from\(\{ length: FLUTES \}/.test(knob),
 );
-// Period of the repeating conic gradient is the second angle stop, e.g.
-// `... 5deg 20deg` → 20deg → 360/20 = 18 ridges.
-const ridgeMatch = /repeating-conic-gradient\([\s\S]{0,200}?\d+deg\s+(\d+)deg\s*\)/.exec(
-  knobStyleSource,
-);
-const ridgePeriod = ridgeMatch ? Number(ridgeMatch[1]) : 0;
-const ridgeCount = ridgePeriod ? 360 / ridgePeriod : 0;
+const fluteCount = Number((/const FLUTES = (\d+)/.exec(knob) ?? [])[1] ?? 0);
 check(
-  "ridge count is inside the spec's 16–20 range",
-  ridgeCount >= 16 && ridgeCount <= 20,
-  `18 ridges expected; computed ${ridgeCount}`,
+  "flute count is inside the spec's 16–20 range",
+  fluteCount >= 16 && fluteCount <= 20,
+  `16–20 flutes expected; found ${fluteCount}`,
+);
+check(
+  "each flute is a lit face and a cut face, not a flat stripe",
+  /\.knob__flute-lead/.test(knobStyleSource) &&
+    /\.knob__flute-trail/.test(knobStyleSource) &&
+    /leadOpacity/.test(knob) &&
+    /trailOpacity/.test(knob),
+);
+check(
+  "facet brightness is modulated by the light azimuth",
+  /LIGHT_AZIMUTH = 315/.test(knob) && /Math\.cos\(\(\(mid - LIGHT_AZIMUTH\)/.test(knob),
 );
 check("a separate cap element exists", /knob__cap/.test(knobStyleSource));
 check(
-  "the cap is lit radially from the upper-left",
-  /radial-gradient\(\s*circle at 33% 27%/.test(knobStyleSource),
+  "the cap is lit by a radial dome gradient from the upper-left",
+  /id=\{`\$\{uid\}-dome`\} cx="3[0-9]%" cy="[23][0-9]%"/.test(knob),
 );
 check(
-  "the cap is smaller than the base",
-  /\.knob__base\s*{[^}]*inset:\s*18%/s.test(knobStyleSource) &&
-    /\.knob__cap\s*{[^}]*inset:\s*27%/s.test(knobStyleSource),
+  "the dome ramp runs hi → base → lo",
+  /var\(--cap-hi\)[\s\S]{0,120}var\(--cap-base\)[\s\S]{0,120}var\(--cap-lo\)/.test(knob),
+);
+check(
+  "the cap is smaller than the skirt (constants agree)",
+  (() => {
+    const num = (name) => Number((new RegExp(`const ${name} = ([\\d.]+)`).exec(knob) ?? [])[1] ?? 0);
+    return num("CAP_R") < num("SKIRT_R") && num("CAP_R") > 0 && num("RIM_R") > num("CAP_R");
+  })(),
+  "CAP_R must be positive and smaller than SKIRT_R",
+);
+check(
+  "there is a groove/ambient occlusion between cap and face",
+  /knob__groove/.test(knob),
 );
 check(
   "a pointer rotates with the value",
-  /knob__pointer"\s+transform=\{`rotate\(\$\{angle\} 60 60\)`\}/.test(knob),
+  /class="knob__pointer" transform=\{`rotate\(\$\{angle\} \$\{CX\} \$\{CY\}\)`\}/.test(knob),
 );
 check(
-  "the pointer is drawn in the family's ink colour",
-  /\.knob__pointer line\s*{[^}]*stroke:\s*var\(--cap-ink\)/s.test(knobStyleSource),
+  "the pointer is drawn as an inlay (channel, ink, lit edge)",
+  /knob__pointer-bed/.test(knob) &&
+    /knob__pointer-ink/.test(knob) &&
+    /knob__pointer-edge/.test(knob),
+);
+check(
+  "the pointer is clipped to the cap and cannot overhang it",
+  /clip-path=\{`url\(#\$\{uid\}-cap-clip\)`\}/.test(knob),
+);
+check(
+  "the pointer ink resolves to the family's ink token",
+  /\.knob__pointer-ink\s*{[^}]*stroke:\s*var\(--cap-ink\)/s.test(knobStyleSource),
 );
 check(
   "the tick ring is generated, not hand-written",
@@ -166,8 +193,7 @@ check(
 );
 check(
   "layered gradients and SVG are used, not a flat fill",
-  /linear-gradient|radial-gradient|repeating-conic-gradient/.test(knobStyleSource) &&
-    /<svg/.test(knob),
+  (knob.match(/<(radial|linear)Gradient/g) ?? []).length >= 4 && /<svg/.test(knob),
 );
 
 // --- 4. Five states are implemented. --------------------------------------
@@ -179,13 +205,26 @@ check(
 );
 check(
   "keyboard focus has a visible focus treatment",
-  /\.knob__dial:focus-visible \.knob__ring/.test(knobStyleSource),
+  /\.knob__dial:focus-visible \.knob__focus/.test(knobStyleSource) &&
+    /\.knob__focus-ring/.test(knob),
 );
 check(
-  "disabled state is desaturated and non-interactive",
+  "the focus ring sits clear of the printed scale",
+  (() => {
+    const num = (name) => Number((new RegExp(`const ${name} = ([\\d.]+)`).exec(knob) ?? [])[1] ?? 0);
+    return num("FOCUS_R") > num("SKIRT_R") && num("FOCUS_R") < num("TICK_IN");
+  })(),
+  "FOCUS_R must sit between the skirt and the first tick",
+);
+check(
+  "disabled is a material state, not a grey filter",
   /\.knob\.is-disabled/.test(knobStyleSource) &&
-    /grayscale\(1\)/.test(knobStyleSource) &&
-    /role="slider"[\s\S]{0,400}tabindex=\{disabled \? -1 : 0\}/.test(knob),
+    !/grayscale\(/.test(knobStyleSource) &&
+    /\.knob\.is-disabled \.knob__spec/.test(knobStyleSource),
+);
+check(
+  "disabled removes the control from the tab order",
+  /role="slider"[\s\S]{0,400}tabindex=\{disabled \? -1 : 0\}/.test(knob),
 );
 check(
   "numeric-entry state exists and is reachable by double-click",
