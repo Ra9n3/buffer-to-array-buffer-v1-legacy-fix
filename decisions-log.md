@@ -123,3 +123,103 @@ setting). Smallest spacing step is 2px, largest 48px, with the fine end of the
 scale at 2/4/6/8px where control insets live.
 
 **Reversible.** Yes.
+
+---
+
+## Task 1.2 — Knob / pot component
+
+### D1.2.1 — The focus ring sits on the knurled collar, not outside the knob
+
+**Context.** Hardware spec §1 states that a panel prints its tick ring and
+extreme numerals *around* the knob, and requires a "focus ring consistent with
+accessibility requirements". A conventional outer halo and the printed scale
+occupy the same space.
+
+**Decision.** The focus ring is drawn **on the knurled collar**, just inside the
+tick ring: a 2px off-white ring with a dark gap either side, so it reads as the
+collar catching light rather than as a browser focus rectangle. It never collides
+with the tick ring, the extreme numerals or the reference triangle, at any knob
+size, because it is inside them.
+
+**Why.** It satisfies focus visibility without damaging a printed marking, and it
+keeps the vintage surface free of a generic UI outline.
+
+**Reversible.** Yes — the ring is one absolutely-positioned element with an
+`inset` value.
+
+### D1.2.2 — Drag mapping: 180px of vertical travel equals the full range
+
+**Context.** The spec requires click-drag but does not define sensitivity.
+
+**Decision.** Vertical travel is the primary axis with horizontal added on the
+same scale (`startY − clientY + clientX − startX`), 180px covering the full range.
+Holding Shift reduces sensitivity to 0.2×. Pointer capture is used so a drag that
+leaves the knob keeps working.
+
+**Why.** It is the console convention: up is louder, and the knob does not jump
+when the pointer leaves its edge. Shift-fine is the standard fine-adjust gesture
+and costs nothing.
+
+**Reversible.** Yes — one constant.
+
+### D1.2.3 — Keyboard set: arrows, Shift+arrows, Page Up/Down, Home/End, Enter
+
+**Context.** The spec requires "keyboard interaction works as implemented" and a
+numeric-entry mode, but does not enumerate keys.
+
+**Decision.** Up/Right and Down/Left step by `step`; with Shift they step by one
+tenth of `step`; Page Up/Down step by ten; Home/End jump to the bounds; Enter or
+F2 opens numeric entry. The value is always clamped and snapped through a single
+`setValue()`, so no input path can produce an out-of-range or off-grid value.
+
+**Why.** It matches the slider role the knob exposes (`role="slider"`,
+`aria-valuenow`, `aria-valuetext`) so assistive technology and muscle memory
+behave as expected.
+
+**Reversible.** Yes.
+
+### D1.2.4 — Invalid numeric entry is rejected, out-of-range entry is clamped
+
+**Context.** The spec requires validation and safe handling of invalid or
+out-of-range input, and does not say what to do with each.
+
+**Decision.** Two different failures get two different responses. Text that is
+not a number (including an empty field) is **rejected**: the editor stays open,
+the field is marked `aria-invalid`, and a `role="alert"` message states the valid
+range. A number outside the range is **clamped** to the nearest bound and
+committed. Escape cancels without writing.
+
+**Why.** Typing "abc" is a mistake worth correcting in place; typing "9999" into
+a −60…6 control clearly means "as far as it goes".
+
+**Reversible.** Yes.
+
+### D1.2.5 — Static state demos in the playground, real state in the component
+
+**Context.** The playground must show dragging, focused and numeric-entry states.
+Faking those inside the component would mean a `forceState` prop that product
+code could also set, which is exactly the kind of prop that later becomes a bug.
+
+**Decision.** The component owns only its **real** state. The playground passes a
+`demoState` prop that is used solely for CSS class toggles (`is-demo-focus`,
+`is-dragging`) and, for numeric entry, to open the real editor. The component's
+`data-knob-state` attribute always reports the real computed state.
+
+**Why.** The demos are honest — the numeric-entry demo is genuinely editing — and
+no product code path can force a fake dragging state.
+
+**Reversible.** Yes.
+
+### D1.2.6 — Playground fixtures are visual only, not product parameters
+
+**Context.** The playground needs ranges, units and example values.
+
+**Decision.** Every fixture's label, range, unit and start value is playground
+data, declared in `DevComponentsPage.svelte` and labelled as such. None of it is a
+proposed audio-processing parameter, and nothing is exported for reuse.
+
+**Why.** The plan defers all numeric rulebook and parameter values to listening
+tests; presenting playground ranges as agreed defaults would quietly turn a
+deferred decision into a fixed one.
+
+**Reversible.** N/A — a boundary.
