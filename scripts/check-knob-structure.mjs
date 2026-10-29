@@ -51,6 +51,29 @@ const page = read("src/dev/DevComponentsPage.svelte");
 const fixture = read("src/dev/KnobFixture.svelte");
 const css = read("src/lib/tokens.css");
 
+// The grip is now the supplied nickel asset, kept verbatim. These helpers pull
+// its elements back out of the component so they can be checked geometrically.
+const gripBlock = (() => {
+  const a = knob.indexOf('data-part="knob-grip"');
+  const b = knob.indexOf('data-part="inner-wall"');
+  return a > 0 && b > a ? knob.slice(a, b) : "";
+})();
+const assetLines = [...gripBlock.matchAll(/<line\s+x1="([\d.]+)"\s+y1="([\d.]+)"\s+x2="([\d.]+)"\s+y2="([\d.]+)"\s+stroke="(#[0-9a-f]{6})"\s+stroke-width="([\d.]+)"/g)].map(
+  (m) => ({
+    x1: Number(m[1]),
+    y1: Number(m[2]),
+    x2: Number(m[3]),
+    y2: Number(m[4]),
+    stroke: m[5],
+    width: Number(m[6]),
+  }),
+);
+const polar = (x, y) => {
+  const dx = x - 200;
+  const dy = y - 200;
+  return [((Math.atan2(dy, dx) * 180) / Math.PI + 360) % 360, Math.hypot(dx, dy)];
+};
+
 const num = (name) => Number((new RegExp(`const ${name} = (-?[\\d.]+)`).exec(knob) ?? [])[1] ?? NaN);
 
 // --- 1. One component, six families. --------------------------------------
@@ -144,28 +167,58 @@ check(
   "a supplied blue is still hard-coded; the family must drive every painted surface",
 );
 check(
-  "the grip, side wall and both ridge rings are brushed nickel",
-  /url\(#\$\{uid\}-side-wall\)/.test(knob) &&
-    /fill=\{`url\(#\$\{uid\}-paint\)`\}/.test(knob) &&
-    /stroke="var\(--kn-nickel-groove\)"/.test(knob) &&
-    /stroke="var\(--kn-nickel-crest\)"/.test(knob) &&
-    /stop-color: var\(--kn-nickel-hi\)/.test(knob) &&
-    /stop-color: var\(--kn-nickel-base\)/.test(knob),
+  "the grip is the supplied nickel asset, and the side wall is still nickel",
+  /data-part="knob-grip"/.test(knob) &&
+    /data-part="nickel-grip"[\s\S]{0,120}r="150"/.test(knob) &&
+    /fill=\{`url\(#\$\{uid\}-nickel-asset\)`\}/.test(knob) &&
+    /url\(#\$\{uid\}-side-wall\)/.test(knob),
 );
 check(
-  "the central cap is the only colour-variable part and still reads the family",
-  /--kn-face-hi: color-mix\(in srgb, var\(--cap-hi\)/.test(knobStyle) &&
-    /--kn-face-base: color-mix\(in srgb, var\(--cap-base\)/.test(knobStyle) &&
-    /--kn-ink: var\(--cap-ink\)/.test(knobStyle) &&
-    /id=\{`\$\{uid\}-face-paint`\}/.test(knob),
+  "the cap is flat, and its colour still comes from the family",
+  /--kn-cap-face: color-mix\(in srgb, var\(--cap-base\) 94%, black\)/.test(knobStyle) &&
+    /fill="var\(--kn-cap-face\)"/.test(knob),
 );
 check(
   "the nickel does not appear on the cap",
   (() => {
-    const faceGradient = (/id=\{`\$\{uid\}-face-paint`\}[\s\S]*?<\/linearGradient>/.exec(knob) ?? [""])[0];
-    return faceGradient.length > 0 && !/nickel/.test(faceGradient);
+    const i = knob.indexOf('data-part="cap"');
+    const tag = knob.slice(i, knob.indexOf("/>", i) + 2);
+    return !/nickel/.test(tag) && /var\(--kn-cap-face\)/.test(tag);
   })(),
   "the cap must keep the family colour, not the metal",
+);
+check(
+  "no gradient, no filter and no second circle on the cap face",
+  (() => {
+    const i = knob.indexOf('data-part="cap"');
+    const tag = knob.slice(i, knob.indexOf("/>", i) + 2);
+    return (
+      !/filter=/.test(tag) &&
+      !/url\(#/.test(tag) &&
+      !/stroke/.test(tag) &&
+      (tag.match(/fill=/g) ?? []).length === 1
+    );
+  })(),
+  "a gradient, an inset filter or a second disc makes the cap read domed",
+);
+check(
+  "no radial gradient, inset filter or occlusion ellipse survives anywhere",
+  !/radialGradient/.test(knob) &&
+    !/feOffset/.test(knob) &&
+    !/feFlood/.test(knob) &&
+    !/cap-gloss/.test(knob),
+  "the face carries no shading at all beyond its edge line",
+);
+check(
+  "the cap's only shading is one hairline on its own edge, about 1px at the default size",
+  (() => {
+    const i = knob.indexOf('data-part="cap-edge"');
+    if (i < 0) return false;
+    const tag = knob.slice(i, knob.indexOf("/>", i) + 2);
+    const px = num("CAP_EDGE_W") * (120 / 400) / num("ART_SCALE");
+    return /r=\{CAP_R - CAP_EDGE_W \/ 2\}/.test(tag) && px > 0.8 && px < 1.3;
+  })(),
+  "1 px at 7.5rem, on the cap's own edge — not a shifted circle",
 );
 check(
   "the index bar uses the family ink, so it stays legible in all six",
@@ -185,58 +238,87 @@ check(
   /viewBox="0 0 400 400"/.test(knob) && num("C") === 200,
 );
 check(
-  "the continuous body is the supplied circle (r 150 at 200,200)",
-  /<circle cx="200" cy="200" r="150"/.test(knob),
+  "the continuous body is the supplied circle (r 150) on the single axis",
+  /<circle cx="0" cy="0" r="150"/.test(knob),
 );
 check(
-  "the lower side wall is the supplied offset circle (r 150 at 200,210)",
-  /<circle cx="200" cy="210" r="150"/.test(knob),
+  "the lower side wall is the supplied r 150 circle, offset only in depth",
+  knob.includes('<circle cx="0" cy="{SIDE_WALL_DY}" r="150"') &&
+    /const SIDE_WALL_DY = 10;/.test(knob),
 );
 check(
-  "the recessed cap is the supplied circle (r 131)",
-  /<circle\s+cx="200"\s+cy="200"\s+r="131"/.test(knob),
+  "the cap is one circle at r 130 on the single axis, and nothing is larger",
+  knob.includes("const CAP_R = 130;") &&
+    /<circle\s+data-part="cap"\s+cx="0"\s+cy="0"\s+r=\{CAP_R\}/.test(knob),
+  "no part of the cap may be bigger than the cap radius",
 );
 check(
-  "the silhouette clip is the supplied pair of body circles",
-  /id=\{`\$\{uid\}-silhouette`\}[\s\S]{0,160}circle cx="200" cy="200" r="150"[\s\S]{0,80}circle cx="200" cy="210" r="150"/.test(
+  "the cap has no stroke and exactly one fill",
+  (() => {
+    const i = knob.indexOf('data-part="cap"');
+    const tag = knob.slice(i, knob.indexOf("/>", i) + 2);
+    return !/stroke/.test(tag) && (tag.match(/fill=/g) ?? []).length === 1;
+  })(),
+  "a stroke or a second top-face circle is a second, competing model",
+);
+check(
+  "the silhouette clip is the supplied pair of body circles, on the axis",
+  /id=\{`\$\{uid\}-silhouette`\}[\s\S]{0,200}circle cx="0" cy="0" r="150"[\s\S]{0,80}circle cx="0" cy="10" r="150"/.test(
     knob,
   ),
 );
 check(
-  "the face clip is the supplied r 131 circle",
-  /id=\{`\$\{uid\}-face-clip`\}[\s\S]{0,80}r="131"/.test(knob),
+  "the cap clip is still the pointer's boundary",
+  /id=\{`\$\{uid\}-cap-clip`\}[\s\S]{0,80}<circle cx="0" cy="0" r=\{CAP_R\} \/>/.test(knob) &&
+    (knob.match(/url\(#\$\{uid\}-cap-clip\)/g) ?? []).length === 1,
 );
 check(
-  "BOTH ridge rings are generated at the supplied 96 ridges per ring",
-  num("RIDGE_COUNT") === 96 &&
-    /const ridgesDark = ridgeRing\(0\)/.test(knob) &&
-    /const ridgesLight = ridgeRing\(RIDGE_LIGHT_OFFSET\)/.test(knob) &&
-    (knob.match(/ridgesDark as ridge/g) ?? []).length === 1 &&
-    (knob.match(/ridgesLight as ridge/g) ?? []).length === 1,
+  "the asset's 96 grooves and 96 highlights are reproduced in full",
+  assetLines.filter((l) => l.width === 2.2).length === 96 &&
+    assetLines.filter((l) => l.width === 1.35).length === 96,
+  `found ${assetLines.filter((l) => l.width === 2.2).length} grooves and ${
+    assetLines.filter((l) => l.width === 1.35).length
+  } highlights`,
 );
 check(
-  "the ridge band runs r 134 → 148 as supplied",
-  num("RIDGE_INNER") === 134 && num("RIDGE_OUTER") === 148,
+  "every ridge runs r 134 -> 148 on the asset's 3.75 degree pitch",
+  (() => {
+    const dark = assetLines.filter((l) => l.width === 2.2);
+    const light = assetLines.filter((l) => l.width === 1.35);
+    const onBand = (l) => {
+      const [, r1] = polar(l.x1, l.y1);
+      const [, r2] = polar(l.x2, l.y2);
+      return Math.abs(r1 - 134) < 0.02 && Math.abs(r2 - 148) < 0.02;
+    };
+    const nearest = (a, want) => Math.abs((((a - want) % 360) + 540) % 360 - 180);
+    const pitch = (group, off) =>
+      group.every((l, i) => nearest(polar(l.x1, l.y1)[0], off + i * 3.75) < 0.05);
+    return dark.every(onBand) && light.every(onBand) && pitch(dark, 0) && pitch(light, 1.6);
+  })(),
+  "the asset's band and pitch must survive the move into the component",
 );
 check(
-  "the ridges keep their supplied stroke weights (2.2 dark, 1.4 light)",
-  /stroke-width="2\.2"/.test(knob) && /stroke-width="1\.4"/.test(knob),
+  "the ridges keep the asset's stroke weights (2.2 grooves, 1.35 highlights)",
+  assetLines.every((l) => l.width === 2.2 || l.width === 1.35),
 );
 check(
-  "each ridge still carries its own colour variation, not a flat ring",
-  /stroke-opacity=\{[^}]*ridge\.lit[^}]*\}/.test(knob),
+  "each ridge carries its own colour, as the asset does — not a flat ring",
+  new Set(assetLines.map((l) => l.stroke)).size >= 40,
+  "the asset ramps the groove colour round the circumference",
 );
 check(
   "the index bar is the supplied separate rect, centre to near-rim",
-  /x="220"[\s\S]{0,80}y="192\.5"[\s\S]{0,80}width="105"[\s\S]{0,80}height="15"/.test(knob),
+  /x="20"[\s\S]{0,80}y="-7\.5"[\s\S]{0,80}width="105"[\s\S]{0,80}height="15"/.test(knob),
+  "the bar runs r 20 -> 125 on the shared axis, as supplied",
 );
 check(
-  "the supplied paint gradient geometry is unchanged",
-  /x1="85"\s+y1="65"\s+x2="310"\s+y2="335"/.test(knob),
+  "the asset's nickel gradient is the supplied ramp, on its supplied axis",
+  /id=\{`\$\{uid\}-nickel-asset`\}[\s\S]{0,120}x1="80"\s+y1="58"\s+x2="316"\s+y2="340"/.test(knob) &&
+    ["#f2f1eb", "#cfd1cc", "#a9aca7", "#747873", "#444844"].every((h) => knob.includes(h)),
 );
 check(
-  "the supplied side-wall gradient geometry is unchanged",
-  /x1="55"\s+y1="95"\s+x2="325"\s+y2="360"/.test(knob),
+  "the supplied side-wall gradient keeps its axis, re-expressed on the centred space",
+  /x1="-145"\s+y1="-105"\s+x2="125"\s+y2="160"/.test(knob),
 );
 check(
   "the supplied satin grain filter survives (fractalNoise, 1.1, 2 octaves, seed 7)",
@@ -245,33 +327,51 @@ check(
   ),
 );
 check(
-  "the recess shadow hugs the cap's whole circumference (no offset, so no drop shadow)",
-  /feOffset dx="0" dy="0"/.test(knob) && /stdDeviation="4\.2"/.test(knob),
-  "an offset shadow makes the cap read as lying on the grip on one side and sunk on the other",
+  "the layers are drawn in the brief's order, bottom to top",
+  (() => {
+    const order = [
+      'data-part="knob-grip"',
+      'data-part="nickel-grip"',
+      'data-part="rotating-knurl"',
+      'data-part="nickel-rim-light"',
+      'data-part="nickel-rim-shade"',
+      'data-part="inner-wall"',
+      'data-part="cap"',
+      'data-part="cap-edge"',
+      'data-part="rotating-indicator"',
+    ];
+    const at = order.map((k) => knob.indexOf(k));
+    return at.every((v, i) => v > 0 && (i === 0 || v > at[i - 1]));
+  })(),
+  "asset order, then wall, flat cap, its edge line, pointer",
 );
 check(
-  "the cap falls into the recess all round, and its far wall shades the face",
-  /id=\{`\$\{uid\}-cap-inset`\}/.test(knob) &&
-    /id=\{`\$\{uid\}-cap-wall-shade`\}/.test(knob) &&
-    /class="knob__cap-seat"/.test(knob) &&
-    knob.includes("`url(#${uid}-face-clip)`"),
+  "the grip's base ring is the asset's r 150 disc, and the wall starts inside it",
+  /data-part="nickel-grip"[\s\S]{0,120}cx="200"[\s\S]{0,60}cy="200"[\s\S]{0,40}r="150"/.test(knob) &&
+    knob.includes("const RING_INNER = RIDGE_INNER;") &&
+    num("RIDGE_INNER") === 134,
 );
 check(
-  "the recess shadow keeps its supplied structure (offset → blur → composite out → flood → merge)",
-  /feOffset[\s\S]{0,140}feGaussianBlur[\s\S]{0,140}feComposite in="SourceAlpha" in2="blur" operator="out"[\s\S]{0,200}feFlood[\s\S]{0,200}feMerge/.test(
-    knob,
-  ),
+  "the inner wall is the annulus between the cap and the ring's top surface",
+  num("CAP_R") === 130 && num("RIDGE_INNER") === 134 && num("CAP_R") < num("RIDGE_INNER"),
 );
 check(
-  "the cap still sits a step below the rim (nickel supplies the step now)",
-  /id=\{`\$\{uid\}-face-paint`\}/.test(knob) &&
-    /--kn-face-base: color-mix\(in srgb, var\(--cap-base\) 94%, black\)/.test(knob) &&
-    /class="knob__cap-seat"/.test(knob),
+  "the inner wall is static: it carries no rotation",
+  (() => {
+    const i = knob.indexOf('data-part="inner-wall"');
+    const tag = knob.slice(i - 40, knob.indexOf("/>", i) + 2);
+    return !/rotate\(/.test(tag) && !/assemblyRotation/.test(tag);
+  })(),
+  "only the knurling and the pointer may turn with the value",
 );
 check(
-  "the recess has an inner lip so the step reads at 7.5rem",
-  /class="knob__face-lip"/.test(knob) &&
-    /\.knob__face-lip\s*{[^}]*stroke-width: 3\.5/s.test(knobStyle),
+  "the inner wall runs dark top-left to bright bottom-right, corner to corner",
+  /id=\{`\$\{uid\}-inner-wall`\}[\s\S]{0,60}x1="0" y1="0" x2="1" y2="1"/.test(knob) &&
+    /#080808/.test(knob) && /#2a2a2a/.test(knob) && /#a0a0a0/.test(knob),
+);
+check(
+  "the cap is a single flat colour — no gradient object at all",
+  !/face-paint/.test(knob) && !/radialGradient/.test(knob) && /--kn-cap-face/.test(knobStyle),
 );
 check(
   "ridge groves stay darker than ridge crests (depth, not a flat band)",
@@ -287,12 +387,12 @@ check(
   "grooves must read as recesses, crests as machined highlights",
 );
 check(
-  "the supplied highlight blurs survive (7 and 1.8)",
-  /stdDeviation="7"/.test(knob) && /stdDeviation="1\.8"/.test(knob),
-);
-check(
-  "a fixed-lighting overlay is still drawn",
-  /data-part="fixed-lighting"/.test(knob),
+  "the cap keeps its single fill and no stroke",
+  (() => {
+    const i = knob.indexOf('data-part="cap"');
+    const tag = knob.slice(i, knob.indexOf("/>", i) + 2);
+    return !/stroke/.test(tag) && (tag.match(/fill=/g) ?? []).length === 1;
+  })(),
 );
 check(
   "the recess shadow is no longer tinted the supplied blue",
@@ -302,33 +402,32 @@ check(
 // --- 4. Whole-assembly rotation. ------------------------------------------
 const assembly = (knob.match(/data-part="rotating-surfaces"[\s\S]{0,4000}/) ?? [""])[0];
 check(
-  "the rotating group still carries the supplied part name",
-  /class="knob__assembly"[\s\S]{0,120}data-part="rotating-surfaces"/.test(knob),
+  "the ridges and the pointer are the only two things that rotate",
+  /rotate\(\$\{assemblyRotation - 3\} 200 200\)/.test(knob) &&
+    /data-part="rotating-knurl"/.test(knob) &&
+    /data-part="rotating-indicator"/.test(knob) &&
+    (knob.match(/rotate\(\$\{assemblyRotation/g) ?? []).length === 2,
+  "everything else stays fixed when the value moves",
 );
 check(
-  "the ridges and the index bar rotate together, in one group",
-  /data-part="rotating-surfaces"[\s\S]*?ridgesDark as ridge[\s\S]*?ridgesLight as ridge[\s\S]*?knob__pointer-ink/.test(
-    assembly,
-  ),
+  "the knurling sits below the inner wall, and the pointer above the gloss",
+  knob.indexOf('data-part="rotating-knurl"') < knob.indexOf('data-part="inner-wall"') &&
+    knob.indexOf('data-part="cap-gloss"') < knob.indexOf('data-part="rotating-indicator"'),
+  "the brief's order: ring, knurl, wall, cap, shadow, gloss, pointer",
 );
 check(
-  "the assembly rotates about the artwork's centre (200,200)",
-  /rotate\(\$\{assemblyRotation\} 200 200\)/.test(knob),
+  "the assembly rotates about the shared axis at the origin",
+  /rotate\(\$\{assemblyRotation\}\)/.test(knob) &&
+    /transform=\{KNOB_TRANSFORM\}/.test(knob),
 );
 check(
   "the housing is not left stationary while the pointer rotates alone",
   !/knob__pointer-ink[\s\S]{0,2000}rotate\(\$\{angle\}/.test(knob),
 );
 check(
-  "the environmental lighting does not rotate with the assembly",
-  (() => {
-    const lightIndex = knob.indexOf('data-part="fixed-lighting"');
-    const assemblyIndex = knob.indexOf('data-part="rotating-surfaces"');
-    return lightIndex > assemblyIndex && !/rotate\(\$\{assemblyRotation\}/.test(
-      knob.slice(lightIndex, lightIndex + 1200),
-    );
-  })(),
-  "the fixed lighting must sit outside the rotating group",
+  "no lighting layer is left to rotate or to sit outside the recess",
+  !/knob__light/.test(knob) && !/fixed-lighting/.test(knob),
+  "the old environmental overlay was deleted, not hidden",
 );
 
 // --- 5. The existing mapping stays authoritative. -------------------------
@@ -366,45 +465,88 @@ check(
   /--knob-size: 7\.5rem/.test(knobStyle) && num("ART_SCALE") === 0.88,
 );
 check(
-  "the drawing transform is still a uniform, centred scale",
-  knob.includes("const ART_TRANSFORM = `translate(${C} ${C}) scale(${ART_SCALE}) translate(${-C} ${-C})`"),
+  "one transform places the axis and uniformly scales the whole drawing",
+  knob.includes("const KNOB_TRANSFORM = `translate(${C} ${C}) scale(${ART_SCALE})`") &&
+    (knob.match(/data-part="knob-centre"/g) ?? []).length === 1,
 );
 check(
-  "no geometry helper was retuned for the material change",
-  num("RIDGE_COUNT") === 96 &&
-    num("RIDGE_INNER") === 134 &&
-    num("RIDGE_OUTER") === 148 &&
-    num("RIDGE_LIGHT_OFFSET") === 1.6 &&
+  "no geometry helper was retuned for the grip change",
+  num("RIDGE_INNER") === 134 &&
+    num("CAP_R") === 130 &&
     num("START_ANGLE") === -135 &&
     num("SWEEP") === 270,
 );
 check(
-  "the cap disc is still r 131 at the artwork centre",
-  (knob.match(/cx="200"\s+cy="200"\s+r="131"/g) ?? []).length >= 1,
+  "the cap and the inner wall share one axis",
+  /<circle\s+data-part="cap"\s+cx="0"\s+cy="0"\s+r=\{CAP_R\}/.test(knob) &&
+    /<circle\s+data-part="inner-wall"\s+cx="0"\s+cy="0"\s+r=\{RING_INNER\}/.test(knob),
+);
+check(
+  "the pointer is clipped to the cap",
+  /clip-path=\{`url\(#\$\{uid\}-cap-clip\)`\}>\s*<rect\s+class="knob__pointer-ink"/.test(knob),
+);
+check(
+  "the knurl band is outside the cap, so no tooth can land on the cap",
+  num("RIDGE_INNER") === 134 && num("CAP_R") === 130,
+);
+check(
+  "every geometry layer is at cx/cy = 0; only the two shadow layers are offset",
+  (() => {
+    // The grip is the supplied asset and keeps the asset's own coordinates;
+    // every layer from the inner wall inward must still sit at (0,0).
+    const start = knob.indexOf('data-part="inner-wall"');
+    const body = knob
+      .slice(start, knob.indexOf('data-part="rotating-indicator"'))
+      .replace(/<g data-part="cap-edge-shadow"[\s\S]*?<\/g>/, "")
+      .replace(/<g data-part="cap-gloss"[\s\S]*?<\/g>/, "");
+    const offAxis = [...body.matchAll(/<(circle|ellipse)\b[^>]*>/g)]
+      .map((m) => m[0])
+      .filter((tag) => {
+        const cx = /\bcx="([^"]+)"/.exec(tag);
+        const cy = /\bcy="([^"]+)"/.exec(tag);
+        const cyVal = cy?.[1] ?? "";
+        return (cx && cx[1] !== "0") || (cyVal !== "0" && !cyVal.includes("SIDE_WALL_DY"));
+      });
+    return offAxis.length === 0;
+  })(),
+  "a geometry layer with its own centre is a second source of truth",
+);
+check(
+  "the depth slice sits behind every other layer and is clipped to the silhouette",
+  (() => {
+    const body = knob.slice(knob.indexOf('data-part="knob-centre"'), knob.indexOf("</svg>"));
+    const depth = body.indexOf('data-part="depth"');
+    const grip = body.indexOf('data-part="knob-grip"');
+    return (
+      depth > 0 &&
+      grip > depth &&
+      /data-part="depth"[\s\S]{0,240}clip-path=\{`url\(#\$\{uid\}-silhouette\)`\}/.test(body)
+    );
+  })(),
+  "the side wall must be behind the grip, inside the silhouette clip",
 );
 check(
   "the pointer is the same single rect, in the same place, at the same size",
   (knob.match(/class="knob__pointer-ink"/g) ?? []).length === 1 &&
-    /x="220"[\s\S]{0,80}y="192\.5"[\s\S]{0,80}width="105"[\s\S]{0,80}height="15"/.test(knob),
+    /x="20"[\s\S]{0,80}y="-7\.5"[\s\S]{0,80}width="105"[\s\S]{0,80}height="15"/.test(knob),
 );
 
 // --- 6. Instance-scoped SVG ids. ------------------------------------------
 const declaredIds = [...knob.matchAll(/\bid=\{`\$\{uid\}-([a-z-]+)`\}/g)].map((m) => m[1]);
 check(
   "every SVG definition has a namespaced id",
-  declaredIds.length >= 9 &&
+  declaredIds.length >= 8 &&
     [
       "silhouette",
-      "face-clip",
-      "paint",
+      "cap-clip",
+      "nickel-asset",
+      "inner-wall",
       "side-wall",
       "indicator",
-      "inset",
       "soft-light",
-      "wall-light",
       "satin",
-    ].every((id) => declaredIds.includes(id)),
-  `expected the nine supplied ids; found ${declaredIds.join(", ")}`,
+    ].every((id) => declaredIds.includes(id) && declaredIds.filter((d) => d === id).length === 1),
+  `expected the supplied ids plus the recess ids; found ${declaredIds.join(", ")}`,
 );
 check(
   "no id is a bare literal",
@@ -434,7 +576,7 @@ check(
 );
 check(
   "the scale sits outside the housing, not under it",
-  num("TICK_IN") > num("RIDGE_OUTER") * num("ART_SCALE"),
+  num("TICK_IN") > 150 * num("ART_SCALE"),
   "the first tick must clear the body's drawn radius",
 );
 check(
@@ -461,7 +603,7 @@ check(
 );
 check(
   "disabled is a material state, not a grey filter",
-  /\.knob\.is-disabled \.knob__light/.test(knobStyle) &&
+  /\.knob\.is-disabled \.knob__cap-edge/.test(knobStyle) &&
     /\.knob\.is-disabled \.knob__pointer-ink/.test(knobStyle) &&
     !/grayscale\(/.test(knobStyle),
 );
@@ -512,11 +654,6 @@ check("Escape cancels numeric entry", /event\.key === "Escape"/.test(knob));
 check(
   "the slider exposes its value to assistive tech",
   /aria-valuenow=\{value\}/.test(knob) && /aria-valuetext=\{display\}/.test(knob),
-);
-check(
-  "hover has a reachable rest → hover range (no clamped no-op)",
-  /\.knob__light\s*{[^}]*opacity: 0\.9/s.test(knobStyle) &&
-    !/opacity: 1\.25/.test(knobStyle),
 );
 check(
   "the panel print is scaled for the 400-unit canvas (≈8px numerals, ≈0.7px ticks)",
