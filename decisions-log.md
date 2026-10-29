@@ -223,3 +223,106 @@ tests; presenting playground ranges as agreed defaults would quietly turn a
 deferred decision into a fixed one.
 
 **Reversible.** N/A — a boundary.
+
+---
+
+## Task 1.2 refinement — vintage visual quality
+
+### D1.2.7 — One explicit lighting model, defined once and shared by all six materials
+
+**Context.** The refinement asks for material realism and also that the six
+colour variants look like members of one hardware family, "the material colour
+should be the main difference, not a completely different appearance".
+
+**Decision.** The knob has exactly one light source: a key light from the
+upper-left, azimuth 315°. Every part derives its shading from that single
+constant — the knurl facets, the skirt cylinder, the machined face, the cap dome,
+the terminator, the specular, and the bevel/rim arcs. Nothing is lit per family;
+a family changes only three token values (`-hi`, `-base`, `-lo`) plus the ink.
+
+**Why.** This is what makes six colours read as one product line. It also means a
+future fader or switch can reuse the same model instead of inventing a second
+one.
+
+**Reversible.** Yes — one constant plus the gradient definitions.
+
+### D1.2.8 — The knurl is drawn as generated SVG facets, not a CSS pattern
+
+**Context.** The first pass used a `repeating-conic-gradient` for the ridges. At
+the real 88px dial, a repeating pattern of uniform hard-ish bands reads as a
+printed stripe or a gear, because every ridge is lit identically.
+
+**Decision.** The 18 flutes are generated in script as annular sectors
+(`sectorPath`). Each flute is split into a lit face and a cut face, and both
+faces' opacity is modulated by their own azimuth against the key light
+(`leadOpacity`, `trailOpacity`). Ridge count lives in one constant, `FLUTES = 18`.
+
+**Why.** A real knurl is lit by position, not pattern: ridges on the lit side
+catch a highlight, ridges on the dark side fall into shadow. Modulating per
+facet is the only way to get that, and it keeps the spec's 16–20 ridge count.
+
+**Reversible.** Yes — the CSS approach is in git history.
+
+### D1.2.9 — The scale goes to 21 graduations, majors every fifth
+
+**Context.** The first pass had 11 ticks. The refinement brief calls the marks
+"visually repetitive" and asks for a clearer hierarchy; 11 marks over 270° is too
+coarse to read as an instrument scale.
+
+**Decision.** 21 graduations across the same 270° (one every 13.5°), with majors
+at every fifth and at both ends. Minors are thinner and quieter than majors, all
+of them hairline and low-contrast, and the numerals still appear only at the two
+extremes (spec §1), positioned on the same rays as the end ticks.
+
+**Why.** Density is what makes a scale read as printed rather than as decoration,
+and the major/minor split gives the hierarchy the brief asks for without adding
+rings or ornament.
+
+**Reversible.** Yes — `TICK_COUNT` is one constant.
+
+### D1.2.10 — Materials are deepened by shading, not by editing the palette
+
+**Context.** The brief asks for aged ivory, amber bakelite, vermilion, steel blue,
+deep vintage green and burnt orange. Those are the approved Task 1.1 tokens,
+which D1.1.1 fixed as the authoritative palette.
+
+**Decision.** No token value was changed. Instead two uniform treatments are
+applied to every cap: (a) the dome ramp lets the shadow tone take over earlier
+(base at 38%, `lo` from 72%) so mid-tones deepen, and (b) a warm veil
+(`rgba(42,30,18,0.12)`) plus a weak neutral scrim (`rgba(126,118,104,0.07)`)
+age and slightly desaturate every colour by the same amount.
+
+**Why.** It reaches the described materials without reopening an approved palette
+or inventing per-family "fix" values, and because the treatment is identical for
+all six it cannot break the family coherence.
+
+**Reversible.** Yes — two circles and two gradient stops.
+
+### D1.2.11 — Disabled is a material state, not a grey filter
+
+**Context.** The refinement explicitly rejects "a crude grey filter".
+
+**Decision.** `grayscale()` is gone. A disabled knob loses its specular and rim
+light (nothing is lit), its cap colours sink toward the panel, its pointer loses
+its inlay highlight, and its printed scale and reference mark drop in contrast.
+It keeps its shape and stays identifiable as the same part.
+
+**Why.** A de-energised control on real hardware does not turn grey; it stops
+catching the light. This reads as the same object switched off.
+
+**Reversible.** Yes.
+
+### D1.2.12 — Focus ring relocated into the clear gap inside the scale
+
+**Context.** D1.2.1 put the ring on the knurled collar, which no longer exists as
+a distinct inset ring once the skirt became the whole body.
+
+**Decision.** The focus ring is now a machined bezel drawn in the empty band
+between the skirt (`SKIRT_R`) and the first tick (`TICK_IN`), backed by a
+panel-coloured gap ring for contrast. It is guaranteed never to touch print by
+construction, not by nudging coordinates.
+
+**Why.** Same principle as D1.2.1 — focus must never damage a printed marking —
+applied to the new geometry.
+
+**Reversible.** Yes.
