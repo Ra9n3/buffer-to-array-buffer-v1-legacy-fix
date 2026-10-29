@@ -2,36 +2,46 @@
   import { onMount } from "svelte";
   import MiniTransport from "./components/MiniTransport.svelte";
   import RoomNav from "./components/RoomNav.svelte";
+  import DevComponentsPage from "./dev/DevComponentsPage.svelte";
   import ArrangeRoom from "./rooms/ArrangeRoom.svelte";
   import ConsoleRoom from "./rooms/ConsoleRoom.svelte";
   import MixerRoom from "./rooms/MixerRoom.svelte";
   import {
-    roomFromHash,
+    routeFromHash,
     roomHref,
+    type AppRoute,
     type RoomId,
   } from "./lib/rooms";
 
-  let room = $state<RoomId>(roomFromHash(window.location.hash));
+  let route = $state<AppRoute>(routeFromHash(window.location.hash));
 
-  function syncRoomFromHash(): void {
-    room = roomFromHash(window.location.hash);
+  const room = $derived<RoomId | null>(
+    route.kind === "room" ? route.room : null,
+  );
+  /** The shell's room flag. Set to "dev" on the private playground so none of
+   *  the per-room shell rules (viewport pinning, room padding) apply there and
+   *  the token page can scroll normally. */
+  const activeRoom = $derived(room ?? "dev");
+
+  function syncRouteFromHash(): void {
+    route = routeFromHash(window.location.hash);
   }
 
   onMount(() => {
-    if (window.location.hash !== roomHref(room)) {
-      history.replaceState(null, "", roomHref(room));
+    if (route.kind === "room" && window.location.hash !== roomHref(route.room)) {
+      history.replaceState(null, "", roomHref(route.room));
     }
 
-    window.addEventListener("hashchange", syncRoomFromHash);
+    window.addEventListener("hashchange", syncRouteFromHash);
 
-    return () => window.removeEventListener("hashchange", syncRoomFromHash);
+    return () => window.removeEventListener("hashchange", syncRouteFromHash);
   });
 </script>
 
-<div class="app-shell" data-active-room={room}>
+<div class="app-shell" data-active-room={activeRoom} data-route={route.kind}>
   <header class="app-header">
     <a class="app-brand" href={roomHref("console")}>ALLOY</a>
-    <RoomNav {room} />
+    <RoomNav room={room} />
   </header>
 
   <main class="room-host" id="main">
@@ -39,8 +49,10 @@
       <ConsoleRoom />
     {:else if room === "arrange"}
       <ArrangeRoom />
-    {:else}
+    {:else if room === "mixer"}
       <MixerRoom />
+    {:else}
+      <DevComponentsPage />
     {/if}
   </main>
 

@@ -1,7 +1,12 @@
 <script lang="ts">
   import { ROOMS, roomHref, type RoomId } from "../lib/rooms";
 
-  let { room }: { room: RoomId } = $props();
+  /**
+   * null on the private /dev/components playground, where no room tab is
+   * current. Passing null rather than a defaulted room keeps the dev page from
+   * claiming a room it is not.
+   */
+  let { room }: { room: RoomId | null } = $props();
 </script>
 
 <nav class="room-nav" aria-label="Rooms">

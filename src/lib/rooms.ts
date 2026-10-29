@@ -42,6 +42,38 @@ export function roomHref(id: RoomId): string {
   return `#/${id}`;
 }
 
+/* ---------------------------------------------------------------------------
+   Private token playground route — Task 1.1.
+
+   Deliberately NOT a room: it is absent from ROOMS, so it can never appear in
+   the room navigation, and it has no room label, purpose or tab index. It is a
+   review surface for the owner, reachable only by typing the hash.
+
+   The application is hash-routed (a locked Phase 0 decision, so the single-file
+   build works on any static host), so `/dev/components` is reached as
+   `#/dev/components`. See decisions-log.md.
+   --------------------------------------------------------------------------- */
+export const DEV_COMPONENTS_PATH = "/dev/components";
+export const DEV_COMPONENTS_HREF = `#${DEV_COMPONENTS_PATH}`;
+
+export type AppRoute =
+  | { readonly kind: "room"; readonly room: RoomId }
+  | { readonly kind: "dev-components" };
+
+export function isDevComponentsHash(hash: string): boolean {
+  return hash.replace(/\/+$/, "") === DEV_COMPONENTS_HREF;
+}
+
+/**
+ * Resolves a location hash to a route. Anything unrecognised falls back to the
+ * default room, which preserves the Phase 0 behaviour of landing in the Console.
+ */
+export function routeFromHash(hash: string): AppRoute {
+  if (isDevComponentsHash(hash)) return { kind: "dev-components" };
+
+  return { kind: "room", room: roomFromHash(hash) };
+}
+
 export function parseRoomHash(hash: string): RoomId | null {
   const match = /^#\/([^/?#]+)/.exec(hash);
   const candidate = match?.[1];

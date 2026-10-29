@@ -20,6 +20,21 @@ panel on the right, with local placeholder selection.
 | `ALLOY-TASK-PROMPT-TEMPLATE.md` | Required task/report structure |
 | `task-reports/` | One report per finished task |
 
+## Design tokens
+
+`src/lib/tokens.css` is the single authoritative source for colour, spacing and
+typography values. `src/lib/tokens.ts` holds metadata only (label, category,
+purpose, provenance) — no values — so the two cannot drift; `npm run
+check:tokens` fails if they disagree in either direction.
+
+Every token is inspectable at the private playground route
+**`#/dev/components`**. It is deliberately not a room: it is absent from the room
+navigation and reachable only by typing the hash. Colour values shown there are
+read from the live document at runtime.
+
+Tokens are declared globally in Task 1.1 and applied to **nothing** yet —
+skinning the rooms is Phase 2 work.
+
 ## Stack
 
 Svelte 5 + TypeScript + Vite 7. No SvelteKit and no server-side rendering, per
@@ -43,10 +58,14 @@ src/
 │   ├── RoomNav.svelte            Arrange / Console / Mixer navigation
 │   ├── RoomPlaceholder.svelte    labeled empty-room placeholder
 │   └── RoomShell.svelte          shared room header and content boundary
+├── dev/
+│   └── DevComponentsPage.svelte  private token playground (#/dev/components)
 ├── lib/
 │   ├── arrange.ts                Arrange placeholder counts and labels
 │   ├── mixer.ts                  Mixer placeholder channels and chain steps
-│   └── rooms.ts                  room definitions and hash parsing
+│   ├── rooms.ts                  room definitions and hash parsing
+│   ├── tokens.css                design tokens — the authoritative values
+│   └── tokens.ts                 token metadata, no values
 └── rooms/
     ├── ConsoleRoom.svelte
     ├── ArrangeRoom.svelte
@@ -54,7 +73,8 @@ src/
 scripts/
 ├── check-arrange-structure.mjs   Arrange layout contract check
 ├── check-mixer-structure.mjs     Mixer + navigation contract check
-└── check-transport-structure.mjs Mini transport contract check
+├── check-transport-structure.mjs Mini transport contract check
+└── check-tokens-structure.mjs    Design token contract check
 ```
 
 ## Commands
@@ -66,6 +86,7 @@ npm run check          # svelte-check + TypeScript diagnostics
 npm run check:arrange  # Arrange structural contract check (no geometry)
 npm run check:mixer    # Mixer + navigation contract check (no geometry)
 npm run check:transport # Mini transport contract check (no geometry)
+npm run check:tokens    # Design token contract check (no rendering)
 npm run build          # production build
 npm run preview   # serve the production build
 ```
@@ -77,6 +98,7 @@ Hash routes keep the shell static-host friendly:
 - `#/console` — default room
 - `#/arrange`
 - `#/mixer`
+- `#/dev/components` — private token playground, not a room, not in the nav
 
 The navigation stays visible across room changes, marks the active room with
 `aria-current="page"`, and each room exposes its own labeled content. Tabs read
@@ -143,5 +165,7 @@ connected — that is Phase 3+ work, per the plan's build-order rule.
 ## Status
 
 Tasks 0.1–0.6 are implemented and **approved** — Phase 0 (UI structure) is
-complete. Phase 1 design tokens, channel-type-aware Mixer detail, shared project
-state, and audio functionality are **not** implemented.
+complete. Task 1.1 (design tokens + swatch playground) is implemented and awaits
+owner review. Phase 1 components (1.2–1.6), Phase 2 skinning, channel-type-aware
+Mixer detail, shared project state, and audio functionality are **not**
+implemented.

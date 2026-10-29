@@ -1,0 +1,287 @@
+/* ===========================================================================
+   ALLOY design tokens — Task 1.1
+   ---------------------------------------------------------------------------
+   THE SINGLE AUTHORITATIVE SOURCE for every design token.
+
+   Rules for this file:
+
+   1. Values live here and nowhere else. No component, room, or stylesheet may
+      hard-code a colour, spacing step, or type ramp value of its own.
+   2. Nothing in this file draws anything. It declares custom properties only,
+      so importing it cannot skin a room. Applying the tokens to the Console,
+      Arrange and Mixer rooms is Phase 2 work.
+   3. Every token declared here is registered in `src/lib/tokens.ts`, which is
+      what the /dev/components playground reads. `npm run check:tokens` fails if
+      the two ever disagree in either direction.
+
+   Provenance
+   ----------
+   Where the governing documents specify a value or a range, that value is used
+   verbatim and the source is noted inline:
+     - ALLOY-PRODUCT-DESIGN-BUILD-PLAN.txt §4  (materials, lighting, functional
+       colour meanings, engraved-console typography direction)
+     - ALLOY-HARDWARE-REFERENCE-SPEC.md §4a    (lamp glow range #e8a454–#f0c27a)
+     - ALLOY-HARDWARE-REFERENCE-SPEC.md §5     (functional colour → component map)
+   Where the documents name a material or a colour family but give no numeric
+   value, the value is taken from the project's own earlier palette in
+   `archive/documentation-site/lib/colors.ts` rather than invented fresh, so
+   ALLOY has one palette and not two. Those tokens are marked ADOPTED. The
+   reasoning is recorded in decisions-log.md.
+
+   Colour space: sRGB hex. Hex is used rather than oklch/hsl so an owner reading
+   the playground sees the same value that appears in this file.
+   =========================================================================== */
+
+:root {
+  /* =========================================================================
+     COLOUR — PANEL & MATERIAL
+     Plan §4: "warm near-black/charcoal and dark grey-green control surfaces,
+     with walnut or rosewood side trim"; "recessed meter windows with cream
+     faces"; "subtle metal texture, panel bevels".
+     ========================================================================= */
+
+  /* Warm near-black: the base panel colour. Slightly brown-leaning, never a
+     neutral/cool black — the "warm" in "warm near-black" is load-bearing. */
+  --al-material-panel: #23211d;
+
+  /* Dark grey-green control surface. Between the panel and the raised face
+     plates, as on the real consoles where the module bay reads greener than
+     the cabinet. */
+  --al-material-surface: #2c2f2a;
+
+  /* Raised face plate / module face — one step lighter than the surface so
+     bevels have something to read against. */
+  --al-material-surface-raised: #3a3d36;
+
+  /* Recessed well: meter windows, switch wells, inset bays. Darker than the
+     panel because it is in shadow. */
+  --al-material-recess: #171614;
+
+  /* Brushed aluminium — restrained accents only (edge trim, screw heads). */
+  --al-material-metal: #9a978f;
+
+  /* Darker brushed metal for shadowed metal edges. */
+  --al-material-metal-shadow: #6b6862;
+
+  /* Walnut side trim. Plan §4 names walnut or rosewood; this is the walnut
+     reading — red-brown, low saturation, not orange. */
+  --al-material-wood: #5a3a26;
+
+  /* Cream meter face. Plan §4: "recessed meter windows with cream faces". */
+  --al-material-cream: #e7ddc4;
+
+  /* Incandescent lamp glow — the warm amber/gold the plan requires for meters
+     and engaged indicators ("glow should bloom softly rather than look like a
+     crisp LED outline").
+     HARDWARE SPEC §4a gives the range #e8a454–#f0c27a; this sits inside it. */
+  --al-material-lamp: #edb268;
+
+  /* The recurring console accent stripe. Plan §4 assigns orange to bus/group
+     masters AND this stripe; it is the same family, so the stripe reuses the
+     orange functional base rather than introducing a seventh orange. */
+  --al-accent-stripe: var(--al-function-orange-base);
+
+  /* =========================================================================
+     COLOUR — TEXT
+     Plan §4: labels are "engraved or machined into the panel"; body text must
+     stay highly readable. Two distinct roles, so two distinct ramps.
+     ========================================================================= */
+
+  /* Primary interface text on dark material — warm off-white, not pure white,
+     so it sits on the warm panel without a cold cast. */
+  --al-text-primary: #efe9dc;
+
+  /* Secondary text: supporting copy, values, units. */
+  --al-text-secondary: #bdb5a4;
+
+  /* Muted text: de-emphasised metadata, placeholder copy. */
+  --al-text-muted: #8a8377;
+
+  /* Engraved label fill: the "cut into the panel" reading. Dark, so it always
+     pairs with an engraved highlight below it. */
+  --al-text-engraved: #16150f;
+
+  /* The 1px lighter edge that makes lettering read as engraved rather than
+     printed. Used as a text-shadow offset, never on its own. */
+  --al-text-engraved-highlight: #4a4d45;
+
+  /* Text that sits on top of a cream surface (meter faces, cream caps). */
+  --al-text-on-cream: #241f18;
+
+  /* =========================================================================
+     COLOUR — BORDERS & SEPARATORS
+     Plan §4: panel bevels and separators. Three weights so a module can show
+     hierarchy without inventing values.
+     ========================================================================= */
+
+  /* Structural border between major modules. */
+  --al-border-strong: #14130f;
+
+  /* Normal border between adjacent controls or rows. */
+  --al-border-subtle: #3f423a;
+
+  /* Hairline separator / engraved division line. */
+  --al-separator: #4f534a;
+
+  /* The lit top edge of a bevel: light catching a raised surface. */
+  --al-bevel-light: #5a5d54;
+
+  /* The shadowed bottom edge of the same bevel. */
+  --al-bevel-shadow: #12110e;
+
+  /* =========================================================================
+     COLOUR — FUNCTIONAL
+     Plan §4 and HARDWARE SPEC §5 define six families and their meanings. The
+     meaning strings live in tokens.ts so the playground can print them.
+
+     Each family has four roles, adopted from the project's earlier palette so
+     the cap/pointer shading described in HARDWARE SPEC §1 is expressible
+     without inventing colours at the component level:
+       base — the control's mid tone (cap centre)
+       hi   — upper-left radial highlight
+       lo   — lower-right radial shade
+       ink  — pointer / printed value that sits on top of the cap,
+              chosen per family to stay legible
+     ========================================================================= */
+
+  /* Cream / off-white — input trim and gain staging, fader caps. */
+  --al-function-cream-base: #e7ddc4;
+  --al-function-cream-hi: #fbf5e6;
+  --al-function-cream-lo: #a29880;
+  --al-function-cream-ink: #241f18;
+
+  /* Amber / gold — EQ and tonal controls. */
+  --al-function-amber-base: #dfa055;
+  --al-function-amber-hi: #f7d59a;
+  --al-function-amber-lo: #96601f;
+  --al-function-amber-ink: #2c1a06;
+
+  /* Red — compression and dynamics. */
+  --al-function-red-base: #bd4637;
+  --al-function-red-hi: #ea9179;
+  --al-function-red-lo: #772115;
+  --al-function-red-ink: #fdf0ea;
+
+  /* Blue-grey — pan, stereo image, spatial placement. */
+  --al-function-bluegrey-base: #6d869a;
+  --al-function-bluegrey-hi: #adc6d5;
+  --al-function-bluegrey-lo: #3a4f5f;
+  --al-function-bluegrey-ink: #f1f7fb;
+
+  /* Green — sends, auxiliary paths, reverb/delay. */
+  --al-function-green-base: #4d9461;
+  --al-function-green-hi: #98d2a4;
+  --al-function-green-lo: #245234;
+  --al-function-green-ink: #f0fbf2;
+
+  /* Orange — bus/group masters and the recurring console accent stripe. */
+  --al-function-orange-base: #d97725;
+  --al-function-orange-hi: #f6b977;
+  --al-function-orange-lo: #8a430e;
+  --al-function-orange-ink: #2c1503;
+
+  /* =========================================================================
+     COLOUR — ORGANISATIONAL
+     Plan §5b: a curated palette of no more than 24 swatches plus a distinct
+     Unassigned/Neutral state; organisational colour is an identity marker, not
+     a control colour (HARDWARE SPEC §7).
+     8 swatches + neutral, within the 24 cap. Adopted from the project palette.
+     ========================================================================= */
+
+  --al-org-1: #df7a26;
+  --al-org-2: #c04a3a;
+  --al-org-3: #6d869a;
+  --al-org-4: #4d9461;
+  --al-org-5: #b9922f;
+  --al-org-6: #9c5fb0;
+  --al-org-7: #cf6f9a;
+  --al-org-8: #4b9fb5;
+  --al-org-neutral: #6f6a61;
+
+  /* =========================================================================
+     SPACING
+     A dense-surface scale. The plan asks for "usable data density" in Arrange
+     and Mixer while keeping readable supporting content, so the low end of the
+     scale is fine-grained (2/4/6/8px) where control insets live, and the high
+     end is roomy (24/32/48px) where page-level separation lives.
+     Values are px deliberately: these are panel dimensions, not type sizes, and
+     should not rescale with the user's font size.
+     ========================================================================= */
+
+  --al-space-3xs: 2px;   /* hairline inset, engraved rule offset */
+  --al-space-2xs: 4px;   /* gap inside a control cluster */
+  --al-space-xs: 6px;    /* control-to-label gap */
+  --al-space-sm: 8px;    /* padding inside a control well */
+  --al-space-md: 12px;   /* module inner padding */
+  --al-space-lg: 16px;   /* gap between modules */
+  --al-space-xl: 24px;   /* section separation */
+  --al-space-2xl: 32px;  /* room-level padding */
+  --al-space-3xl: 48px;  /* major vertical rhythm */
+
+  /* =========================================================================
+     TYPOGRAPHY — FAMILIES
+     Plan §4 requires two clearly different roles: "compact industrial/
+     condensed typography" for engraved panel labels, and highly readable text
+     for everything a user actually reads (explanations, values, prose).
+
+     No web fonts are loaded: the plan forbids adding dependencies, and the
+     build must work offline. Both stacks therefore resolve through the OS.
+     ========================================================================= */
+
+  /* Condensed industrial grotesque for engraved hardware labels. */
+  --al-font-label: "Roboto Condensed", "Arial Narrow", "Helvetica Neue Condensed",
+    "Liberation Sans Narrow", "Nimbus Sans Narrow", sans-serif;
+
+  /* Readable interface text: supporting copy, explanations, values. */
+  --al-font-ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* Monospace for tabular numbers — time readouts, positions, numeric entry.
+     A condensed sans cannot align digits in a column. */
+  --al-font-mono: ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono",
+    monospace;
+
+  /* =========================================================================
+     TYPOGRAPHY — SIZE
+     rem-based so the interface honours browser text-size settings.
+     ========================================================================= */
+
+  --al-text-size-2xs: 0.625rem;  /* 10px — micro print, tick numerals */
+  --al-text-size-xs: 0.6875rem;  /* 11px — control labels, dense metadata */
+  --al-text-size-sm: 0.75rem;    /* 12px — secondary interface text */
+  --al-text-size-md: 0.8125rem;  /* 13px — default control text */
+  --al-text-size-base: 0.875rem; /* 14px — body text */
+  --al-text-size-lg: 1rem;       /* 16px — sub-headings */
+  --al-text-size-xl: 1.25rem;    /* 20px — section headings */
+  --al-text-size-2xl: 1.5rem;    /* 24px — room titles */
+
+  /* =========================================================================
+     TYPOGRAPHY — WEIGHT
+     ========================================================================= */
+
+  --al-font-weight-regular: 400;
+  --al-font-weight-medium: 500;
+  --al-font-weight-semibold: 600;
+  --al-font-weight-bold: 700;
+  --al-font-weight-black: 800;
+
+  /* =========================================================================
+     TYPOGRAPHY — LINE HEIGHT
+     Dense for labels (one line, no leading to spare), normal for prose.
+     ========================================================================= */
+
+  --al-line-height-tight: 1.15;  /* engraved labels, single-line control text */
+  --al-line-height-snug: 1.3;    /* dense multi-line metadata */
+  --al-line-height-normal: 1.5;  /* body copy */
+
+  /* =========================================================================
+     TYPOGRAPHY — LETTER SPACING
+     All-caps engraved labels need positive tracking to stay legible; body text
+     needs a hint of negative tracking at large sizes.
+     ========================================================================= */
+
+  --al-letter-spacing-engraved: 0.14em; /* small all-caps panel labels */
+  --al-letter-spacing-label: 0.08em;    /* medium all-caps labels */
+  --al-letter-spacing-normal: 0;        /* body text */
+  --al-letter-spacing-tight: -0.01em;   /* large headings */
+}
