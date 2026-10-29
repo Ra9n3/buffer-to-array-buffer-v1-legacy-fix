@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import KnobFixture, { type KnobFixtureConfig } from "./KnobFixture.svelte";
   import {
     FUNCTION_ROLE_ORDER,
     TOKENS,
@@ -22,6 +23,158 @@
    */
 
   let values = $state<Record<string, string>>({});
+
+  /* --- Task 1.2: knob showcase ------------------------------------------
+     Fixtures for the playground only. The ranges and units below are chosen to
+     exercise the component; they are NOT agreed audio-processing parameters. */
+
+  const KNOB_STATES: KnobFixtureConfig[] = [
+    {
+      id: "state-default",
+      label: "Input trim",
+      family: "cream",
+      min: 0,
+      max: 24,
+      step: 0.5,
+      value: 6,
+      unit: "dB",
+      decimals: 1,
+      stateNote: "Default",
+      meaning: "Idle control at rest.",
+    },
+    {
+      id: "state-dragging",
+      label: "EQ 3 kHz",
+      family: "amber",
+      min: -15,
+      max: 15,
+      step: 0.5,
+      value: 2.5,
+      unit: "dB",
+      decimals: 1,
+      demoState: "dragging",
+      stateNote: "Dragging (static demo)",
+      meaning:
+        "Drag look only: the cap sits deeper under the finger. Real dragging updates the pointer live — try it.",
+    },
+    {
+      id: "state-focused",
+      label: "Pan",
+      family: "bluegrey",
+      min: -50,
+      max: 50,
+      step: 1,
+      value: 0,
+      decimals: 0,
+      demoState: "focused",
+      stateNote: "Keyboard-focused (static demo)",
+      meaning:
+        "Focus ring drawn statically here. Tab to any knob below to see the real thing.",
+    },
+    {
+      id: "state-disabled",
+      label: "Threshold",
+      family: "red",
+      min: -60,
+      max: 0,
+      step: 1,
+      value: -18,
+      unit: "dB",
+      decimals: 0,
+      disabled: true,
+      stateNote: "Disabled",
+      meaning: "Desaturated, out of the tab order, and cannot be adjusted.",
+    },
+    {
+      id: "state-editing",
+      label: "Send A",
+      family: "green",
+      min: -60,
+      max: 6,
+      step: 1,
+      value: -8,
+      unit: "dB",
+      decimals: 0,
+      demoState: "editing",
+      stateNote: "Numeric entry (static demo)",
+      meaning:
+        "Double-click any knob, or activate its value, to type a number. Enter commits, Escape cancels.",
+    },
+  ];
+
+  const KNOB_FAMILIES: KnobFixtureConfig[] = [
+    {
+      id: "family-cream",
+      label: "Input trim",
+      family: "cream",
+      min: 0,
+      max: 24,
+      step: 0.5,
+      value: 12,
+      unit: "dB",
+      decimals: 1,
+      meaning: "Cream / off-white — input trim and gain staging.",
+    },
+    {
+      id: "family-amber",
+      label: "EQ 1 kHz",
+      family: "amber",
+      min: -15,
+      max: 15,
+      step: 0.5,
+      value: -4.5,
+      unit: "dB",
+      decimals: 1,
+      meaning: "Amber / gold — EQ and tonal controls.",
+    },
+    {
+      id: "family-red",
+      label: "Ratio",
+      family: "red",
+      min: 1,
+      max: 20,
+      step: 0.5,
+      value: 4,
+      decimals: 1,
+      meaning: "Red — compression and dynamics.",
+    },
+    {
+      id: "family-bluegrey",
+      label: "Width",
+      family: "bluegrey",
+      min: 0,
+      max: 200,
+      step: 5,
+      value: 100,
+      unit: "%",
+      decimals: 0,
+      meaning: "Blue-grey — pan, stereo image and spatial placement.",
+    },
+    {
+      id: "family-green",
+      label: "Send B",
+      family: "green",
+      min: -60,
+      max: 6,
+      step: 1,
+      value: -20,
+      unit: "dB",
+      decimals: 0,
+      meaning: "Green — sends, auxiliary paths, reverb and delay.",
+    },
+    {
+      id: "family-orange",
+      label: "Bus master",
+      family: "orange",
+      min: -60,
+      max: 6,
+      step: 0.5,
+      value: -3,
+      unit: "dB",
+      decimals: 1,
+      meaning: "Orange — bus/group masters, recurring console accent.",
+    },
+  ];
 
   onMount(() => {
     values = readTokenValues();
@@ -203,6 +356,61 @@
       {/if}
     </section>
   {/each}
+
+  <!-- ======================================================================
+       Component showcase — Task 1.2, the rotary pot.
+       Not a token category: this section demonstrates a component that
+       consumes the tokens above. It is not skinned into any room.
+       ====================================================================== -->
+  <section
+    class="dev-section"
+    data-dev-component="knob"
+    aria-labelledby="dev-component-knob"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-knob">
+        Component — rotary pot (knob)
+      </h2>
+      <p class="dev-section__blurb">
+        One reusable <code>Knob</code> component, six functional colours, five
+        states. The visual foundation is the supplied rotary-knob artwork, kept
+        as drawn: a continuous outer body with a lower side wall, a recessed face
+        with inset shading, two rings of individually drawn grip ridges, and a
+        separate index bar on the face. The whole assembly — body, ridges, face
+        and index — rotates together around the centre as the value changes, so
+        the knob turns as one piece rather than losing its grip detail. The
+        supplied key light is fixed: it belongs to the panel, not the knob. Every
+        colour below resolves through the Task 1.1 family tokens — no knob carries
+        a hex value of its own.
+      </p>
+      <p class="dev-section__blurb">
+        Interactions are live: drag a knob, Tab to one and use the arrow keys,
+        Page Up/Down, Home/End, or double-click it to type a value. Values are
+        local to this page and are not connected to any audio or project state.
+      </p>
+    </header>
+
+    <h3 class="dev-subtitle">Five required states</h3>
+    <div class="dev-knobs" data-dev-knob-states>
+      {#each KNOB_STATES as config (config.id)}
+        <KnobFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Six functional colours, side by side</h3>
+    <p class="dev-section__blurb">
+      The same component, six <code>family</code> values. The colour families and
+      their meanings are from plan §4 and hardware spec §5; the body colour is the
+      control's identity, not decoration. Paint, lower side wall and both ridge
+      rings all derive from one family, so no blue survives into a non-blue knob,
+      and the index bar switches to the family ink where white would not read.
+    </p>
+    <div class="dev-knobs" data-dev-knob-families>
+      {#each KNOB_FAMILIES as config (config.id)}
+        <KnobFixture {config} />
+      {/each}
+    </div>
+  </section>
 </div>
 
 <style>
@@ -364,6 +572,22 @@
   .dev-token__source {
     font-size: var(--al-text-size-xs);
     color: #5d5d5d;
+  }
+
+  .dev-subtitle {
+    margin: var(--al-space-sm) 0 0;
+    font-size: var(--al-text-size-base);
+    line-height: var(--al-line-height-tight);
+  }
+
+  /* Knob grids reflow rather than overflow: as many knobs per row as fit,
+     so the page stays usable at 768px and below. */
+  .dev-knobs {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: var(--al-space-md);
+    min-width: 0;
   }
 
   /* --- spacing ----------------------------------------------------------- */
