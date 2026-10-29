@@ -114,61 +114,88 @@ check(
 
 // --- 3. Hardware spec §1 construction. ------------------------------------
 check(
-  "the knurl is generated, not hand-written",
-  /const FLUTES = (\d+)/.test(knob) &&
-    /Array\.from\(\{ length: FLUTES \}/.test(knob),
+  "the knurl is generated from a single flute-count constant",
+  /const BODY_FLUTES = \d+/.test(knob) &&
+    /const SKIRT_FLUTES = \d+/.test(knob) &&
+    /function flutes\(/.test(knob) &&
+    /Array\.from\(\{ length: count \}/.test(knob),
 );
-const fluteCount = Number((/const FLUTES = (\d+)/.exec(knob) ?? [])[1] ?? 0);
+const bodyFlutes = Number((/const BODY_FLUTES = (\d+)/.exec(knob) ?? [])[1] ?? 0);
 check(
-  "flute count is inside the spec's 16–20 range",
-  fluteCount >= 16 && fluteCount <= 20,
-  `16–20 flutes expected; found ${fluteCount}`,
-);
-check(
-  "each flute is a lit face and a cut face, not a flat stripe",
-  /\.knob__flute-lead/.test(knobStyleSource) &&
-    /\.knob__flute-trail/.test(knobStyleSource) &&
-    /leadOpacity/.test(knob) &&
-    /trailOpacity/.test(knob),
+  "the flute count suits the rendered size",
+  bodyFlutes >= 24 && bodyFlutes <= 48,
+  `a knurl of 24–48 flutes is expected at this size; found ${bodyFlutes}`,
 );
 check(
-  "facet brightness is modulated by the light azimuth",
-  /LIGHT_AZIMUTH = 315/.test(knob) && /Math\.cos\(\(\(mid - LIGHT_AZIMUTH\)/.test(knob),
+  "each flute is a groove plus a lit ridge, not a flat stripe",
+  /groove: Number/.test(knob) && /ridge: Number/.test(knob) &&
+    (knob.match(/knob__body-flutes/g) ?? []).length >= 1,
+);
+check(
+  "flute brightness is modulated by the light azimuth",
+  /const facing = Math\.max\(0, Math\.cos\(rad\(theta \+ 30\)\)\)/.test(knob),
+);
+check(
+  "flutes converge with the body taper (top ellipse differs from bottom)",
+  /BODY_TOP_RX = ([\d.]+)/.test(knob) &&
+    (() => {
+      const num = (n) => Number((new RegExp(`const ${n} = ([\\d.]+)`).exec(knob) ?? [])[1] ?? 0);
+      return num("BODY_TOP_RX") !== num("BODY_BOT_RX");
+    })(),
 );
 check("a separate cap element exists", /knob__cap/.test(knobStyleSource));
+// The cap is a flat-topped machined disc: a linear ramp across the face, not
+// a radial dome. This is the correction the reference hardware forced.
 check(
-  "the cap is lit by a radial dome gradient from the upper-left",
-  /id=\{`\$\{uid\}-dome`\} cx="3[0-9]%" cy="[23][0-9]%"/.test(knob),
+  "the cap top is a flat face, not a dome",
+  /linearGradient id=\{`\$\{uid\}-cap`\}/.test(knob) &&
+    !/radialGradient id=\{`\$\{uid\}-cap`\}/.test(knob),
 );
 check(
-  "the dome ramp runs hi → base → lo",
-  /var\(--cap-hi\)[\s\S]{0,120}var\(--cap-base\)[\s\S]{0,120}var\(--cap-lo\)/.test(knob),
+  "the cap face ramp runs hi → base → lo",
+  /var\(--cap-hi\)[\s\S]{0,140}var\(--cap-base\)[\s\S]{0,140}var\(--cap-lo\)/.test(knob),
 );
 check(
-  "the cap is smaller than the skirt (constants agree)",
+  "the cap has a visible side wall plus a top face",
+  /knob__cap-wall/.test(knob) && /knob__cap-top/.test(knob),
+);
+check(
+  "the knob stack is skirt < body < cap in width",
   (() => {
-    const num = (name) => Number((new RegExp(`const ${name} = ([\\d.]+)`).exec(knob) ?? [])[1] ?? 0);
-    return num("CAP_R") < num("SKIRT_R") && num("CAP_R") > 0 && num("RIM_R") > num("CAP_R");
+    const num = (n) => Number((new RegExp(`const ${n} = ([\\d.]+)`).exec(knob) ?? [])[1] ?? 0);
+    return num("CAP_RX") < num("BODY_TOP_RX") && num("BODY_TOP_RX") < num("SKIRT_BOT_RX");
   })(),
-  "CAP_R must be positive and smaller than SKIRT_R",
+  "expected CAP_RX < BODY_TOP_RX < SKIRT_BOT_RX",
 );
 check(
-  "there is a groove/ambient occlusion between cap and face",
-  /knob__groove/.test(knob),
+  "the knob is drawn in raised projection, not flat",
+  (() => {
+    const num = (n) => Number((new RegExp(`const ${n} = ([\\d.]+)`).exec(knob) ?? [])[1] ?? 0);
+    return num("CAP_RY") < num("CAP_RX") && num("CAP_TOP_CY") < num("CAP_BOT_CY");
+  })(),
+  "cap ellipses must be shorter than they are wide, with visible height",
 );
 check(
-  "a pointer rotates with the value",
-  /class="knob__pointer" transform=\{`rotate\(\$\{angle\} \$\{CX\} \$\{CY\}\)`\}/.test(knob),
+  "there is ambient occlusion where the cap meets the shoulder",
+  /knob__cap-ao/.test(knob),
 );
 check(
-  "the pointer is drawn as an inlay (channel, ink, lit edge)",
-  /knob__pointer-bed/.test(knob) &&
-    /knob__pointer-ink/.test(knob) &&
-    /knob__pointer-edge/.test(knob),
+  "the skirt sits on the panel with a contact shadow",
+  /knob__shadow-tight/.test(knob) && /knob__shadow-wide/.test(knob),
 );
 check(
-  "the pointer is clipped to the cap and cannot overhang it",
-  /clip-path=\{`url\(#\$\{uid\}-cap-clip\)`\}/.test(knob),
+  "the pointer runs from the cap centre to its rim",
+  /x1: CX, y1: CAP_TOP_CY/.test(knob) &&
+    /onEllipse\(CAP_RX - 0\.4, CAP_RY - 0\.4, angle, CAP_TOP_CY\)/.test(knob),
+);
+check(
+  "the pointer end lands on the cap rim at the value's angle",
+  /const \[x, y\] = onEllipse\(CAP_RX - 0\.4, CAP_RY - 0\.4, angle, CAP_TOP_CY\)/.test(knob),
+);
+check(
+  "the pointer is painted (ink token) with a shadow beneath",
+  /knob__pointer-ink/.test(knob) &&
+    /stroke: var\(--cap-ink\)/.test(knobStyleSource),
 );
 check(
   "the pointer ink resolves to the family's ink token",
@@ -211,16 +238,16 @@ check(
 check(
   "the focus ring sits clear of the printed scale",
   (() => {
-    const num = (name) => Number((new RegExp(`const ${name} = ([\\d.]+)`).exec(knob) ?? [])[1] ?? 0);
-    return num("FOCUS_R") > num("SKIRT_R") && num("FOCUS_R") < num("TICK_IN");
+    const num = (n) => Number((new RegExp(`const ${n} = ([\\d.]+)`).exec(knob) ?? [])[1] ?? 0);
+    return num("FOCUS_RX") > num("SKIRT_BOT_RX") && num("FOCUS_RX") < num("RING_RX") * num("TICK_INNER");
   })(),
-  "FOCUS_R must sit between the skirt and the first tick",
+  "FOCUS_RX must sit between the skirt and the first tick",
 );
 check(
   "disabled is a material state, not a grey filter",
   /\.knob\.is-disabled/.test(knobStyleSource) &&
     !/grayscale\(/.test(knobStyleSource) &&
-    /\.knob\.is-disabled \.knob__spec/.test(knobStyleSource),
+    /\.knob\.is-disabled \.knob__cap-spec/.test(knobStyleSource),
 );
 check(
   "disabled removes the control from the tab order",

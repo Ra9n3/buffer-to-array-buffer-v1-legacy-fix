@@ -8,24 +8,23 @@
   import { functionToken, type FunctionFamily } from "../../lib/tokens";
 
   /**
-   * ALLOY rotary pot — Task 1.2, refined.
+   * ALLOY rotary pot — Task 1.2, vintage redesign.
    *
-   * One component serves every functional colour; the colour is a `family`
-   * prop resolving through the Task 1.1 tokens (`functionToken()`), never a hex
-   * value of its own.
+   * Built to match 1970s/80s British console pots (Neve / SSL 4000 / API
+   * hardware): a tall finely-fluted body, a flared skirt sitting on the panel,
+   * and a separate flat-topped cap in the functional colour with a painted
+   * index line running from its centre out to the edge.
    *
-   * The knob is built as FIVE distinct physical parts, bottom to top:
-   *   1. contact shadow — soft ground shadow, offset down, wider than the knob
-   *   2. knurled skirt   — 18 soft flutes in CSS, lit as a cylinder
-   *   3. flat top face   — machined annulus, dark plastic, lit from upper-left
-   *   4. groove + rim    — ambient occlusion where the cap meets the face
-   *   5. domed cap       — family-coloured, convex, with specular + rim light
-   * On top of that, painted *into* the cap: the pointer.
+   * The knob is drawn in a slightly raised projection rather than straight
+   * down: the top faces are ellipses (ry ≈ 0.85 rx) and every part has visible
+   * side wall, so it reads as an object standing on the panel instead of a
+   * circle printed on it. The scale is printed in the panel plane (its own
+   * ellipse) and is drawn *behind* the knob, so the knob occludes it — which is
+   * what happens on real hardware.
    *
-   * One lighting model, everywhere: key light from the upper-left (convention
-   * below: azimuth −45°), fill from the panel, and a dark lower-right falloff.
-   * The lighting is static and never moves; only the pointer, value and states
-   * change. That is what makes the six variants read as one hardware family.
+   * One light source throughout: key light upper-left. Every gradient, every
+   * flute highlight and every shadow derives from that single constant, which
+   * is what makes six colours read as one product line.
    */
 
   /** Playground-only visual demonstration. Never set in product code. */
@@ -64,37 +63,58 @@
 
   const uid = `kn${++nextId}`;
 
-  /* --- geometry, in the 120-unit viewBox -------------------------------- */
+  /* --- geometry, in the 120-unit viewBox --------------------------------
+     Measured proportions, taken from the reference hardware:
+       knob body diameter ≈ 0.62 of the scale-ring diameter
+       body flute band    ≈ 0.45 × cap diameter, tall
+       skirt              ≈ 1.15 × body diameter, flared, 3 units high
+       cap height         ≈ 0.45 × cap diameter
+  ----------------------------------------------------------------------- */
 
   const CX = 60;
-  const CY = 60;
-  /** Travel spans 270°, centred on 12 o'clock. */
+
+  /** Panel-plane scale ellipse (the print lives on the panel, not the knob). */
+  const RING_CY = 66;
+  const RING_RX = 44.7;
+  const RING_RY = 38;
+  const TICK_INNER = 0.93;
+
+  /** Knob stack, bottom to top. */
+  const BASE_CY = 66;
+  const SKIRT_BOT_RX = 24;
+  const SKIRT_BOT_RY = 18.7;
+  const SKIRT_TOP_RX = 21.6;
+  const SKIRT_TOP_RY = 16.8;
+  const SKIRT_CY = 61;
+
+  const BODY_BOT_RX = 21.2;
+  const BODY_BOT_RY = 16.5;
+  const BODY_TOP_RX = 18.9;
+  const BODY_TOP_RY = 14.7;
+  const BODY_CY = 45.4;
+
+  const CAP_RX = 16.6;
+  const CAP_RY = 12.9;
+  const CAP_BOT_CY = 45.4;
+  const CAP_TOP_CY = 40;
+
+  /** Focus bezel sits in the clear band between skirt and scale. */
+  const FOCUS_RX = 27.6;
+  const FOCUS_RY = 21.4;
+
+  /** Sweep and graduations. */
   const SWEEP = 270;
   const START_ANGLE = -135;
-  /** 21 graduations over 270° = one every 13.5°, majors every fifth. */
-  const TICK_COUNT = 21;
+  const TICK_COUNT = 27;
 
-  /** Cap (the coloured dome). */
-  const CAP_R = 20.0;
-  /** Chamfered rim where the cap turns down into the groove. */
-  const RIM_R = 21.3;
-  /** Flat machined face of the skirt. */
-  const FACE_R = 23.7;
-  /** Outer edge of the knurled skirt. */
-  const SKIRT_R = 28.6;
-  /** Focus ring sits in the clear gap between skirt and scale. */
-  const FOCUS_R = 30.6;
-
-  const TICK_IN = 31.4;
-  const TICK_MINOR = 34.6;
-  const TICK_MAJOR = 37.2;
-  const NUM_R = 42.6;
-
-  /** 18 flutes = 20° pitch, inside the spec's 16–20 range. */
-  const FLUTES = 18;
-
-  /** Skirt geometry is derived from SKIRT_R, not re-typed in the stylesheet. */
-  const skirtInset = `${(((60 - SKIRT_R) / 120) * 100).toFixed(2)}%`;
+  /**
+   * Flute count. The reference hardware uses very fine knurling — far finer
+   * than the 16–20 ridges in the hardware spec — so the count is tuned for the
+   * rendered size rather than the spec's figure. Documented as D1.2.13; the
+   * spec range is one constant away if the owner prefers it.
+   */
+  const BODY_FLUTES = 30;
+  const SKIRT_FLUTES = 34;
 
   let dragging = $state(false);
   let focused = $state(false);
@@ -292,84 +312,111 @@
     if (demoState === "editing") void openEditor();
   });
 
-  /* --- scale generation ------------------------------------------------- */
+  /* --- geometry helpers -------------------------------------------------- */
 
-  /** Polar → cartesian. 0° is 12 o'clock, positive angles run clockwise. */
-  function pointOn(radius: number, degrees: number): [number, number] {
-    const a = (degrees * Math.PI) / 180;
-    return [CX + radius * Math.sin(a), CY - radius * Math.cos(a)];
+  const rad = (deg: number): number => (deg * Math.PI) / 180;
+
+  /** A point on an ellipse in the panel plane. 0° is 12 o'clock, clockwise. */
+  function onEllipse(rx: number, ry: number, deg: number, cy = RING_CY): [number, number] {
+    return [CX + rx * Math.sin(rad(deg)), cy - ry * Math.cos(rad(deg))];
   }
 
-  /** Clockwise arc path at a given radius, used for light/shade crescents. */
-  function arcPath(radius: number, from: number, to: number): string {
-    const [x0, y0] = pointOn(radius, from);
-    const [x1, y1] = pointOn(radius, to);
-    const large = Math.abs(to - from) > 180 ? 1 : 0;
-    return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${radius} ${radius} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
-  }
-
-  /** Annular sector, used for the knurl facets. */
-  function sectorPath(r0: number, r1: number, a0: number, a1: number): string {
-    const [x0, y0] = pointOn(r1, a0);
-    const [x1, y1] = pointOn(r1, a1);
-    const [x2, y2] = pointOn(r0, a1);
-    const [x3, y3] = pointOn(r0, a0);
+  /** Side wall of a truncated cylinder: top and bottom ellipses joined. */
+  function wallPath(
+    topRx: number,
+    topCy: number,
+    botRx: number,
+    botRy: number,
+    botCy: number,
+  ): string {
     return (
-      `M ${x0.toFixed(2)} ${y0.toFixed(2)} ` +
-      `A ${r1} ${r1} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)} ` +
-      `L ${x2.toFixed(2)} ${y2.toFixed(2)} ` +
-      `A ${r0} ${r0} 0 0 0 ${x3.toFixed(2)} ${y3.toFixed(2)} Z`
+      `M ${(CX - topRx).toFixed(2)} ${topCy.toFixed(2)} ` +
+      `L ${(CX - botRx).toFixed(2)} ${botCy.toFixed(2)} ` +
+      `A ${botRx} ${botRy} 0 0 1 ${(CX + botRx).toFixed(2)} ${botCy.toFixed(2)} ` +
+      `L ${(CX + topRx).toFixed(2)} ${topCy.toFixed(2)} Z`
     );
   }
 
   /**
-   * The knurl. Each flute is a cut ridge: a narrow face that catches the key
-   * light and a wider face turned away from it. Every facet's brightness is
-   * modulated by its own azimuth, so the whole skirt is lit by one light
-   * source rather than by a repeating pattern.
+   * Vertical flutes wrapped round a truncated cylinder.
+   *
+   * Each flute runs from the front edge of the top ellipse to the front edge
+   * of the bottom ellipse at the same angular position, so the lines converge
+   * with the taper exactly as a turned knurl does. Brightness is a function of
+   * the flute's own azimuth against the key light, never a repeating pattern.
    */
-  const LIGHT_AZIMUTH = 315; // upper-left
-  const fluteFacets = Array.from({ length: FLUTES }, (_, i) => {
-    const pitch = 360 / FLUTES;
-    const a0 = i * pitch;
-    const ridge = a0 + pitch * 0.42;
-    const mid = a0 + pitch / 2;
-    const facing = Math.max(
-      0,
-      Math.cos(((mid - LIGHT_AZIMUTH) * Math.PI) / 180),
-    );
+  function flutes(
+    count: number,
+    topRx: number,
+    topRy: number,
+    topCy: number,
+    botRx: number,
+    botRy: number,
+    botCy: number,
+  ) {
+    return Array.from({ length: count }, (_, i) => {
+      const theta = -90 + ((i + 0.5) * 180) / count;
+      const t = rad(theta);
+      const facing = Math.max(0, Math.cos(rad(theta + 30)));
 
-    return {
-      i,
-      lead: sectorPath(FACE_R - 0.2, SKIRT_R, a0, ridge),
-      trail: sectorPath(FACE_R - 0.2, SKIRT_R, ridge, a0 + pitch),
-      // Shallow milled grooves, not teeth: the contrast has to stay low or
-      // the skirt reads as a gear instead of a machined grip.
-      leadOpacity: Number((0.02 + 0.09 * facing).toFixed(3)),
-      trailOpacity: Number((0.13 - 0.05 * facing).toFixed(3)),
-    };
-  });
+      return {
+        i,
+        x1: CX + topRx * Math.sin(t),
+        y1: topCy + topRy * Math.cos(t),
+        x2: CX + botRx * Math.sin(t),
+        y2: botCy + botRy * Math.cos(t),
+        // Grooves stay dark; ridges brighten as they face the light.
+        groove: Number((0.56 - 0.26 * facing).toFixed(3)),
+        ridge: Number((0.10 + 0.62 * facing).toFixed(3)),
+      };
+    });
+  }
+
+  const bodyFlutes = flutes(
+    BODY_FLUTES,
+    BODY_TOP_RX,
+    BODY_TOP_RY,
+    BODY_CY,
+    BODY_BOT_RX,
+    BODY_BOT_RY,
+    SKIRT_CY,
+  );
+
+  const skirtFlutes = flutes(
+    SKIRT_FLUTES,
+    SKIRT_TOP_RX,
+    SKIRT_TOP_RY,
+    SKIRT_CY,
+    SKIRT_BOT_RX,
+    SKIRT_BOT_RY,
+    BASE_CY,
+  );
+
+  /* --- scale ------------------------------------------------------------- */
 
   const tickMarks = Array.from({ length: TICK_COUNT }, (_, index) => {
     const t = index / (TICK_COUNT - 1);
     const deg = START_ANGLE + SWEEP * t;
     const major = index === 0 || index === TICK_COUNT - 1 || index % 5 === 0;
-    const r2 = major ? TICK_MAJOR : TICK_MINOR;
-    const [x1, y1] = pointOn(TICK_IN, deg);
-    const [x2, y2] = pointOn(r2, deg);
+    const outer = major ? 1.06 : 1;
+    const [x1, y1] = onEllipse(RING_RX * TICK_INNER, RING_RY * TICK_INNER, deg);
+    const [x2, y2] = onEllipse(RING_RX * outer, RING_RY * outer, deg);
 
     return { index, major, x1, y1, x2, y2 };
   });
 
   const extremePositions = [START_ANGLE, -START_ANGLE].map((deg) => {
-    const [x, y] = pointOn(NUM_R, deg);
+    const [x, y] = onEllipse(RING_RX * 0.855, RING_RY * 0.855, deg);
     return { x, y };
   });
 
-  /** Key light comes from the upper-left; these arcs sell the roundness. */
-  const capRimLight = arcPath(RIM_R - 0.45, 264, 330);
-  const capRimShade = arcPath(RIM_R - 0.45, 46, 134);
-  const faceRimLight = arcPath(FACE_R - 0.3, 262, 336);
+  /* --- pointer, painted in the cap's plane ------------------------------ */
+
+  /** Start at the cap centre, end on the cap's rim, in ellipse space. */
+  const pointer = $derived.by(() => {
+    const [x, y] = onEllipse(CAP_RX - 0.4, CAP_RY - 0.4, angle, CAP_TOP_CY);
+    return { x1: CX, y1: CAP_TOP_CY, x2: x, y2: y };
+  });
 </script>
 
 <div
@@ -382,7 +429,6 @@
   style:--cap-base={functionToken(family, "base")}
   style:--cap-lo={functionToken(family, "lo")}
   style:--cap-ink={functionToken(family, "ink")}
-  style:--skirt-inset={skirtInset}
   data-knob
   data-knob-family={family}
   data-knob-state={knobState}
@@ -411,138 +457,81 @@
       onblur={() => (focused = false)}
       ondblclick={openEditor}
     >
-      <!-- 1. contact shadow only; the skirt itself is drawn below. -->
-      <span class="knob__skirt" aria-hidden="true"></span>
-
-      <!-- 3–5. face, groove, dome, pointer, scale — one lighting model. -->
       <svg class="knob__surface" viewBox="0 0 120 120" aria-hidden="true">
         <defs>
-          <!-- Cap dome: family hi→base→lo, key light upper-left. -->
-          <!-- Key light upper-left, but only ~30% off centre: a real dome's
-               highlight sits inside the silhouette, not on its edge. -->
-          <radialGradient id={`${uid}-dome`} cx="38%" cy="31%" r="82%">
-            <stop offset="0%" style="stop-color: var(--cap-hi)" />
-            <stop offset="13%" style="stop-color: var(--cap-hi)" />
-            <stop offset="38%" style="stop-color: var(--cap-base)" />
-            <stop offset="72%" style="stop-color: var(--cap-lo)" />
-            <stop offset="100%" style="stop-color: var(--cap-lo)" />
-          </radialGradient>
-          <!-- Terminator: darkens the lower-right of the dome. -->
-          <radialGradient id={`${uid}-terminator`} cx="70%" cy="74%" r="76%">
-            <stop offset="20%" style="stop-color: rgba(0,0,0,0)" />
-            <stop offset="62%" style="stop-color: rgba(0,0,0,0.08)" />
-            <stop offset="88%" style="stop-color: rgba(0,0,0,0.15)" />
-            <stop offset="100%" style="stop-color: rgba(0,0,0,0.24)" />
-          </radialGradient>
-          <!-- Cylinder falloff across the skirt; deliberately gentle, or the
-               skirt's outer edge sinks into the panel and the part vanishes. -->
-          <radialGradient id={`${uid}-skirt-shade`} cx="35%" cy="28%" r="76%">
-            <stop offset="0%" style="stop-color: rgba(255,255,255,0.14)" />
-            <stop offset="38%" style="stop-color: rgba(255,255,255,0.00)" />
-            <stop offset="74%" style="stop-color: rgba(0,0,0,0.14)" />
-            <stop offset="100%" style="stop-color: rgba(0,0,0,0.34)" />
-          </radialGradient>
-          <!-- Flat machined face: same key light, much lower albedo. -->
-          <radialGradient id={`${uid}-face`} cx="33%" cy="26%" r="76%">
-            <stop offset="0%" style="stop-color: rgba(255,255,255,0.20)" />
-            <stop offset="42%" style="stop-color: rgba(255,255,255,0.03)" />
-            <stop offset="76%" style="stop-color: rgba(0,0,0,0.26)" />
-            <stop offset="100%" style="stop-color: rgba(0,0,0,0.55)" />
-          </radialGradient>
-          <!-- Specular: a soft, slightly elliptical sheen, not a dot. -->
-          <radialGradient id={`${uid}-spec`} cx="50%" cy="50%" r="50%">
+          <!-- Skirt and body: dark turned plastic, lit as a cylinder. -->
+          <linearGradient id={`${uid}-stack`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" style="stop-color: rgba(0,0,0,0.42)" />
+            <stop offset="16%" style="stop-color: rgba(255,255,255,0.11)" />
+            <stop offset="34%" style="stop-color: rgba(255,255,255,0.05)" />
+            <stop offset="58%" style="stop-color: rgba(0,0,0,0.16)" />
+            <stop offset="84%" style="stop-color: rgba(0,0,0,0.34)" />
+            <stop offset="100%" style="stop-color: rgba(0,0,0,0.46)" />
+          </linearGradient>
+
+          <!-- Top face of the body, in the shadow of the cap. -->
+          <radialGradient id={`${uid}-bodyface`} cx="34%" cy="26%" r="82%">
             <stop offset="0%" style="stop-color: rgba(255,255,255,0.26)" />
-            <stop offset="48%" style="stop-color: rgba(255,255,255,0.10)" />
+            <stop offset="48%" style="stop-color: rgba(255,255,255,0.06)" />
+            <stop offset="100%" style="stop-color: rgba(0,0,0,0.28)" />
+          </radialGradient>
+
+          <!-- Cap top. Deliberately a LINEAR ramp, not a radial one: a radial
+               ramp reads as a sphere, a linear one reads as a flat machined
+               face with a light gradient across it — which is what these pots
+               actually have. -->
+          <linearGradient id={`${uid}-cap`} x1="0.16" y1="0.02" x2="0.84" y2="0.98">
+            <stop offset="0%" style="stop-color: var(--cap-hi)" />
+            <stop offset="26%" style="stop-color: var(--cap-base)" />
+            <stop offset="80%" style="stop-color: var(--cap-base)" />
+            <stop offset="100%" style="stop-color: var(--cap-lo)" />
+          </linearGradient>
+
+          <!-- Cap wall: same colour, turned away from the light. -->
+          <linearGradient id={`${uid}-capwall`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" style="stop-color: var(--cap-lo)" />
+            <stop offset="14%" style="stop-color: var(--cap-base)" />
+            <stop offset="46%" style="stop-color: var(--cap-lo)" />
+            <stop offset="100%" style="stop-color: rgba(0,0,0,0.35)" />
+          </linearGradient>
+
+          <!-- Broad glossy sheen across the flat top, not a dot. -->
+          <linearGradient id={`${uid}-gloss`} x1="0.15" y1="0" x2="0.7" y2="1">
+            <stop offset="0%" style="stop-color: rgba(255,255,255,0.20)" />
+            <stop offset="42%" style="stop-color: rgba(255,255,255,0.05)" />
             <stop offset="100%" style="stop-color: rgba(255,255,255,0)" />
-          </radialGradient>
-          <!-- Ambient occlusion inside the groove around the cap. -->
-          <radialGradient id={`${uid}-groove`} cx="50%" cy="50%" r="50%">
-            <stop offset={`${(RIM_R / FACE_R) * 100 - 6}%`} style="stop-color: rgba(0,0,0,0.55)" />
-            <stop offset={`${(RIM_R / FACE_R) * 100 + 2}%`} style="stop-color: rgba(0,0,0,0.34)" />
-            <stop offset={`${(FACE_R / FACE_R) * 100}%`} style="stop-color: rgba(0,0,0,0)" />
-          </radialGradient>
-          <filter id={`${uid}-blur`} x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="0.7" />
+          </linearGradient>
+
+          <filter id={`${uid}-blur-sm`} x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="0.55" />
           </filter>
-          <filter id={`${uid}-blur-soft`} x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur stdDeviation="1.7" />
+          <filter id={`${uid}-blur`} x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur stdDeviation="1.6" />
           </filter>
-          <clipPath id={`${uid}-cap-clip`}>
-            <circle cx={CX} cy={CY} r={CAP_R} />
-          </clipPath>
+          <filter id={`${uid}-blur-lg`} x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2.8" />
+          </filter>
         </defs>
 
-        <!-- 2. knurled skirt: body, 18 lit/cut facets, cylindrical falloff. -->
-        <circle class="knob__skirt-body" cx={CX} cy={CY} r={SKIRT_R} />
-        <g class="knob__flutes">
-          {#each fluteFacets as facet (facet.i)}
-            <path class="knob__flute-lead" d={facet.lead} fill-opacity={facet.leadOpacity} />
-            <path class="knob__flute-trail" d={facet.trail} fill-opacity={facet.trailOpacity} />
-          {/each}
-        </g>
-        <circle class="knob__skirt-shade" cx={CX} cy={CY} r={SKIRT_R} fill={`url(#${uid}-skirt-shade)`} />
-        <circle class="knob__skirt-edge" cx={CX} cy={CY} r={SKIRT_R} />
-
-        <!-- 3. machined top face of the skirt. -->
-        <circle
-          class="knob__face"
-          cx={CX}
-          cy={CY}
-          r={FACE_R}
-          fill={`url(#${uid}-face)`}
+        <!-- Contact shadow: tight and dark at the base, wide and soft beyond. -->
+        <ellipse
+          class="knob__shadow-wide"
+          cx={CX + 1.4}
+          cy={BASE_CY + 3.8}
+          rx={SKIRT_BOT_RX + 3.6}
+          ry={SKIRT_BOT_RY + 1.6}
+          filter={`url(#${uid}-blur-lg)`}
         />
-        <path class="knob__face-rim" d={faceRimLight} />
+        <ellipse
+          class="knob__shadow-tight"
+          cx={CX}
+          cy={BASE_CY + 1.2}
+          rx={SKIRT_BOT_RX + 0.4}
+          ry={SKIRT_BOT_RY - 1.4}
+          filter={`url(#${uid}-blur)`}
+        />
 
-        <!-- 4. groove: ambient occlusion where cap meets face. -->
-        <circle class="knob__groove" cx={CX} cy={CY} r={FACE_R} fill={`url(#${uid}-groove)`} />
-        <circle class="knob__groove-line" cx={CX} cy={CY} r={RIM_R + 0.55} />
-
-        <!-- 5. the cap: dome, terminator, specular, rim. -->
-        <circle class="knob__cap" cx={CX} cy={CY} r={CAP_R} fill={`url(#${uid}-dome)`} />
-
-        <g clip-path={`url(#${uid}-cap-clip)`}>
-          <circle cx={CX} cy={CY} r={CAP_R} fill={`url(#${uid}-terminator)`} />
-          <circle class="knob__cap-veil" cx={CX} cy={CY} r={CAP_R} />
-          <!-- A neutral, very weak scrim: knocks a little saturation out of
-               every colour so nothing reads as modern sign-red or mint. -->
-          <circle class="knob__cap-scrim" cx={CX} cy={CY} r={CAP_R} />
-          <ellipse
-            class="knob__spec"
-            cx={CX - 4.9}
-            cy={CY - 6.1}
-            rx="6.2"
-            ry="4"
-            transform={`rotate(-30 ${CX - 4.9} ${CY - 6.1})`}
-            fill={`url(#${uid}-spec)`}
-            filter={`url(#${uid}-blur-soft)`}
-          />
-          <!-- A second, much weaker bounce sheen, low and right. -->
-          <ellipse
-            class="knob__bounce"
-            cx={CX + 5.2}
-            cy={CY + 6.4}
-            rx="9"
-            ry="3.6"
-            transform={`rotate(-24 ${CX + 5.2} ${CY + 6.4})`}
-            fill={`url(#${uid}-spec)`}
-            opacity="0.18"
-            filter={`url(#${uid}-blur-soft)`}
-          />
-
-          <!-- Pointer: inlaid into the cap. Groove, ink, then its lit edge. -->
-          <g class="knob__pointer" transform={`rotate(${angle} ${CX} ${CY})`}>
-            <line class="knob__pointer-bed" x1={CX} y1={CY - 4.4} x2={CX} y2={CY - 16.2} />
-            <line class="knob__pointer-ink" x1={CX} y1={CY - 4.9} x2={CX} y2={CY - 15.8} />
-            <line class="knob__pointer-edge" x1={CX} y1={CY - 4.9} x2={CX} y2={CY - 15.8} />
-          </g>
-        </g>
-
-        <!-- Cap rim: a chamfer, lit upper-left, shaded lower-right. -->
-        <path class="knob__rim-light" d={capRimLight} />
-        <path class="knob__rim-shade" d={capRimShade} />
-        <circle class="knob__cap-edge" cx={CX} cy={CY} r={CAP_R + 0.15} />
-
-        <!-- Scale: fine graduations, majors longer and firmer. -->
+        <!-- Scale, printed on the panel behind the knob. -->
         <g class="knob__ticks">
           {#each tickMarks as mark (mark.index)}
             <line
@@ -554,14 +543,10 @@
             />
           {/each}
         </g>
-
-        <!-- Fixed reference triangle printed on the panel; never rotates. -->
         <polygon
           class="knob__reference"
-          points={`${CX},${CY - 28.3} ${CX - 1.9},${CY - 30.7} ${CX + 1.9},${CY - 30.7}`}
+          points={`${CX},${RING_CY - RING_RY - 1.2} ${CX - 2.1},${RING_CY - RING_RY - 4.6} ${CX + 2.1},${RING_CY - RING_RY - 4.6}`}
         />
-
-        <!-- Extreme numerals only, on the same rays as the scale ends. -->
         <text
           class="knob__extreme"
           x={extremePositions[0].x}
@@ -579,10 +564,165 @@
           {extremeLabels[1]}
         </text>
 
-        <!-- Focus ring: a machined bezel in the clear gap, never over print. -->
+        <!-- 1. Skirt: flared, fluted, sitting on the panel. -->
+        <path
+          class="knob__skirt"
+          d={wallPath(SKIRT_TOP_RX, SKIRT_CY, SKIRT_BOT_RX, SKIRT_BOT_RY, BASE_CY)}
+        />
+        <path
+          class="knob__skirt-shade"
+          d={wallPath(SKIRT_TOP_RX, SKIRT_CY, SKIRT_BOT_RX, SKIRT_BOT_RY, BASE_CY)}
+          fill={`url(#${uid}-stack)`}
+        />
+        <g class="knob__skirt-flutes">
+          {#each skirtFlutes as f (f.i)}
+            <line
+              x1={f.x1}
+              y1={f.y1}
+              x2={f.x2}
+              y2={f.y2}
+              stroke-width="0.62"
+              stroke={`rgba(0,0,0,${f.groove})`}
+            />
+            <line
+              x1={f.x1 + 0.34}
+              y1={f.y1}
+              x2={f.x2 + 0.34}
+              y2={f.y2}
+              stroke-width="0.34"
+              stroke={`rgba(255,255,255,${f.ridge})`}
+            />
+          {/each}
+        </g>
+        <!-- Lit lip where the skirt's edge catches the room light. -->
+        <path
+          class="knob__skirt-lip"
+          d={`M ${CX - SKIRT_BOT_RX + 2} ${BASE_CY + 0.6} A ${SKIRT_BOT_RX - 2} ${SKIRT_BOT_RY - 2} 0 0 0 ${CX + SKIRT_BOT_RX - 2} ${BASE_CY + 0.6}`}
+        />
+
+        <!-- 2. Body: the tall fluted barrel the cap sits on. -->
+        <path
+          class="knob__body"
+          d={wallPath(BODY_TOP_RX, BODY_CY, BODY_BOT_RX, BODY_BOT_RY, SKIRT_CY)}
+        />
+        <path
+          class="knob__body-shade"
+          d={wallPath(BODY_TOP_RX, BODY_CY, BODY_BOT_RX, BODY_BOT_RY, SKIRT_CY)}
+          fill={`url(#${uid}-stack)`}
+        />
+        <g class="knob__body-flutes">
+          {#each bodyFlutes as f (f.i)}
+            <line
+              x1={f.x1}
+              y1={f.y1}
+              x2={f.x2}
+              y2={f.y2}
+              stroke-width="0.58"
+              stroke={`rgba(0,0,0,${f.groove})`}
+            />
+            <line
+              x1={f.x1 + 0.32}
+              y1={f.y1}
+              x2={f.x2 + 0.32}
+              y2={f.y2}
+              stroke-width="0.32"
+              stroke={`rgba(255,255,255,${f.ridge})`}
+            />
+          {/each}
+        </g>
+
+        <!-- 3. Body top face: the shoulder around the cap. -->
+        <ellipse
+          class="knob__shoulder"
+          cx={CX}
+          cy={BODY_CY}
+          rx={BODY_TOP_RX}
+          ry={BODY_TOP_RY}
+          fill={`url(#${uid}-bodyface)`}
+        />
+
+        <!-- 4. Cap. -->
+        <g class="knob__cap-group">
+          <!-- Ambient occlusion where the cap meets the shoulder. -->
+          <ellipse
+            class="knob__cap-ao"
+            cx={CX}
+            cy={CAP_BOT_CY + 0.6}
+            rx={CAP_RX + 1.2}
+            ry={CAP_RY + 0.7}
+            filter={`url(#${uid}-blur-sm)`}
+          />
+
+          <path
+            class="knob__cap-wall"
+            d={wallPath(CAP_RX, CAP_TOP_CY, CAP_RX, CAP_RY, CAP_BOT_CY)}
+            fill={`url(#${uid}-capwall)`}
+          />
+
+          <ellipse
+            class="knob__cap-top"
+            cx={CX}
+            cy={CAP_TOP_CY}
+            rx={CAP_RX}
+            ry={CAP_RY}
+            fill={`url(#${uid}-cap)`}
+          />
+          <ellipse
+            class="knob__cap-gloss"
+            cx={CX - 1.6}
+            cy={CAP_TOP_CY - 2.2}
+            rx={CAP_RX * 0.82}
+            ry={CAP_RY * 0.78}
+            fill={`url(#${uid}-gloss)`}
+          />
+          <!-- A single tight specular, high on the top-left: the giveaway that
+               this is moulded plastic with a semi-gloss finish. -->
+          <ellipse
+            class="knob__cap-spec"
+            cx={CX - 6.2}
+            cy={CAP_TOP_CY - 5.2}
+            rx="2.9"
+            ry="1.4"
+            transform={`rotate(-28 ${CX - 6.2} ${CAP_TOP_CY - 5.2})`}
+            filter={`url(#${uid}-blur-sm)`}
+          />
+          <!-- Top bevel: a thin lit rim on the upper-left, dark on the far side. -->
+          <ellipse
+            class="knob__cap-bevel"
+            cx={CX}
+            cy={CAP_TOP_CY}
+            rx={CAP_RX - 0.35}
+            ry={CAP_RY - 0.35}
+          />
+
+          <!-- Painted index line: centre of the cap out to the rim. -->
+          <g class="knob__pointer">
+            <line
+              class="knob__pointer-ink"
+              x1={pointer.x1}
+              y1={pointer.y1}
+              x2={pointer.x2}
+              y2={pointer.y2}
+            />
+          </g>
+        </g>
+
+        <!-- Focus bezel: in the clear band, never over printed scale. -->
         <g class="knob__focus">
-          <circle class="knob__focus-gap" cx={CX} cy={CY} r={FOCUS_R} />
-          <circle class="knob__focus-ring" cx={CX} cy={CY} r={FOCUS_R} />
+          <ellipse
+            class="knob__focus-gap"
+            cx={CX}
+            cy={BASE_CY}
+            rx={FOCUS_RX}
+            ry={FOCUS_RY}
+          />
+          <ellipse
+            class="knob__focus-ring"
+            cx={CX}
+            cy={BASE_CY}
+            rx={FOCUS_RX}
+            ry={FOCUS_RY}
+          />
         </g>
       </svg>
     </div>
@@ -628,7 +768,7 @@
 
 <style>
   .knob {
-    --knob-size: 5.5rem;
+    --knob-size: 7.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -662,48 +802,6 @@
     cursor: not-allowed;
   }
 
-  /* --- 1 & 2: contact shadow + knurled skirt ----------------------------- */
-
-  /* The knob body is drawn in the SVG. This element carries only the contact
-     shadow: tight and dark directly beneath the skirt, wide and soft beyond
-     it, so the part sits ON the panel instead of floating above it. */
-  .knob__skirt {
-    position: absolute;
-    inset: var(--skirt-inset);
-    border-radius: 50%;
-    box-shadow:
-      0 1px 1.5px rgba(0, 0, 0, 0.75),
-      0 2px 4px rgba(0, 0, 0, 0.55),
-      0 5px 9px rgba(0, 0, 0, 0.35),
-      0 9px 16px rgba(0, 0, 0, 0.20);
-  }
-
-  /* Knurled skirt. */
-  .knob__skirt-body {
-    fill: var(--al-material-surface-raised);
-  }
-
-  /* Facet fills are pure white/black at fractional opacity: the facet is a
-     surface normal, not a colour, so it is a lighting term rather than a
-     palette entry. */
-  .knob__flute-lead {
-    fill: rgb(255 255 255);
-  }
-
-  .knob__flute-trail {
-    fill: rgb(0 0 0);
-  }
-
-  /* A dark machined edge, so the skirt ends on a crisp line against the
-     panel rather than fading into it. */
-  .knob__skirt-edge {
-    fill: none;
-    stroke: rgba(0, 0, 0, 0.5);
-    stroke-width: 0.5;
-  }
-
-  /* --- 3–5: everything above the skirt ---------------------------------- */
-
   .knob__surface {
     position: absolute;
     inset: 0;
@@ -713,116 +811,116 @@
     pointer-events: none;
   }
 
-  /* Top face: dark machined plastic, same key light as the cap. */
-  .knob__face {
-    fill-opacity: 1;
+  /* --- shadows ---------------------------------------------------------- */
+
+  .knob__shadow-wide {
+    fill: rgba(0, 0, 0, 0.5);
   }
 
-  .knob__face-rim {
-    fill: none;
-    stroke: rgba(255, 255, 255, 0.10);
-    stroke-width: 0.7;
-    stroke-linecap: round;
+  .knob__shadow-tight {
+    fill: rgba(0, 0, 0, 0.72);
   }
 
-  /* Ambient occlusion in the groove — this is what separates cap from face. */
-  .knob__groove {
+  /* --- skirt + body: dark turned plastic -------------------------------- */
+
+  .knob__skirt {
+    fill: var(--al-material-surface-raised);
+  }
+
+  .knob__body {
+    fill: var(--al-material-surface-raised);
+  }
+
+  /* The stack gradient is applied over the fills so both parts share the
+     same cylinder lighting; the skirt sits a touch darker than the body. */
+  .knob__skirt-shade,
+  .knob__body-shade {
     pointer-events: none;
   }
 
-  .knob__groove-line {
+  .knob__skirt-flutes,
+  .knob__body-flutes {
+    pointer-events: none;
+  }
+
+  .knob__skirt-lip {
     fill: none;
-    stroke: rgba(0, 0, 0, 0.55);
-    stroke-width: 0.8;
-  }
-
-  .knob__cap {
-    /* Fill comes from the dome gradient; the shadow beneath the cap edge is
-       what makes it sit proud of the face rather than painted on it. */
-    filter: drop-shadow(0 0.8px 0.9px rgba(0, 0, 0, 0.5));
-  }
-
-  .knob__cap-veil {
-    fill: rgba(42, 30, 18, 0.12);
-  }
-
-  .knob__cap-scrim {
-    fill: rgba(126, 118, 104, 0.07);
-  }
-
-  .knob__cap-edge {
-    fill: none;
-    stroke: rgba(0, 0, 0, 0.18);
-    stroke-width: 0.4;
-  }
-
-  .knob__rim-light {
-    fill: none;
-    stroke: rgba(255, 255, 255, 0.30);
+    stroke: rgba(255, 255, 255, 0.12);
     stroke-width: 0.6;
     stroke-linecap: round;
   }
 
-  .knob__rim-shade {
-    fill: none;
-    stroke: rgba(0, 0, 0, 0.28);
-    stroke-width: 0.7;
-    stroke-linecap: round;
+  .knob__shoulder {
+    fill: var(--al-material-surface-raised);
   }
 
-  /* Pointer, in three passes: dark channel, ink, then the lit edge of the
-     inlay. The 0.5px offsets are what make it read as cut into the surface. */
-  .knob__pointer-bed {
-    stroke: rgba(0, 0, 0, 0.42);
-    stroke-width: 3.1;
-    stroke-linecap: round;
+  /* --- cap -------------------------------------------------------------- */
+
+  .knob__cap-ao {
+    fill: rgba(0, 0, 0, 0.45);
   }
+
+  .knob__cap-top,
+  .knob__cap-wall {
+    /* A hairline dark edge keeps the cap's silhouette crisp against the
+       shoulder without adding a drawn outline. */
+    filter: drop-shadow(0 0.6px 0.7px rgba(0, 0, 0, 0.55));
+  }
+
+  .knob__cap-spec {
+    fill: rgba(255, 255, 255, 0.55);
+  }
+
+  .knob__cap-bevel {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.38);
+    stroke-width: 0.55;
+    stroke-opacity: 0.85;
+  }
+
+  /* --- pointer: painted index line -------------------------------------- */
 
   .knob__pointer-ink {
     stroke: var(--cap-ink);
-    stroke-width: 1.9;
-    stroke-linecap: round;
-  }
-
-  .knob__pointer-edge {
-    stroke: rgba(255, 255, 255, 0.22);
-    stroke-width: 0.7;
-    stroke-linecap: round;
-    transform: translate(0.75px, 0.4px);
+    stroke-width: 2;
+    stroke-linecap: butt;
+    /* A hair of dark beneath the paint: the line sits in the surface rather
+       than floating on it. */
+    filter: drop-shadow(0 0.35px 0.35px rgba(0, 0, 0, 0.45));
   }
 
   /* --- scale ------------------------------------------------------------ */
 
   .knob__ticks line {
     stroke: var(--al-material-metal);
-    stroke-width: 0.5;
-    stroke-opacity: 0.28;
+    stroke-width: 0.7;
+    stroke-opacity: 0.45;
     stroke-linecap: round;
   }
 
   .knob__ticks line.is-major {
-    stroke-width: 0.85;
-    stroke-opacity: 0.7;
+    stroke-width: 1.1;
+    stroke-opacity: 0.9;
   }
 
   .knob__reference {
     fill: var(--al-material-metal);
-    fill-opacity: 0.7;
+    fill-opacity: 0.85;
   }
 
   .knob__extreme {
     fill: var(--al-text-secondary);
     font-family: var(--al-font-mono);
-    font-size: 8.6px;
+    font-size: 8.2px;
     font-variant-numeric: tabular-nums;
     dominant-baseline: middle;
     paint-order: stroke;
     stroke: var(--al-material-panel);
-    stroke-width: 2.6px;
+    stroke-width: 2.4px;
     stroke-linejoin: round;
   }
 
-  /* --- interaction states ----------------------------------------------- */
+  /* --- states ----------------------------------------------------------- */
 
   .knob__focus {
     opacity: 0;
@@ -832,77 +930,80 @@
   .knob__focus-gap {
     fill: none;
     stroke: var(--al-material-panel);
-    stroke-width: 3.2;
+    stroke-width: 3.4;
   }
 
   .knob__focus-ring {
     fill: none;
     stroke: var(--al-text-engraved);
-    stroke-width: 1.15;
+    stroke-width: 1.7;
   }
 
   .knob__dial:focus-visible .knob__focus,
   .knob.is-demo-focus .knob__focus {
-    opacity: 0.9;
+    opacity: 1;
+    /* A second, wider break in the panel print: unmistakable without
+       crossing into the tick ring. */
+    filter: drop-shadow(0 0 1.2px var(--al-material-panel));
   }
 
-  /* Hover: the face catches a little more light. No movement, no scale. */
-  .knob__face {
-    transition: filter 110ms ease;
+  /* Hover: the cap catches a little more room light. No movement. */
+  .knob__cap-top,
+  .knob__cap-gloss {
+    transition: opacity 110ms ease;
   }
 
-  .knob.is-hovered:not(.is-disabled) .knob__face {
-    filter: brightness(1.08);
+  .knob.is-hovered:not(.is-disabled) .knob__cap-gloss {
+    opacity: 1.15;
   }
 
-  /* Dragging: the cap presses into the groove. The same lighting, slightly
-     tighter — the shadow shortens, it does not change direction. */
-  .knob.is-dragging .knob__cap {
-    filter: drop-shadow(0 0.4px 0.5px rgba(0, 0, 0, 0.6));
+  /* Dragging: the cap presses down into the barrel — it physically lowers,
+     which is what a finger on a pot does. */
+  .knob__cap-group {
+    transition: transform 70ms ease-out;
   }
 
-  .knob.is-dragging .knob__rim-light {
-    stroke-opacity: 0.85;
+  .knob.is-dragging .knob__cap-group {
+    transform: translateY(1.6px);
   }
 
-  .knob.is-dragging .knob__spec {
-    opacity: 0.75;
+  .knob.is-dragging .knob__cap-spec {
+    opacity: 0.6;
   }
 
-  .knob.is-dragging .knob__cap-veil {
-    fill: rgba(42, 30, 18, 0.22);
+  .knob.is-dragging .knob__cap-ao {
+    fill: rgba(0, 0, 0, 0.72);
   }
 
-  /* Disabled: not a grey filter. The control reads as an unlit, de-energised
-     part of the same panel — colours sink toward the panel, the specular
-     highlight is gone (nothing is lit), and print contrast drops. */
-  .knob.is-disabled .knob__skirt {
-    background-blend-mode: multiply;
-    opacity: 0.62;
+  /* Disabled: de-energised, not greyscaled. No specular, no gloss, colours
+     sink toward the panel, print contrast drops. */
+  .knob.is-disabled .knob__cap-spec,
+  .knob.is-disabled .knob__cap-gloss {
+    opacity: 0.1;
   }
 
-  .knob.is-disabled .knob__spec,
-  .knob.is-disabled .knob__bounce,
-  .knob.is-disabled .knob__rim-light {
-    opacity: 0.12;
-  }
-
-  .knob.is-disabled .knob__cap {
+  .knob.is-disabled .knob__cap-top,
+  .knob.is-disabled .knob__cap-wall {
     opacity: 0.55;
-    filter: drop-shadow(0 0.5px 0.6px rgba(0, 0, 0, 0.4));
+  }
+
+  .knob.is-disabled .knob__body,
+  .knob.is-disabled .knob__skirt,
+  .knob.is-disabled .knob__shoulder {
+    opacity: 0.72;
+  }
+
+  .knob.is-disabled .knob__body-flutes,
+  .knob.is-disabled .knob__skirt-flutes {
+    opacity: 0.5;
   }
 
   .knob.is-disabled .knob__pointer-ink {
-    stroke: rgba(0, 0, 0, 0.45);
-    stroke-opacity: 1;
-  }
-
-  .knob.is-disabled .knob__pointer-edge {
-    opacity: 0.15;
+    stroke: rgba(0, 0, 0, 0.4);
   }
 
   .knob.is-disabled .knob__ticks line {
-    stroke-opacity: 0.22;
+    stroke-opacity: 0.2;
   }
 
   .knob.is-disabled .knob__reference,
@@ -912,8 +1013,6 @@
 
   /* --- label & readout --------------------------------------------------- */
 
-  /* Engraved label: light infill, hard dark shadow beneath — lettering cut
-     into a dark panel rather than printed on it. */
   .knob__label {
     margin: 0;
     max-width: 100%;
@@ -940,14 +1039,12 @@
     min-width: 0;
   }
 
-  /* Instrument window: a dark recess with a lit lower lip, so it reads as
-     cut into the panel rather than drawn on it. */
   .knob__value,
   .knob__input {
     min-width: 4.6em;
     padding: 1px var(--al-space-2xs) 2px;
     border: 1px solid var(--al-border-subtle);
-    border-radius: var(--al-space-3xs);
+    border-radius: 2px;
     background: var(--al-material-recess);
     color: var(--al-text-primary);
     font-family: var(--al-font-mono);
@@ -972,17 +1069,11 @@
 
   .knob__value:hover:not(:disabled) {
     border-color: var(--al-text-muted);
-    color: var(--al-text-primary);
   }
 
   .knob__input {
     width: 6.4em;
     outline: none;
-  }
-
-  .knob__input::selection {
-    background: var(--al-function-amber-lo);
-    color: var(--al-text-primary);
   }
 
   .knob__input:focus {
@@ -991,6 +1082,11 @@
 
   .knob__input.is-invalid {
     border-color: var(--al-function-red-base);
+  }
+
+  .knob__input::selection {
+    background: var(--al-function-amber-lo);
+    color: var(--al-text-primary);
   }
 
   .knob__error {
@@ -1003,12 +1099,13 @@
     text-align: center;
   }
 
-  /* The only motion is the focus ring fading and the hover sheen easing in.
-     The pointer follows input directly and must never be animated, or it
-     would lag a drag. */
+  /* Only the focus ring and hover sheen ease. The pointer follows input
+     directly and must never be animated, or it would lag a drag. */
   @media (prefers-reduced-motion: reduce) {
     .knob__focus,
-    .knob__face {
+    .knob__cap-top,
+    .knob__cap-gloss,
+    .knob__cap-group {
       transition: none;
     }
   }

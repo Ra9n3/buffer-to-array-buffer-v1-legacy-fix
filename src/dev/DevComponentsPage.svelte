@@ -373,10 +373,11 @@
       </h2>
       <p class="dev-section__blurb">
         One reusable <code>Knob</code> component, six functional colours, five
-        states. Built to hardware spec §1: knurled dark base, flat cap slightly
-        smaller than the base, radial cap lighting, a pointer that rotates with
-        the value, a 270° tick ring, numerals at the extremes only, and a fixed
-        reference triangle on the panel. Every colour below resolves through the
+        states. Modelled on 1970s/80s console pots: a flared skirt sitting on the
+        panel, a tall fluted barrel, and a separate flat cap with a painted index
+        line running from its centre to the rim. Lit by a single key light from
+        the upper-left, drawn in raised projection so the knob occludes the
+        270° scale printed around it. Every colour below resolves through the
         Task 1.1 tokens — no knob carries a hex value of its own.
       </p>
       <p class="dev-section__blurb">
