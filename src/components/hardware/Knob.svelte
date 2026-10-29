@@ -409,6 +409,28 @@
 
   const referencePoint = onCircle(REF_R, 0);
 
+  /**
+   * THE POINTER'S COLOUR IS DECIDED BY THE CAP'S LIGHTNESS, AND BY NOTHING ELSE.
+   *
+   * Not by what the knob controls, not by its family name as a function, not by
+   * idle / hover / drag / focus / disabled. A light cap takes dark charcoal, a
+   * dark cap takes warm ivory — one decision, taken from the cap alone.
+   *
+   * Perceptual lightness (CIE L*) of each cap as it renders, base mixed 94% with
+   * black:
+   *
+   *   cream 83.6   amber 66.6   orange 56.6  |  green 52.5   blue-grey 51.6   red 43.7
+   *   ─────────── light: charcoal #292722 ───┼─── dark: ivory #f2eee3 ───────────
+   *
+   * Contrast against those caps: charcoal 9.71 cream, 5.84 amber, 4.20 orange;
+   * ivory 3.54 green, 3.65 blue-grey, 4.87 red. Nothing falls below 3.5:1.
+   *
+   * `npm run check:knob` recomputes those luminances from tokens.css and fails
+   * if a cap ever crosses L* 54 without this set being updated, so a token
+   * retune cannot quietly put ivory on a light cap.
+   */
+  const LIGHT_CAPS: ReadonlySet<FunctionFamily> = new Set<FunctionFamily>(["cream", "amber", "orange"]);
+
   /** The assembly's rotation: the artwork's pose, the value's angle, the trim. */
   const assemblyRotation = $derived(angle + ARTWORK_ORIENTATION - ORIENTATION_TRIM);
 </script>
@@ -421,9 +443,9 @@
   style:--cap-hi={functionToken(family, "hi")}
   style:--cap-base={functionToken(family, "base")}
   style:--cap-lo={functionToken(family, "lo")}
-  style:--cap-ink={functionToken(family, "ink")}
   data-knob
   data-knob-family={family}
+  data-cap-tone={LIGHT_CAPS.has(family) ? "light" : "dark"}
   data-knob-state={knobState}
 >
   <div class="knob__dial-wrap">
@@ -1076,8 +1098,10 @@
     --kn-hi: var(--cap-hi);
     --kn-base: var(--cap-base);
     --kn-lo: var(--cap-lo);
-    --kn-ink: var(--cap-ink);
-    --kn-ink-far: color-mix(in srgb, var(--cap-ink) 88%, var(--cap-lo));
+    /* The pointer is ONE flat colour, chosen by the cap's lightness. The two
+       stops are the same value, so nothing tints it along its length. */
+    --kn-ink: var(--al-pointer-ink-on-dark);
+    --kn-ink-far: var(--kn-ink);
     /* Barely stepped down from the family ramp: the nickel rim now supplies
        the step into the recess, so the cap can read at (almost) its true
        family colour. Only the recess shadow darkens it further. */
@@ -1162,6 +1186,12 @@
      the paint sinks toward the panel and the index loses contrast. The gloss is
      the layer that carries the highlight now that the old lighting group is
      gone. */
+  /* Light caps take the dark ink. This is the only place the pointer's colour
+     changes, and it reads the cap tone, not the state. */
+  .knob[data-cap-tone="light"] {
+    --kn-ink: var(--al-pointer-ink-on-light);
+  }
+
   .knob.is-disabled .knob__cap-edge {
     opacity: 0.35;
   }

@@ -125,12 +125,12 @@ check(
 
 // --- 2. Tokens, not copied values. ----------------------------------------
 check(
-  "the component resolves colours through functionToken()",
-  ['hi', 'base', 'lo', 'ink'].every((role) =>
+  "the component resolves its cap colours through functionToken()",
+  ['hi', 'base', 'lo'].every((role) =>
     new RegExp(`functionToken\\(family, "${role}"\\)`).test(knob),
   ),
-);
-check(
+  "the cap must still take its colour from the family tokens",
+);check(
   "functionToken maps to the --al-function-* tokens",
   /`var\(--al-function-\$\{family\}-\$\{role\}\)`/.test(tokensTs),
 );
@@ -237,15 +237,61 @@ check(
   "1 px at 7.5rem, on the cap's own edge — not a shifted circle",
 );
 check(
-  "the index bar uses the family ink, so it stays legible in all six",
+  "the pointer is ONE flat colour from the tone token, not a family ink",
   /\.knob__pointer-ink[^{]*{[^}]*}/s.test(knob) &&
-    /--kn-ink: var\(--cap-ink\)/.test(knobStyle),
+    /--kn-ink: var\(--al-pointer-ink-on-dark\)/.test(knobStyle) &&
+    /--kn-ink-far: var\(--kn-ink\)/.test(knobStyle) &&
+    !/--cap-ink/.test(knob),
+  "a family ink makes the pointer depend on the function, and a second stop tints it",
 );
 check(
-  "all six families are declared in tokens.css",
-  ["cream", "amber", "red", "bluegrey", "green", "orange"].every((f) =>
-    css.includes(`--al-function-${f}-base`),
-  ),
+  "a light cap — and only a light cap — switches the pointer to the dark ink",
+  (() => {
+    const m = /\.knob\[data-cap-tone="light"\]\s*\{\s*--kn-ink: var\(--al-pointer-ink-on-light\);/.test(
+      knobStyle,
+    );
+    const hooks = knob.match(/--kn-ink:/g) ?? [];
+    return m && hooks.length === 2;
+  })(),
+  "two assignments of the ink at most: the default and the light-cap override",
+);
+check(
+  "nothing but the cap's lightness can move the pointer's colour",
+  !/is-disabled[^{]*\{[^}]*--kn-ink/s.test(knobStyle) &&
+    !/is-dragging[^{]*\{[^}]*--kn-ink/s.test(knobStyle) &&
+    !/is-hovered[^{]*\{[^}]*--kn-ink/s.test(knobStyle) &&
+    !/is-demo-focus[^{]*\{[^}]*--kn-ink/s.test(knobStyle),
+  "an interaction state must not recolour the pointer",
+);
+check(
+  "the cap-tone classification matches the caps' measured lightness",
+  (() => {
+    const lin = (c) => {
+      const v = c / 255;
+      return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    };
+    const lstar = (hex) => {
+      const [r, g, b] = rgb(hex);
+      const y = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+      const f = y > 0.008856 ? y ** (1 / 3) : 7.787 * y + 16 / 116;
+      return 116 * f - 16;
+    };
+    const declared = (knob.match(/new Set<FunctionFamily>\(\[([^\]]*)\]\)/) ?? [])[1] ?? "";
+    const light = new Set([...declared.matchAll(/"([a-z]+)"/g)].map((m) => m[1]));
+    const families = ["cream", "amber", "red", "bluegrey", "green", "orange"];
+    // The cap renders as color-mix(base 94%, black); classify what is shown.
+    const shownL = Object.fromEntries(
+      families.map((f) => {
+        const hex = new RegExp(`--al-function-${f}-base:\\s*(#[0-9a-fA-F]{6})`).exec(css)[1];
+        const [r, g, b] = rgb(hex);
+        const dim = (c) => Math.round(c * 0.94).toString(16).padStart(2, "0");
+        return [f, lstar(`#${dim(r)}${dim(g)}${dim(b)}`)];
+      }),
+    );
+    const THRESHOLD = 54;
+    return families.every((f) => light.has(f) === shownL[f] >= THRESHOLD);
+  })(),
+  "a cap that crosses L* 54 must be reclassified, or the ink lands on the wrong side of the contrast",
 );
 
 // --- 3. The supplied artwork is intact. -----------------------------------

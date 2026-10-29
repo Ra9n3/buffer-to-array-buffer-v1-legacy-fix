@@ -108,6 +108,25 @@
   /* Text that sits on top of a cream surface (meter faces, cream caps). */
   --al-text-on-cream: #241f18;
 
+  /* -------------------------------------------------------------------------
+     ROTARY KNOB POINTER INK, CHOSEN BY THE CAP'S LIGHTNESS ALONE.
+
+     The pointer is a solid mark on the cap face, so its colour is decided by
+     one thing: how light that cap is. Light caps take dark charcoal; dark caps
+     take warm ivory. It is never chosen by what the knob does, by which
+     function it controls, or by whether it is idle, dragging, focused or
+     disabled.
+
+     Split by perceptual lightness (CIE L*) of the cap as it renders, base
+     mixed 94% with black: cream 83.6, amber 66.6, orange 56.6 are light — they
+     take the charcoal. Green 52.5, blue-grey 51.6 and red 43.7 are dark — they
+     take the ivory. Measured contrast: charcoal is 9.71 on cream, 5.84 on
+     amber, 4.20 on orange; ivory is 3.54 on green, 3.65 on blue-grey, 4.87 on
+     red. Every variant is at or above 3.5:1, and nothing falls below it.
+  ------------------------------------------------------------------------- */
+  --al-pointer-ink-on-light: #292722;
+  --al-pointer-ink-on-dark: #f2eee3;
+
   /* =========================================================================
      COLOUR — BORDERS & SEPARATORS
      Plan §4: panel bevels and separators. Three weights so a module can show

@@ -114,6 +114,8 @@ export const TOKENS: readonly TokenDef[] = [
   { name: "--al-text-engraved", label: "Engraved label fill", category: "colour-text", usage: "Dark fill of lettering cut into the panel. Always paired with the highlight.", source: "Plan §4" },
   { name: "--al-text-engraved-highlight", label: "Engraved highlight", category: "colour-text", usage: "The 1px lighter edge that makes lettering read as cut rather than printed.", source: "Plan §4" },
   { name: "--al-text-on-cream", label: "Text on cream", category: "colour-text", usage: "Text sitting on a cream surface: meter faces, cream caps.", source: "Plan §4" },
+  { name: "--al-pointer-ink-on-light", label: "Pointer ink on light caps", category: "colour-text", usage: "Dark charcoal rotary-knob pointer, used when the cap is light (cream, amber, orange). Chosen by cap lightness alone, never by function or state.", source: "Plan §4 · owner direction" },
+  { name: "--al-pointer-ink-on-dark", label: "Pointer ink on dark caps", category: "colour-text", usage: "Warm ivory rotary-knob pointer, used when the cap is dark (red, green, blue-grey). Chosen by cap lightness alone, never by function or state.", source: "Plan §4 · owner direction" },
   { name: "--al-border-strong", label: "Strong border", category: "colour-border", usage: "Structural border between major modules.", source: "Plan §4" },
   { name: "--al-border-subtle", label: "Subtle border", category: "colour-border", usage: "Border between adjacent controls or rows.", source: "Plan §4" },
   { name: "--al-separator", label: "Separator", category: "colour-border", usage: "Hairline engraved division line.", source: "Plan §4" },
