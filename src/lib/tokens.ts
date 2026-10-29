@@ -188,6 +188,33 @@ export const TOKENS: readonly TokenDef[] = [
 
 export const FUNCTION_ROLE_ORDER = ["base", "hi", "lo", "ink"] as const;
 
+/**
+ * The six functional colour families from plan §4 / hardware spec §5.
+ *
+ * Declared here, next to the token registry that already carries each family's
+ * meaning, so a component never has to invent or repeat a family list.
+ */
+export type FunctionFamily =
+  | "cream"
+  | "amber"
+  | "red"
+  | "bluegrey"
+  | "green"
+  | "orange";
+
+export type FunctionRole = (typeof FUNCTION_ROLE_ORDER)[number];
+
+/**
+ * `var()` reference for one role of one functional family, e.g.
+ * `functionToken("red", "hi")` → `var(--al-function-red-hi)`.
+ *
+ * Components must use this (or an inline `var(--al-function-…)`) rather than
+ * copying a hex value, so a palette change is still a one-file edit.
+ */
+export function functionToken(family: FunctionFamily, role: FunctionRole): string {
+  return `var(--al-function-${family}-${role})`;
+}
+
 /** Tokens in one category, in declaration order. */
 export function tokensInCategory(category: TokenCategory): TokenDef[] {
   return TOKENS.filter((token) => token.category === category);
