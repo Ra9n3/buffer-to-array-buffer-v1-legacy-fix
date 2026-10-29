@@ -11,8 +11,7 @@
     "check:arrange": "node scripts/check-arrange-structure.mjs",
     "check:mixer": "node scripts/check-mixer-structure.mjs",
     "check:transport": "node scripts/check-transport-structure.mjs",
-    "check:tokens": "node scripts/check-tokens-structure.mjs",
-    "check:knob": "node scripts/check-knob-structure.mjs"
+    "check:tokens": "node scripts/check-tokens-structure.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",
