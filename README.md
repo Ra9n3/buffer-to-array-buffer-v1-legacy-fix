@@ -142,6 +142,6 @@ connected — that is Phase 3+ work, per the plan's build-order rule.
 
 ## Status
 
-Tasks 0.1–0.6 are implemented; 0.1–0.5 are approved and Task 0.6 awaits owner
-review. Design tokens, channel-type-aware Mixer detail, shared project state,
-and audio functionality are **not** implemented.
+Tasks 0.1–0.6 are implemented and **approved** — Phase 0 (UI structure) is
+complete. Phase 1 design tokens, channel-type-aware Mixer detail, shared project
+state, and audio functionality are **not** implemented.
