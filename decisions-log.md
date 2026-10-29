@@ -326,3 +326,88 @@ construction, not by nudging coordinates.
 applied to the new geometry.
 
 **Reversible.** Yes.
+
+---
+
+## Task 1.2 — vintage redesign against supplied reference photos
+
+### D1.2.13 — The knob is drawn in raised projection, not top-down
+
+**Context.** The reference photographs show pots standing on a panel: you see
+their side walls, and the skirt's front edge overlaps the printed scale. The
+previous version was a flat disc seen from directly above, which is why it read
+as a UI element no matter how it was shaded.
+
+**Decision.** The knob is drawn in a slightly raised projection. Every circular
+feature is an ellipse (ry ≈ 0.86 rx) and every part has visible height: skirt,
+tall barrel, cap wall and cap top are separate stacked forms. The scale is
+printed in the panel plane (its own, flatter ellipse) and is drawn **behind** the
+knob, so the knob occludes it — as it does on real hardware.
+
+**Why.** This is the single change that most makes the object read as hardware.
+No amount of gradient work fixes a projection that says "flat".
+
+**Reversible.** Yes, but it is not a small change: the constants encode the
+projection.
+
+### D1.2.14 — The cap is a flat machined disc with a linear ramp, not a dome
+
+**Context.** The first refinement made the cap convex with a radial gradient. The
+reference hardware has a **flat** top with a broad sheen and a single tight
+specular; a radial ramp makes it read as a mushroom or a dome, and the painted
+index line then looks like it is floating over a sphere.
+
+**Decision.** The cap top uses a linear ramp across the face (bright upper-left,
+shadow only in the last 20%), plus one small specular at about 30% white and a
+broad, weak sheen. The cap has a visible side wall in a darker gradient of the
+same family colour.
+
+**Why.** This is what makes the pointer read as painted *onto* a surface rather
+than drawn on a ball.
+
+**Reversible.** Yes.
+
+### D1.2.15 — Flute count is 30, outside the hardware spec's 16–20
+
+**Context.** The hardware reference spec §1 asks for 16–20 ridges. The reference
+photographs show pots with far finer knurling, and at the rendered size a
+16-flute ring reads as a cog. The brief for this pass explicitly asks for the
+reference hardware's appearance.
+
+**Decision.** 30 flutes on the body and 34 on the skirt, generated from two
+constants. This is a knowing departure from the spec's figure, taken on the
+owner's own reference images, and it is flagged here rather than silently.
+
+**Why.** The spec's 16–20 was written for a flatter, more top-down drawing; with
+raised projection and a tall barrel, that count is too coarse to read as knurl.
+The number is one constant each if the owner prefers the spec figure.
+
+**Reversible.** Yes — `BODY_FLUTES` / `SKIRT_FLUTES`.
+
+### D1.2.16 — The control is 120px, not 88px
+
+**Context.** At 88px, 30–34 flutes fall below one pixel each and the knurl turns
+into moiré mush; the extreme numerals also fall under 8px.
+
+**Decision.** `--knob-size` is 7.5rem (120px at a 16px root). The playground grid
+handles it without overflow at all three required widths.
+
+**Why.** The brief asks for a knob that is convincing *at its displayed size*. A
+size that cannot carry the detail is the wrong size, and 120px is still small for
+a hardware pot's primary control.
+
+**Reversible.** Yes — one custom property.
+
+### D1.2.17 — Scale numerals sit inside the tick arc
+
+**Context.** With a tall barrel, a number placed outside the tick ring overflows
+the dial's bounding box (the `-60` of a −60…0 range was clipped at 330px).
+
+**Decision.** The two extreme numerals are placed inside the tick arc, close to
+the knob, as they are on the reference panels where the print fills the ring
+between the scale and the part.
+
+**Why.** It removes the overflow class of bug by construction rather than by
+adding padding, and it matches the reference.
+
+**Reversible.** Yes — one radius multiplier.
