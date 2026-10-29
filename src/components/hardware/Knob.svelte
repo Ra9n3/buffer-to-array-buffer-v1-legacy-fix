@@ -132,6 +132,34 @@
    */
   const CAP_EDGE_W = 3; // ~1 px at the default size
 
+  /* --- THE LIGHT RIG ------------------------------------------------------
+     The grip's ONLY material colour is nickel — the nickel gradient on the
+     base ring. Every brightness variation on the grip comes from ONE FIXED
+     light rig: a key light at the top-left, and the shadow it implies at the
+     bottom-right. The rig never moves.
+
+     Nothing that encodes light direction may live inside the rotating
+     transform. The knurling therefore carries no per-ridge colour ramp: it is
+     two uniform neutral strokes, and the rig multiplies over them. A tooth
+     passing the top-left brightens, the same tooth at the bottom-right dims —
+     which is correct physical behaviour, and it comes for free.
+  ------------------------------------------------------------------------- */
+  /** Grooves: one neutral dark, semi-transparent. */
+  const KNURL_GROOVE_RGBA = "rgba(0, 0, 0, 0.35)";
+  /** Tooth highlights: one neutral light, semi-transparent. */
+  const KNURL_TOOTH_RGBA = "rgba(255, 255, 255, 0.35)";
+  /** Key light, top-left: white at this alpha, gone by mid-band. */
+  const RIG_KEY_ALPHA = 0.45;
+  /** Raking shadow, bottom-right: black at this alpha, gone by mid-band. */
+  const RIG_SHADE_ALPHA = 0.35;
+  /**
+   * The pointer's shadow is a fixed-offset duplicate, NOT a filter inside the
+   * rotation: the offset is applied outside the rotating transform, so the
+   * shadow always falls down and to the right however the pointer is turned.
+   */
+  const POINTER_SHADOW_DX = 2.5;
+  const POINTER_SHADOW_DY = 5;
+
   /** The drawing is scaled to leave room for the panel print around it. */
   const ART_SCALE = 0.88;
   /** The knob's one transform: place the axis, then scale the whole drawing. */
@@ -445,6 +473,46 @@
           <circle cx="0" cy="0" r={CAP_R} />
         </clipPath>
 
+        <!-- The grip annulus, as a clip for the light rig: outer silhouette to
+             the ridge inner edge. The rig must not spill onto the wall or the
+             cap, so it is clipped to the band it lights. -->
+        <clipPath id={`${uid}-grip-annulus`} clipPathUnits="userSpaceOnUse">
+          <path
+            clip-rule="evenodd"
+            d="M 200 50 A 150 150 0 1 0 200 350 A 150 150 0 1 0 200 50 Z M 200 66 A 134 134 0 1 0 200 334 A 134 134 0 1 0 200 66 Z"
+          />
+        </clipPath>
+
+        <!-- THE KEY LIGHT: white, from the top left, gone by the mid-band.
+             Fixed. Screen-blended over the rotating knurl. -->
+        <linearGradient
+          id={`${uid}-rig-key`}
+          gradientUnits="userSpaceOnUse"
+          x1="94"
+          y1="94"
+          x2="200"
+          y2="200"
+        >
+          <stop offset="0" stop-color="#ffffff" stop-opacity={RIG_KEY_ALPHA} />
+          <stop offset="0.55" stop-color="#ffffff" stop-opacity="0.12" />
+          <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+        </linearGradient>
+
+        <!-- THE RAKING SHADOW: black, from the bottom right, gone by the
+             mid-band. Fixed. Multiply-blended over the rotating knurl. -->
+        <linearGradient
+          id={`${uid}-rig-shade`}
+          gradientUnits="userSpaceOnUse"
+          x1="306"
+          y1="306"
+          x2="200"
+          y2="200"
+        >
+          <stop offset="0" stop-color="#000000" stop-opacity={RIG_SHADE_ALPHA} />
+          <stop offset="0.55" stop-color="#000000" stop-opacity="0.10" />
+          <stop offset="1" stop-color="#000000" stop-opacity="0" />
+        </linearGradient>
+
         <!-- The grip's nickel, exactly as supplied: one user-space ramp across
              the asset's own 400-unit canvas. It is referenced from inside the
              asset group, so its coordinates are the asset's. -->
@@ -609,204 +677,245 @@
                   data-part="rotating-knurl"
                   transform={`rotate(${assemblyRotation - 3} 200 200)`}
                 >
-                  <g data-part="grip-ridges">
-                    <!-- Dark grooves -->
-                    <line x1="334.000" y1="200.000" x2="348.000" y2="200.000" stroke="#4c504c" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="333.713" y1="208.764" x2="347.683" y2="209.680" stroke="#4b4f4b" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="332.854" y1="217.491" x2="346.734" y2="219.318" stroke="#4a4e4a" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="331.425" y1="226.142" x2="345.156" y2="228.873" stroke="#494d49" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="329.434" y1="234.682" x2="342.957" y2="238.305" stroke="#484c48" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="326.889" y1="243.073" x2="340.146" y2="247.573" stroke="#474b47" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="323.800" y1="251.280" x2="336.734" y2="256.637" stroke="#464a46" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="320.181" y1="259.267" x2="332.737" y2="265.459" stroke="#464a46" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="316.047" y1="267.000" x2="328.172" y2="274.000" stroke="#454945" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="311.417" y1="274.446" x2="323.058" y2="282.224" stroke="#454945" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="306.309" y1="281.574" x2="317.416" y2="290.097" stroke="#444844" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="300.747" y1="288.352" x2="311.272" y2="297.583" stroke="#444844" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="294.752" y1="294.752" x2="304.652" y2="304.652" stroke="#444844" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="288.352" y1="300.747" x2="297.583" y2="311.272" stroke="#444844" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="281.574" y1="306.309" x2="290.097" y2="317.416" stroke="#444844" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="274.446" y1="311.417" x2="282.224" y2="323.058" stroke="#444844" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="267.000" y1="316.047" x2="274.000" y2="328.172" stroke="#454945" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="259.267" y1="320.181" x2="265.459" y2="332.737" stroke="#454945" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="251.280" y1="323.800" x2="256.637" y2="336.734" stroke="#454945" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="243.073" y1="326.889" x2="247.573" y2="340.146" stroke="#464a46" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="234.682" y1="329.434" x2="238.305" y2="342.957" stroke="#474b47" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="226.142" y1="331.425" x2="228.873" y2="345.156" stroke="#474b47" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="217.491" y1="332.854" x2="219.318" y2="346.734" stroke="#484c48" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="208.764" y1="333.713" x2="209.680" y2="347.683" stroke="#494d49" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="200.000" y1="334.000" x2="200.000" y2="348.000" stroke="#4a4e4a" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="191.236" y1="333.713" x2="190.320" y2="347.683" stroke="#4b4f4b" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="182.509" y1="332.854" x2="180.682" y2="346.734" stroke="#4c504c" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="173.858" y1="331.425" x2="171.127" y2="345.156" stroke="#4e524d" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="165.318" y1="329.434" x2="161.695" y2="342.957" stroke="#4f534f" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="156.927" y1="326.889" x2="152.427" y2="340.146" stroke="#505450" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="148.720" y1="323.800" x2="143.363" y2="336.734" stroke="#525651" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="140.733" y1="320.181" x2="134.541" y2="332.737" stroke="#535753" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="133.000" y1="316.047" x2="126.000" y2="328.172" stroke="#555954" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="125.554" y1="311.417" x2="117.776" y2="323.058" stroke="#565a56" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="118.426" y1="306.309" x2="109.903" y2="317.416" stroke="#585c57" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="111.648" y1="300.747" x2="102.417" y2="311.272" stroke="#595d59" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="105.248" y1="294.752" x2="95.348" y2="304.652" stroke="#5b5f5a" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="99.253" y1="288.352" x2="88.728" y2="297.583" stroke="#5c605c" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="93.691" y1="281.574" x2="82.584" y2="290.097" stroke="#5e625d" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="88.583" y1="274.446" x2="76.942" y2="282.224" stroke="#5f635f" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="83.953" y1="267.000" x2="71.828" y2="274.000" stroke="#616560" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="79.819" y1="259.267" x2="67.263" y2="265.459" stroke="#636762" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="76.200" y1="251.280" x2="63.266" y2="256.637" stroke="#646863" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="73.111" y1="243.073" x2="59.854" y2="247.573" stroke="#656965" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="70.566" y1="234.682" x2="57.043" y2="238.305" stroke="#676b66" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="68.575" y1="226.142" x2="54.844" y2="228.873" stroke="#686c68" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="67.146" y1="217.491" x2="53.266" y2="219.318" stroke="#6a6e69" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="66.287" y1="208.764" x2="52.317" y2="209.680" stroke="#6b6f6a" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="66.000" y1="200.000" x2="52.000" y2="200.000" stroke="#6c706b" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="66.287" y1="191.236" x2="52.317" y2="190.320" stroke="#6d716c" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="67.146" y1="182.509" x2="53.266" y2="180.682" stroke="#6e726d" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="68.575" y1="173.858" x2="54.844" y2="171.127" stroke="#6f736e" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="70.566" y1="165.318" x2="57.043" y2="161.695" stroke="#70746f" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="73.111" y1="156.927" x2="59.854" y2="152.427" stroke="#717570" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="76.200" y1="148.720" x2="63.266" y2="143.363" stroke="#727671" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="79.819" y1="140.733" x2="67.263" y2="134.541" stroke="#727671" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="83.953" y1="133.000" x2="71.828" y2="126.000" stroke="#737772" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="88.583" y1="125.554" x2="76.942" y2="117.776" stroke="#737772" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="93.691" y1="118.426" x2="82.584" y2="109.903" stroke="#747873" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="99.253" y1="111.648" x2="88.728" y2="102.417" stroke="#747873" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="105.248" y1="105.248" x2="95.348" y2="95.348" stroke="#747873" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="111.648" y1="99.253" x2="102.417" y2="88.728" stroke="#747873" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="118.426" y1="93.691" x2="109.903" y2="82.584" stroke="#747873" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="125.554" y1="88.583" x2="117.776" y2="76.942" stroke="#747873" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="133.000" y1="83.953" x2="126.000" y2="71.828" stroke="#737772" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="140.733" y1="79.819" x2="134.541" y2="67.263" stroke="#737772" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="148.720" y1="76.200" x2="143.363" y2="63.266" stroke="#737772" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="156.927" y1="73.111" x2="152.427" y2="59.854" stroke="#727671" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="165.318" y1="70.566" x2="161.695" y2="57.043" stroke="#717570" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="173.858" y1="68.575" x2="171.127" y2="54.844" stroke="#717570" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="182.509" y1="67.146" x2="180.682" y2="53.266" stroke="#70746f" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="191.236" y1="66.287" x2="190.320" y2="52.317" stroke="#6f736e" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="200.000" y1="66.000" x2="200.000" y2="52.000" stroke="#6e726d" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="208.764" y1="66.287" x2="209.680" y2="52.317" stroke="#6d716c" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="217.491" y1="67.146" x2="219.318" y2="53.266" stroke="#6c706b" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="226.142" y1="68.575" x2="228.873" y2="54.844" stroke="#6a6e6a" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="234.682" y1="70.566" x2="238.305" y2="57.043" stroke="#696d68" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="243.073" y1="73.111" x2="247.573" y2="59.854" stroke="#686c67" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="251.280" y1="76.200" x2="256.637" y2="63.266" stroke="#666a66" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="259.267" y1="79.819" x2="265.459" y2="67.263" stroke="#656964" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="267.000" y1="83.953" x2="274.000" y2="71.828" stroke="#636763" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="274.446" y1="88.583" x2="282.224" y2="76.942" stroke="#626661" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="281.574" y1="93.691" x2="290.097" y2="82.584" stroke="#606460" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="288.352" y1="99.253" x2="297.583" y2="88.728" stroke="#5f635e" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="294.752" y1="105.248" x2="304.652" y2="95.348" stroke="#5d615d" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="300.747" y1="111.648" x2="311.272" y2="102.417" stroke="#5c605b" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="306.309" y1="118.426" x2="317.416" y2="109.903" stroke="#5a5e5a" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="311.417" y1="125.554" x2="323.058" y2="117.776" stroke="#595d58" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="316.047" y1="133.000" x2="328.172" y2="126.000" stroke="#575b57" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="320.181" y1="140.733" x2="332.737" y2="134.541" stroke="#555955" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="323.800" y1="148.720" x2="336.734" y2="143.363" stroke="#545854" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="326.889" y1="156.927" x2="340.146" y2="152.427" stroke="#535752" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="329.434" y1="165.318" x2="342.957" y2="161.695" stroke="#515551" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="331.425" y1="173.858" x2="345.156" y2="171.127" stroke="#50544f" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="332.854" y1="182.509" x2="346.734" y2="180.682" stroke="#4e524e" stroke-width="2.2" stroke-linecap="round" />
-                    <line x1="333.713" y1="191.236" x2="347.683" y2="190.320" stroke="#4d514d" stroke-width="2.2" stroke-linecap="round" />
-                    <!-- Light highlights -->
-                    <line x1="333.948" y1="203.741" x2="347.942" y2="204.132" stroke="#898c87" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="333.416" y1="212.494" x2="347.355" y2="213.799" stroke="#868984" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="332.313" y1="221.193" x2="346.137" y2="223.407" stroke="#838681" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="330.644" y1="229.802" x2="344.293" y2="232.915" stroke="#80847f" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="328.415" y1="238.282" x2="341.832" y2="242.282" stroke="#7e827c" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="325.636" y1="246.599" x2="338.763" y2="251.468" stroke="#7c7f7a" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="322.320" y1="254.716" x2="335.099" y2="260.433" stroke="#7a7e79" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="318.479" y1="262.599" x2="330.858" y2="269.139" stroke="#787c77" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="314.131" y1="270.214" x2="326.056" y2="277.550" stroke="#777b76" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="309.295" y1="277.528" x2="320.714" y2="285.628" stroke="#767a75" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="303.990" y1="284.511" x2="314.855" y2="293.340" stroke="#757974" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="298.240" y1="291.131" x2="308.504" y2="300.652" stroke="#747873" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="292.070" y1="297.361" x2="301.689" y2="307.533" stroke="#747873" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="285.505" y1="303.174" x2="294.438" y2="313.954" stroke="#747873" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="278.574" y1="308.546" x2="286.783" y2="319.886" stroke="#747873" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="271.306" y1="313.452" x2="278.756" y2="325.305" stroke="#757974" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="263.734" y1="317.873" x2="270.392" y2="330.188" stroke="#767a75" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="255.888" y1="321.789" x2="261.727" y2="334.513" stroke="#777b76" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="247.803" y1="325.183" x2="252.797" y2="338.262" stroke="#797c77" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="239.513" y1="328.042" x2="243.641" y2="341.419" stroke="#7a7e79" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="231.054" y1="330.352" x2="234.299" y2="343.971" stroke="#7c807b" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="222.462" y1="332.104" x2="224.809" y2="345.906" stroke="#7e827d" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="213.774" y1="333.290" x2="215.213" y2="347.216" stroke="#81847f" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="205.027" y1="333.906" x2="205.552" y2="347.896" stroke="#848782" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="196.259" y1="333.948" x2="195.868" y2="347.942" stroke="#878a85" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="187.506" y1="333.416" x2="186.201" y2="347.355" stroke="#8a8d88" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="178.807" y1="332.313" x2="176.593" y2="346.137" stroke="#8d908b" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="170.198" y1="330.644" x2="167.085" y2="344.293" stroke="#91948e" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="161.718" y1="328.415" x2="157.718" y2="341.832" stroke="#949792" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="153.401" y1="325.636" x2="148.532" y2="338.763" stroke="#989b96" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="145.284" y1="322.320" x2="139.567" y2="335.099" stroke="#9c9f99" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="137.401" y1="318.479" x2="130.861" y2="330.858" stroke="#a0a39d" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="129.786" y1="314.131" x2="122.450" y2="326.056" stroke="#a4a7a1" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="122.472" y1="309.295" x2="114.372" y2="320.714" stroke="#a9aba5" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="115.489" y1="303.990" x2="106.660" y2="314.855" stroke="#adafaa" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="108.869" y1="298.240" x2="99.348" y2="308.504" stroke="#b1b3ae" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="102.639" y1="292.070" x2="92.467" y2="301.689" stroke="#b6b7b2" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="96.826" y1="285.505" x2="86.046" y2="294.438" stroke="#babcb6" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="91.454" y1="278.574" x2="80.114" y2="286.783" stroke="#bfc0ba" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="86.548" y1="271.306" x2="74.695" y2="278.756" stroke="#c3c4bf" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="82.127" y1="263.734" x2="69.812" y2="270.392" stroke="#c7c8c3" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="78.211" y1="255.888" x2="65.487" y2="261.727" stroke="#ccccc7" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="74.817" y1="247.803" x2="61.738" y2="252.797" stroke="#d0d0cb" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="71.958" y1="239.513" x2="58.581" y2="243.641" stroke="#d4d4cf" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="69.648" y1="231.054" x2="56.029" y2="234.299" stroke="#d8d8d2" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="67.896" y1="222.462" x2="54.094" y2="224.809" stroke="#dcdcd6" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="66.710" y1="213.774" x2="52.784" y2="215.213" stroke="#dfdfda" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="66.094" y1="205.027" x2="52.104" y2="205.552" stroke="#e3e3dd" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="66.052" y1="196.259" x2="52.058" y2="195.868" stroke="#e6e6e0" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="66.584" y1="187.506" x2="52.645" y2="186.201" stroke="#e9e9e3" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="67.687" y1="178.807" x2="53.863" y2="176.593" stroke="#ecece6" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="69.356" y1="170.198" x2="55.707" y2="167.085" stroke="#efeee8" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="71.585" y1="161.718" x2="58.168" y2="157.718" stroke="#f1f0eb" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="74.364" y1="153.401" x2="61.237" y2="148.532" stroke="#f3f3ed" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="77.680" y1="145.284" x2="64.901" y2="139.567" stroke="#f5f4ee" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="81.521" y1="137.401" x2="69.142" y2="130.861" stroke="#f7f6f0" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="85.869" y1="129.786" x2="73.944" y2="122.450" stroke="#f8f7f1" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="90.705" y1="122.472" x2="79.286" y2="114.372" stroke="#f9f8f2" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="96.010" y1="115.489" x2="85.145" y2="106.660" stroke="#faf9f3" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="101.760" y1="108.869" x2="91.496" y2="99.348" stroke="#fbfaf4" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="107.930" y1="102.639" x2="98.311" y2="92.467" stroke="#fbfaf4" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="114.495" y1="96.826" x2="105.562" y2="86.046" stroke="#fbfaf4" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="121.426" y1="91.454" x2="113.217" y2="80.114" stroke="#fbfaf4" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="128.694" y1="86.548" x2="121.244" y2="74.695" stroke="#faf9f3" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="136.266" y1="82.127" x2="129.608" y2="69.812" stroke="#f9f8f2" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="144.112" y1="78.211" x2="138.273" y2="65.487" stroke="#f8f7f1" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="152.197" y1="74.817" x2="147.203" y2="61.738" stroke="#f6f6f0" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="160.487" y1="71.958" x2="156.359" y2="58.581" stroke="#f5f4ee" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="168.946" y1="69.648" x2="165.701" y2="56.029" stroke="#f3f2ec" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="177.538" y1="67.896" x2="175.191" y2="54.094" stroke="#f1f0ea" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="186.226" y1="66.710" x2="184.787" y2="52.784" stroke="#eeeee8" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="194.973" y1="66.094" x2="194.448" y2="52.104" stroke="#ebebe5" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="203.741" y1="66.052" x2="204.132" y2="52.058" stroke="#e8e8e2" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="212.494" y1="66.584" x2="213.799" y2="52.645" stroke="#e5e5df" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="221.193" y1="67.687" x2="223.407" y2="53.863" stroke="#e2e2dc" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="229.802" y1="69.356" x2="232.915" y2="55.707" stroke="#deded9" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="238.282" y1="71.585" x2="242.282" y2="58.168" stroke="#dbdbd5" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="246.599" y1="74.364" x2="251.468" y2="61.237" stroke="#d7d7d1" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="254.716" y1="77.680" x2="260.433" y2="64.901" stroke="#d3d3ce" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="262.599" y1="81.521" x2="269.139" y2="69.142" stroke="#cfcfca" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="270.214" y1="85.869" x2="277.550" y2="73.944" stroke="#cbcbc6" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="277.528" y1="90.705" x2="285.628" y2="79.286" stroke="#c6c7c2" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="284.511" y1="96.010" x2="293.340" y2="85.145" stroke="#c2c3bd" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="291.131" y1="101.760" x2="300.652" y2="91.496" stroke="#bebfb9" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="297.361" y1="107.930" x2="307.533" y2="98.311" stroke="#b9bbb5" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="303.174" y1="114.495" x2="313.954" y2="105.562" stroke="#b5b6b1" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="308.546" y1="121.426" x2="319.886" y2="113.217" stroke="#b0b2ad" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="313.452" y1="128.694" x2="325.305" y2="121.244" stroke="#acaea8" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="317.873" y1="136.266" x2="330.188" y2="129.608" stroke="#a8aaa4" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="321.789" y1="144.112" x2="334.513" y2="138.273" stroke="#a3a6a0" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="325.183" y1="152.197" x2="338.262" y2="147.203" stroke="#9fa29c" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="328.042" y1="160.487" x2="341.419" y2="156.359" stroke="#9b9e98" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="330.352" y1="168.946" x2="343.971" y2="165.701" stroke="#979a95" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="332.104" y1="177.538" x2="345.906" y2="175.191" stroke="#939691" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="333.290" y1="186.226" x2="347.216" y2="184.787" stroke="#90938d" stroke-width="1.35" stroke-linecap="round" />
-                    <line x1="333.906" y1="194.973" x2="347.896" y2="194.448" stroke="#8c8f8a" stroke-width="1.35" stroke-linecap="round" />
+                  <!-- THE KNURLING — GEOMETRY ONLY. Two uniform neutral strokes, one per
+                     family of line, and no colour on any individual ridge. The
+                     old per-line ramp is what made the light turn with the knob;
+                     it is gone. Nothing in this group references a gradient. -->
+                  <g
+                    data-part="grip-grooves"
+                    stroke={KNURL_GROOVE_RGBA}
+                    stroke-linecap="round"
+                  >
+                    <line x1="334.000" y1="200.000" x2="348.000" y2="200.000" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="333.713" y1="208.764" x2="347.683" y2="209.680" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="332.854" y1="217.491" x2="346.734" y2="219.318" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="331.425" y1="226.142" x2="345.156" y2="228.873" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="329.434" y1="234.682" x2="342.957" y2="238.305" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="326.889" y1="243.073" x2="340.146" y2="247.573" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="323.800" y1="251.280" x2="336.734" y2="256.637" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="320.181" y1="259.267" x2="332.737" y2="265.459" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="316.047" y1="267.000" x2="328.172" y2="274.000" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="311.417" y1="274.446" x2="323.058" y2="282.224" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="306.309" y1="281.574" x2="317.416" y2="290.097" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="300.747" y1="288.352" x2="311.272" y2="297.583" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="294.752" y1="294.752" x2="304.652" y2="304.652" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="288.352" y1="300.747" x2="297.583" y2="311.272" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="281.574" y1="306.309" x2="290.097" y2="317.416" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="274.446" y1="311.417" x2="282.224" y2="323.058" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="267.000" y1="316.047" x2="274.000" y2="328.172" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="259.267" y1="320.181" x2="265.459" y2="332.737" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="251.280" y1="323.800" x2="256.637" y2="336.734" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="243.073" y1="326.889" x2="247.573" y2="340.146" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="234.682" y1="329.434" x2="238.305" y2="342.957" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="226.142" y1="331.425" x2="228.873" y2="345.156" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="217.491" y1="332.854" x2="219.318" y2="346.734" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="208.764" y1="333.713" x2="209.680" y2="347.683" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="200.000" y1="334.000" x2="200.000" y2="348.000" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="191.236" y1="333.713" x2="190.320" y2="347.683" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="182.509" y1="332.854" x2="180.682" y2="346.734" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="173.858" y1="331.425" x2="171.127" y2="345.156" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="165.318" y1="329.434" x2="161.695" y2="342.957" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="156.927" y1="326.889" x2="152.427" y2="340.146" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="148.720" y1="323.800" x2="143.363" y2="336.734" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="140.733" y1="320.181" x2="134.541" y2="332.737" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="133.000" y1="316.047" x2="126.000" y2="328.172" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="125.554" y1="311.417" x2="117.776" y2="323.058" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="118.426" y1="306.309" x2="109.903" y2="317.416" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="111.648" y1="300.747" x2="102.417" y2="311.272" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="105.248" y1="294.752" x2="95.348" y2="304.652" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="99.253" y1="288.352" x2="88.728" y2="297.583" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="93.691" y1="281.574" x2="82.584" y2="290.097" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="88.583" y1="274.446" x2="76.942" y2="282.224" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="83.953" y1="267.000" x2="71.828" y2="274.000" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="79.819" y1="259.267" x2="67.263" y2="265.459" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="76.200" y1="251.280" x2="63.266" y2="256.637" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="73.111" y1="243.073" x2="59.854" y2="247.573" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="70.566" y1="234.682" x2="57.043" y2="238.305" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="68.575" y1="226.142" x2="54.844" y2="228.873" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="67.146" y1="217.491" x2="53.266" y2="219.318" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="66.287" y1="208.764" x2="52.317" y2="209.680" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="66.000" y1="200.000" x2="52.000" y2="200.000" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="66.287" y1="191.236" x2="52.317" y2="190.320" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="67.146" y1="182.509" x2="53.266" y2="180.682" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="68.575" y1="173.858" x2="54.844" y2="171.127" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="70.566" y1="165.318" x2="57.043" y2="161.695" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="73.111" y1="156.927" x2="59.854" y2="152.427" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="76.200" y1="148.720" x2="63.266" y2="143.363" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="79.819" y1="140.733" x2="67.263" y2="134.541" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="83.953" y1="133.000" x2="71.828" y2="126.000" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="88.583" y1="125.554" x2="76.942" y2="117.776" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="93.691" y1="118.426" x2="82.584" y2="109.903" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="99.253" y1="111.648" x2="88.728" y2="102.417" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="105.248" y1="105.248" x2="95.348" y2="95.348" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="111.648" y1="99.253" x2="102.417" y2="88.728" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="118.426" y1="93.691" x2="109.903" y2="82.584" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="125.554" y1="88.583" x2="117.776" y2="76.942" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="133.000" y1="83.953" x2="126.000" y2="71.828" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="140.733" y1="79.819" x2="134.541" y2="67.263" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="148.720" y1="76.200" x2="143.363" y2="63.266" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="156.927" y1="73.111" x2="152.427" y2="59.854" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="165.318" y1="70.566" x2="161.695" y2="57.043" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="173.858" y1="68.575" x2="171.127" y2="54.844" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="182.509" y1="67.146" x2="180.682" y2="53.266" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="191.236" y1="66.287" x2="190.320" y2="52.317" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="200.000" y1="66.000" x2="200.000" y2="52.000" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="208.764" y1="66.287" x2="209.680" y2="52.317" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="217.491" y1="67.146" x2="219.318" y2="53.266" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="226.142" y1="68.575" x2="228.873" y2="54.844" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="234.682" y1="70.566" x2="238.305" y2="57.043" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="243.073" y1="73.111" x2="247.573" y2="59.854" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="251.280" y1="76.200" x2="256.637" y2="63.266" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="259.267" y1="79.819" x2="265.459" y2="67.263" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="267.000" y1="83.953" x2="274.000" y2="71.828" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="274.446" y1="88.583" x2="282.224" y2="76.942" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="281.574" y1="93.691" x2="290.097" y2="82.584" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="288.352" y1="99.253" x2="297.583" y2="88.728" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="294.752" y1="105.248" x2="304.652" y2="95.348" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="300.747" y1="111.648" x2="311.272" y2="102.417" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="306.309" y1="118.426" x2="317.416" y2="109.903" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="311.417" y1="125.554" x2="323.058" y2="117.776" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="316.047" y1="133.000" x2="328.172" y2="126.000" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="320.181" y1="140.733" x2="332.737" y2="134.541" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="323.800" y1="148.720" x2="336.734" y2="143.363" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="326.889" y1="156.927" x2="340.146" y2="152.427" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="329.434" y1="165.318" x2="342.957" y2="161.695" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="331.425" y1="173.858" x2="345.156" y2="171.127" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="332.854" y1="182.509" x2="346.734" y2="180.682" stroke-width="2.2" stroke-linecap="round" />
+                    <line x1="333.713" y1="191.236" x2="347.683" y2="190.320" stroke-width="2.2" stroke-linecap="round" />
+                  </g>
+                  <g
+                    data-part="grip-highlights"
+                    stroke={KNURL_TOOTH_RGBA}
+                    stroke-linecap="round"
+                  >
+                    <line x1="333.948" y1="203.741" x2="347.942" y2="204.132" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="333.416" y1="212.494" x2="347.355" y2="213.799" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="332.313" y1="221.193" x2="346.137" y2="223.407" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="330.644" y1="229.802" x2="344.293" y2="232.915" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="328.415" y1="238.282" x2="341.832" y2="242.282" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="325.636" y1="246.599" x2="338.763" y2="251.468" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="322.320" y1="254.716" x2="335.099" y2="260.433" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="318.479" y1="262.599" x2="330.858" y2="269.139" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="314.131" y1="270.214" x2="326.056" y2="277.550" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="309.295" y1="277.528" x2="320.714" y2="285.628" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="303.990" y1="284.511" x2="314.855" y2="293.340" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="298.240" y1="291.131" x2="308.504" y2="300.652" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="292.070" y1="297.361" x2="301.689" y2="307.533" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="285.505" y1="303.174" x2="294.438" y2="313.954" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="278.574" y1="308.546" x2="286.783" y2="319.886" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="271.306" y1="313.452" x2="278.756" y2="325.305" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="263.734" y1="317.873" x2="270.392" y2="330.188" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="255.888" y1="321.789" x2="261.727" y2="334.513" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="247.803" y1="325.183" x2="252.797" y2="338.262" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="239.513" y1="328.042" x2="243.641" y2="341.419" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="231.054" y1="330.352" x2="234.299" y2="343.971" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="222.462" y1="332.104" x2="224.809" y2="345.906" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="213.774" y1="333.290" x2="215.213" y2="347.216" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="205.027" y1="333.906" x2="205.552" y2="347.896" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="196.259" y1="333.948" x2="195.868" y2="347.942" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="187.506" y1="333.416" x2="186.201" y2="347.355" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="178.807" y1="332.313" x2="176.593" y2="346.137" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="170.198" y1="330.644" x2="167.085" y2="344.293" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="161.718" y1="328.415" x2="157.718" y2="341.832" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="153.401" y1="325.636" x2="148.532" y2="338.763" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="145.284" y1="322.320" x2="139.567" y2="335.099" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="137.401" y1="318.479" x2="130.861" y2="330.858" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="129.786" y1="314.131" x2="122.450" y2="326.056" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="122.472" y1="309.295" x2="114.372" y2="320.714" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="115.489" y1="303.990" x2="106.660" y2="314.855" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="108.869" y1="298.240" x2="99.348" y2="308.504" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="102.639" y1="292.070" x2="92.467" y2="301.689" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="96.826" y1="285.505" x2="86.046" y2="294.438" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="91.454" y1="278.574" x2="80.114" y2="286.783" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="86.548" y1="271.306" x2="74.695" y2="278.756" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="82.127" y1="263.734" x2="69.812" y2="270.392" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="78.211" y1="255.888" x2="65.487" y2="261.727" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="74.817" y1="247.803" x2="61.738" y2="252.797" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="71.958" y1="239.513" x2="58.581" y2="243.641" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="69.648" y1="231.054" x2="56.029" y2="234.299" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="67.896" y1="222.462" x2="54.094" y2="224.809" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="66.710" y1="213.774" x2="52.784" y2="215.213" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="66.094" y1="205.027" x2="52.104" y2="205.552" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="66.052" y1="196.259" x2="52.058" y2="195.868" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="66.584" y1="187.506" x2="52.645" y2="186.201" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="67.687" y1="178.807" x2="53.863" y2="176.593" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="69.356" y1="170.198" x2="55.707" y2="167.085" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="71.585" y1="161.718" x2="58.168" y2="157.718" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="74.364" y1="153.401" x2="61.237" y2="148.532" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="77.680" y1="145.284" x2="64.901" y2="139.567" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="81.521" y1="137.401" x2="69.142" y2="130.861" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="85.869" y1="129.786" x2="73.944" y2="122.450" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="90.705" y1="122.472" x2="79.286" y2="114.372" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="96.010" y1="115.489" x2="85.145" y2="106.660" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="101.760" y1="108.869" x2="91.496" y2="99.348" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="107.930" y1="102.639" x2="98.311" y2="92.467" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="114.495" y1="96.826" x2="105.562" y2="86.046" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="121.426" y1="91.454" x2="113.217" y2="80.114" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="128.694" y1="86.548" x2="121.244" y2="74.695" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="136.266" y1="82.127" x2="129.608" y2="69.812" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="144.112" y1="78.211" x2="138.273" y2="65.487" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="152.197" y1="74.817" x2="147.203" y2="61.738" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="160.487" y1="71.958" x2="156.359" y2="58.581" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="168.946" y1="69.648" x2="165.701" y2="56.029" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="177.538" y1="67.896" x2="175.191" y2="54.094" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="186.226" y1="66.710" x2="184.787" y2="52.784" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="194.973" y1="66.094" x2="194.448" y2="52.104" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="203.741" y1="66.052" x2="204.132" y2="52.058" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="212.494" y1="66.584" x2="213.799" y2="52.645" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="221.193" y1="67.687" x2="223.407" y2="53.863" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="229.802" y1="69.356" x2="232.915" y2="55.707" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="238.282" y1="71.585" x2="242.282" y2="58.168" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="246.599" y1="74.364" x2="251.468" y2="61.237" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="254.716" y1="77.680" x2="260.433" y2="64.901" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="262.599" y1="81.521" x2="269.139" y2="69.142" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="270.214" y1="85.869" x2="277.550" y2="73.944" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="277.528" y1="90.705" x2="285.628" y2="79.286" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="284.511" y1="96.010" x2="293.340" y2="85.145" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="291.131" y1="101.760" x2="300.652" y2="91.496" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="297.361" y1="107.930" x2="307.533" y2="98.311" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="303.174" y1="114.495" x2="313.954" y2="105.562" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="308.546" y1="121.426" x2="319.886" y2="113.217" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="313.452" y1="128.694" x2="325.305" y2="121.244" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="317.873" y1="136.266" x2="330.188" y2="129.608" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="321.789" y1="144.112" x2="334.513" y2="138.273" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="325.183" y1="152.197" x2="338.262" y2="147.203" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="328.042" y1="160.487" x2="341.419" y2="156.359" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="330.352" y1="168.946" x2="343.971" y2="165.701" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="332.104" y1="177.538" x2="345.906" y2="175.191" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="333.290" y1="186.226" x2="347.216" y2="184.787" stroke-width="1.35" stroke-linecap="round" />
+                    <line x1="333.906" y1="194.973" x2="347.896" y2="194.448" stroke-width="1.35" stroke-linecap="round" />
                   </g>
                 </g>
+                <!-- 3. THE LIGHT RIG — FIXED. Painted on top of the rotating
+                     knurl, clipped to the grip annulus. It never turns: the key
+                     light is always at the top left and the shadow always at the
+                     bottom right, so the brightest zone of the grip stays at
+                     ~10-11 o'clock whatever the value is. Because it blends over
+                     the rotating ridges, a tooth passing the top left brightens
+                     and the same tooth at the bottom right dims. -->
+                <g data-part="light-rig" clip-path={`url(#${uid}-grip-annulus)`}>
+                  <rect
+                    data-part="rig-key"
+                    x="40"
+                    y="40"
+                    width="320"
+                    height="320"
+                    fill={`url(#${uid}-rig-key)`}
+                    style="mix-blend-mode: screen"
+                  />
+                  <rect
+                    data-part="rig-shade"
+                    x="40"
+                    y="40"
+                    width="320"
+                    height="320"
+                    fill={`url(#${uid}-rig-shade)`}
+                    style="mix-blend-mode: multiply"
+                  />
+                </g>
 
+                <!-- Rim arcs: part of the same rig, fixed, outside every rotating
+                     transform. -->
                 <!-- Nickel rim material lighting -->
                 <path
                   data-part="nickel-rim-light"
@@ -862,6 +971,27 @@
               stroke="var(--kn-cap-shade)"
               stroke-width={CAP_EDGE_W}
             />
+
+            <!-- 6. THE POINTER'S SHADOW — FIXED DIRECTION. A duplicate of the
+                 pointer, darkened, offset OUTSIDE the rotating transform: the
+                 offset is applied first and the rotation nests inside it, so the
+                 shadow always falls down and to the right no matter where the
+                 pointer points. It is not a filter, and it does not rotate with
+                 the pointer. -->
+            <g data-part="pointer-shadow" clip-path={`url(#${uid}-cap-clip)`}>
+              <g transform={`translate(${POINTER_SHADOW_DX} ${POINTER_SHADOW_DY})`}>
+                <g transform={`rotate(${assemblyRotation})`}>
+                  <rect
+                    class="knob__pointer-shadow-ink"
+                    x="20"
+                    y="-7.5"
+                    width="105"
+                    height="15"
+                    rx="1.5"
+                  />
+                </g>
+              </g>
+            </g>
 
             <!-- 7. THE POINTER. On the cap, clipped to it, and it rotates with
                  the value like the knurling. -->
@@ -1042,6 +1172,13 @@
     opacity: 0.55;
   }
 
+  /* The pointer's shadow: a fixed-offset duplicate, not a blur and not a
+     filter, so its direction can never be turned by the pointer's rotation. */
+  .knob__pointer-shadow-ink {
+    fill: #000000;
+    opacity: 0.28;
+  }
+
   .knob__pointer-ink {
     transition: opacity 110ms ease;
   }
@@ -1104,6 +1241,10 @@
   .knob.is-demo-focus .knob__focus {
     opacity: 1;
     filter: drop-shadow(0 0 2px var(--al-material-panel));
+  }
+
+  .knob.is-disabled .knob__pointer-shadow-ink {
+    opacity: 0.14;
   }
 
   .knob.is-disabled .knob__pointer-ink {

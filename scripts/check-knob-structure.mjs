@@ -58,16 +58,32 @@ const gripBlock = (() => {
   const b = knob.indexOf('data-part="inner-wall"');
   return a > 0 && b > a ? knob.slice(a, b) : "";
 })();
-const assetLines = [...gripBlock.matchAll(/<line\s+x1="([\d.]+)"\s+y1="([\d.]+)"\s+x2="([\d.]+)"\s+y2="([\d.]+)"\s+stroke="(#[0-9a-f]{6})"\s+stroke-width="([\d.]+)"/g)].map(
-  (m) => ({
-    x1: Number(m[1]),
-    y1: Number(m[2]),
-    x2: Number(m[3]),
-    y2: Number(m[4]),
-    stroke: m[5],
-    width: Number(m[6]),
-  }),
-);
+const grooveBlock = (() => {
+  const a = gripBlock.indexOf('data-part="grip-grooves"');
+  const b = gripBlock.indexOf('data-part="grip-highlights"');
+  return a > 0 && b > a ? gripBlock.slice(a, b) : "";
+})();
+const highlightBlock = (() => {
+  const a = gripBlock.indexOf('data-part="grip-highlights"');
+  const b = gripBlock.indexOf('data-part="light-rig"');
+  return a > 0 && b > a ? gripBlock.slice(a, b) : "";
+})();
+const knurlBlock = (() => {
+  const a = gripBlock.indexOf('data-part="rotating-knurl"');
+  const b = gripBlock.indexOf('data-part="light-rig"');
+  return a > 0 && b > a ? gripBlock.slice(a, b) : "";
+})();
+const parseLines = (block) =>
+  [...block.matchAll(/<line\s+x1="([\d.]+)"\s+y1="([\d.]+)"\s+x2="([\d.]+)"\s+y2="([\d.]+)"\s+stroke-width="([\d.]+)"/g)].map(
+    (m) => ({
+      x1: Number(m[1]),
+      y1: Number(m[2]),
+      x2: Number(m[3]),
+      y2: Number(m[4]),
+      width: Number(m[5]),
+    }),
+  );
+const assetLines = [...parseLines(grooveBlock), ...parseLines(highlightBlock)];
 const polar = (x, y) => {
   const dx = x - 200;
   const dy = y - 200;
@@ -153,10 +169,10 @@ check(
   "a family colour value was hard-coded instead of read through functionToken()",
 );
 check(
-  "the only literal colours in the styles are the nickel ramp",
+  "the only literal colours in the styles are the nickel ramp and neutral black",
   (() => {
     const hexes = [...knobStyle.matchAll(/#[0-9a-fA-F]{3,8}\b/g)].map((m) => m[0].toLowerCase());
-    const allowed = new Set(nickelValues.map((h) => h.toLowerCase()));
+    const allowed = new Set([...nickelValues.map((h) => h.toLowerCase()), "#000000", "#000"]);
     return hexes.every((hex) => allowed.has(hex));
   })(),
   "a non-material hex colour was hard-coded",
@@ -268,11 +284,10 @@ check(
   ),
 );
 check(
-  "the cap clip is still the pointer's boundary",
+  "the cap clip is still the pointer's boundary, for the pointer and its shadow",
   /id=\{`\$\{uid\}-cap-clip`\}[\s\S]{0,80}<circle cx="0" cy="0" r=\{CAP_R\} \/>/.test(knob) &&
-    (knob.match(/url\(#\$\{uid\}-cap-clip\)/g) ?? []).length === 1,
-);
-check(
+    (knob.match(/url\(#\$\{uid\}-cap-clip\)/g) ?? []).length === 2,
+);check(
   "the asset's 96 grooves and 96 highlights are reproduced in full",
   assetLines.filter((l) => l.width === 2.2).length === 96 &&
     assetLines.filter((l) => l.width === 1.35).length === 96,
@@ -302,11 +317,31 @@ check(
   assetLines.every((l) => l.width === 2.2 || l.width === 1.35),
 );
 check(
-  "each ridge carries its own colour, as the asset does — not a flat ring",
-  new Set(assetLines.map((l) => l.stroke)).size >= 40,
-  "the asset ramps the groove colour round the circumference",
+  "the knurl carries no per-ridge colour ramp — two uniform neutral strokes only",
+  (() => {
+    const lines = [...knurlBlock.matchAll(/<line[^>]*>/g)].map((m) => m[0]);
+    const noColourOnTheLine = lines.every((l) => !/stroke=|fill=|opacity=/.test(l));
+    const grooves = /data-part="grip-grooves"[\s\S]{0,120}?stroke=\{KNURL_GROOVE_RGBA\}/.test(
+      knurlBlock,
+    );
+    const teeth = /data-part="grip-highlights"[\s\S]{0,120}?stroke=\{KNURL_TOOTH_RGBA\}/.test(
+      knurlBlock,
+    );
+    return noColourOnTheLine && grooves && teeth;
+  })(),
+  "a per-line colour encodes a light direction, and would turn with the knob",
 );
 check(
+  "the two knurl strokes are neutral semi-transparent black and white",
+  /const KNURL_GROOVE_RGBA = "rgba\(0, 0, 0, 0\.\d+\)"/.test(knob) &&
+    /const KNURL_TOOTH_RGBA = "rgba\(255, 255, 255, 0\.\d+\)"/.test(knob),
+  "a tinted stroke would put colour, not light, on the metal",
+);
+check(
+  "nothing in the rotating knurl references a gradient",
+  !/url\(#/.test(knurlBlock) && !/Gradient/.test(knurlBlock),
+  "a gradient inside the rotation is a light direction that turns with the knob",
+);check(
   "the index bar is the supplied separate rect, centre to near-rim",
   /x="20"[\s\S]{0,80}y="-7\.5"[\s\S]{0,80}width="105"[\s\S]{0,80}height="15"/.test(knob),
   "the bar runs r 20 -> 125 on the shared axis, as supplied",
@@ -402,14 +437,25 @@ check(
 // --- 4. Whole-assembly rotation. ------------------------------------------
 const assembly = (knob.match(/data-part="rotating-surfaces"[\s\S]{0,4000}/) ?? [""])[0];
 check(
-  "the ridges and the pointer are the only two things that rotate",
+  "only the knurl, the pointer and the pointer's shadow rotate",
   /rotate\(\$\{assemblyRotation - 3\} 200 200\)/.test(knob) &&
     /data-part="rotating-knurl"/.test(knob) &&
     /data-part="rotating-indicator"/.test(knob) &&
-    (knob.match(/rotate\(\$\{assemblyRotation/g) ?? []).length === 2,
+    (knob.match(/rotate\(\$\{assemblyRotation/g) ?? []).length === 3,
   "everything else stays fixed when the value moves",
 );
 check(
+  "the pointer's shadow is a fixed-offset duplicate, offset OUTSIDE the rotation",
+  (() => {
+    const i = knob.indexOf('data-part="pointer-shadow"');
+    if (i < 0) return false;
+    const blk = knob.slice(i, knob.indexOf('data-part="rotating-indicator"'));
+    const tf = blk.indexOf('translate(${POINTER_SHADOW_DX} ${POINTER_SHADOW_DY})');
+    const rot = blk.indexOf('rotate(${assemblyRotation})');
+    return tf > 0 && rot > tf && !/filter=|url\(#(?![^)]*cap-clip)/.test(blk.replace(/clip-path=\{`url\(#\$\{uid\}-cap-clip\)`\}/g, ''));
+  })(),
+  "offset first, rotation nested inside it: the shadow cannot turn with the pointer",
+);check(
   "the knurling sits below the inner wall, and the pointer above the gloss",
   knob.indexOf('data-part="rotating-knurl"') < knob.indexOf('data-part="inner-wall"') &&
     knob.indexOf('data-part="cap-gloss"') < knob.indexOf('data-part="rotating-indicator"'),
