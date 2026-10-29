@@ -440,8 +440,9 @@
           <circle cx="200" cy="200" r="131" />
         </clipPath>
 
-        <!-- Body paint. Supplied geometry and stop offsets; colours now
-             come from the functional family (hi -> base -> lo). -->
+        <!-- Outer rim (body) paint. Supplied geometry, axis and stop offsets;
+             colour is now the brushed-nickel ramp, so the grip is metal and
+             the cap carries the functional family colour. -->
         <linearGradient
           id={`${uid}-paint`}
           gradientUnits="userSpaceOnUse"
@@ -450,10 +451,10 @@
           x2="310"
           y2="335"
         >
-          <stop offset="0%" style="stop-color: var(--kn-hi)" />
-          <stop offset="30%" style="stop-color: var(--kn-base)" />
-          <stop offset="58%" style="stop-color: var(--kn-base)" />
-          <stop offset="100%" style="stop-color: var(--kn-lo)" />
+          <stop offset="0%" style="stop-color: var(--kn-nickel-hi)" />
+          <stop offset="30%" style="stop-color: var(--kn-nickel-base)" />
+          <stop offset="58%" style="stop-color: var(--kn-nickel-mid)" />
+          <stop offset="100%" style="stop-color: var(--kn-nickel-lo)" />
         </linearGradient>
 
         <!-- Recessed-face paint: the body paint, turned down into the recess.
@@ -474,7 +475,7 @@
           <stop offset="100%" style="stop-color: var(--kn-face-lo)" />
         </linearGradient>
 
-        <!-- Lower side wall: the same paint turned away from the light. -->
+        <!-- Lower side wall: the same brushed nickel turned from the light. -->
         <linearGradient
           id={`${uid}-side-wall`}
           gradientUnits="userSpaceOnUse"
@@ -483,9 +484,9 @@
           x2="325"
           y2="360"
         >
-          <stop offset="0%" style="stop-color: var(--kn-base)" />
-          <stop offset="55%" style="stop-color: var(--kn-lo)" />
-          <stop offset="100%" style="stop-color: var(--kn-deep)" />
+          <stop offset="0%" style="stop-color: var(--kn-nickel-base)" />
+          <stop offset="55%" style="stop-color: var(--kn-nickel-lo)" />
+          <stop offset="100%" style="stop-color: var(--kn-nickel-deep)" />
         </linearGradient>
 
         <!-- Pointer: white on the dark families, ink where the body is pale,
@@ -495,19 +496,68 @@
           <stop offset="100%" style="stop-color: var(--kn-ink-far)" />
         </linearGradient>
 
+        <!-- The turned outer edge of the rim: a thin specular strip that
+             fades round the circumference, the way a machined bevel catches
+             the room light on the side facing it. Shading only. -->
+        <linearGradient
+          id={`${uid}-rim-light`}
+          gradientUnits="userSpaceOnUse"
+          x1="85"
+          y1="65"
+          x2="310"
+          y2="335"
+        >
+          <stop offset="0%" style="stop-color: var(--kn-nickel-crest)" stop-opacity="0.55" />
+          <stop offset="34%" style="stop-color: var(--kn-nickel-crest)" stop-opacity="0.16" />
+          <stop offset="62%" style="stop-color: var(--kn-nickel-deep)" stop-opacity="0.35" />
+          <stop offset="100%" style="stop-color: var(--kn-nickel-deep)" stop-opacity="0.7" />
+        </linearGradient>
+
         <!-- Recess: the supplied inset shadow, re-tinted neutral so it does
              not read blue on a non-blue family. -->
+        <!--
+          The recess shadow hugs the cap's whole circumference.
+
+          It used to be offset down-right, which made the shadow read as a
+          *drop* shadow under the cap's lower-right edge — the cap looked like a
+          loose plate lying on the metal on that side, and, with no shadow at
+          all at the upper-left, it looked sunk on the other side. An offset of
+          zero keeps the same supplied offset → blur → composite out → flood →
+          merge structure, but the shadow now rings the cap evenly, which is
+          what a collar gripping a cap casts.
+        -->
         <filter id={`${uid}-inset`} x="-15%" y="-15%" width="130%" height="130%">
-          <feOffset dx="4.5" dy="8.5" in="SourceAlpha" result="off" />
-          <feGaussianBlur in="off" stdDeviation="3.4" result="blur" />
+          <feOffset dx="0" dy="0" in="SourceAlpha" result="off" />
+          <feGaussianBlur in="off" stdDeviation="4.2" result="blur" />
           <feComposite in="SourceAlpha" in2="blur" operator="out" result="ring" />
-          <feFlood flood-color="black" flood-opacity="0.85" />
+          <feFlood flood-color="black" flood-opacity="0.8" />
           <feComposite in2="ring" operator="in" />
           <feMerge>
             <feMergeNode in="SourceGraphic" />
             <feMergeNode />
           </feMerge>
         </filter>
+
+        <!-- Inside the cap: the collar's far wall throws a shadow across the
+             upper-left of the face, and the face falls away into the recess all
+             round. Shading only — same r 131 disc, no geometry change. -->
+        <radialGradient id={`${uid}-cap-inset`} cx="50%" cy="50%" r="50%">
+          <stop offset="62%" style="stop-color: black" stop-opacity="0" />
+          <stop offset="88%" style="stop-color: black" stop-opacity="0.16" />
+          <stop offset="100%" style="stop-color: black" stop-opacity="0.42" />
+        </radialGradient>
+        <linearGradient
+          id={`${uid}-cap-wall-shade`}
+          gradientUnits="userSpaceOnUse"
+          x1="150"
+          y1="150"
+          x2="250"
+          y2="250"
+        >
+          <stop offset="0%" style="stop-color: black" stop-opacity="0.3" />
+          <stop offset="42%" style="stop-color: black" stop-opacity="0" />
+          <stop offset="100%" style="stop-color: black" stop-opacity="0.08" />
+        </linearGradient>
 
         <filter id={`${uid}-soft-light`} x="-20%" y="-20%" width="140%" height="140%">
           <feGaussianBlur stdDeviation="7" />
@@ -529,7 +579,7 @@
           <feColorMatrix
             in="noise"
             type="matrix"
-            values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.045 0"
+            values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.075 0"
             result="grain"
           />
           <feBlend in="SourceGraphic" in2="grain" mode="multiply" />
@@ -591,6 +641,16 @@
             <g filter={`url(#${uid}-satin)`} clip-path={`url(#${uid}-silhouette)`}>
               <circle cx="200" cy="210" r="150" fill={`url(#${uid}-side-wall)`} />
               <circle cx="200" cy="200" r="150" fill={`url(#${uid}-paint)`} />
+              <!-- The machined outer edge: same circle, shading only. -->
+              <circle
+                class="knob__rim-light"
+                cx="200"
+                cy="200"
+                r="148.6"
+                fill="none"
+                stroke={`url(#${uid}-rim-light)`}
+              />
+
               <!-- 2. Recessed cap, with its supplied inset shadow. -->
               <circle
                 cx="200"
@@ -599,6 +659,13 @@
                 fill={`url(#${uid}-face-paint)`}
                 filter={`url(#${uid}-inset)`}
               />
+              <!-- The collar's shadow across the face, and the face falling
+                   into the recess. Same disc, shading only. -->
+              <g clip-path={`url(#${uid}-face-clip)`}>
+                <circle cx="200" cy="200" r="131" fill={`url(#${uid}-cap-inset)`} />
+                <circle cx="200" cy="200" r="131" fill={`url(#${uid}-cap-wall-shade)`} />
+              </g>
+
               <!-- The lip of the recess: a thin shadow just inside the face
                    edge, which is what makes the step read at small sizes. -->
               <circle
@@ -606,6 +673,15 @@
                 cx="200"
                 cy="200"
                 r="129.5"
+              />
+              <!-- Where the coloured cap sits into the metal: a soft contact
+                   shadow on the machined annulus. Shading only. -->
+              <circle
+                class="knob__cap-seat"
+                cx="200"
+                cy="200"
+                r="132.6"
+                filter={`url(#${uid}-wall-light)`}
               />
             </g>
 
@@ -624,8 +700,8 @@
                     x2={ridge.x2}
                     y2={ridge.y2}
                     stroke-width="2.2"
-                    stroke="var(--kn-ridge-dark)"
-                    stroke-opacity={0.74 + 0.18 * ridge.lit}
+                    stroke="var(--kn-nickel-groove)"
+                    stroke-opacity={0.82 + 0.14 * ridge.lit}
                   />
                 {/each}
                 {#each ridgesLight as ridge (ridge.i)}
@@ -635,8 +711,8 @@
                     x2={ridge.x2}
                     y2={ridge.y2}
                     stroke-width="1.4"
-                    stroke="var(--kn-ridge-light)"
-                    stroke-opacity={0.34 + 0.4 * ridge.lit}
+                    stroke="var(--kn-nickel-crest)"
+                    stroke-opacity={0.26 + 0.38 * ridge.lit}
                   />
                 {/each}
               </g>
@@ -742,19 +818,29 @@
 <style>
   .knob {
     --knob-size: 7.5rem;
-    /* Family colour, resolved once: paint, side wall and ridges all derive
-       from these four roles, so a family change is a one-line change. */
+    /* The cap is the colour-variable part: it keeps the family tokens. */
     --kn-hi: var(--cap-hi);
     --kn-base: var(--cap-base);
     --kn-lo: var(--cap-lo);
     --kn-ink: var(--cap-ink);
     --kn-ink-far: color-mix(in srgb, var(--cap-ink) 88%, var(--cap-lo));
-    --kn-deep: color-mix(in srgb, var(--cap-lo) 58%, black);
-    --kn-face-hi: color-mix(in srgb, var(--cap-hi) 84%, black);
-    --kn-face-base: color-mix(in srgb, var(--cap-base) 84%, black);
-    --kn-face-lo: color-mix(in srgb, var(--cap-lo) 84%, black);
-    --kn-ridge-dark: color-mix(in srgb, var(--cap-lo) 72%, black);
-    --kn-ridge-light: color-mix(in srgb, var(--cap-hi) 72%, var(--cap-base));
+    /* Barely stepped down from the family ramp: the nickel rim now supplies
+       the step into the recess, so the cap can read at (almost) its true
+       family colour. Only the recess shadow darkens it further. */
+    --kn-face-hi: color-mix(in srgb, var(--cap-hi) 94%, black);
+    --kn-face-base: color-mix(in srgb, var(--cap-base) 94%, black);
+    --kn-face-lo: color-mix(in srgb, var(--cap-lo) 94%, black);
+
+    /* Brushed nickel: the grip, the ridges and the outer rim. Declared once,
+       neutral (every channel within a few points of the others), satin —
+       no warm yellow cast, no mirror chrome, no hard white. */
+    --kn-nickel-hi: #c2c6c9;
+    --kn-nickel-base: #8f9498;
+    --kn-nickel-mid: #6e7377;
+    --kn-nickel-lo: #4f5357;
+    --kn-nickel-deep: #2f3336;
+    --kn-nickel-groove: #34383b;
+    --kn-nickel-crest: #c3c7cb;
 
     display: flex;
     flex-direction: column;
@@ -825,6 +911,17 @@
     stroke: black;
     stroke-opacity: 0.3;
     stroke-width: 3.5;
+  }
+
+  .knob__rim-light {
+    stroke-width: 2.2;
+  }
+
+  .knob__cap-seat {
+    fill: none;
+    stroke: black;
+    stroke-opacity: 0.42;
+    stroke-width: 6;
   }
 
   .knob__pointer-ink {

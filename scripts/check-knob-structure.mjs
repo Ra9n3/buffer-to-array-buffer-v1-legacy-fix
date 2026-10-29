@@ -95,10 +95,48 @@ check(
   "functionToken maps to the --al-function-* tokens",
   /`var\(--al-function-\$\{family\}-\$\{role\}\)`/.test(tokensTs),
 );
+// The grip is a material, not a family colour: the nickel ramp is the one
+// place where literal colours are allowed, and it must stay neutral.
+const nickelValues = [...knobStyle.matchAll(/--kn-nickel-[a-z]+:\s*(#[0-9a-fA-F]{6})/g)].map(
+  (m) => m[1],
+);
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 check(
-  "the component's styles contain no hex colour literals",
-  !/#[0-9a-fA-F]{3,8}\b/.test(knobStyle),
-  "a hex colour was hard-coded instead of using a token",
+  "the brushed-nickel ramp is declared once, as one neutral grey family",
+  nickelValues.length >= 5 &&
+    nickelValues.every((hex) => {
+      const [r, g, b] = rgb(hex);
+      return Math.max(r, g, b) - Math.min(r, g, b) <= 10;
+    }),
+  `expected >= 5 neutral nickel tones; found ${nickelValues.join(", ")}`,
+);
+check(
+  "the nickel ramp spans a metal range, not one flat grey",
+  (() => {
+    const lum = nickelValues.map((hex) => {
+      const [r, g, b] = rgb(hex);
+      return 0.299 * r + 0.587 * g + 0.114 * b;
+    });
+    return Math.max(...lum) - Math.min(...lum) >= 90;
+  })(),
+  "a single flat grey fill is explicitly not allowed",
+);
+check(
+  "the component copies no hex colour from the family palette",
+  ["cream", "amber", "red", "bluegrey", "green", "orange"].every((family) => {
+    const base = new RegExp(`--al-function-${family}-base:\\s*(#[0-9a-fA-F]{6})`).exec(css);
+    return !base || !knob.toLowerCase().includes(base[1].toLowerCase());
+  }),
+  "a family colour value was hard-coded instead of read through functionToken()",
+);
+check(
+  "the only literal colours in the styles are the nickel ramp",
+  (() => {
+    const hexes = [...knobStyle.matchAll(/#[0-9a-fA-F]{3,8}\b/g)].map((m) => m[0].toLowerCase());
+    const allowed = new Set(nickelValues.map((h) => h.toLowerCase()));
+    return hexes.every((hex) => allowed.has(hex));
+  })(),
+  "a non-material hex colour was hard-coded",
 );
 check(
   "no blue paint value survives in the component",
@@ -106,12 +144,28 @@ check(
   "a supplied blue is still hard-coded; the family must drive every painted surface",
 );
 check(
-  "paint, side wall and both ridge rings derive from the family tokens",
-  /--kn-hi: var\(--cap-hi\)/.test(knobStyle) &&
-    /--kn-lo: var\(--cap-lo\)/.test(knobStyle) &&
-    /url\(#\$\{uid\}-side-wall\)/.test(knob) &&
-    /--kn-ridge-dark/.test(knob) &&
-    /--kn-ridge-light/.test(knob),
+  "the grip, side wall and both ridge rings are brushed nickel",
+  /url\(#\$\{uid\}-side-wall\)/.test(knob) &&
+    /fill=\{`url\(#\$\{uid\}-paint\)`\}/.test(knob) &&
+    /stroke="var\(--kn-nickel-groove\)"/.test(knob) &&
+    /stroke="var\(--kn-nickel-crest\)"/.test(knob) &&
+    /stop-color: var\(--kn-nickel-hi\)/.test(knob) &&
+    /stop-color: var\(--kn-nickel-base\)/.test(knob),
+);
+check(
+  "the central cap is the only colour-variable part and still reads the family",
+  /--kn-face-hi: color-mix\(in srgb, var\(--cap-hi\)/.test(knobStyle) &&
+    /--kn-face-base: color-mix\(in srgb, var\(--cap-base\)/.test(knobStyle) &&
+    /--kn-ink: var\(--cap-ink\)/.test(knobStyle) &&
+    /id=\{`\$\{uid\}-face-paint`\}/.test(knob),
+);
+check(
+  "the nickel does not appear on the cap",
+  (() => {
+    const faceGradient = (/id=\{`\$\{uid\}-face-paint`\}[\s\S]*?<\/linearGradient>/.exec(knob) ?? [""])[0];
+    return faceGradient.length > 0 && !/nickel/.test(faceGradient);
+  })(),
+  "the cap must keep the family colour, not the metal",
 );
 check(
   "the index bar uses the family ink, so it stays legible in all six",
@@ -191,8 +245,16 @@ check(
   ),
 );
 check(
-  "the supplied inset recess shadow survives, deepened on purpose (4.5/8.5, 3.4 blur)",
-  /feOffset dx="4\.5" dy="8\.5"/.test(knob) && /stdDeviation="3\.4"/.test(knob),
+  "the recess shadow hugs the cap's whole circumference (no offset, so no drop shadow)",
+  /feOffset dx="0" dy="0"/.test(knob) && /stdDeviation="4\.2"/.test(knob),
+  "an offset shadow makes the cap read as lying on the grip on one side and sunk on the other",
+);
+check(
+  "the cap falls into the recess all round, and its far wall shades the face",
+  /id=\{`\$\{uid\}-cap-inset`\}/.test(knob) &&
+    /id=\{`\$\{uid\}-cap-wall-shade`\}/.test(knob) &&
+    /class="knob__cap-seat"/.test(knob) &&
+    knob.includes("`url(#${uid}-face-clip)`"),
 );
 check(
   "the recess shadow keeps its supplied structure (offset → blur → composite out → flood → merge)",
@@ -201,9 +263,10 @@ check(
   ),
 );
 check(
-  "the face paints a visible step below the body's annulus",
+  "the cap still sits a step below the rim (nickel supplies the step now)",
   /id=\{`\$\{uid\}-face-paint`\}/.test(knob) &&
-    /--kn-face-base: color-mix\(in srgb, var\(--cap-base\) 84%, black\)/.test(knob),
+    /--kn-face-base: color-mix\(in srgb, var\(--cap-base\) 94%, black\)/.test(knob) &&
+    /class="knob__cap-seat"/.test(knob),
 );
 check(
   "the recess has an inner lip so the step reads at 7.5rem",
@@ -211,8 +274,17 @@ check(
     /\.knob__face-lip\s*{[^}]*stroke-width: 3\.5/s.test(knobStyle),
 );
 check(
-  "the dark ridge ring keeps contrast on the pale families",
-  /--kn-ridge-dark: color-mix\(in srgb, var\(--cap-lo\) 72%, black\)/.test(knob),
+  "ridge groves stay darker than ridge crests (depth, not a flat band)",
+  (() => {
+    const lum = (name) => {
+      const hex = (new RegExp(`--kn-nickel-${name}: (#[0-9a-fA-F]{6})`).exec(knobStyle) ?? [])[1];
+      if (!hex) return NaN;
+      const [r, g, b] = rgb(hex);
+      return 0.299 * r + 0.587 * g + 0.114 * b;
+    };
+    return lum("crest") - lum("groove") >= 90;
+  })(),
+  "grooves must read as recesses, crests as machined highlights",
 );
 check(
   "the supplied highlight blurs survive (7 and 1.8)",
@@ -286,6 +358,34 @@ check(
 check(
   "the rotation offset is documented as an orientation, not a remapping",
   /artwork orientation|ORIENTATION_TRIM/.test(knob.slice(0, knob.indexOf("<style>"))),
+);
+
+// --- 5b. Geometry lock: the material change must not have moved anything. --
+check(
+  "the rendered size and layout footprint are unchanged (7.5rem, art scale 0.88)",
+  /--knob-size: 7\.5rem/.test(knobStyle) && num("ART_SCALE") === 0.88,
+);
+check(
+  "the drawing transform is still a uniform, centred scale",
+  knob.includes("const ART_TRANSFORM = `translate(${C} ${C}) scale(${ART_SCALE}) translate(${-C} ${-C})`"),
+);
+check(
+  "no geometry helper was retuned for the material change",
+  num("RIDGE_COUNT") === 96 &&
+    num("RIDGE_INNER") === 134 &&
+    num("RIDGE_OUTER") === 148 &&
+    num("RIDGE_LIGHT_OFFSET") === 1.6 &&
+    num("START_ANGLE") === -135 &&
+    num("SWEEP") === 270,
+);
+check(
+  "the cap disc is still r 131 at the artwork centre",
+  (knob.match(/cx="200"\s+cy="200"\s+r="131"/g) ?? []).length >= 1,
+);
+check(
+  "the pointer is the same single rect, in the same place, at the same size",
+  (knob.match(/class="knob__pointer-ink"/g) ?? []).length === 1 &&
+    /x="220"[\s\S]{0,80}y="192\.5"[\s\S]{0,80}width="105"[\s\S]{0,80}height="15"/.test(knob),
 );
 
 // --- 6. Instance-scoped SVG ids. ------------------------------------------
