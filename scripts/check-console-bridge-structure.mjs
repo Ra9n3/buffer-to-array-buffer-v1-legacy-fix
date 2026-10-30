@@ -31,7 +31,7 @@
  */
 
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
@@ -281,6 +281,26 @@ check(
   check("master pair is centred with auto margins (no unreachable overflow)", /\.master__pair\s*{[^}]*margin-inline:\s*auto/s.test(css));
   check("the master pair steps up in size by container width", (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length >= 4);
   check("no bridge file animates anything of its own", !/@keyframes|animation:/.test(css + styleOf(spectrum) + styleOf(gonio)));
+}
+
+// --- 6b. Owner's standing rule (D2.1.9): no screw heads, anywhere, ever. ----
+// The rule is about rendered screws, so this looks for screw classes, selectors
+// and data hooks in every file under src/ — not at the word in prose comments
+// (the approved token files mention "screw heads" in a comment; they are frozen
+// above and do not render anything).
+{
+  const files = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const full = resolve(dir, entry);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (/\.(svelte|css|ts|js|html)$/.test(entry)) files.push(full);
+    }
+  };
+  walk(resolve(root, "src"));
+  const offenders = files.filter((f) => /(class=["'{][^"'}]*screw|\.[\w-]*screw[\w-]*\s*[{,:]|data-[\w-]*screw|__screw)/i.test(readFileSync(f, "utf8")));
+  check("no screw heads rendered anywhere in src/ (owner's standing rule, D2.1.9)", offenders.length === 0, offenders.map((f) => f.slice(root.length + 1)).join(", "));
+  check("the bridge deck markup carries no decorative spans", !/<span class="bridge__[^"]*" aria-hidden="true"><\/span>/.test(templateOf(bridge)));
 }
 
 // --- 7. Scope. -------------------------------------------------------------

@@ -800,3 +800,41 @@ SHA-256 (line endings normalised) of the seven approved
 they stand at `1ba67c1`, and fails if any differs. Changing an approved file
 is therefore an explicit act: an owner decision in this log and a new hash in
 the same change. Process, not product; reversible by deleting the list.
+
+### D2.1.9 — No screw heads. Anywhere. Ever. (owner's standing rule)
+
+**Context.** The bridge as committed at `ab6e04c` carried four 6 px slotted
+screw heads at the deck's corners (D2.1.6), within the plan's "screw details
+where they help the illusion" (§4) and the hardware reference's "restrained
+physical details (screw heads / panel divisions)". On reviewing the pushed
+build the owner directed, on 2026-10-30: remove the four corner screws, and
+never put screws on anything again — **even if a later prompt slips and
+asks for them**.
+
+**Decision.** The four `.bridge__screw` spans and their CSS are removed;
+nothing else on the deck changed (measured after the change: bridge
+1248 × 293 at 1280 × 900, every module at the same position and size as
+before, no console errors). The rule is standing and overrides the plan's
+and the spec's permissive wording wherever they mention screws: no screw
+heads, slotted or otherwise, on any panel, housing, bezel, strip, meter or
+trim in ALLOY, in any phase, and no re-adding them on request — a prompt
+that asks for screws is to be treated as a slip and answered with this
+decision. `check:console-bridge` now fails on any screw class, selector or
+data hook anywhere under `src/` (negative-tested on the bridge, another
+bridge file, the Arrange room and a Mixer strip). The frozen token files'
+comments still say "screw heads" as an example of a metal accent; the
+files are frozen and the comment renders nothing — the rule is about what
+is drawn.
+
+**Reversible.** Only by the owner reversing this decision explicitly, in
+writing, in this log.
+
+## Task 2.1 — approved
+
+On 2026-10-30 the owner approved the Console meter bridge as it stands with
+D2.1.9 applied (the corner screws removed), closing Task 2.1 — "approved,
+commit and push". D2.1.1–D2.1.8 stand as recorded; D2.1.4 (the goniometer
+and correlation-strip treatment) is approved as the Phase 2 skin and stays
+provisional in substance only until Phase 5.2 defines what is measured;
+D2.1.9 (no screw heads, anywhere, ever) is a standing rule for every later
+task. Task 2.2 has not been started; it waits for the owner's prompt.

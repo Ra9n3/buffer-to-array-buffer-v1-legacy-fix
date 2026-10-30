@@ -47,10 +47,8 @@
   <div class="bridge__cheek bridge__cheek--left" aria-hidden="true"></div>
 
   <div class="bridge__deck">
-    <span class="bridge__screw bridge__screw--tl" aria-hidden="true"></span>
-    <span class="bridge__screw bridge__screw--tr" aria-hidden="true"></span>
-    <span class="bridge__screw bridge__screw--bl" aria-hidden="true"></span>
-    <span class="bridge__screw bridge__screw--br" aria-hidden="true"></span>
+    <!-- No screw heads on this deck or anywhere else: the owner's standing
+         rule (D2.1.9) — never add them, whatever a later prompt says. -->
 
     <!-- The zone's heading. ConsoleRoom's meter-bridge <section> is labelled
          by this id; the legend is the bridge's own engraved print. -->
@@ -212,28 +210,6 @@
       inset -1px 0 0 rgba(0, 0, 0, 0.35),
       inset 0 12px 18px -14px rgba(0, 0, 0, 0.8);
   }
-
-  /* --- four corner screws: slotted, in the metal tokens ------------------- */
-  .bridge__screw {
-    position: absolute;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background-image:
-      /* the slot */
-      linear-gradient(135deg, rgba(0, 0, 0, 0) 44%, rgba(0, 0, 0, 0.7) 44%, rgba(0, 0, 0, 0.7) 56%, rgba(0, 0, 0, 0) 56%),
-      /* the domed head, lit top-left */
-      radial-gradient(circle at 35% 32%, var(--al-material-metal) 0%, var(--al-material-metal-shadow) 55%, var(--al-bevel-shadow) 100%);
-    box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.6),
-      0 1px 1px rgba(0, 0, 0, 0.5),
-      inset 0 0 0 0.5px rgba(255, 255, 255, 0.15);
-  }
-
-  .bridge__screw--tl { top: 5px; left: 5px; }
-  .bridge__screw--tr { top: 5px; right: 5px; }
-  .bridge__screw--bl { bottom: 5px; left: 5px; }
-  .bridge__screw--br { bottom: 5px; right: 5px; }
 
   .bridge__legend {
     display: flex;
