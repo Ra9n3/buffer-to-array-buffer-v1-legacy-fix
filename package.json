@@ -17,7 +17,8 @@
     "check:switch": "node scripts/check-switch-structure.mjs",
     "check:meter": "node scripts/check-meter-structure.mjs",
     "check:label-lamp": "node scripts/check-label-lamp-structure.mjs",
-    "check:console-bridge": "node scripts/check-console-bridge-structure.mjs"
+    "check:console-bridge": "node scripts/check-console-bridge-structure.mjs",
+    "check:channel-strip": "node scripts/check-channel-strip-structure.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",

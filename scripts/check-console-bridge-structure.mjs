@@ -94,28 +94,23 @@ check(
     'data-console-zone="meter-bridge",data-console-zone="channel-bank"',
 );
 
-// The channel-bank zone (Task 2.2's subject) must be exactly the Phase 0 markup.
-const PHASE0_CHANNEL_BANK_ZONE = `      <section
+// The channel-bank zone: Task 2.2 replaced its Phase 0 header and frame with
+// the ChannelBank's own housing (the bank renders the zone's h2 legend, as the
+// bridge does for its zone). The zone is a bare, labelled wrapper round it.
+const CHANNEL_BANK_ZONE = `      <section
         class="console-zone console-zone--channels"
         data-console-zone="channel-bank"
         aria-labelledby="console-channels-title"
       >
-        <header class="console-zone__header">
-          <p class="console-zone__eyebrow">Zone 02</p>
-          <h2 class="console-zone__title" id="console-channels-title">
-            Channel bank
-          </h2>
-          <p class="console-zone__detail">
-            20 track placeholders; the first 11 fit, the rest scroll. Return
-            and bus-master channels stay pinned right.
-          </p>
-        </header>
-        <div class="console-bank">
-          <ChannelBank />
-        </div>
+        <ChannelBank />
       </section>`;
-check("the channel-bank zone markup is the untouched Phase 0 markup", consoleRoom.includes(PHASE0_CHANNEL_BANK_ZONE));
-check("ConsoleRoom still renders the Phase 0 ChannelBank once", (consoleRoom.match(/<ChannelBank \/>/g) ?? []).length === 1);
+check("the channel-bank zone is a bare labelled wrapper round the ChannelBank (Task 2.2)", consoleRoom.includes(CHANNEL_BANK_ZONE));
+check("ConsoleRoom renders the ChannelBank once", (consoleRoom.match(/<ChannelBank \/>/g) ?? []).length === 1);
+check("the Phase 0 zone header, eyebrow, detail and bank frame are gone from ConsoleRoom", !/console-zone__header|console-zone__eyebrow|console-zone__detail|console-bank\b|Zone 02/.test(consoleRoom));
+check(
+  "the bank renders the zone's h2 with the id the zone points at",
+  /<EngravedLabel as="h2" id="console-channels-title" text="Channel bank"/.test(read("src/components/ChannelBank.svelte")),
+);
 
 // The room's grid: bridge row sized by the bridge, bank never below its content,
 // vertical scroll inside the room on short windows, never sideways.
@@ -127,11 +122,13 @@ check("ConsoleRoom still renders the Phase 0 ChannelBank once", (consoleRoom.mat
     layout.trim().slice(0, 200),
   );
   check("console layout scrolls vertically inside the room only", /overflow-y:\s*auto/.test(layout) && /overflow-x:\s*hidden/.test(layout));
-  const meterZone = consoleRoom.match(/\.console-zone--meter\s*{([^}]*)}/s)?.[1] ?? "";
+  // Since Task 2.2 both skinned zones share one reset rule.
+  const meterZone = consoleRoom.match(/\.console-zone--meter,\s*\.console-zone--channels\s*{([^}]*)}/s)?.[1] ?? "";
   check(
-    "the meter zone drops the placeholder frame (no padding, border or background)",
+    "the meter and channel zones drop the placeholder frame (no padding, border or background)",
     /padding:\s*0/.test(meterZone) && /border:\s*0/.test(meterZone) && /background:\s*none/.test(meterZone),
   );
+  check("the generic zone rule carries no placeholder frame any more", !/dashed|#f1f1f1|#e8e8e8/.test(consoleRoom));
 }
 
 // --- 2. Composed of the approved components; no meter drawn here. ------------
@@ -213,7 +210,7 @@ check("only the goniometer contains SVG", !/<svg/.test(bridge) && !/<svg/.test(s
 const FROZEN = {
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/components/hardware/Fader.svelte": "505bf5b8d969d062910510fe1a3be5304647b2899f95f79a312d9ecc9ed30046",
-  "src/components/hardware/Knob.svelte": "ff33be911410c3d9008e222cff8049cf783e88fce961bb02021a3ffd1562e8b1",
+  "src/components/hardware/Knob.svelte": "df6c51572f28d00ca07b98551914f8f11837df147d557c9113e94cd29732fdf6", // Task 2.2: owner-approved `--knob-size` host variable (D2.2.2)
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
   "src/components/hardware/LedLadder.svelte": "d09d6f36455731128c7f32189b8e641686f603c293968b5629f55fb61f1628b7",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",

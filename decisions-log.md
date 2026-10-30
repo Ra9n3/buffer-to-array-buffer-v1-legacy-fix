@@ -838,3 +838,167 @@ and correlation-strip treatment) is approved as the Phase 2 skin and stays
 provisional in substance only until Phase 5.2 defines what is measured;
 D2.1.9 (no screw heads, anywhere, ever) is a standing rule for every later
 task. Task 2.2 has not been started; it waits for the owner's prompt.
+
+## Task 2.2 — Console channel strip (2026-10-30; uncommitted, awaiting review)
+
+### D2.2.1 — Fixed-width physical modules; the bank scrolls, nothing shrinks (owner)
+
+**Context.** The Phase 0 bank was a fluid grid (`--visible-track-count: 11`)
+whose placeholder strips shrank with the window (measured: 133.8 px at 1920,
+75.6 at 1280, 52.4 at 1024, 29.1 at 768). The approved controls have fixed
+physical sizes — a 72 px fader, 40 px knobs, 28 px switch caps, 11 px
+legends — and cannot live in a 52 px column. Asked before writing code, the
+owner ruled: a strip is a fixed-width physical module, minimum 150 CSS px,
+preferred 150–165, never scaled down to fit; as many complete strips as fit
+are visible and the remainder scroll horizontally inside the regular
+track-bank region only; the pinned Bus / Return section stays fixed at the
+right, outside the scroller; identical widths and alignment; the app never
+overflows; test 1920, 1280, 1024, 768.
+
+**Decision.** `TrackStrip` is `10rem` = 160 px wide (`flex: 0 0`, `min-` and
+`max-width` all the same variable), inside the band. The rail is a
+`max-content` flex row inside the tracks region, the only horizontal
+scroller (`overflow-x: auto`, `overscroll-behavior-x: contain`, thin
+scrollbar in the bridge's colours). Measured on the build: 20 strips, every
+one 160 × 654.4 px at every width; complete strips visible 9 / 5 / 3 / 2 / 1
+at 1920 / 1280 / 1024 / 768 / 360; `document.scrollWidth ==
+clientWidth` everywhere; the pinned aside 320 px wide at the right (below
+the rail only in the Phase 0 ≤ 40rem column mode, unchanged).
+
+**Reversible.** The width is one variable; a bank-paging alternative was
+rejected by the prompt (no paging) and is not implemented.
+
+### D2.2.2 — Vertical: full-size controls, ≈ 630 px accepted, the room scrolls; the Knob gains a host-settable size (owner)
+
+**Context.** Full-size approved controls stacked in the plan's order come to
+far more than the Phase 0 row height (454 px at 1920 × 1080). The owner
+chose, asked before code: keep every control at its approved size — the
+fader at its 160 px travel, the knobs at ≈ 40 px, the value windows kept
+(no "no-value-window" option on Knob or Fader) — in the order trim / pan /
+REV + DLY side by side / fader / mute · solo · peak; accept a strip of
+≈ 630 px; let the room scroll vertically (D2.1.7's in-room scroller), never
+clip or compress; the vertical scroll must not break the bank's horizontal
+scroll. To place the approved Knob at 40 px without touching its artwork
+the owner approved exactly one API change: the component reads a
+host-settable `--knob-size` into an internal `--_knob-size` with the
+approved `7.5rem` as the fallback.
+
+**Decision.** `Knob.svelte` lines 1096–1099 and 1150 only: `--knob-size:
+7.5rem;` → `--_knob-size: var(--knob-size, 7.5rem);` (with a two-line
+comment) and `.knob__dial { width: var(--knob-size) }` → `var(--_knob-size)`.
+Nothing else in the file. Verified: the eleven playground knobs measure a
+120 px dial before and after, the knob's box 121.4 × 162.3 before and after,
+and element screenshots of the first three are pixel-identical
+(`evidence/strip/knob-default-{before,after}-{0,1,2}.png`, PIL difference
+bbox `None`); with a host `--knob-size: 2.5rem` the dial measures 40 px. The
+frozen Knob hash in `check:console-bridge` is updated
+(`ff33be91…` → `df6c5157…`) and the knob guard's geometry lock now asserts
+the new declaration. The strip sets `--knob-size: 2.5rem`, `--fader-width:
+4.5rem` (the fader's 1×), `--switch-size: 1.75rem` (the switch's 1×),
+`--lamp-size: 0.75rem`.
+
+The strip measures **654.4 px**, not ≈ 630: head 38.6 + trim 87.3 + pan
+87.3 + sends bay 93.3 + fader 273.3 + footer 66.6 + face padding 8. The
+≈ 630 was my estimate and under-counted the section rules and paddings
+(each section is separated by a 1 px engraved groove and 2 px of air; the
+sends sit in a recessed bay with its own padding); the controls themselves
+are exactly their approved sizes (knob block 82.3, fader block 264.3,
+switch 59.6). The paddings are already at the smallest spacing tokens; the
+remaining 24 px would have to come out of the approved components, which
+is out of scope. The room scrolls **166 px at 1920 × 1080 and 346 px at
+1280 × 900** (estimates were ≈ 140 / ≈ 320). Vertical wheel over the bank
+scrolls the room (layout `scrollTop` 0 → 240, bank `scrollLeft` unchanged);
+horizontal wheel scrolls the bank only (`scrollLeft` 0 → 320, room
+unchanged, window never scrolls); ArrowRight on the focused tracks region
+scrolls it 40 px.
+
+**Reversible.** Yes; if the owner wants ≈ 630 back it means a decision on
+which approved component shrinks.
+
+### D2.2.3 — Switches panel-labelled; footer order MUTE · SOLO · PEAK; lamp colours (owner + provisional)
+
+**Context.** The approved TactileSwitch has two variants (D1.4.x): the
+printed cap, and the panel variant with the function engraved on the panel
+above a plain cap in a well, its lamp to the right. The owner chose the
+panel variant for the strip. The prompt's wording "an adjacent lamp" is
+satisfied by the switch's own engaged lamp (Task 1.4 standing note); no
+second lamp is added. Colours follow Task 1.6's standing rule — amber /
+gold = engaged / active, red = warning — and the owner's "red / amber,
+restrained" for PEAK.
+
+**Decision.** MUTE: panel switch, red lamp (a muted channel is a warning
+state on a console). SOLO: panel switch, amber lamp (an engaged function).
+PEAK: the approved Lamp, red, 0.75rem glass, legend engraved above it like
+the switches' function prints, the lamp centred on the caps' line (measured
+lamp centre 1137.7 vs cap centre 1138.8 at 1280). Order left to right MUTE ·
+SOLO · PEAK — the owner's own order ("mute-solo-peak") — which also keeps
+the PEAK legend clear of the MUTE print (the three fit in 144 of the 148 px
+inner width). The red-for-MUTE choice is provisional until Phase 9's
+rulebooks name the semantic set; it uses no new semantic colour.
+
+**Reversible.** Yes: one `lamp=` attribute each.
+
+### D2.2.4 — Control ranges and readouts (provisional)
+
+**Context.** Plan §4 / §8a name the strip's controls but fix no scales; the
+project model (Phase 3) and the rulebooks (Phase 9) own the real ones.
+
+**Decision.** TRIM ±20 dB, step 0.5, unity under the reference mark, signed
+readout ("+3.5 dB", "0.0 dB", "−2.0 dB"), extremes "−20" / "+20". PAN
+−100 … +100, step 1, centre under the mark, readout "L 35" / "C" / "R 100",
+extremes "L" / "R". REV SEND and DLY SEND −60 … +6 dB, step 1, the minimum
+reads "OFF" (extreme "OFF" / "+6"); fixtures include off and non-zero sends
+on both. LEVEL: the approved Fader exactly as approved (−60 … +10 dB,
+console taper, 160 px travel, label "Level"). All in
+`track-strip-fixtures.ts`; the strip takes them from there, not from
+literals.
+
+**Reversible.** Yes: constants in one file.
+
+### D2.2.5 — The bank is a second bridge-style housing; the pinned strips stay Phase 0 inside it (owner)
+
+**Context.** Zone 02 was a grey Phase 0 frame (eyebrow "Zone 02", a grey
+header, a dashed inner frame) round a `#f1f1f1` scroller. Asked, the owner
+chose to replace the header and frame with a housing that matches the
+approved bridge, with the pinned grey placeholders untouched inside it
+(they are Task 2.4's subject).
+
+**Decision.** `ChannelBank.svelte` is rewritten as a housing: the bridge's
+walnut end-cheeks and charcoal deck (its CSS values copied — the bridge
+file is neither imported nor changed; its hash is unchanged and
+`check:channel-strip` pins it), an engraved `h2#console-channels-title`
+"Channel bank" legend with "Tracks 01–20" at the right, a recessed rail
+holding the strips, and a pinned module at the right with an engraved
+"Bus / Returns" legend and the three Phase 0 `ChannelStrip` placeholders
+exactly as before (96 px wide, grey, same markup; they stretch to the
+row's height, as they did in Phase 0). `ConsoleRoom.svelte` keeps its two
+zones and hooks; zone 02 is now a bare labelled wrapper like zone 01 and
+the Phase 0 header CSS is gone. Measured: bridge and bank share x = 16 and
+the same width at every viewport, 16 px apart.
+
+**Reversible.** Yes.
+
+### D2.2.6 — Identity head: engraved number, "TRK", name; the org colour is a 6 × 16 px tab (spec §7)
+
+**Decision.** Top row: channel number (EngravedLabel `sm`, `kind="value"`,
+`tone="bright"`) left, type "TRK" (`xs`, muted) right. Second row: a 0.375 ×
+1rem glossy plastic tab in a slot, filled with `var(--al-org-N)` /
+`--al-org-neutral` through a `--org` variable (the only place the swatch is
+used), then the name engraved `sm` `kind="value"`, truncating with an
+ellipsis rather than wrapping (the fixtures include "Snare Bottom",
+"Rhythm Gtr L", "Vocal Double"). The tab is `aria-hidden`; the strip is a
+`role="group"` named by the name label ("Kick"), each control is named
+per track ("Mute Kick", "Peak, Kick", "Sends, Kick").
+
+### D2.2.7 — Guard-list updates (process)
+
+`check:tokens` §7 no longer lists `ChannelBank.svelte` as "no tokens yet";
+`check:label-lamp`'s scope list no longer forbids the bank from using the
+label and lamp; `check:console-bridge` replaces the "Phase 0 bank zone
+untouched" assertion with the new zone-02 markup, asserts the bank renders
+the zone's h2, and carries the new Knob hash; `check:knob`'s geometry lock
+asserts the new size declaration. A new `check:channel-strip` (82 checks)
+pins the bridge and the Phase 0 `ChannelStrip` by hash, the composition,
+the owner's geometry rules, fixture honesty and the no-screw rule;
+negative-tested with seven mutations, all detected, files restored
+byte-identical.

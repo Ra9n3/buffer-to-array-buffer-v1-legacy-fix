@@ -558,8 +558,10 @@ check(
 
 // --- 5b. Geometry lock: the material change must not have moved anything. --
 check(
-  "the rendered size and layout footprint are unchanged (7.5rem, art scale 0.88)",
-  /--knob-size: 7\.5rem/.test(knobStyle) && num("ART_SCALE") === 0.88,
+  "the rendered size and layout footprint are unchanged (7.5rem default, art scale 0.88)",
+  // Task 2.2 (owner-approved, D2.2.2): the diameter is read from a host-settable
+  // `--knob-size` into a private variable, default 7.5rem — the same 120 px.
+  /--_knob-size: var\(--knob-size, 7\.5rem\)/.test(knobStyle) && /width: var\(--_knob-size\)/.test(knobStyle) && !/--knob-size: 7\.5rem;/.test(knobStyle) && num("ART_SCALE") === 0.88,
 );
 check(
   "one transform places the axis and uniformly scales the whole drawing",

@@ -209,7 +209,8 @@ const approved = ["src/components/hardware/Knob.svelte", "src/components/hardwar
 check("the approved components do not import either new component", approved.filter(exists).every((rel) => !/EngravedLabel|hardware\/Lamp|Lamp\.svelte|<Lamp\b/.test(read(rel))));
 check(
   "no room, strip or shared-state module references either new component",
-  ["src/rooms/ConsoleRoom.svelte", "src/rooms/ArrangeRoom.svelte", "src/rooms/MixerRoom.svelte", "src/components/ChannelStrip.svelte", "src/components/ChannelBank.svelte", "src/components/MixerChannelStrip.svelte", "src/components/MixerDetailPanel.svelte", "src/components/MiniTransport.svelte", "src/lib/mixer.ts", "src/lib/arrange.ts", "src/lib/rooms.ts"]
+  // ChannelBank.svelte left this list in Task 2.2: the skinned bank prints its legends with EngravedLabel.
+  ["src/rooms/ConsoleRoom.svelte", "src/rooms/ArrangeRoom.svelte", "src/rooms/MixerRoom.svelte", "src/components/ChannelStrip.svelte", "src/components/MixerChannelStrip.svelte", "src/components/MixerDetailPanel.svelte", "src/components/MiniTransport.svelte", "src/lib/mixer.ts", "src/lib/arrange.ts", "src/lib/rooms.ts"]
     .filter(exists)
     .every((rel) => !/EngravedLabel|hardware\/Lamp|<Lamp\b/.test(read(rel))),
 );

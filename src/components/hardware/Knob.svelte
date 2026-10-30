@@ -1093,7 +1093,9 @@
 
 <style>
   .knob {
-    --knob-size: 7.5rem;
+    /* Dial diameter: host-settable `--knob-size`, default 7.5rem = 120 px (1x,
+       as approved). Read into a private variable so the fallback cannot self-reference (D2.2.2). */
+    --_knob-size: var(--knob-size, 7.5rem);
     /* The cap is the colour-variable part: it keeps the family tokens. */
     --kn-hi: var(--cap-hi);
     --kn-base: var(--cap-base);
@@ -1141,7 +1143,7 @@
 
   .knob__dial {
     position: relative;
-    width: var(--knob-size);
+    width: var(--_knob-size);
     max-width: 100%;
     aspect-ratio: 1;
     border-radius: 50%;
