@@ -335,7 +335,8 @@ check(
 check("the knob, the fader and the switch do not know the meters exist", !/VUMeter|LedLadder/.test(knob) && !/VUMeter|LedLadder/.test(fader) && !/VUMeter|LedLadder/.test(sw));
 check("neither meter touches audio: no AudioContext, no AnalyserNode, no buffers", !/AudioContext|Analyser|AudioBuffer|getByteFrequencyData|requestAnimationFrame/.test(vu + led + vuFixture + ledFixture));
 check("check:meter is wired into package.json", pkg.scripts?.["check:meter"] === "node scripts/check-meter-structure.mjs");
-check("no later-task component was built (no separate Lamp or EngravedLabel component)", !["src/components/hardware/Lamp.svelte", "src/components/hardware/EngravedLabel.svelte"].some(exists));
+// Task 1.6 delivered the shared Lamp and EngravedLabel, so no Phase 1 component is a later-task file any more; kept with an empty list for the next phase.
+check("no later-task component was built", ![].some(exists));
 
 // --- Report. -------------------------------------------------------------------
 for (const name of passes) console.log(`  PASS  ${name}`);

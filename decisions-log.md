@@ -443,3 +443,100 @@ amber") and the playground captions ("simulated −20 dB → 4 of 16 lit").
 `check:meter` asserts both halves.
 
 **Reversible.** Yes — one function.
+
+## Task 1.6 — Engraved label and lamp-glow indicator
+
+### D1.6.1 — The engraving's light falls the other way from the approved print's shadow
+
+**Context.** The five approved components print their legends with the
+family stack `text-shadow: 0 1px 0 rgba(0,0,0,.9), 0 -0.5px 0
+rgba(255,255,255,.06)` — a dark copy *below* the glyph and a faint light
+copy *above*. Under the family's top-left key light that is the shading of
+something standing proud of the panel (its top edge catches the light, it
+casts down). Plan §4 asks for lettering "engraved or machined into the
+panel". A groove under the same light has its *upper* wall in shadow and
+its *lower* wall lit.
+
+**Decision.** `EngravedLabel` casts the dark copy up (`0 -depth 0
+rgba(0,0,0,.85)`) and the lit copy down (`0 +depth 0
+--al-text-engraved-highlight`), with `depth = max(1px, 0.07em)`, and adds
+a floor copy whose paint darkens along the top of every stroke. The paint
+itself is unchanged (`--al-text-secondary`, label face, bold, engraved
+tracking), so beside an approved component the lettering is the same ink at
+the same size; only the one-pixel walls differ. The approved components are
+not modified in this task; migrating their prints (and the switch's lamp,
+D1.4.3) to the shared components is recorded as remaining work for the
+Phase 1 review to decide.
+
+**Reversible.** Yes — the two shadow lines and one span.
+
+### D1.6.2 — The Task 1.1 engraving tokens are an unpainted "cut" finish for titles only
+
+**Context.** `--al-text-engraved #16150f` / `--al-text-engraved-highlight
+#4a4d45` were defined in Task 1.1 as "dark fill + 1px lighter edge" and
+never used; the Task 1.2 report noted the dark fill is invisible on the
+dark panel (1.14 : 1 against `--al-material-panel`). Every approved
+component prints light paint instead.
+
+**Decision.** The default finish is `filled` — paint in the groove — and it
+is the only finish for anything small. The token pair is offered as
+`finish="cut"`: no paint, the engraved fill with its lit lower wall, the way
+the tokens describe it. It is legible only by its highlight edge (L* 32
+against the panel's 13), so it is restricted by convention to `lg` / `xl`
+module titles and shown once in the playground above the filled cut of the
+same words, for the owner to keep or drop. The highlight token is used by
+every label, as the lit wall.
+
+**Reversible.** Yes — one modifier class.
+
+### D1.6.3 — The lamp's layout box is its housing, sized from the glass
+
+**Context.** The switch sizes its lamp as 0.36 × the switch; a shared lamp
+needs one length of its own that a legend can centre on.
+
+**Decision.** `--lamp-size` is the glass diameter (0.625rem = 10 px at 1×,
+the switch's lamp); the recess is 0.1 × and the ring 0.16 × of it, never
+under 1 px; the component's box is glass + 2 × (recess + ring) so the
+painted housing is exactly where the box is (first build had the housing
+overflowing its box by recess + ring to the right and down; measured and
+fixed before review). The ring is the housing's *padding* under a 135°
+metal gradient, not a border, because Chromium snaps border widths to whole
+device pixels and would shift the glass.
+
+**Reversible.** Yes — a custom property and two proportions.
+
+### D1.6.4 — Red is the same lamp, one step stronger; nothing else is a lamp colour
+
+**Context.** Spec §5 reserves red for warnings and peaks; the brief forbids
+new semantic colours.
+
+**Decision.** `color` is `"amber" | "red"`, typed, nothing else. Both use
+one set of layers; red differs only in its family tokens
+(`--al-function-red-{hi,base,lo}`), a spill at 0.62 opacity instead of
+0.50 and a near glow 1.3 × wider — a warning lamp is seen from further
+away. Measured on the panel at 16 px glass: amber lights the panel +15 L*
+at 6 px from its housing, red +9 but its spill reaches as far; the red
+glass is darker (centre L* 71 against amber's 88) because the red family
+is darker, so red reads as red, not as a brighter amber. Lit and unlit
+differ by ≥ 45 L* at the glass centre in both colours and the lit lamp
+adds a glow and a spill, so the state never rests on hue alone; the state
+is also in the accessible name.
+
+**Reversible.** Yes.
+
+### D1.6.5 — The floor copy is a real span, so a filled label's `textContent` holds the text twice
+
+**Context.** The shaded floor needs a second copy of the text with a
+gradient clipped to the glyphs. A `::after` with `content: attr(...)` would
+keep the DOM clean, but generated content is exposed to some assistive
+technologies and cannot be reliably hidden from all of them.
+
+**Decision.** The floor is `<span class="label__floor" aria-hidden="true">`
+inside the label: hidden from assistive technology by attribute, not
+selectable, no pointer events. The cost is that `element.textContent` of a
+filled label is the text twice; tests and any future code that reads a
+legend from the DOM must read the element's first text node, its
+`aria`/`title`, or the component's `text` prop. The `cut` finish renders no
+floor.
+
+**Reversible.** Yes.

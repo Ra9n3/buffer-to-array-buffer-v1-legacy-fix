@@ -15,7 +15,8 @@
     "check:knob": "node scripts/check-knob-structure.mjs",
     "check:fader": "node scripts/check-fader-structure.mjs",
     "check:switch": "node scripts/check-switch-structure.mjs",
-    "check:meter": "node scripts/check-meter-structure.mjs"
+    "check:meter": "node scripts/check-meter-structure.mjs",
+    "check:label-lamp": "node scripts/check-label-lamp-structure.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",

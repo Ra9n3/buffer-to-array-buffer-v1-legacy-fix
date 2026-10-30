@@ -5,6 +5,8 @@
   import SwitchFixture, { type SwitchFixtureConfig } from "./SwitchFixture.svelte";
 import VUMeterFixture, { type VUMeterFixtureConfig } from "./VUMeterFixture.svelte";
 import LedLadderFixture, { type LedLadderFixtureConfig } from "./LedLadderFixture.svelte";
+import EngravedLabelFixture, { type LabelFixtureConfig } from "./EngravedLabelFixture.svelte";
+import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
   import {
     FUNCTION_ROLE_ORDER,
     TOKENS,
@@ -621,6 +623,177 @@ import LedLadderFixture, { type LedLadderFixtureConfig } from "./LedLadderFixtur
     },
   ];
 
+  // --- Task 1.6: engraved labels and lamps. Dev-only demonstration data. ----
+
+  const LABEL_CONTROLS: LabelFixtureConfig[] = [
+    {
+      id: "label-controls",
+      specimens: [{ text: "INPUT" }, { text: "OUTPUT" }, { text: "PAN" }, { text: "GAIN" }],
+      stateNote: "control labels — sm (11 px)",
+      meaning:
+        "The legend under a knob or beside a fader: the size and tracking the approved knob, fader and meter labels already print, now a component. Paint in the groove, a dark upper wall, a lit lower wall, the floor shaded along the top of every stroke.",
+    },
+    {
+      id: "label-controls-xs",
+      specimens: [
+        { text: "INPUT", size: "xs" },
+        { text: "OUTPUT", size: "xs" },
+        { text: "PAN", size: "xs" },
+        { text: "GAIN", size: "xs" },
+      ],
+      stateNote: "xs (10 px) — the smallest cut",
+      meaning: "The micro print of a dense strip. The walls never go under one pixel, so the cut survives the size.",
+    },
+    {
+      id: "label-controls-zoom",
+      specimens: [{ text: "INPUT" }, { text: "GAIN" }],
+      zoom: 3,
+      stateNote: "sm at 3× — review magnification",
+      meaning:
+        "Dev-only magnification of the 11 px cut so the three layers can be seen: the shadowed upper wall, the lit lower wall, the paint darker along the top of each stroke.",
+    },
+  ];
+
+  const LABEL_SWITCHES: LabelFixtureConfig[] = [
+    {
+      id: "label-switch-functions",
+      layout: "pairs",
+      specimens: [
+        { text: "PAD" },
+        { text: "HPF" },
+        { text: "PHANTOM" },
+        { text: "26 dB", kind: "value", size: "xs", tone: "muted" },
+        { text: "80 Hz", kind: "value", size: "xs", tone: "muted" },
+        { text: "48 V", kind: "value", size: "xs", tone: "muted" },
+      ],
+      stateNote: "switch functions over their values",
+      meaning:
+        "The panel-labelled switch's print (spec §2) as two components: the function in the label kind, the value under it in the value kind, muted, with its unit's case kept.",
+    },
+  ];
+
+  const LABEL_VALUES: LabelFixtureConfig[] = [
+    {
+      id: "label-values",
+      specimens: [
+        { text: "26 dB", kind: "value" },
+        { text: "+4", kind: "value" },
+        { text: "\u221212", kind: "value" },
+        { text: "0", kind: "value" },
+      ],
+      stateNote: "values — sm, normal tone",
+      meaning: "Semibold, tracked less than a legend, digits tabular, the unit never upper-cased: 26 dB stays 26 dB.",
+    },
+    {
+      id: "label-values-md",
+      specimens: [
+        { text: "26 dB", kind: "value", size: "md" },
+        { text: "+4", kind: "value", size: "md" },
+        { text: "\u221212", kind: "value", size: "md" },
+        { text: "0 VU", kind: "value", size: "md", tone: "bright" },
+      ],
+      stateNote: "values — md, one bright",
+      meaning: "The same cut a step larger; the bright tone is the primary text token for the one value a panel wants read first.",
+    },
+  ];
+
+  const LABEL_LONG: LabelFixtureConfig[] = [
+    {
+      id: "label-long",
+      layout: "column",
+      specimens: [
+        { text: "LEAD VOCAL \u2014 TRACK 07", size: "md" },
+        { text: "MASTER SECTION", size: "lg" },
+        { text: "MONITOR / TALKBACK", size: "xl" },
+      ],
+      stateNote: "md / lg / xl — beyond the tiny labels",
+      meaning:
+        "The same engraving at 13, 16 and 20 px: the cut deepens in proportion (max(1px, 0.07em)), the tracking relaxes from 0.14em to 0.08em at md and above, nothing else changes. One style at five depths, not five styles.",
+    },
+    {
+      id: "label-long-cut",
+      layout: "column",
+      specimens: [
+        { text: "MASTER SECTION", size: "xl", finish: "cut" },
+        { text: "MASTER SECTION", size: "xl" },
+      ],
+      stateNote: "xl — unpainted cut above the filled cut",
+      meaning:
+        "The Task 1.1 token pair as the tokens describe it: the dark groove floor (--al-text-engraved) with its lit lower wall (--al-text-engraved-highlight). Legible at a title size, and only there — it is offered for large module titles; everything small is the filled finish below it.",
+    },
+    {
+      id: "label-truncate",
+      layout: "column",
+      specimens: [
+        { text: "LEAD VOCAL \u2014 DOUBLE, CHORUS 2, COMP TAKE", size: "sm", truncate: true, width: "9rem" },
+        { text: "LEAD VOCAL \u2014 DOUBLE, CHORUS 2, COMP TAKE", size: "sm", truncate: true, width: "14rem" },
+      ],
+      stateNote: "truncated to 9rem and 14rem",
+      meaning: "A long track name in a strip's width: clipped with an ellipsis, the full name in the tooltip, the engraving intact to the last glyph.",
+    },
+  ];
+
+  const LABEL_SURFACES: LabelFixtureConfig[] = [
+    {
+      id: "label-surface-panel",
+      surface: "panel",
+      specimens: [{ text: "INPUT" }, { text: "PHANTOM" }, { text: "+4", kind: "value" }, { text: "MASTER", size: "md" }],
+      stateNote: "warm charcoal panel",
+      meaning: "--al-material-panel: the base panel.",
+    },
+    {
+      id: "label-surface-surface",
+      surface: "surface",
+      specimens: [{ text: "INPUT" }, { text: "PHANTOM" }, { text: "+4", kind: "value" }, { text: "MASTER", size: "md" }],
+      stateNote: "dark grey-green surface",
+      meaning: "--al-material-surface: the module bay. The same paint, the same walls; the lit wall reads a little less because the surface is lighter.",
+    },
+    {
+      id: "label-surface-raised",
+      surface: "raised",
+      specimens: [{ text: "INPUT" }, { text: "PHANTOM" }, { text: "+4", kind: "value" }, { text: "MASTER", size: "md" }],
+      stateNote: "raised face plate",
+      meaning: "--al-material-surface-raised: a module's face.",
+    },
+  ];
+
+  const LABEL_BODY: LabelFixtureConfig[] = [
+    {
+      id: "label-vs-text",
+      layout: "row",
+      withBodyText: true,
+      specimens: [{ text: "CHANNEL 07", size: "md" }],
+      stateNote: "engraved legend beside ordinary text",
+      meaning:
+        "What is and is not engraved. The legend is the component; the paragraph is the UI face in the primary tone and is not — explanations, filenames, menus and anything read in quantity keep the readable treatment.",
+    },
+  ];
+
+  const LAMP_STATES: LampFixtureConfig[] = [
+    { id: "lamp-amber-unlit", color: "amber", lit: false, scale: 1.6, name: "demo", stateNote: "amber — unlit", meaning: "A dark lens in its bezel: a trace of amber low in the glass, a pin of room light at the upper left. Visibly a lamp, visibly off." },
+    { id: "lamp-amber-lit", color: "amber", lit: true, scale: 1.6, name: "demo", stateNote: "amber — lit", meaning: "The incandescent token: a hot core above centre falling through the lamp body to a darker rim, the specular over it, the near glow, the spill on the panel below and to the right." },
+    { id: "lamp-red-unlit", color: "red", lit: false, scale: 1.6, name: "demo", stateNote: "red — unlit", meaning: "The same lens with a trace of red in it." },
+    { id: "lamp-red-lit", color: "red", lit: true, scale: 1.6, name: "demo", stateNote: "red — lit, the warning", meaning: "The red family, a step stronger than amber: a wider near glow and a heavier spill. A peak or warning indication, nothing else (spec §5)." },
+  ];
+
+  const LAMP_DETAIL: LampFixtureConfig[] = [
+    { id: "lamp-detail-amber", color: "amber", lit: true, scale: 3, name: "demo", stateNote: "amber at 3× — 30 px glass", meaning: "To judge the bulb: the machined ring lit from the top-left, the dark recess round the glass, the core off-centre, the rim darker than the body, the blurred spill behind the housing and not on it." },
+    { id: "lamp-detail-red", color: "red", lit: true, scale: 3, name: "demo", stateNote: "red at 3×", meaning: "The warning lamp at the same size." },
+    { id: "lamp-detail-unlit", color: "amber", lit: false, scale: 3, name: "demo", stateNote: "unlit at 3×", meaning: "The housing alone: ring, recess, dark glass, specular pin. Nothing glows." },
+  ];
+
+  const LAMP_LIVE: LampFixtureConfig[] = [
+    { id: "lamp-live-amber", color: "amber", lit: false, scale: 1.6, name: "demo", interactive: true, stateNote: "live — amber", meaning: "Switch it with the checkbox: on in 90 ms, off in 160 ms; nothing under reduced motion. A review-sheet toggle, not a product control." },
+    { id: "lamp-live-red", color: "red", lit: true, scale: 1.6, name: "demo", interactive: true, stateNote: "live — red", meaning: "The same for the warning lamp." },
+  ];
+
+  const LAMP_CLUSTERS: LampFixtureConfig[] = [
+    { id: "cluster-phantom", color: "amber", lit: true, scale: 1, label: "PHANTOM", value: "48 V", interactive: true, stateNote: "label + lamp + value, 1×", meaning: "The switch-bank cluster: an engraved function legend, the lamp under it, the value under that, at the sizes the panel-labelled switch prints. The lamp is the switch's engaged indicator (spec §2) without the switch." },
+    { id: "cluster-hpf", color: "amber", lit: false, scale: 1, label: "HPF", value: "80 Hz", interactive: true, stateNote: "the same, off", meaning: "Off: the legend reads the same; only the lamp changes, and it changes in luminance and shape, not hue alone." },
+    { id: "cluster-peak", color: "red", lit: true, scale: 1, label: "PEAK", interactive: true, stateNote: "PEAK + red lamp", meaning: "A strip's peak indicator: the legend and the warning lamp, no value." },
+    { id: "cluster-switch", color: "amber", lit: true, zoom: 2, label: "PAD", value: "26 dB", withSwitch: true, interactive: true, stateNote: "consistency check — beside the approved switch, both at 1×, magnified 2×", meaning: "Left: the Task 1.4 panel-labelled switch with its own built-in print and lamp, untouched. Right: the same legend, value and state from the two shared components. One flag drives both lamps; they must read as the same lamp and the same engraving. The switch keeps its internal lamp for now (D1.4.3) — replacing it is a later edit to an approved component, not part of this task." },
+  ];
+
   onMount(() => {
     values = readTokenValues();
   });
@@ -649,8 +822,8 @@ import LedLadderFixture, { type LedLadderFixtureConfig } from "./LedLadderFixtur
     <p class="dev-page__blurb">
       Every token defined in <code>src/lib/tokens.css</code>, shown once each.
       Values below are read from the live document, so what you see is what the
-      stylesheet computes. Task 1.1 defines tokens only — the knob, fader,
-      switch, meter, engraved-label and lamp components arrive in later tasks.
+      stylesheet computes. Task 1.1 defined tokens only; the knob, fader,
+      switch, meters, engraved label and lamp built on them follow below.
     </p>
     <p class="dev-page__count" data-token-count>
       {TOKENS.length} tokens in {TOKEN_CATEGORIES.length} categories
@@ -1114,6 +1287,145 @@ import LedLadderFixture, { type LedLadderFixtureConfig } from "./LedLadderFixtur
       {/each}
     </div>
   </section>
+
+  <section
+    class="dev-section dev-section--label"
+    data-dev-component="engraved-label"
+    aria-labelledby="dev-component-engraved-label"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-engraved-label">
+        Component — Engraved label
+      </h2>
+      <p class="dev-section__blurb">
+        One reusable <code>EngravedLabel</code> component for every legend
+        machined into a panel (plan §4): the condensed label face, small caps,
+        tight controlled tracking, cut into the material rather than laid on
+        it. Three layers make the cut — the paint (the secondary text tone, as
+        the approved components print), the groove's two walls (a dark 1-px
+        copy shifted up for the wall that faces away from the family's
+        top-left light, a lighter copy shifted down for the wall that faces
+        it), and the floor (a second, hidden copy of the text with a gradient
+        clipped to the glyphs, darker along the top of every stroke where the
+        upper wall shades it). Five sizes from the text-size tokens, two kinds
+        (<em>label</em> and <em>value</em>), three tones, and an unpainted
+        <em>cut</em> finish for large titles. Nothing else; no px anywhere.
+      </p>
+      <p class="dev-section__blurb">
+        Ordinary application text — menus, filenames, explanations — is not
+        this component and keeps the readable UI face; the last row shows the
+        two side by side.
+      </p>
+    </header>
+
+    <h3 class="dev-subtitle">Short control labels</h3>
+    <div class="dev-labels" data-dev-label-controls>
+      {#each LABEL_CONTROLS as config (config.id)}
+        <EngravedLabelFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Switch function labels, with their values</h3>
+    <div class="dev-labels dev-labels--one" data-dev-label-switches>
+      {#each LABEL_SWITCHES as config (config.id)}
+        <EngravedLabelFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Numeric and value labels</h3>
+    <div class="dev-labels" data-dev-label-values>
+      {#each LABEL_VALUES as config (config.id)}
+        <EngravedLabelFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Beyond the tiny labels: track and section names</h3>
+    <div class="dev-labels" data-dev-label-long>
+      {#each LABEL_LONG as config (config.id)}
+        <EngravedLabelFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Against the three materials</h3>
+    <div class="dev-labels" data-dev-label-surfaces>
+      {#each LABEL_SURFACES as config (config.id)}
+        <EngravedLabelFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Engraved legend against ordinary text</h3>
+    <div class="dev-labels dev-labels--one" data-dev-label-body>
+      {#each LABEL_BODY as config (config.id)}
+        <EngravedLabelFixture {config} />
+      {/each}
+    </div>
+  </section>
+
+  <section
+    class="dev-section"
+    data-dev-component="lamp"
+    aria-labelledby="dev-component-lamp"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-lamp">
+        Component — Lamp-glow indicator
+      </h2>
+      <p class="dev-section__blurb">
+        One reusable <code>Lamp</code> component: a miniature incandescent
+        bulb behind a translucent lens in a machined bezel — the Task 1.4
+        switch's lamp lifted out as a shared component (D1.4.3), scaled from
+        one length (<code>--lamp-size</code>, the glass diameter, 10 px at
+        1×) and given its own housing. A metal ring lit from the top-left on a
+        drop shadow, a dark recess round the glass, the lens (unlit: dark
+        glass with a trace of its colour and a pin of room light; lit: a hot
+        core above centre falling through the lamp body to a darker rim, a
+        specular, a near glow), and a blurred spill on the panel behind the
+        housing, larger below and to the right. Amber is the incandescent
+        token <code>--al-material-lamp</code> inside the amber family; red is
+        the red family, a step stronger, for warnings and peaks (spec §5). No
+        third colour, no cold white, no flat disc.
+      </p>
+      <p class="dev-section__blurb">
+        Every state on this page is <strong>simulated</strong>: a checkbox
+        on the review sheet. Nothing is connected to a switch function, a
+        meter, playback or project state.
+      </p>
+    </header>
+
+    <h3 class="dev-subtitle">Amber and red, unlit and lit — at 1.6×</h3>
+    <div class="dev-lamps" data-dev-lamp-states>
+      {#each LAMP_STATES as config (config.id)}
+        <LampFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">The lens, enlarged</h3>
+    <div class="dev-lamps dev-lamps--detail" data-dev-lamp-detail>
+      {#each LAMP_DETAIL as config (config.id)}
+        <LampFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Live</h3>
+    <div class="dev-lamps dev-lamps--live" data-dev-lamp-live>
+      {#each LAMP_LIVE as config (config.id)}
+        <LampFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Label and lamp together</h3>
+    <p class="dev-section__blurb">
+      The two components as they will sit in the rooms: an engraved function
+      legend over a lamp over its value, and — for the family check — the
+      approved switch beside the same cluster, both lamps driven by one
+      simulated flag.
+    </p>
+    <div class="dev-lamps dev-lamps--clusters" data-dev-lamp-clusters>
+      {#each LAMP_CLUSTERS as config (config.id)}
+        <LampFixture {config} />
+      {/each}
+    </div>
+  </section>
 </div>
 
 <style>
@@ -1363,6 +1675,46 @@ import LedLadderFixture, { type LedLadderFixtureConfig } from "./LedLadderFixtur
   .dev-section--ladder {
     border-top: 3px double #8a8a8a;
     padding-top: var(--al-space-lg);
+  }
+
+  /* --- Task 1.6: engraved labels and lamps -------------------------------- */
+
+  /* The label section is set apart from the meters the same way. */
+  .dev-section--label {
+    border-top: 3px double #8a8a8a;
+    padding-top: var(--al-space-lg);
+  }
+
+  .dev-labels {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: var(--al-space-md);
+    min-width: 0;
+  }
+
+  .dev-labels--one {
+    grid-template-columns: minmax(16rem, 44rem);
+  }
+
+  .dev-lamps {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: var(--al-space-md);
+    min-width: 0;
+  }
+
+  .dev-lamps--detail {
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  }
+
+  .dev-lamps--live {
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 18rem));
+  }
+
+  .dev-lamps--clusters {
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   }
 
   /* --- spacing ----------------------------------------------------------- */

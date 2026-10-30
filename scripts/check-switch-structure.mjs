@@ -405,10 +405,12 @@ check(
 );
 check("the knob and the fader do not know the switch exists", !/TactileSwitch/.test(knob) && !/TactileSwitch/.test(fader));
 check("check:switch is wired into package.json", pkg.scripts?.["check:switch"] === "node scripts/check-switch-structure.mjs");
-// Task 1.5 delivered the two meters, so they are no longer later-task files.
+// Task 1.5 delivered the two meters and Task 1.6 the shared Lamp and
+// EngravedLabel, so no Phase 1 component is a later-task file any more; the
+// check is kept with an empty list for the next phase.
 check(
-  "no later-task component was built (no separate Lamp or label component)",
-  !["src/components/hardware/Lamp.svelte", "src/components/hardware/EngravedLabel.svelte"].some(exists),
+  "no later-task component was built",
+  ![].some(exists),
 );
 
 // --- Report. -------------------------------------------------------------------

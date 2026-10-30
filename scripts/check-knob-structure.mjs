@@ -93,13 +93,12 @@ const polar = (x, y) => {
 const num = (name) => Number((new RegExp(`const ${name} = (-?[\\d.]+)`).exec(knob) ?? [])[1] ?? NaN);
 
 // --- 1. One component, six families. --------------------------------------
-// Task 1.3 delivered the fader, Task 1.4 the tactile switch and Task 1.5 the
-// two meters beside the knob, so they are no longer later-task files; the
-// components that remain ahead on the roadmap are.
-const laterTaskFiles = [
-  "src/components/hardware/EngravedLabel.svelte",
-  "src/components/hardware/Lamp.svelte",
-];
+// Task 1.3 delivered the fader, Task 1.4 the tactile switch, Task 1.5 the
+// two meters and Task 1.6 the engraved label and the lamp beside the knob, so
+// none of them is a later-task file any more; Phase 1 has no component left
+// ahead of it. The list stays so a Phase 2 task that invents a new shared
+// component here is caught when it is named.
+const laterTaskFiles = [];
 check("one Knob component exists", exists(knobPath));
 check(
   "no per-family knob implementations exist",
