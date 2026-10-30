@@ -285,23 +285,38 @@ check(
   (style.match(/\.switch--lamp-[a-z]+/g) ?? []).every((c) => c === ".switch--lamp-red" || c === ".switch--lamp-amber"),
 );
 check(
-  "the lamp is a lens in a dark bezel beside the cap, part of the switch, presentation only",
+  "the lamp is a lens in a thin metal bezel beside the cap, part of the switch, presentation only; the lamp box itself paints nothing (no background, no shadow)",
   /<span class="switch__lamp" data-part="lamp" aria-hidden="true">\s*<span class="switch__lens" data-part="lamp-lens"><\/span>/.test(markup) &&
-    /\.switch__lamp \{[^}]*border-radius: 50%;[^}]*background: var\(--al-material-recess\)/s.test(style),
+    /\.switch__lamp \{[^}]*border-radius: 50%;/s.test(style) &&
+    !/\.switch__lamp \{[^}]*(background|box-shadow):/s.test(style),
 );
 check(
-  "unlit: a dark recessed glass with a trace of its colour and a pin of room light — not off-by-opacity",
-  /\.switch__lens \{[^}]*radial-gradient\(circle at 36% 30%, rgba\(255, 255, 255, 0\.1\d\)[^}]*color-mix\(in srgb, var\(--f-lamp-body\) 2\d%, var\(--al-material-recess\)\)/s.test(style),
+  "the bezel and the recess are the lamp's ::before, lit from the top-left (D1.6.6): a 1px transparent border round the padding box carrying the 135° metal→metal-shadow ring (border-box), and the 1px gap a 135° recess gradient, darkest top-left, slightly lighter bottom-right (padding-box) — the same stops as the shared Lamp",
+  /\.switch__lamp::before \{[^}]*z-index: 0;[^}]*inset: -1px;[^}]*border: 1px solid transparent;[^}]*border-radius: 50%;/s.test(style) &&
+    /\.switch__lamp::before \{[^}]*linear-gradient\(\s*135deg,\s*color-mix\(in srgb, var\(--al-material-recess\) 70%, black\) 0%,\s*var\(--al-material-recess\) 50%,\s*color-mix\(in srgb, var\(--al-material-recess\) 86%, white\) 100%\s*\)\s*padding-box/s.test(style) &&
+    /\.switch__lamp::before \{[^}]*linear-gradient\(\s*135deg,\s*color-mix\(in srgb, var\(--al-material-metal\) 78%, white\) 0%,\s*var\(--al-material-metal\) 38%,\s*var\(--al-material-metal-shadow\) 72%,\s*color-mix\(in srgb, var\(--al-material-metal-shadow\) 70%, black\) 100%\s*\)\s*border-box/s.test(style) &&
+    !/\.switch__lamp::before \{[^}]*box-shadow/s.test(style),
 );
 check(
-  "lit: layered gradients — hot core, body, lens edge, glass specular — never a flat disc",
-  /\.switch\.is-engaged \.switch__lens \{[^}]*radial-gradient\(circle at 36% 30%, rgba\(255, 255, 255, 0\.5\d\)[^}]*radial-gradient\(\s*circle at 48% 44%,\s*var\(--f-lamp-core\) 0%,\s*var\(--f-lamp-body\) 4\d%,\s*var\(--f-lamp-edge\) 9\d%/s.test(style) &&
-    !/\.switch\.is-engaged \.switch__lens \{[^}]*background:\s*var\(--f-lamp-body\);/s.test(style),
+  "unlit: dark glass with a trace of its colour at the top-left, clipped to the dome, no shadow or line on its edge — not off-by-opacity",
+  /\.switch__lens \{[^}]*overflow: hidden;[^}]*radial-gradient\(\s*circle at 34% 30%,\s*color-mix\(in srgb, var\(--f-lamp-body\) 2\d%, var\(--al-material-recess\)\) 0%,\s*var\(--al-material-recess\) 78%/s.test(style) &&
+    !/\.switch__lens \{[^}]*(box-shadow|rgba\(255, 255, 255)/s.test(style),
 );
 check(
-  "lit: a restrained near glow at the bezel and a blurred, off-centre spill on the panel",
-  /\.switch\.is-engaged \.switch__lens \{[^}]*0 0 6px 2px color-mix\(in srgb, var\(--f-lamp-glow\) 3\d%, transparent\)/s.test(style) &&
-    /\.switch__lamp::after \{[^}]*inset: -70% -80% -90% -60%;[^}]*filter: blur\(2\.5px\);[^}]*opacity: 0;/s.test(style) &&
+  "the highlight is one small soft white ellipse at the top-left of the dome, sized from the lens, blurred from --sw-lamp, low opacity: 0.22 off, 0.42 engaged",
+  /\.switch__lens::after \{[^}]*top: 9%;\s*left: 15%;\s*width: 44%;\s*height: 26%;[^}]*radial-gradient\(closest-side, rgba\(255, 255, 255, 0\.9\), rgba\(255, 255, 255, 0\)\);[^}]*filter: blur\(calc\(var\(--sw-lamp\) \* 0\.0\d\)\);[^}]*opacity: 0\.22;/s.test(style) &&
+    /\.switch\.is-engaged \.switch__lens::after \{[^}]*opacity: 0\.42;/s.test(style),
+);
+check(
+  "lit: the dome is one radial gradient brightest at the top-left — hot core, body, lens edge — never a flat disc, no specular layer, no shadow",
+  /\.switch\.is-engaged \.switch__lens \{[^}]*radial-gradient\(\s*circle at 34% 30%,\s*var\(--f-lamp-core\) 0%,\s*var\(--f-lamp-body\) 4\d%,\s*var\(--f-lamp-edge\) 9\d%/s.test(style) &&
+    !/\.switch\.is-engaged \.switch__lens \{[^}]*(background:\s*var\(--f-lamp-body\);|box-shadow|rgba\(255, 255, 255)/s.test(style),
+);
+check(
+  "lit: no glow at the bezel — the one glow is the blurred, off-centre spill on the panel, painted under the bezel and the glass (z-index -1 in the lamp's stacking context; the glass above the bezel)",
+  !/0 0 6px 2px/.test(style) &&
+    /\.switch__lamp::after \{[^}]*z-index: -1;[^}]*inset: -70% -80% -90% -60%;[^}]*filter: blur\(2\.5px\);[^}]*opacity: 0;/s.test(style) &&
+    /\.switch__lens \{[^}]*z-index: 1;/s.test(style) &&
     /\.switch\.is-engaged \.switch__lamp::after \{[^}]*opacity: 0\.[3-6]\d?;/s.test(style),
 );
 check(
@@ -312,7 +327,7 @@ check(
   "the lamp's glow comes on faster than it goes off (thermal lag), and both respect reduced motion",
   /\.switch__lens \{[^}]*transition:\s*background 160ms[^}]*\}/s.test(style) &&
     /\.switch\.is-engaged \.switch__lens \{[^}]*background 90ms/s.test(style) &&
-    /prefers-reduced-motion: reduce\)\s*\{[^}]*\.switch__lens,\s*\.switch__lamp::after\s*\{\s*transition: none/s.test(style),
+    /prefers-reduced-motion: reduce\)\s*\{[^}]*\.switch__lens,\s*\.switch__lens::after,\s*\.switch__lamp::after\s*\{\s*transition: none/s.test(style),
 );
 
 // --- 5. A real button. -----------------------------------------------------------

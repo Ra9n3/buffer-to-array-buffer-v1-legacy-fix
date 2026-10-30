@@ -540,3 +540,44 @@ legend from the DOM must read the element's first text node, its
 floor.
 
 **Reversible.** Yes.
+
+### D1.6.6 — The lamps are re-shaded in four layers lit from the top-left; the glow is the panel spill alone
+
+**Context.** After the Task 1.6 commit the owner directed a re-shading of
+the round lamp indicators — the shared `Lamp` and, by explicit instruction,
+the approved `TactileSwitch`'s built-in lamp — changing only shading and
+glow: no size, colour, label, position or on/off logic. The old look had
+light from several directions at once (a bezel lit top-left, a drop shadow
+below, a glass specular at 36% 30%, a hot core at 48% 44%, an inset shadow
+from the top, and a second "near" glow ring-shadowed round the glass). On
+the switch the spill was also painted *over* the lens and bezel: the lamp
+has a `transform`, so its `::after` spill sat above the lens in tree
+order, tinting the glass and hiding the ring.
+
+**Decision.** Both lamps are the same four layers, bottom to top, lit from
+the top-left: (1) **bezel** — the existing metal tokens as a 135° gradient,
+metal warmed to white at the top-left edge, metal-shadow deepened to black
+at the bottom-right; no drop shadow, no hairline; (2) **recess** — the
+existing full gap ring, exactly its old size and place, filled with a 135°
+gradient of the recess token: darkest top-left under the bezel's lip,
+slightly lighter bottom-right (70% recess/black → recess → 86%
+recess/white); (3) **dome** — one radial gradient at 34% 30%: lit, the
+family's core → body → edge; unlit, a 22% trace of the body colour into
+the recess tone; no shadow or line on the glass edge; (4) **highlight** —
+one small soft white ellipse on the top-left of the dome, 44% × 26% of the
+lens, tilted −40°, blurred by 4% of the lens, opacity 0.22 off / 0.42 lit.
+The ON glow is the existing panel spill, unchanged in reach, down-right
+bias, blur and opacity; the near glow and its `--lp-near` factor are
+removed, so D1.6.4's "red is a step stronger" now rests on the spill
+opacity alone (0.62 vs 0.5). There is no `box-shadow` anywhere in either
+lamp. On the switch the bezel and recess moved into `::before` (a 1px
+transparent border round the unchanged padding box, ring as border-box
+gradient, recess as padding-box gradient) so the spill can take
+`z-index: -1` and lie under the bezel and glass as the shared Lamp's does;
+the layout box is identical (12.078 px, lens at +1, +1). Every offset,
+blur and gradient tone is derived from the indicator's own size (`--lp-size`
+/ `--sw-lamp`, percentages of the lens) and its own family tokens.
+
+**Reversible.** Yes — CSS only; the markup, props, hooks and accessible
+names are untouched. Guards `check:label-lamp` (74) and `check:switch` (65)
+now encode this look.

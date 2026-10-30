@@ -14,39 +14,41 @@
    * D1.4.3), scaled from one length and given its own housing; the switch
    * itself is untouched in this task.
    *
-   * HOW THE LAMP IS MADE (layered CSS, spec §6; nothing is a flat disc):
+   * HOW THE LAMP IS MADE (layered CSS, spec §6; nothing is a flat disc). One
+   * light, from the top-left, on every layer (owner's re-shading direction
+   * after the Task 1.6 build, D1.6.6; no shadow, glow or highlight other than
+   * the four below):
    *
-   *   THE HOUSING   `lamp__housing` — a machined metal ring, a 135° gradient
+   *   THE BEZEL     `lamp__housing` — a thin dark metal ring, a 135° gradient
    *                 from the metal token lit at the top-left to the metal
-   *                 shadow token at the bottom-right (the family's bevel
-   *                 light), standing on a drop shadow into the panel with the
-   *                 family's hairline of light under it. It is mounted, not
-   *                 drawn on.
+   *                 shadow token at the bottom-right. No drop shadow, no seam,
+   *                 no hairline.
    *   THE RECESS    `lamp__recess` — the dark gap between the ring and the
-   *                 glass: recess-token floor, an inset shadow from the top.
-   *   THE LENS      `lamp__lens` — the glass. UNLIT: a dark dome with a trace
-   *                 of the lamp's own colour low in it (22% of the body tone
-   *                 in the recess tone) and a pin of reflected room light at
-   *                 the upper left: a physical lens that is clearly not lit.
-   *                 LIT: a hot core a little above centre — the family's HI
-   *                 tone warmed toward white — falling through the lamp body
-   *                 to a darker edge at the rim (a bulb seen through glass is
-   *                 brightest where the filament is and darker where the
-   *                 glass curves away), the specular over it, and a near glow
-   *                 round the rim.
-   *   THE SPILL     `lamp__spill` — the light on the panel. A radial of the
-   *                 glow tone, blurred, larger below and to the right than
-   *                 above (an incandescent source is not centred in its
-   *                 bezel and the panel round it is not flat), at half
-   *                 opacity. Painted behind the housing: the panel is lit,
-   *                 the bezel is not.
+   *                 glass, kept at its size; the gap itself is the shading: a
+   *                 135° gradient of the recess tone, darkest at the top-left
+   *                 (under the bezel's lip), the token in the middle, slightly
+   *                 lighter at the bottom-right where the inner wall catches
+   *                 the light. No inset shadow.
+   *   THE DOME      `lamp__lens` — the glass, with no shadow or line on its
+   *                 edge. UNLIT: dark glass, the lamp's own colour as a faint
+   *                 trace (22% of the body tone in the recess tone) brightest
+   *                 at the top-left, falling to the recess tone. LIT: the
+   *                 family's HI tone warmed toward white at the top-left,
+   *                 falling through the lamp body to the darker edge tone
+   *                 toward the rim.
+   *   THE HIGHLIGHT `lamp__lens::after` — one small soft white ellipse on the
+   *                 top-left of the dome, tilted along the dome's curve, at
+   *                 low opacity: faint when unlit, a little stronger when lit.
+   *   THE SPILL     `lamp__spill` — the lit lamp's light on the panel. A
+   *                 radial of the glow tone, blurred, larger below and to the
+   *                 right than above, at half opacity, painted BEHIND the
+   *                 bezel and fading to fully transparent; absent when unlit.
    *
    * AMBER is the incandescent token `--al-material-lamp` with the amber family
-   * round it; RED is the red family — a warning lamp, so its spill and near
-   * glow are a step stronger than amber's. There is no third colour and no
-   * cold white anywhere. Lit and unlit differ in luminance and in shape (a
-   * bright core, a glow, a spill), never in hue alone; the state is also in
-   * the accessible name.
+   * round it; RED is the red family — a warning lamp, so its spill is a step
+   * stronger than amber's. There is no third colour and no cold white
+   * anywhere. Lit and unlit differ in luminance and in shape (a bright dome,
+   * a spill), never in hue alone; the state is also in the accessible name.
    *
    * Size: `--lamp-size` is the glass diameter (0.625rem = 10 px at 1×, the
    * switch's lamp); the recess, ring, glow and spill follow it.
@@ -103,7 +105,8 @@
     --lp-edge: var(--al-function-amber-lo);
     --lp-glow: var(--al-material-lamp);
     --lp-spill-opacity: 0.5;
-    --lp-near: 1;
+    /* the highlight's strength: faint on dark glass, a little more on a lit dome */
+    --lp-highlight: 0.22;
 
     /* the layout box is the housing: glass + recess + ring on every side, so
        the painted lamp is exactly where the box is (centred under a legend) */
@@ -126,10 +129,9 @@
     --lp-edge: var(--al-function-red-lo);
     --lp-glow: var(--al-function-red-base);
     --lp-spill-opacity: 0.62;
-    --lp-near: 1.3;
   }
 
-  /* --- the housing: a machined ring, lit from the top-left, mounted -------- */
+  /* --- the bezel: a thin dark metal ring, lit from the top-left ------------ */
 
   .lamp__housing {
     position: relative;
@@ -149,13 +151,10 @@
       var(--al-material-metal-shadow) 72%,
       color-mix(in srgb, var(--al-material-metal-shadow) 70%, black) 100%
     );
-    box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.55),
-      0 var(--lp-recess) calc(var(--lp-recess) * 1.5) rgba(0, 0, 0, 0.6),
-      0 calc(var(--lp-recess) + 1px) 0 rgba(255, 255, 255, 0.07);
   }
 
-  /* --- the recess: the dark gap round the glass ---------------------------- */
+  /* --- the recess: the dark gap round the glass, darkest under the bezel's
+         top-left lip, its inner wall catching the light at the bottom-right -- */
 
   .lamp__recess {
     display: block;
@@ -164,30 +163,49 @@
     height: 100%;
     padding: var(--lp-recess);
     border-radius: 50%;
-    background: var(--al-material-recess);
-    box-shadow: inset 0 var(--lp-recess) calc(var(--lp-recess) * 1.2) rgba(0, 0, 0, 0.9);
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--al-material-recess) 70%, black) 0%,
+      var(--al-material-recess) 50%,
+      color-mix(in srgb, var(--al-material-recess) 86%, white) 100%
+    );
   }
 
-  /* --- the lens, unlit: dark glass with a trace of its colour and a pin of
-         room light; a physical lens that is clearly not on --------------------- */
+  /* --- the dome, unlit: dark glass, a faint trace of its own colour at the
+         top-left; no shadow or line on its edge ------------------------------- */
 
   .lamp__lens {
     position: relative;
     display: block;
     width: 100%;
     height: 100%;
+    overflow: hidden;
     border-radius: 50%;
-    background:
-      radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 38%),
-      radial-gradient(
-        circle at 50% 58%,
-        color-mix(in srgb, var(--lp-body) 22%, var(--al-material-recess)) 0%,
-        var(--al-material-recess) 78%
-      );
-    box-shadow: inset 0 var(--lp-recess) calc(var(--lp-recess) * 2) rgba(0, 0, 0, 0.85);
-    transition:
-      background 160ms ease-out,
-      box-shadow 160ms ease-out;
+    background: radial-gradient(
+      circle at 34% 30%,
+      color-mix(in srgb, var(--lp-body) 22%, var(--al-material-recess)) 0%,
+      var(--al-material-recess) 78%
+    );
+    transition: background 160ms ease-out;
+  }
+
+  /* --- the highlight: one small soft white ellipse on the top-left of the
+         dome, tilted along its curve; every measure a share of the glass ----- */
+
+  .lamp__lens::after {
+    content: "";
+    position: absolute;
+    top: 9%;
+    left: 15%;
+    width: 44%;
+    height: 26%;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0));
+    filter: blur(calc(var(--lp-size) * 0.04));
+    transform: rotate(-40deg);
+    opacity: var(--lp-highlight);
+    transition: opacity 160ms ease-out;
+    pointer-events: none;
   }
 
   /* --- the spill: the lamp's light on the panel, behind the housing -------- */
@@ -209,18 +227,14 @@
   /* --- lit ------------------------------------------------------------------ */
 
   .lamp.is-lit .lamp__lens {
-    background:
-      radial-gradient(circle at 36% 30%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 34%),
-      radial-gradient(circle at 48% 44%, var(--lp-core) 0%, var(--lp-body) 42%, var(--lp-edge) 92%);
-    box-shadow:
-      inset 0 0 1px rgba(0, 0, 0, 0.3),
-      0 0 calc(var(--lp-size) * 0.2 * var(--lp-near)) calc(var(--lp-size) * 0.1 * var(--lp-near))
-        color-mix(in srgb, var(--lp-glow) 70%, transparent),
-      0 0 calc(var(--lp-size) * 0.6 * var(--lp-near)) calc(var(--lp-size) * 0.2 * var(--lp-near))
-        color-mix(in srgb, var(--lp-glow) 32%, transparent);
-    transition:
-      background 90ms ease-out,
-      box-shadow 90ms ease-out;
+    --lp-highlight: 0.42;
+
+    background: radial-gradient(circle at 34% 30%, var(--lp-core) 0%, var(--lp-body) 42%, var(--lp-edge) 92%);
+    transition: background 90ms ease-out;
+  }
+
+  .lamp.is-lit .lamp__lens::after {
+    transition: opacity 90ms ease-out;
   }
 
   .lamp.is-lit .lamp__spill {
@@ -230,6 +244,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .lamp__lens,
+    .lamp__lens::after,
     .lamp__spill {
       transition: none;
     }
