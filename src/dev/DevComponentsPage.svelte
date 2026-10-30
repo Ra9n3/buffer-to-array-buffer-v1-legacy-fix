@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import KnobFixture, { type KnobFixtureConfig } from "./KnobFixture.svelte";
+  import FaderFixture, { type FaderFixtureConfig } from "./FaderFixture.svelte";
   import {
     FUNCTION_ROLE_ORDER,
     TOKENS,
@@ -175,6 +176,120 @@
       meaning: "Orange — bus/group masters, recurring console accent.",
     },
   ];
+
+  /* --- Task 1.3: fader showcase ------------------------------------------
+     Fixtures for the playground only. The dB range and the console taper are
+     a demonstration law, NOT agreed audio-processing parameters (plan §9
+     defers every numeric value; see decisions-log D1.3.1). */
+
+  const FADER_STATES: FaderFixtureConfig[] = [
+    {
+      id: "fader-state-default",
+      label: "Channel",
+      value: 0,
+      stateNote: "Default",
+      meaning: "Idle control at rest, at unity.",
+    },
+    {
+      id: "fader-state-dragging",
+      label: "Channel",
+      value: -6,
+      demoState: "dragging",
+      stateNote: "Dragging (static demo)",
+      meaning:
+        "Drag look only: the cap presses a hair into its carriage and the shadow tightens. Real dragging moves the cap live — try it.",
+    },
+    {
+      id: "fader-state-focused",
+      label: "Channel",
+      value: 4,
+      demoState: "focused",
+      stateNote: "Keyboard-focused (static demo)",
+      meaning: "Focus ring drawn statically here. Tab to any fader to see the real thing.",
+    },
+    {
+      id: "fader-state-disabled",
+      label: "Channel",
+      value: -20,
+      disabled: true,
+      stateNote: "Disabled",
+      meaning: "Desaturated, out of the tab order, and cannot be moved.",
+    },
+    {
+      id: "fader-state-editing",
+      label: "Channel",
+      value: -12,
+      demoState: "editing",
+      stateNote: "Numeric entry (static demo)",
+      meaning:
+        "Double-click any fader, or activate its value, to type a number. Enter commits, Escape cancels.",
+    },
+  ];
+
+  const FADER_POSITIONS: FaderFixtureConfig[] = [
+    {
+      id: "fader-pos-top",
+      label: "Channel",
+      value: 10,
+      stateNote: "+10 dB — top limit",
+      meaning: "The slot stays visible above the cap at full travel.",
+    },
+    {
+      id: "fader-pos-unity",
+      label: "Channel",
+      value: 0,
+      stateNote: "0 dB — unity",
+      meaning: "Unity sits at 73% of the travel: the console law.",
+    },
+    {
+      id: "fader-pos-mid",
+      label: "Channel",
+      value: -30,
+      stateNote: "−30 dB",
+    },
+    {
+      id: "fader-pos-bottom",
+      label: "Channel",
+      value: -60,
+      stateNote: "−60 dB — bottom limit",
+      meaning: "The slot stays visible below the cap at full travel.",
+    },
+    {
+      id: "fader-pos-send",
+      label: "Send A",
+      min: -40,
+      max: 6,
+      step: 1,
+      decimals: 0,
+      value: -8,
+      stateNote: "Narrower range",
+      meaning: "−40 … +6 dB through the same law: the print follows the range.",
+    },
+    {
+      id: "fader-pos-linear",
+      label: "Blend",
+      min: 0,
+      max: 100,
+      step: 1,
+      decimals: 0,
+      unit: "%",
+      value: 35,
+      taper: null,
+      majorEvery: 20,
+      stateNote: "Linear law",
+      meaning: "taper = null: even spacing, a numeral every 20.",
+    },
+  ];
+
+  const FADER_DETAIL: FaderFixtureConfig = {
+    id: "fader-detail",
+    label: "Channel",
+    value: 0,
+    scale: 2.5,
+    stateNote: "Cap profile at 2.5×",
+    meaning:
+      "The same component, enlarged to judge the finger hollow: the back lip's highlight at the top edge, the shadowed upper wall of the hollow, the lower wall climbing back into the light, the front lip's second highlight, and the cap's front wall below it.",
+  };
 
   onMount(() => {
     values = readTokenValues();
@@ -411,6 +526,63 @@
       {/each}
     </div>
   </section>
+
+  <!-- ======================================================================
+       Component showcase — Task 1.3, the vertical fader.
+       ====================================================================== -->
+  <section
+    class="dev-section"
+    data-dev-component="fader"
+    aria-labelledby="dev-component-fader"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-fader">
+        Component — vertical fader
+      </h2>
+      <p class="dev-section__blurb">
+        One reusable <code>Fader</code> component: a cream finger-hollow cap
+        riding in a slot recessed into the panel, with the scale printed beside
+        it. The cap's top is concave — two raised lips catch the
+        panel's top-left light and a hollow pools shadow between them — built as
+        one vertical gradient with the light model in its stops, not a flat
+        rectangle with a highlight. The print never moves; only the carriage
+        does, and only up and down. Every colour resolves through the Task 1.1
+        tokens: the cream family for the cap, the material tokens for the
+        recess and the print.
+      </p>
+      <p class="dev-section__blurb">
+        Interactions are live: drag a cap, Tab to a fader and use the arrow
+        keys, Page Up/Down, Home/End, or double-click it to type a value.
+        Values are local to this page and are not connected to any audio or
+        project state. The dB scale and its console taper are a demonstration
+        law, not agreed audio parameters.
+      </p>
+    </header>
+
+    <h3 class="dev-subtitle">Five required states</h3>
+    <div class="dev-faders" data-dev-fader-states>
+      {#each FADER_STATES as config (config.id)}
+        <FaderFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Positions along the track</h3>
+    <p class="dev-section__blurb">
+      Both travel limits, unity, a mid position, a narrower range through the
+      same law, and the linear law. At either limit the slot remains visible
+      beyond the cap: the cap cannot reach the slot's end.
+    </p>
+    <div class="dev-faders" data-dev-fader-positions>
+      {#each FADER_POSITIONS as config (config.id)}
+        <FaderFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Cap profile, enlarged</h3>
+    <div class="dev-faders dev-faders--detail" data-dev-fader-detail>
+      <FaderFixture config={FADER_DETAIL} />
+    </div>
+  </section>
 </div>
 
 <style>
@@ -588,6 +760,18 @@
     grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
     gap: var(--al-space-md);
     min-width: 0;
+  }
+
+  .dev-faders {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: var(--al-space-md);
+    min-width: 0;
+  }
+
+  .dev-faders--detail {
+    grid-template-columns: minmax(8.5rem, 20rem);
   }
 
   /* --- spacing ----------------------------------------------------------- */

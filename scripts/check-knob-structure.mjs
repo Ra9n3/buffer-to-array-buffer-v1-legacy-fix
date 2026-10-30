@@ -93,9 +93,9 @@ const polar = (x, y) => {
 const num = (name) => Number((new RegExp(`const ${name} = (-?[\\d.]+)`).exec(knob) ?? [])[1] ?? NaN);
 
 // --- 1. One component, six families. --------------------------------------
-const hardwareFiles = [
-  "src/components/hardware/Knob.svelte",
-  "src/components/hardware/Fader.svelte",
+// Task 1.3 delivered the fader beside the knob, so it is no longer a
+// later-task file; the components that remain ahead on the roadmap are.
+const laterTaskFiles = [
   "src/components/hardware/TactileSwitch.svelte",
   "src/components/hardware/Meter.svelte",
   "src/components/hardware/EngravedLabel.svelte",
@@ -104,7 +104,14 @@ const hardwareFiles = [
 check("one Knob component exists", exists(knobPath));
 check(
   "no per-family knob implementations exist",
-  hardwareFiles.filter(exists).length === 1,
+  !/Knob-|Knob\.(cream|amber|red|bluegrey|green|orange)/.test(
+    [...new Set(knob.match(/import .* from "\.\/[^"]+"/g) ?? [])].join(" "),
+  ) && !["Cream", "Amber", "Red", "Bluegrey", "Green", "Orange"].some((f) => exists(`src/components/hardware/${f}Knob.svelte`)),
+  "a per-family knob file was created",
+);
+check(
+  "no later-task component file was created",
+  !laterTaskFiles.some(exists),
   "a later-task component file was created",
 );
 check(

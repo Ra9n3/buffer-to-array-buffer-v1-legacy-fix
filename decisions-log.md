@@ -123,3 +123,101 @@ setting). Smallest spacing step is 2px, largest 48px, with the fine end of the
 scale at 2/4/6/8px where control insets live.
 
 **Reversible.** Yes.
+
+---
+
+## Task 1.3 — Fader
+
+### D1.3.1 — The fader's law is a console audio taper, as data, with linear as the fallback
+
+**Context.** Hardware spec §3 and the task brief specify the cap, the slot and
+the tick marks, but neither says how a value maps to the cap's travel. Plan §9
+defers every numeric audio value to listening tests, so no gain law is agreed.
+The owner was asked before any code was written and chose the console taper
+over a linear travel.
+
+**Decision.** The mapping is a breakpoint table, `CONSOLE_TAPER`, exported
+from `Fader.svelte` and passed as the `taper` prop: unity sits at 73% of the
+travel, the top decade has the most room, the bottom of the scale is
+compressed. Both directions (value → position, position → value) go through
+the same table, re-normalised to the instance's `min`/`max`, so a narrower
+range keeps the same law over its own travel. `taper = null` gives a linear
+law. The printed majors are the table's own breakpoints, so the scale is
+always true to the law in force.
+
+**Numbers are a demonstration law.** −60 … +10 dB and the breakpoint positions
+were chosen to look like a long-throw channel fader; they are not an agreed
+audio-processing decision and are labelled as such in the playground.
+
+**The bottom of travel is a finite `min`.** A real channel fader ends at −∞
+(off). Representing "off" touches numeric entry, keyboard stepping,
+`aria-valuemin`, display, and the DSP's idea of mute; those are product rules
+for the audio-wiring task, not for a visual component with local state. Until
+then the demo range's floor is −60 dB and is printed as −60. Adding an "off"
+segment later is one extra breakpoint plus a display rule; the artwork does
+not change.
+
+**Reversible.** Yes — the law is a prop; swapping tables or going linear
+touches no artwork.
+
+### D1.3.2 — Shift means fine: precision-limited, not step-snapped
+
+**Context.** The knob's convention is Shift = one tenth of a step for the
+keyboard and 0.2× speed for a drag. In the knob every write is then snapped to
+the step grid, which for most `step`/`decimals` pairs (e.g. step 0.5, one
+decimal) snaps a fine nudge straight back to where it started — Shift+Arrow is
+a no-op there.
+
+**Decision.** In the fader a fine write (Shift held, keyboard or drag) skips the
+step grid and is limited only by the display precision, so Shift+Arrow moves
+by the smallest displayable amount and a Shift-drag lands between steps. The
+knob was **not** changed — it is approved and out of scope — and the
+discrepancy is recorded in the Task 1.3 report as a follow-up for a knob
+maintenance task.
+
+**Reversible.** Yes — one boolean parameter on `setValue`.
+
+### D1.3.3 — Fader caps are cream, and only cream
+
+**Context.** Hardware spec §5 places fader caps in the cream / off-white family
+alongside input trim. The knob needed six families; nothing in the governing
+documents gives a fader a second colour.
+
+**Decision.** `Fader` has no `family` prop. The cap's three roles are read from
+the cream tokens directly. If a master or return fader later needs another
+colour, adding a `family` prop is a three-line change that follows the knob's
+API; it was not added speculatively.
+
+### D1.3.4 — Size: one host-settable width, travel as a prop
+
+**Context.** "Compact enough for a future channel strip" needed a number. The
+Phase 0 Console strip is 6rem wide with 0.375rem padding (84px inside).
+
+**Decision.** The drawing is 72 units wide at 1× and scales as a whole from
+`--fader-width` (default 4.5rem = 72px), which the component reads from its
+host and never declares itself, so a strip or the playground sizes it from
+outside. Travel between the limits is the `travel` prop (160px at 1×); the
+slot, print and focus ring derive from it. The cap is 36 × 13 (2.77 : 1).
+
+**Reversible.** Yes — both are single numbers.
+
+### D1.3.5 — The fader cap is 25 × 20, by owner direction, overriding spec §3's proportion
+
+**Context.** Hardware spec §3 asks for a cap "noticeably wider than tall
+(roughly 2.5 : 1 to 3 : 1)". The first build was 36 × 13 (2.77 : 1). In
+review the owner asked for the cap to be narrower and taller, was shown four
+sizes mocked in the running page (36 × 13, 30 × 12, 28 × 16, 25 × 20) with
+the spec conflict stated against each, and chose **25 × 20** (1.25 : 1,
+wide-to-tall — still wider than tall, but half the spec's minimum ratio).
+
+**Decision.** `CAP_W = 25`, `CAP_H = 20`, `CAP_RX = 5`. The finger-hollow
+profile, its gradient stops, the light model and every other dimension are
+unchanged; the hollow simply runs across a taller cap. `check:fader` pins
+the owner's size, so a later task reading spec §3 cannot "correct" it back
+without coming to the owner.
+
+**Also by owner direction, round 2:** no shaft is drawn above or below the cap
+(spec §3's "visible shaft" bullet). Both deviations are recorded in the Task
+1.3 report.
+
+**Reversible.** Yes — three constants.
