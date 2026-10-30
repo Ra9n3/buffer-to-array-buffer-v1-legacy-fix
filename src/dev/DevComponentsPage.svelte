@@ -288,7 +288,7 @@
     scale: 2.5,
     stateNote: "Cap profile at 2.5×",
     meaning:
-      "The same component, enlarged to judge the finger hollow: the back lip's highlight at the top edge, the shadowed upper wall of the hollow, the lower wall climbing back into the light, the front lip's second highlight, and the cap's front wall below it.",
+      "The same component, enlarged to judge the cap: the bevelled rim with its lit top edge, the concave face held in shade above the indicator line and lit nearly to the HI tone below it, the eight grooves — deep in the shaded half, washed out in the lit half — and the cap's front wall below the rim.",
   };
 
   onMount(() => {
@@ -540,12 +540,13 @@
         Component — vertical fader
       </h2>
       <p class="dev-section__blurb">
-        One reusable <code>Fader</code> component: a cream finger-hollow cap
+        One reusable <code>Fader</code> component: a cream ribbed console cap
         riding in a slot recessed into the panel, with the scale printed beside
-        it. The cap's top is concave — two raised lips catch the
-        panel's top-left light and a hollow pools shadow between them — built as
-        one vertical gradient with the light model in its stops, not a flat
-        rectangle with a highlight. The print never moves; only the carriage
+        it. The cap is the owner's reference: a bevelled rim, a shallow concave
+        face with four grooves above and four below a dark indicator line —
+        the face shaded above the line and lit below it by the panel's top-left
+        light, built as one vertical gradient with the light model in its
+        stops, not a flat rectangle with a highlight. The print never moves; only the carriage
         does, and only up and down. Every colour resolves through the Task 1.1
         tokens: the cream family for the cap, the material tokens for the
         recess and the print.

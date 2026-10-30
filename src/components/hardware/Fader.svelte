@@ -41,25 +41,28 @@
    *                 the slot. They never move.
    *   THE SLOT      a long recess cut into the panel: dark floor, a soft inner
    *                 shadow under its top-left lip, a lit lower-right lip.
-   *   THE CAP       the finger-hollow cap of hardware spec §3, at the
-   *                 proportion the owner chose in review (25 x 20 — 1.25 : 1,
-   *                 half spec §3's minimum of 2.5 : 1, overridden; see
-   *                 decisions-log D1.3.5): rounded corners and a genuinely
-   *                 concave top — two raised lips catching the light and a
-   *                 hollow pooling shadow between them. The profile is a
-   *                 vertical gradient with the physics written into its
-   *                 stops; see `fader__cap-hollow` below.
+   *   THE CAP       the ribbed console cap the owner supplied as a photo in
+   *                 review round 4 (decisions-log D1.3.6): 25 x 32, taller
+   *                 than wide, small-radius corners, a bevelled rim all the
+   *                 way round, and a shallow concave face moulded with
+   *                 horizontal grooves — four above and four below a dark
+   *                 indicator line across the middle. This replaces the
+   *                 finger-hollow cap of hardware spec §3 by explicit
+   *                 direction; the spec's 2.5–3 : 1 proportion and its
+   *                 two-lip hollow are not in force for this component.
    *
    * Light is the panel's: one key light from the top-left, the same model the
-   * knob was built against. The back lip (top edge) faces it and is brightest;
-   * the hollow's upper wall faces away and is darkest; the lower wall climbs
-   * back into the light; the front lip is bright on its inner slope and turns
-   * dark over its outer edge into the cap's front wall. The cap's shadow falls
-   * down and to the right onto the panel and into the slot.
+   * knob was built against. The rim's top edge faces it and is brightest; the
+   * concave face's upper half tilts away from it and sits in shade, its lower
+   * half tilts toward it and is lit nearly to the HI tone; the grooves are
+   * deep in the shaded half and washed out in the lit half; the rim's lower
+   * edge rounds away into the cap's front wall. The cap's shadow falls down
+   * and to the right onto the panel and into the slot.
    *
    * The cap colour is the cream family — hardware spec §5 puts fader caps with
-   * input trim and gain staging — and comes from the Task 1.1 tokens. Nothing
-   * here carries a colour of its own; neutral black/white alphas model light.
+   * input trim and gain staging, and the owner kept it when offered the
+   * photo's neutral grey — and comes from the Task 1.1 tokens. Nothing here
+   * carries a colour of its own; neutral black/white alphas model light.
    */
 
   /** Playground-only visual demonstration. Never set in product code. */
@@ -120,16 +123,41 @@
   const SLOT_W = 7;
 
   /**
-   * Cap: 25 x 20, the owner's choice in review round 3 (narrower, taller).
-   * This is 1.25 : 1 — outside hardware spec §3's 2.5–3 : 1 — by explicit
-   * direction; do not "correct" it back without the owner. D1.3.5.
+   * Cap: 25 x 32 — the proportion of the owner's reference photo (round 4,
+   * decisions-log D1.3.6), replacing the 25 x 20 of round 3. Taller than
+   * wide, outside hardware spec §3's 2.5–3 : 1, by explicit direction; do not
+   * "correct" it back without the owner.
    */
   const CAP_W = 25;
-  const CAP_H = 20;
-  /** Rounded corners: a fifth of the width per corner. */
-  const CAP_RX = 5;
-  /** The front wall visible below the front lip from the slightly raised viewpoint. */
+  const CAP_H = 32;
+  /** Small-radius corners, as in the photo: an eighth of the width. */
+  const CAP_RX = 3;
+  /** The front wall visible below the rim from the slightly raised viewpoint. */
   const CAP_WALL = 2;
+  /** The bevelled rim around the face, lit on top, turning down at the bottom. */
+  const CAP_RIM = 1.5;
+  const FACE_W = CAP_W - 2 * CAP_RIM;
+  const FACE_H = CAP_H - 2 * CAP_RIM;
+  const FACE_RX = CAP_RX - CAP_RIM;
+  /** The indicator line across the middle of the face: a deep, wide groove. */
+  const LINE_H = 2;
+  /**
+   * The grooves moulded into the face: four each side of the line, 3 px
+   * apart, the first 1.5 px clear of the line. Each is a 1.2 px cut whose
+   * upper wall faces away from the light (dark) and whose lower wall faces
+   * it (a 1 px bright line directly below) — together they take most of the
+   * pitch, so the face reads ribbed rather than ruled, as in the photo.
+   */
+  const RIB_PITCH = 3;
+  const RIBS_PER_HALF = 4;
+  const RIB_CUT = 1.2;
+  const RIB_CREST = 1;
+  const grooves: { y: number; upper: boolean }[] = [-1, 1].flatMap((side) =>
+    Array.from({ length: RIBS_PER_HALF }, (_, k) => ({
+      y: side * (LINE_H / 2 + 1.5 + k * RIB_PITCH),
+      upper: side < 0,
+    })),
+  );
 
   /**
    * The slot continues this far past the cap at either limit, so the track
@@ -494,56 +522,46 @@
     <svg class="fader__surface" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
       <defs>
         <!-- ==============================================================
-             THE FINGER HOLLOW — hardware spec §3.
-             One vertical gradient, top edge (back lip) to bottom edge (front
-             lip), with the light model written into its stops:
+             THE CAP'S FACE — the owner's photo, round 4 (D1.3.6).
+             A shallow concave face between a bevelled rim, with the light
+             model written into one vertical gradient:
 
-               0–10%   back lip: a convex crest facing the top-left light.
-                       Brightest line on the cap.
-              18–40%   the hollow's upper wall: it slopes down and away from
-                       the light. Darkest band. Deepest at ~32%.
-                 50%   the trough floor: still shaded, lifting.
-              62–80%   the lower wall climbs back toward the light.
-              86–90%   front lip: bright on its inner slope, the second
-                       highlight band, a touch less than the back lip.
-             94–100%   the front lip's outer rounding turns away from the
-                       light and down into the front wall.
+               0–10%   under the rim's top edge the face tilts away from
+                       the top-left light: a quick fall into shade.
+              10–46%   the upper half, held in shade. The grooves cut here
+                       read deep.
+                 46–54 the indicator line (drawn as its own rect, below).
+              54–75%   the lower half tilts back toward the light and
+                       climbs through the BASE tone…
+              75–93%   …to very nearly the HI tone: the brightest part of
+                       the face, as in the photo. The grooves here are
+                       washed out by the light.
+             93–100%   the front edge rounds away toward the rim and the
+                       front wall.
 
-             Two highlight bands, a dark hollow pooling between them — read at
-             1x as three stripes, at 2.5x as a halfpipe. The cream tokens are
-             the only colours; black and white alphas are light.
+             The cream tokens are the only colours; black and white alphas
+             are light.
              ============================================================== -->
-        <linearGradient id={`${uid}-hollow`} x1="0" y1="0" x2="0" y2="1">
-          <!-- back lip: a held bright band, then a quick turn into shadow -->
-          <stop offset="0%" style="stop-color: var(--f-lip-edge)" />
-          <stop offset="4%" style="stop-color: var(--f-lip-crest)" />
-          <stop offset="11%" style="stop-color: var(--f-lip-crest)" />
-          <stop offset="15%" style="stop-color: var(--f-lip-shoulder)" />
-          <!-- the hollow: upper wall in shade, deepest band held, floor lifting -->
-          <stop offset="20%" style="stop-color: var(--f-wall-shade)" />
-          <stop offset="29%" style="stop-color: var(--f-hollow-deep)" />
-          <stop offset="44%" style="stop-color: var(--f-hollow-deep)" />
-          <stop offset="56%" style="stop-color: var(--f-hollow-floor)" />
-          <!-- the lower wall climbs back into the light -->
-          <stop offset="69%" style="stop-color: var(--f-wall-lift)" />
-          <stop offset="79%" style="stop-color: var(--f-wall-lit)" />
-          <!-- front lip: the second band, then its outer rounding turns away -->
-          <stop offset="84%" style="stop-color: var(--f-front-crest)" />
-          <stop offset="91%" style="stop-color: var(--f-front-crest)" />
-          <stop offset="95%" style="stop-color: var(--f-front-turn)" />
-          <stop offset="100%" style="stop-color: var(--f-front-edge)" />
+        <linearGradient id={`${uid}-face`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" style="stop-color: var(--f-face-shoulder)" />
+          <stop offset="10%" style="stop-color: var(--f-face-upper)" />
+          <stop offset="46%" style="stop-color: var(--f-face-upper)" />
+          <stop offset="54%" style="stop-color: var(--f-face-lower-root)" />
+          <stop offset="75%" style="stop-color: var(--f-face-lower)" />
+          <stop offset="93%" style="stop-color: var(--f-face-crest)" />
+          <stop offset="100%" style="stop-color: var(--f-face-turn)" />
         </linearGradient>
 
-        <!-- The hollow pools toward the middle of the cap's length too: a
-             shallow dish, darkest under the fingertip, open toward the ends. -->
-        <radialGradient id={`${uid}-pool`} cx="0.5" cy="0.4" r="0.5" fx="0.5" fy="0.4"
-          gradientTransform="translate(0.5 0.4) scale(1 0.55) translate(-0.5 -0.4)">
-          <stop offset="0%" stop-color="#000000" stop-opacity="0.2" />
-          <stop offset="60%" stop-color="#000000" stop-opacity="0.08" />
-          <stop offset="100%" stop-color="#000000" stop-opacity="0" />
-        </radialGradient>
+        <!-- The rim: a rounded bevel all the way round. Its top edge faces the
+             light and is the brightest line on the cap; its bottom edge turns
+             down toward the front wall. -->
+        <linearGradient id={`${uid}-rim`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" style="stop-color: var(--f-rim-top)" />
+          <stop offset="45%" style="stop-color: var(--f-rim-mid)" />
+          <stop offset="100%" style="stop-color: var(--f-rim-bottom)" />
+        </linearGradient>
 
-        <!-- The cap's front wall, below the front lip: cream in shadow. -->
+        <!-- The cap's front wall, below the rim: cream in shadow. -->
         <linearGradient id={`${uid}-wall`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" style="stop-color: var(--f-wall-top)" />
           <stop offset="100%" style="stop-color: var(--f-wall-bottom)" />
@@ -554,17 +572,17 @@
           <stop offset="0%" stop-color="#ffffff" stop-opacity="0.22" />
           <stop offset="12%" stop-color="#ffffff" stop-opacity="0" />
           <stop offset="86%" stop-color="#000000" stop-opacity="0" />
-          <stop offset="100%" stop-color="#000000" stop-opacity="0.24" />
+          <stop offset="100%" stop-color="#000000" stop-opacity="0.16" />
         </linearGradient>
 
-        <!-- A soft specular where the back lip is nearest the light. -->
+        <!-- A soft specular where the rim's top edge is nearest the light. -->
         <radialGradient id={`${uid}-spec`} cx="0.3" cy="0.06" r="0.42">
           <stop offset="0%" stop-color="#ffffff" stop-opacity="0.38" />
           <stop offset="55%" stop-color="#ffffff" stop-opacity="0.08" />
           <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
         </radialGradient>
 
-        <!-- The fingertip, while dragging: a little occlusion in the hollow. -->
+        <!-- The fingertip, while dragging: a little occlusion on the face. -->
         <radialGradient id={`${uid}-finger`} cx="0.5" cy="0.5" r="0.5">
           <stop offset="0%" stop-color="#000000" stop-opacity="0.16" />
           <stop offset="100%" stop-color="#000000" stop-opacity="0" />
@@ -583,6 +601,9 @@
         </clipPath>
         <clipPath id={`${uid}-cap-clip`}>
           <rect x={-CAP_W / 2} y={-CAP_H / 2} width={CAP_W} height={CAP_H} rx={CAP_RX} />
+        </clipPath>
+        <clipPath id={`${uid}-face-clip`}>
+          <rect x={-FACE_W / 2} y={-FACE_H / 2} width={FACE_W} height={FACE_H} rx={FACE_RX} />
         </clipPath>
 
         <filter id={`${uid}-soft`} x="-20%" y="-20%" width="140%" height="140%">
@@ -682,7 +703,7 @@
           />
 
           <g class="fader__cap" data-part="cap">
-            <!-- Front wall, seen below the front lip. -->
+            <!-- Front wall, seen below the rim. -->
             <rect
               class="fader__cap-wall"
               x={-CAP_W / 2}
@@ -692,17 +713,67 @@
               rx={CAP_RX}
               fill={`url(#${uid}-wall)`}
             />
-            <!-- The top surface: the finger hollow. -->
+            <!-- The rim: the whole top outline, bevelled. -->
             <rect
-              class="fader__cap-hollow"
-              data-part="cap-hollow"
+              class="fader__cap-rim"
+              data-part="cap-rim"
               x={-CAP_W / 2}
               y={-CAP_H / 2}
               width={CAP_W}
               height={CAP_H}
               rx={CAP_RX}
-              fill={`url(#${uid}-hollow)`}
+              fill={`url(#${uid}-rim)`}
             />
+            <!-- The face, inside the rim: shallow concave, grooved. -->
+            <rect
+              class="fader__cap-face"
+              data-part="cap-face"
+              x={-FACE_W / 2}
+              y={-FACE_H / 2}
+              width={FACE_W}
+              height={FACE_H}
+              rx={FACE_RX}
+              fill={`url(#${uid}-face)`}
+            />
+            <g clip-path={`url(#${uid}-face-clip)`} data-part="cap-grooves">
+              {#each grooves as groove (groove.y)}
+                <!-- the cut's upper wall, facing away from the light -->
+                <rect
+                  class="fader__cap-groove"
+                  class:is-upper={groove.upper}
+                  x={-FACE_W / 2}
+                  y={groove.y - RIB_CUT / 2}
+                  width={FACE_W}
+                  height={RIB_CUT}
+                />
+                <!-- its lower wall, facing the light -->
+                <rect
+                  class="fader__cap-crest"
+                  class:is-upper={groove.upper}
+                  x={-FACE_W / 2}
+                  y={groove.y + RIB_CUT / 2}
+                  width={FACE_W}
+                  height={RIB_CREST}
+                />
+              {/each}
+              <!-- The indicator line: one deep groove across the middle. -->
+              <rect
+                class="fader__cap-line"
+                data-part="cap-line"
+                x={-FACE_W / 2}
+                y={-LINE_H / 2}
+                width={FACE_W}
+                height={LINE_H}
+              />
+              <!-- its lit lower wall -->
+              <rect
+                class="fader__cap-line-crest"
+                x={-FACE_W / 2}
+                y={LINE_H / 2}
+                width={FACE_W}
+                height={0.6}
+              />
+            </g>
             <g clip-path={`url(#${uid}-cap-clip)`}>
               <rect
                 class="fader__cap-ends"
@@ -711,14 +782,6 @@
                 width={CAP_W}
                 height={CAP_H}
                 fill={`url(#${uid}-ends)`}
-              />
-              <rect
-                class="fader__cap-pool"
-                x={-CAP_W / 2}
-                y={-CAP_H / 2}
-                width={CAP_W}
-                height={CAP_H}
-                fill={`url(#${uid}-pool)`}
               />
               <rect
                 class="fader__cap-spec"
@@ -737,7 +800,7 @@
                 fill={`url(#${uid}-finger)`}
               />
             </g>
-            <!-- A hairline where the cap meets the air, so the rounded ends read. -->
+            <!-- A hairline where the cap meets the air, so the corners read. -->
             <rect
               class="fader__cap-edge"
               x={-CAP_W / 2}
@@ -818,20 +881,19 @@
        strip or the playground can size the fader from outside. */
 
     /* --- the cap's light model, from the cream tokens -------------------- */
-    /* back lip */
-    --f-lip-edge: color-mix(in srgb, var(--cap-hi) 70%, var(--cap-base));
-    --f-lip-crest: var(--cap-hi);
-    --f-lip-shoulder: color-mix(in srgb, var(--cap-base) 82%, var(--cap-hi));
-    /* the hollow */
-    --f-wall-shade: color-mix(in srgb, var(--cap-base) 48%, var(--cap-lo));
-    --f-hollow-deep: color-mix(in srgb, var(--cap-lo) 80%, black);
-    --f-hollow-floor: color-mix(in srgb, var(--cap-base) 42%, var(--cap-lo));
-    --f-wall-lift: color-mix(in srgb, var(--cap-base) 84%, var(--cap-lo));
-    --f-wall-lit: color-mix(in srgb, var(--cap-base) 72%, var(--cap-hi));
-    /* front lip */
-    --f-front-crest: color-mix(in srgb, var(--cap-hi) 86%, var(--cap-base));
-    --f-front-turn: color-mix(in srgb, var(--cap-base) 70%, var(--cap-lo));
-    --f-front-edge: color-mix(in srgb, var(--cap-lo) 80%, black);
+    /* the rim */
+    --f-rim-top: var(--cap-hi);
+    --f-rim-mid: color-mix(in srgb, var(--cap-hi) 50%, var(--cap-base));
+    --f-rim-bottom: color-mix(in srgb, var(--cap-base) 70%, var(--cap-lo));
+    /* the face: shaded upper half, lit lower half */
+    --f-face-shoulder: color-mix(in srgb, var(--cap-base) 65%, var(--cap-lo));
+    --f-face-upper: color-mix(in srgb, var(--cap-base) 16%, var(--cap-lo));
+    --f-face-lower-root: color-mix(in srgb, var(--cap-base) 60%, var(--cap-lo));
+    --f-face-lower: var(--cap-base);
+    --f-face-crest: color-mix(in srgb, var(--cap-hi) 90%, var(--cap-base));
+    --f-face-turn: color-mix(in srgb, var(--cap-base) 80%, var(--cap-lo));
+    /* the indicator line: the deepest cut, near black */
+    --f-line: color-mix(in srgb, var(--cap-lo) 25%, black);
     /* front wall */
     --f-wall-top: color-mix(in srgb, var(--cap-lo) 86%, black);
     --f-wall-bottom: color-mix(in srgb, var(--cap-lo) 55%, black);
@@ -947,6 +1009,37 @@
     transition: opacity 70ms ease-out;
   }
 
+  /* The grooves: black and white alphas over the face, so each cut takes the
+     tone of the half it sits in. In the shaded upper half the cuts are deep
+     and their lit walls faint; in the lit lower half the light fills them
+     and their lit walls flare. */
+  .fader__cap-groove {
+    fill: #000;
+    fill-opacity: 0.2;
+  }
+
+  .fader__cap-groove.is-upper {
+    fill-opacity: 0.42;
+  }
+
+  .fader__cap-crest {
+    fill: #fff;
+    fill-opacity: 0.42;
+  }
+
+  .fader__cap-crest.is-upper {
+    fill-opacity: 0.2;
+  }
+
+  .fader__cap-line {
+    fill: var(--f-line);
+  }
+
+  .fader__cap-line-crest {
+    fill: #fff;
+    fill-opacity: 0.3;
+  }
+
   .fader__cap-edge {
     fill: none;
     stroke: color-mix(in srgb, var(--cap-lo) 65%, black);
@@ -955,7 +1048,7 @@
   }
 
   /* Dragging: the fingertip is on the cap. The cap presses a hair into its
-     carriage, the shadow tightens under it, and the hollow darkens where the
+     carriage, the shadow tightens under it, and the face darkens where the
      finger sits. It does not move sideways and nothing else changes. */
   .fader.is-dragging .fader__press {
     transform: translateY(0.5px);

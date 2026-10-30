@@ -221,3 +221,28 @@ without coming to the owner.
 1.3 report.
 
 **Reversible.** Yes — three constants.
+
+### D1.3.6 — The fader cap is the owner's photo: ribbed, 25 × 32, cream
+
+**Context.** In review round 4 the owner supplied a photo of the cap they
+want (`uploads/the flaws-2.png`): a console fader cap taller than wide
+(≈ 48 × 61 px in the photo, ≈ 4 : 5), neutral light grey, with a bevelled
+rim, a concave face moulded with horizontal grooves, and a dark indicator
+line across the middle. Asked two questions before coding: proportion
+(match the photo at 25 × 32, or keep round 3's 25 × 20) → **match the
+photo**; colour (the photo's neutral grey, or the cream family of spec §5)
+→ **cream**.
+
+**Decision.** `CAP_W = 25`, `CAP_H = 32`, `CAP_RX = 3`, rim 1.5, face
+22 × 29, indicator line 2 units tall across the face at the cap's centre,
+four grooves above it and four below at a 3-unit pitch (1.2 cut + 1 lit
+wall). The face is one vertical gradient: shaded above the line, lit to
+near the HI tone below it — the photo's distribution, which is also what a
+concave face does under the panel's top-left light. Colours are the cream
+tokens plus neutral black/white alphas; nothing new. The finger-hollow of
+hardware spec §3 (two lips, pooled hollow) is **replaced**, and the 2.5–3 : 1
+proportion is overridden further than in D1.3.5. `check:fader` pins 25 × 32
+and the ribbed structure.
+
+**Reversible.** Yes — the cap is one group of rects and two gradients; the
+slot, print, law and interactions were not touched.

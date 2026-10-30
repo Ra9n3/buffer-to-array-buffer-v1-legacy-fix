@@ -14,10 +14,11 @@
  *   1. ONE reusable component, coloured only through the Task 1.1 tokens:
  *      the cream family for the cap, the material tokens for the nickel and
  *      the recess. No colour of its own beyond neutral black/white alphas.
- *   2. The cap is the finger-hollow cap of hardware spec §3 at the owner's
- *      chosen 25 x 20 (round 3), rounded corners, and a top surface that is
- *      a layered vertical gradient with two highlight bands and a dark hollow
- *      between them — not a flat fill with one highlight.
+ *   2. The cap is the ribbed console cap of the owner's round-4 photo at the
+ *      owner's chosen 25 x 32 (decisions-log D1.3.6): rounded corners, a
+ *      bevelled rim, a concave face that is a vertical gradient shaded above
+ *      and lit below, eight grooves and a dark indicator line across the
+ *      middle — not a flat fill with one highlight.
  *   3. The slot is a recess (floor, lips, inner shadow), no shaft is drawn
  *      above or below the cap, and the print (ticks, numerals) is drawn
  *      outside the moving group, so it cannot move.
@@ -100,81 +101,110 @@ check(
   [...script.matchAll(/from\s+"([^"]+)"/g)].every((m) => m[1] === "svelte" || m[1] === "../../lib/tokens"),
 );
 
-// --- 2. The finger-hollow cap. ----------------------------------------------
+// --- 2. The ribbed cap. -------------------------------------------------------
 const CAP_W = num("CAP_W");
 const CAP_H = num("CAP_H");
 const CAP_RX = num("CAP_RX");
-// Round 3: the owner chose a narrower, taller cap — 25 x 20 — overriding
-// spec §3's 2.5–3 : 1. The check pins the owner's size so a later task cannot
-// silently "correct" it in either direction (decisions-log D1.3.5).
+const CAP_RIM = num("CAP_RIM");
+const LINE_H = num("LINE_H");
+const RIB_PITCH = num("RIB_PITCH");
+const RIBS_PER_HALF = num("RIBS_PER_HALF");
+const RIB_CUT = num("RIB_CUT");
+const RIB_CREST = num("RIB_CREST");
+// Round 4: the owner supplied a photo of the cap they want and chose its
+// proportion, 25 x 32 — taller than wide, overriding spec §3's 2.5–3 : 1 (and
+// round 3's 25 x 20). The check pins the owner's size so a later task cannot
+// silently "correct" it in either direction (decisions-log D1.3.6).
 check(
-  "the cap is the owner's chosen 25 x 20 (round 3; overrides spec §3's 2.5–3 : 1)",
-  CAP_W === 25 && CAP_H === 20,
+  "the cap is the owner's chosen 25 x 32 (round 4 photo; overrides spec §3's 2.5–3 : 1)",
+  CAP_W === 25 && CAP_H === 32,
   `found ${CAP_W} x ${CAP_H}; changing this needs the owner, not a spec re-read`,
 );
 check(
-  "the cap's corners are rounded, not square",
-  CAP_RX >= 0.15 * Math.min(CAP_W, CAP_H),
+  "the cap's corners are rounded, not square, and small like the photo's",
+  CAP_RX >= 2 && CAP_RX <= 0.2 * CAP_W,
   `rx ${CAP_RX} on ${CAP_W} x ${CAP_H}`,
 );
+check(
+  "a bevelled rim runs round the face, and the face is inset by it",
+  CAP_RIM > 0 &&
+    /const FACE_W = CAP_W - 2 \* CAP_RIM/.test(script) &&
+    /const FACE_H = CAP_H - 2 \* CAP_RIM/.test(script) &&
+    /class="fader__cap-rim"[\s\S]*?fill=\{`url\(#\$\{uid\}-rim\)`\}/.test(markup) &&
+    /class="fader__cap-face"[\s\S]*?fill=\{`url\(#\$\{uid\}-face\)`\}/.test(markup),
+);
 
-const hollow = (() => {
-  const a = fader.indexOf("-hollow`}");
+const face = (() => {
+  const a = fader.indexOf("-face`}");
   const b = fader.indexOf("</linearGradient>", a);
   return a > 0 && b > a ? fader.slice(a, b) : "";
 })();
-const stops = [...hollow.matchAll(/offset="(\d+)%"\s+style="stop-color:\s*var\((--f-[a-z-]+)\)"/g)].map(
+const stops = [...face.matchAll(/offset="(\d+)%"\s+style="stop-color:\s*var\((--f-[a-z-]+)\)"/g)].map(
   (m) => [Number(m[1]), m[2]],
 );
 check(
-  "the cap's top is one vertical gradient with a layered profile (ten or more stops)",
-  /x1="0" y1="0" x2="0" y2="1"/.test(hollow) && stops.length >= 10,
+  "the face is one vertical gradient with the light model in its stops (six or more)",
+  /x1="0" y1="0" x2="0" y2="1"/.test(face) && stops.length >= 6,
   `${stops.length} stops found`,
 );
 check(
-  "TWO highlight bands: a back-lip crest near the top edge and a front-lip crest near the bottom",
-  stops.some(([o, v]) => v === "--f-lip-crest" && o <= 15) &&
-    stops.some(([o, v]) => v === "--f-front-crest" && o >= 80 && o <= 95),
-);
-check(
-  "a dark hollow pools between them, in the upper-middle of the cap",
-  stops.some(([o, v]) => v === "--f-hollow-deep" && o >= 20 && o <= 50) &&
-    stops.some(([o, v]) => v === "--f-hollow-floor" && o >= 45 && o <= 60),
-);
-check(
-  "the crests are the cream HI tone and the hollow is darker than the cream LO tone",
-  /--f-lip-crest:\s*var\(--cap-hi\)/.test(style) &&
-    /--f-front-crest:\s*color-mix\(in srgb, var\(--cap-hi\) 8\d%/.test(style) &&
-    /--f-hollow-deep:\s*color-mix\(in srgb, var\(--cap-lo\) \d+%, black\)/.test(style),
-);
-check(
-  "the profile is asymmetric the way the light is: upper wall in shade, lower wall lit",
+  "the face is concave the way the light says: upper half held in shade, lower half lit to near HI",
   (() => {
-    const shade = stops.find(([, v]) => v === "--f-wall-shade")?.[0];
-    const lit = stops.find(([, v]) => v === "--f-wall-lit")?.[0];
-    return shade !== undefined && lit !== undefined && shade < 50 && lit > 50;
+    const upper = stops.filter(([, v]) => v === "--f-face-upper").map(([o]) => o);
+    const crest = stops.find(([, v]) => v === "--f-face-crest")?.[0];
+    return upper.length >= 2 && Math.min(...upper) <= 15 && Math.max(...upper) >= 40 && crest !== undefined && crest >= 85;
   })(),
 );
 check(
-  "the cap's top is NOT a flat fill: the hollow rect paints with the gradient",
-  /class="fader__cap-hollow"[\s\S]*?fill=\{`url\(#\$\{uid\}-hollow\)`\}/.test(markup) &&
-    !/fader__cap-hollow[\s\S]{0,400}fill="var\(--cap-base\)"/.test(markup),
+  "the rim's top edge is the cream HI tone, the shaded face is near the cream LO tone, the line is near black",
+  /--f-rim-top:\s*var\(--cap-hi\)/.test(style) &&
+    /--f-face-upper:\s*color-mix\(in srgb, var\(--cap-base\) [12]\d%, var\(--cap-lo\)\)/.test(style) &&
+    /--f-face-crest:\s*color-mix\(in srgb, var\(--cap-hi\) [89]\d%/.test(style) &&
+    /--f-line:\s*color-mix\(in srgb, var\(--cap-lo\) [1-3]\d%, black\)/.test(style),
 );
 check(
-  "the cap has a front wall below the front lip, and a hairline edge so the rounded ends read",
+  "the face is NOT a flat fill: no cap rect paints with the cream base alone",
+  !/fader__cap-(rim|face)[\s\S]{0,400}fill="var\(--cap-base\)"/.test(markup),
+);
+check(
+  "four grooves above the line and four below, 3 px apart, each a cut with a lit lower wall",
+  RIBS_PER_HALF === 4 &&
+    RIB_PITCH === 3 &&
+    RIB_CUT > 0 &&
+    RIB_CREST > 0 &&
+    RIB_CUT + RIB_CREST < RIB_PITCH &&
+    /\[-1, 1\]\.flatMap/.test(script) &&
+    /\{#each grooves as groove \(groove\.y\)\}/.test(markup) &&
+    /class="fader__cap-groove"/.test(markup) &&
+    /class="fader__cap-crest"/.test(markup),
+);
+check(
+  "the grooves are deeper in the shaded half than in the lit half (black/white alphas, no colour of their own)",
+  (() => {
+    const op = (sel) => Number(style.match(new RegExp(sel.replace(/[.\\]/g, "\\$&") + "\\s*\\{[^}]*fill-opacity:\\s*([\\d.]+)", "s"))?.[1]);
+    const groove = op(".fader__cap-groove"), grooveUp = op(".fader__cap-groove.is-upper");
+    const crest = op(".fader__cap-crest"), crestUp = op(".fader__cap-crest.is-upper");
+    return grooveUp > groove && crest > crestUp && /\.fader__cap-groove\s*\{[^}]*fill:\s*#000/s.test(style) && /\.fader__cap-crest\s*\{[^}]*fill:\s*#fff/s.test(style);
+  })(),
+);
+check(
+  "one indicator line across the middle of the face: a deep groove spanning the face, centred on the cap",
+  LINE_H >= 1.5 &&
+    /class="fader__cap-line"[\s\S]*?x=\{-FACE_W \/ 2\}[\s\S]*?y=\{-LINE_H \/ 2\}[\s\S]*?width=\{FACE_W\}[\s\S]*?height=\{LINE_H\}/.test(markup) &&
+    /\.fader__cap-line\s*\{[^}]*fill:\s*var\(--f-line\)/s.test(style),
+);
+check(
+  "the grooves and the line are clipped to the face, inside the rim",
+  /clip-path=\{`url\(#\$\{uid\}-face-clip\)`\} data-part="cap-grooves"/.test(markup) &&
+    /id=\{`\$\{uid\}-face-clip`\}[\s\S]*?rx=\{FACE_RX\}/.test(fader),
+);
+check(
+  "the cap has a front wall below the rim, and a hairline edge so the corners read",
   /class="fader__cap-wall"/.test(markup) && /-wall`\}/.test(fader) && /class="fader__cap-edge"/.test(markup),
 );
 check(
-  "the cap also darkens toward the middle of its length (the dish), and lights its left end",
-  /class="fader__cap-pool"/.test(markup) && /class="fader__cap-ends"/.test(markup) && /class="fader__cap-spec"/.test(markup),
-);
-const SHADOW_DX = num("SHADOW_DX");
-const SHADOW_DY = num("SHADOW_DY");
-check(
-  "the cap's shadow is a fixed offset, down and to the right, applied outside the artwork",
-  SHADOW_DX > 0 &&
-    SHADOW_DY > SHADOW_DX &&
-    /transform:\s*translate\(var\(--f-shadow-dx\),\s*var\(--f-shadow-dy\)\)/.test(style),
+  "the cap lights its left end and catches a specular at its top edge; the old finger-hollow pool is gone",
+  /class="fader__cap-ends"/.test(markup) && /class="fader__cap-spec"/.test(markup) && !/cap-pool|cap-hollow|-hollow`/.test(fader),
 );
 
 // --- 3. Slot, shaft, print. ---------------------------------------------------
@@ -340,7 +370,7 @@ check(
     /data-fader-state=\{faderState\}/.test(markup),
 );
 check(
-  "dragging reads as a press: the cap eases in, the shadow tightens, the fingertip shades the hollow",
+  "dragging reads as a press: the cap eases in, the shadow tightens, the fingertip shades the face",
   /\.fader\.is-dragging \.fader__press\s*\{[^}]*translateY/s.test(style) &&
     /\.fader\.is-dragging \.fader__cap-shadow\s*\{/.test(style) &&
     /\.fader\.is-dragging \.fader__cap-finger\s*\{[^}]*opacity:\s*1/s.test(style),
