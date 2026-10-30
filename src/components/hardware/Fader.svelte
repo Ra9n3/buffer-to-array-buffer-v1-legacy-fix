@@ -438,9 +438,12 @@
      With a linear law, majors fall every `majorEvery` units plus both ends.
      The print is stationary: it is drawn outside the moving group.
   ------------------------------------------------------------------------- */
-  /** Bipolar scales print their sign (+10 / −10); unipolar ones do not. */
+  /** Signed form, for text that states a value (the entry error's bounds). */
   const numeral = (v: number): string =>
     v < 0 ? `\u2212${trim(-v)}` : v > 0 && min < 0 ? `+${trim(v)}` : trim(v);
+  /** The panel print is unsigned, as a console scale is — 10 · 5 · 0 · 5 · 10 ·
+      20 … — the sign is read from the side of 0 (owner, 2026-10-31; D2.2.8). */
+  const printNumeral = (v: number): string => trim(Math.abs(v));
   const trim = (v: number): string => (Number.isInteger(v) ? String(v) : v.toFixed(1));
 
   /** Two numerals closer than this (in 1x px) would touch; the end wins. */
@@ -466,7 +469,7 @@
   });
 
   const majorMarks = $derived(
-    majors.map((v) => ({ v, y: CY_MIN - fractionOf(v) * travel, text: numeral(v) })),
+    majors.map((v) => ({ v, y: CY_MIN - fractionOf(v) * travel, text: printNumeral(v) })),
   );
 
   const minorMarks = $derived.by(() => {

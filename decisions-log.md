@@ -1002,3 +1002,27 @@ pins the bridge and the Phase 0 `ChannelStrip` by hash, the composition,
 the owner's geometry rules, fixture honesty and the no-screw rule;
 negative-tested with seven mutations, all detected, files restored
 byte-identical.
+
+### D2.2.8 — The fader's printed scale is unsigned (owner, 2026-10-31)
+
+**Context.** Reviewing the pushed strips (`bd53eae`) the owner pointed at
+the "−10" and "+10" numerals of the fader scale and directed: remove the
+signs. The approved Fader (D1.3.x) printed a signed bipolar scale (+10 · +5 ·
+0 · −5 · −10 · −20 · −30 · −40 · −60).
+
+**Decision.** The panel print is unsigned, as a console fader scale is and
+as the meters' ladders already are (D1.5.7): **10 · 5 · 0 · 5 · 10 · 20 · 30
+· 40 · 60**, the sign read from the side of 0. Only the print changes: the
+value window keeps its sign ("−12.0 dB"), the typed-entry error keeps its
+signed bounds ("Enter a number between −60 and +10."), the knobs' extreme
+numerals ("−20" / "+20") are not touched. Implementation: `Fader.svelte`
+gains `printNumeral = (v) => trim(Math.abs(v))` and `majorMarks` uses it;
+`numeral()` (signed) stays for the error text — 5 insertions, 2 deletions,
+nothing else in the file. Measured on the build: every one of the 20 strips
+prints "60 40 30 20 10 5 0 5 10", numerals right-aligned at the same edge
+(two-digit 9.7 px wide at x 429.6, one-digit 5 px at x 434.3), readout
+"−12.0 dB", error text signed, no console errors. The playground fader is
+the same component and prints the same. Frozen Fader hash in
+`check:console-bridge`: `505bf5b8…` → `b46e55ec…`.
+
+**Reversible.** Yes: one function.

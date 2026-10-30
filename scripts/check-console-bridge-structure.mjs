@@ -209,7 +209,7 @@ check("only the goniometer contains SVG", !/<svg/.test(bridge) && !/<svg/.test(s
 // decisions-log.md and update the hash here in the same change.
 const FROZEN = {
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
-  "src/components/hardware/Fader.svelte": "505bf5b8d969d062910510fe1a3be5304647b2899f95f79a312d9ecc9ed30046",
+  "src/components/hardware/Fader.svelte": "b46e55ec95f4ddbe544175f7e0a340e7378a8cff3af674e431aad2a08d5be372", // 2026-10-31: owner-directed unsigned scale print (D2.2.8)
   "src/components/hardware/Knob.svelte": "df6c51572f28d00ca07b98551914f8f11837df147d557c9113e94cd29732fdf6", // Task 2.2: owner-approved `--knob-size` host variable (D2.2.2)
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
   "src/components/hardware/LedLadder.svelte": "d09d6f36455731128c7f32189b8e641686f603c293968b5629f55fb61f1628b7",
