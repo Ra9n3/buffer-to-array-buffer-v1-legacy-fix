@@ -246,3 +246,73 @@ and the ribbed structure.
 
 **Reversible.** Yes — the cap is one group of rects and two gradients; the
 slot, print, law and interactions were not touched.
+
+## Task 1.4 — Tactile switch
+
+### D1.4.1 — Switch caps are the cream family, by owner choice
+
+**Context.** Hardware spec §2 fixes the cap's shape and finish (square,
+15–20% corners, glossy for the cap-labelled variant, matte for the
+panel-labelled one) but not its colour; §5's colour table covers knobs and
+fader caps and only says the engaged lamp is red or amber "regardless of the
+switch's own function color". Asked before coding, with three options (cream
+caps with dark print, as the eql/phase buttons in the owner's Neve module
+photo; dark charcoal caps with light print; a per-function `family` prop like
+the knob's), the owner chose **cream**.
+
+**Decision.** Both variants take `--al-function-cream-{hi,base,lo}` through
+`functionToken("cream", …)` and print in `--al-text-on-cream`. There is no
+`family` prop. If function-coloured switch caps are wanted later, the cap's
+three custom properties are the only thing to vary.
+
+**Reversible.** Yes — three `style:` lines on the component root.
+
+### D1.4.2 — The switch is a native button rendered with layered CSS, not an SVG
+
+**Context.** The knob and fader are SVG drawings. Spec §6 allows "SVG or
+layered CSS gradients". A push-button has platform semantics an SVG would
+have to re-implement: Space activates on key-up, Enter on key-down, focus
+and `aria-pressed` are native, and the label is real text.
+
+**Decision.** The control is `<button type="button" aria-pressed>`; the cap,
+seat, well, wall, drop shadow, print and lamp are layered CSS gradients,
+inset/outset box-shadows and two pseudo-elements, scaled as a whole from one
+host-settable length (`--switch-size`, 1.75rem = 28px at 1×) exactly as the
+fader scales from `--fader-width`. Every tone is a token or a neutral alpha;
+the structure check enforces the layering so a later task cannot flatten it.
+
+**Reversible.** Yes — the host contract (props, data attributes, the size
+variable) does not depend on the rendering technique.
+
+### D1.4.3 — The engaged lamp lives inside the switch until Task 1.6
+
+**Context.** The brief: do not begin Task 1.6's reusable lamp unless the
+architecture already provides one. It does not — Phase 0 has no lamp, and
+`--al-material-lamp` is the only lamp-related token.
+
+**Decision.** `switch__lamp` / `switch__lens` are drawn inside
+`TactileSwitch.svelte`, as presentation (`aria-hidden`; the state is the
+button's `aria-pressed`). The lamp is self-contained — its own custom
+properties (`--f-lamp-core/body/edge/glow`), its own bezel, lens, glow and
+spill — so Task 1.6 can lift it into a `Lamp` component without redrawing
+it. Amber uses `--al-material-lamp` (the incandescent token, inside spec
+§4a's range) with the amber family round it; red uses the red family.
+
+**Reversible.** Yes — one span pair and ~70 lines of CSS, by design.
+
+### D1.4.4 — The print scales with the switch; the lamp sits beside the cap on the right
+
+**Context.** The knob and fader keep their label and readout at token sizes
+whatever the control's scale, because those are interface text. A switch's
+print is different: the cap label is ink on the cap, and the panel labels
+are engraving round the well — physically part of the control.
+
+**Decision.** The three print sizes derive from `--switch-size` (10 / 11 /
+10 px at 1×, the 2xs / xs steps) so an enlarged switch shows enlarged print.
+The lamp is to the right of the cap, level with the resting cap's face, at
+a fixed 6 px gap; the print is centred on the well and may be wider than it
+without pushing the lamp away. No `disabled` state is built — the brief asks
+for default, pressed and engaged only — and no lamp-position option exists
+until a layout needs one.
+
+**Reversible.** Yes — three `calc()` lines and one grid template.

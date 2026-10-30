@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import KnobFixture, { type KnobFixtureConfig } from "./KnobFixture.svelte";
   import FaderFixture, { type FaderFixtureConfig } from "./FaderFixture.svelte";
+  import SwitchFixture, { type SwitchFixtureConfig } from "./SwitchFixture.svelte";
   import {
     FUNCTION_ROLE_ORDER,
     TOKENS,
@@ -290,6 +291,168 @@
     meaning:
       "The same component, enlarged to judge the cap: the bevelled rim with its lit top edge, the concave face held in shade above the indicator line and lit nearly to the HI tone below it, the eight grooves — deep in the shaded half, washed out in the lit half — and the cap's front wall below the rim.",
   };
+
+  /* --- Task 1.4: tactile switch showcase ---------------------------------
+     Fixtures for the playground only. The labels (PAD, HPF, 48V …) and
+     values are examples that exercise the print; they are NOT agreed
+     controls or parameters, and no switch is wired to anything. */
+
+  const SWITCH_CAP_STATES: SwitchFixtureConfig[] = [
+    {
+      id: "switch-cap-default",
+      variant: "cap",
+      label: "ON",
+      stateNote: "Default",
+      meaning: "Raised, glossy, at rest. Lamp off.",
+    },
+    {
+      id: "switch-cap-pressed",
+      variant: "cap",
+      label: "ON",
+      demoState: "pressed",
+      stateNote: "Pressed (static demo)",
+      meaning:
+        "The cap sunk 2 px, its wall shortened, the gloss dimmed, the shadow drawn in. Not engaged: the lamp stays off. Hold any live switch to see the real thing.",
+    },
+    {
+      id: "switch-cap-focused",
+      variant: "cap",
+      label: "ON",
+      demoState: "focused",
+      stateNote: "Keyboard-focused (static demo)",
+      meaning: "Focus ring drawn statically here. Tab to any switch to see the real thing.",
+    },
+    {
+      id: "switch-cap-engaged-amber",
+      variant: "cap",
+      label: "ON",
+      engaged: true,
+      lamp: "amber",
+      stateNote: "Engaged — amber lamp",
+      meaning: "The function is on: the lamp carries it. The cap is back at rest and unchanged.",
+    },
+    {
+      id: "switch-cap-engaged-red",
+      variant: "cap",
+      label: "ON",
+      engaged: true,
+      lamp: "red",
+      stateNote: "Engaged — red lamp",
+      meaning: "The same switch with the red lamp.",
+    },
+  ];
+
+  const SWITCH_PANEL_STATES: SwitchFixtureConfig[] = [
+    {
+      id: "switch-panel-default",
+      variant: "panel",
+      label: "PAD",
+      value: "26dB",
+      stateNote: "Default",
+      meaning: "Matte cap in its well; function above, value below, both printed on the panel. Lamp off.",
+    },
+    {
+      id: "switch-panel-pressed",
+      variant: "panel",
+      label: "PAD",
+      value: "26dB",
+      demoState: "pressed",
+      stateNote: "Pressed (static demo)",
+      meaning: "The cap sunk toward the well floor, the well's shadow over its top edge. Not engaged.",
+    },
+    {
+      id: "switch-panel-focused",
+      variant: "panel",
+      label: "PAD",
+      value: "26dB",
+      demoState: "focused",
+      stateNote: "Keyboard-focused (static demo)",
+      meaning: "Focus ring round the well, clear of the print.",
+    },
+    {
+      id: "switch-panel-engaged-amber",
+      variant: "panel",
+      label: "PAD",
+      value: "26dB",
+      engaged: true,
+      lamp: "amber",
+      stateNote: "Engaged — amber lamp",
+      meaning: "Engaged and at rest: the lamp is lit, the cap is unchanged.",
+    },
+    {
+      id: "switch-panel-engaged-red",
+      variant: "panel",
+      label: "48V",
+      value: "PHANTOM",
+      engaged: true,
+      lamp: "red",
+      stateNote: "Engaged — red lamp",
+      meaning: "Phantom power: the red lamp of the reference convention.",
+    },
+  ];
+
+  const SWITCH_LIVE: SwitchFixtureConfig[] = [
+    {
+      id: "switch-live-cap",
+      variant: "cap",
+      label: "ON",
+      stateNote: "Live — cap-labelled",
+      meaning: "Click, or Tab to it and press Space or Enter. Hold it to see the press; release to toggle the lamp.",
+    },
+    {
+      id: "switch-live-panel",
+      variant: "panel",
+      label: "HPF",
+      value: "80Hz",
+      stateNote: "Live — panel-labelled",
+      meaning: "Same interactions. The readout below follows the switch's aria-pressed.",
+    },
+    {
+      id: "switch-live-independent",
+      variant: "panel",
+      label: "EQ",
+      value: "IN",
+      engaged: true,
+      lamp: "red",
+      stateNote: "Live — starts engaged",
+      meaning:
+        "Hold it down: the cap sinks while the lamp stays lit, because pressed and engaged are separate. Release to switch it off.",
+    },
+  ];
+
+  const SWITCH_CLUSTER: SwitchFixtureConfig[] = [
+    { id: "switch-cluster-pad", variant: "panel", label: "PAD", value: "26dB" },
+    { id: "switch-cluster-hpf", variant: "panel", label: "HPF", value: "80Hz", engaged: true },
+    { id: "switch-cluster-phase", variant: "panel", label: "Ø", value: "180°" },
+    { id: "switch-cluster-48v", variant: "panel", label: "48V", value: "PHANTOM", engaged: true, lamp: "red" },
+    { id: "switch-cluster-eq", variant: "panel", label: "EQ", value: "IN" },
+    { id: "switch-cluster-ins", variant: "panel", label: "INS", value: "PRE" },
+  ];
+
+  const SWITCH_DETAIL: SwitchFixtureConfig[] = [
+    {
+      id: "switch-detail-cap",
+      variant: "cap",
+      label: "ON",
+      engaged: true,
+      scale: 2.5,
+      stateNote: "Cap-labelled at 2.5×, engaged",
+      meaning:
+        "To judge the cap: the diagonal gradient from the HI tone at the top-left to the shaded bottom-right, the specular bloom over it, the bright top edge, the side wall and its foot, the drop shadow; and the lamp — hot core, lens edge, glass specular, spill on the panel.",
+    },
+    {
+      id: "switch-detail-panel",
+      variant: "panel",
+      label: "PAD",
+      value: "26dB",
+      engaged: true,
+      lamp: "red",
+      scale: 2.5,
+      stateNote: "Panel-labelled at 2.5×, engaged",
+      meaning:
+        "The well's dark lip shadow at the top, its lit lower edge, the hairline border; the matte cap's restrained gradient and shorter wall; the print on the panel plane.",
+    },
+  ];
 
   onMount(() => {
     values = readTokenValues();
@@ -584,6 +747,89 @@
       <FaderFixture config={FADER_DETAIL} />
     </div>
   </section>
+
+  <!-- ======================================================================
+       Component showcase — Task 1.4, the tactile square switch.
+       ====================================================================== -->
+  <section
+    class="dev-section"
+    data-dev-component="switch"
+    aria-labelledby="dev-component-switch"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-switch">
+        Component — tactile square switch
+      </h2>
+      <p class="dev-section__blurb">
+        One reusable <code>TactileSwitch</code> component, two variants of
+        hardware spec §2, one <code>variant</code> prop. <strong>Cap-labelled:</strong>
+        the label is printed on a glossy raised cap — a convex diagonal
+        gradient lit from the top-left, a specular bloom, a bright top edge, a
+        side wall standing it off its seat. <strong>Panel-labelled:</strong> the
+        same cap shape in a matte finish, seated in a recessed square well with
+        a dark inset border, the function printed on the panel above it and the
+        value below. Corners are 17.5% of the width on both. Beside every cap
+        is a small lamp in a bezel: a dark lens when off, a warm amber or red
+        glow when the function is engaged. Caps are the cream family (the
+        owner's choice for this task); the rest resolves through the material,
+        text and lamp tokens.
+      </p>
+      <p class="dev-section__blurb">
+        Every switch here is a real button and works: click it, or Tab to it
+        and press Space or Enter. <strong>Pressed</strong> is the finger on the
+        cap — transient, released with the pointer or key.
+        <strong>Engaged</strong> is the function being on — the lamp, toggled by
+        each activation, carried as <code>aria-pressed</code>. They are
+        independent: a switch can be engaged and at rest, or engaged and held
+        down. State is local to this page and is not connected to any audio or
+        project state.
+      </p>
+    </header>
+
+    <h3 class="dev-subtitle">Variant A — cap-labelled: default, pressed, focused, engaged (amber, red)</h3>
+    <div class="dev-switches" data-dev-switch-cap-states>
+      {#each SWITCH_CAP_STATES as config (config.id)}
+        <SwitchFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Variant B — panel-labelled: default, pressed, focused, engaged (amber, red)</h3>
+    <div class="dev-switches" data-dev-switch-panel-states>
+      {#each SWITCH_PANEL_STATES as config (config.id)}
+        <SwitchFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Live examples</h3>
+    <p class="dev-section__blurb">
+      The static "pressed" and "focused" demonstrations above are frozen
+      states; these three are the same component doing it for real. The
+      caption's readout follows each switch's own state.
+    </p>
+    <div class="dev-switches" data-dev-switch-live>
+      {#each SWITCH_LIVE as config (config.id)}
+        <SwitchFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">A cluster of instances</h3>
+    <p class="dev-section__blurb">
+      Six panel-labelled switches side by side, as a channel's input section
+      would carry them, two of them engaged. Every instance is independent.
+    </p>
+    <div class="dev-switches dev-switches--cluster" data-dev-switch-cluster>
+      {#each SWITCH_CLUSTER as config (config.id)}
+        <SwitchFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Cap and lamp, enlarged</h3>
+    <div class="dev-switches dev-switches--detail" data-dev-switch-detail>
+      {#each SWITCH_DETAIL as config (config.id)}
+        <SwitchFixture {config} />
+      {/each}
+    </div>
+  </section>
 </div>
 
 <style>
@@ -773,6 +1019,24 @@
 
   .dev-faders--detail {
     grid-template-columns: minmax(8.5rem, 20rem);
+  }
+
+  .dev-switches {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: var(--al-space-md);
+    min-width: 0;
+  }
+
+  /* The cluster is judged as a strip: narrow columns, as a channel would have. */
+  .dev-switches--cluster {
+    grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
+    max-width: 40rem;
+  }
+
+  .dev-switches--detail {
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 20rem));
   }
 
   /* --- spacing ----------------------------------------------------------- */
