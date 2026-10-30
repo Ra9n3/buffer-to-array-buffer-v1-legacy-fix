@@ -316,3 +316,130 @@ for default, pressed and engaged only — and no lamp-position option exists
 until a layout needs one.
 
 **Reversible.** Yes — three `calc()` lines and one grid template.
+
+## Task 1.5 — Analog VU meter and LED segment ladder
+
+### D1.5.1 — Two components, no shared code, no "mode"
+
+**Context.** The brief forbids one configurable meter with an LED look on the
+VU face. The two things share nothing but the word "meter": one is a card,
+a bulb and a moving needle; the other is a column of discrete lamps.
+
+**Decision.** `VUMeter.svelte` and `LedLadder.svelte` are separate files in
+`src/components/hardware/`, each with its own module-level scale constants
+and its own fixture. Neither imports the other and neither has a `variant`
+or `mode` prop. `check:meter` asserts the separation (no cross-reference,
+no cream, lamp token, wash, vignette or turbulence in the ladder; no
+`crispEdges`, segments or green family in the VU meter).
+
+**Reversible.** Yes — nothing depends on a shared base; a later common
+"meter housing" would be an extraction, not a rewrite.
+
+### D1.5.2 — The VU scale is the standard VU law, −20 to +3, red from 0
+
+**Context.** Spec §4a names the scale's parts (arc, ticks, numerals at key
+points, red upper range, "VU") but not its numbers or its law. A real VU
+meter's needle is linear in modulation percentage, not in dB — the marks
+crowd toward the left and open out toward 0, which is what makes a VU scale
+look like a VU scale.
+
+**Decision.** `vuPosition(db)` = (pct(db) − pct(−20)) / (pct(+3) − pct(−20))
+with pct = 100·10^(db/20); the needle sweeps 90° (−45° to +45°) about the
+pivot, so −20 → −45°, −7 → −21.2°, 0 → +16.7°, +3 → +45°. Marks at −20, −10,
+−7, −5, −3, −2, −1, 0, +1, +2, +3 with minor ticks between; numerals at −20,
+−10, −7, −5, −3, 0, +3 only; the red band and red numerals from 0 to +3.
+The level prop is clamped to the end stops: the needle cannot leave the
+scale. Levels are demonstration numbers only; no metering law (reference
+level, integration time) is implied or implemented — that is Phase 2 work.
+
+**Reversible.** Yes — the marks table and the two constants.
+
+### D1.5.3 — The incandescent glow is three blurred blobs, not a gradient; the drift is on by default
+
+**Context.** Spec §4a is explicit: warm, soft, diffuse, uneven, brightest
+near a lower-centre bulb, a slightly irregular vignette, asymmetric
+falloff; never a flat fill, never one uniform hard-edged radial gradient.
+A radial gradient, however soft, is a perfect concentric circle and reads
+as a backlight.
+
+**Decision.** The light is painted: three irregular Bézier blobs of the lamp
+token (`--al-material-lamp #edb268`, inside the spec's `#e8a454`–`#f0c27a`)
+under Gaussian blurs of σ 13 / 8 / 16 units on a 106 × 68 card — a pool low
+and centred, a hotter core a little left of the axis, a faint third pool
+up in the right — over a translucent cream wash, with a frosted
+`feTurbulence` grain and an off-centre radial vignette that is transparent
+across the middle. The bulb's slow brightness drift (two keyframe loops of
+9.7 s and 6.3 s, opacity 0.972–0.992, within the spec's "barely perceptible")
+is **on by default** (`lampDrift`), because the spec lists it as the thing
+that separates a bulb from a fill; it is disabled when the lamp is off and
+under `prefers-reduced-motion`, where the needle's swing also shortens
+from 360 ms to 120 ms. Unlit, the same card is cream in shadow
+(`cream 46% / black`) with the print still legible — everything the bulb
+adds is the difference between the two.
+
+**Reversible.** Yes — the three paths and five numbers; the drift is one
+prop.
+
+### D1.5.4 — The ladder's colours come from the function families; nothing is added
+
+**Context.** §4b asks for green, amber-yellow and red segments. The Task 1.1
+tokens already define each as a HI / BASE / LO family for exactly this kind
+of indicator; `check:tokens` guards parity.
+
+**Decision.** A lit segment is a vertical gradient HI→BASE→LO-ish
+(`hi 70%` / `hi 22%` / `base 78% + lo`) of its band's family, a hairline
+specular on its top edge, a hard 0.5-unit black seam, and a tight σ 1.7
+bloom behind it; an unlit segment is the band's LO tone sunk into the
+recess (`lo 30% / recess`) with the same seam — still visibly a lamp of
+that colour, visibly not lit. No token was added and no colour is written
+into the component (`check:meter` scans for hex colours other than neutral
+black/white alphas).
+
+**Reversible.** Yes — the gradient stops.
+
+### D1.5.5 — A 16-segment demonstration scale, −40 to +4, not an agreed metering scale
+
+**Context.** §4b does not fix the segment count or the thresholds; the real
+scale is a Phase 2 metering decision (reference level, peak vs RMS, hold).
+
+**Decision.** The default scale is 16 segments: nine green (−40, −30, −24,
+−20, −16, −13, −10, −8, −6), four amber (−4, −3, −2, −1), three red (0, +2,
++4), numerals at −40, −20, −10, −6, −3, 0, +4 in the fader's convention.
+Segments light cumulatively from the bottom by one counting function
+(`ledLitCount`), so a lit set is contiguous by construction. The `segments`
+prop takes any ascending list with the same band type, so the Phase 2
+scale replaces this one without touching the drawing. The numbers are
+placement for the demonstration only and are labelled so on the page.
+
+**Reversible.** Yes — the table.
+
+### D1.5.6 — Sizes: VU 120 × 84 at `--vu-width` 7.5rem; ladder 48 × 131.5 at `--ladder-width` 3rem
+
+**Context.** The brief asks for readable scales "at the intended sizes" and
+the plan puts the master VU pair in the Console room at roughly the width of
+two channel strips; the ladder is a secondary indicator a strip wide.
+
+**Decision.** Each component is one SVG scaled as a whole from a
+host-settable width, like the fader: the VU meter is drawn at 120 × 84
+units and shown at 7.5rem (120 px) by default, where the numerals are
+6.6 px and still separate; the ladder is 48 units wide and
+`4 + 16·7.5 − 2.5 + 2·3 + 4 = 131.5` tall for 16 segments (it grows with
+the count) at 3rem. The playground shows the VU meter at 1×, 1.5×, 2× and
+2.5× and the ladder at 1.25×, 1.5× and 2.5×; nothing in either is sized in
+px by the page.
+
+**Reversible.** Yes — two custom properties.
+
+### D1.5.7 — The ladder's printed numerals are unsigned, by owner direction (review round 1)
+
+**Context.** The first review build printed the ladder's scale as tick,
+sign, number (`– −3`, `– +4`); the owner read the sign as a second tick and
+asked for the −/+ signs to be removed from the print.
+
+**Decision.** The printed scale is tick, number: `40 20 10 6 3 0 4`
+(`printed(db) = |db|`). The sign is kept where it carries meaning rather
+than ink: the spoken `aria-valuetext` ("−3 dB, 11 of 16 segments lit,
+amber") and the playground captions ("simulated −20 dB → 4 of 16 lit").
+`check:meter` asserts both halves.
+
+**Reversible.** Yes — one function.

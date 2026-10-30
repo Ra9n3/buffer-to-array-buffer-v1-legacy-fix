@@ -405,9 +405,10 @@ check(
 );
 check("the knob and the fader do not know the switch exists", !/TactileSwitch/.test(knob) && !/TactileSwitch/.test(fader));
 check("check:switch is wired into package.json", pkg.scripts?.["check:switch"] === "node scripts/check-switch-structure.mjs");
+// Task 1.5 delivered the two meters, so they are no longer later-task files.
 check(
-  "no later-task component was built (no separate Lamp, meter or label component)",
-  !["src/components/hardware/Lamp.svelte", "src/components/hardware/VUMeter.svelte", "src/components/hardware/Meter.svelte", "src/components/hardware/EngravedLabel.svelte", "src/components/hardware/LedLadder.svelte"].some(exists),
+  "no later-task component was built (no separate Lamp or label component)",
+  !["src/components/hardware/Lamp.svelte", "src/components/hardware/EngravedLabel.svelte"].some(exists),
 );
 
 // --- Report. -------------------------------------------------------------------

@@ -93,11 +93,10 @@ const polar = (x, y) => {
 const num = (name) => Number((new RegExp(`const ${name} = (-?[\\d.]+)`).exec(knob) ?? [])[1] ?? NaN);
 
 // --- 1. One component, six families. --------------------------------------
-// Task 1.3 delivered the fader and Task 1.4 the tactile switch beside the
-// knob, so they are no longer later-task files; the components that remain
-// ahead on the roadmap are.
+// Task 1.3 delivered the fader, Task 1.4 the tactile switch and Task 1.5 the
+// two meters beside the knob, so they are no longer later-task files; the
+// components that remain ahead on the roadmap are.
 const laterTaskFiles = [
-  "src/components/hardware/Meter.svelte",
   "src/components/hardware/EngravedLabel.svelte",
   "src/components/hardware/Lamp.svelte",
 ];

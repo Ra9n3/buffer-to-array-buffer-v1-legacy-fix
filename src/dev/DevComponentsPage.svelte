@@ -3,6 +3,8 @@
   import KnobFixture, { type KnobFixtureConfig } from "./KnobFixture.svelte";
   import FaderFixture, { type FaderFixtureConfig } from "./FaderFixture.svelte";
   import SwitchFixture, { type SwitchFixtureConfig } from "./SwitchFixture.svelte";
+import VUMeterFixture, { type VUMeterFixtureConfig } from "./VUMeterFixture.svelte";
+import LedLadderFixture, { type LedLadderFixtureConfig } from "./LedLadderFixture.svelte";
   import {
     FUNCTION_ROLE_ORDER,
     TOKENS,
@@ -454,6 +456,171 @@
     },
   ];
 
+  /* --- Task 1.5: meters ---------------------------------------------------
+     Fixtures for the playground only. Every level below is SIMULATED — a
+     number typed in here to put the needle or the lit segments somewhere.
+     Nothing is measured from any audio, and these are NOT agreed metering
+     parameters: the VU scale is the standard face, the ladder's thresholds
+     are a demonstration scale (plan §9 defers the real values). */
+
+  const VU_POSITIONS: VUMeterFixtureConfig[] = [
+    {
+      id: "vu-low",
+      label: "L",
+      level: -20,
+      scale: 1.5,
+      stateNote: "low — −20 VU",
+      meaning:
+        "The needle on the left stop. The pool of light from the bulb at the lower centre, the upper corners falling off softly, the bezel's lip shadow along the top of the card.",
+    },
+    {
+      id: "vu-normal",
+      label: "L",
+      level: -7,
+      scale: 1.5,
+      stateNote: "normal — −7 VU",
+      meaning:
+        "A working level. The needle's soft shadow sits down and to the right of the blade on the card; the hub covers its tail.",
+    },
+    {
+      id: "vu-high",
+      label: "L",
+      level: 0,
+      scale: 1.5,
+      stateNote: "high — 0 VU",
+      meaning: "On the 0 mark, where the red band begins. The numerals to the right of it are red.",
+    },
+    {
+      id: "vu-overload",
+      label: "R",
+      level: 2,
+      scale: 1.5,
+      stateNote: "overload — +2 VU",
+      meaning: "Into the red band, one mark short of the right stop. Past +3 the needle rests on the stop.",
+    },
+  ];
+
+  const VU_PRESETS = [
+    { label: "low", level: -20 },
+    { label: "normal", level: -7 },
+    { label: "high", level: 0 },
+    { label: "overload", level: 2 },
+    { label: "pinned", level: 3 },
+  ] as const;
+
+  const VU_LIVE: VUMeterFixtureConfig[] = [
+    {
+      id: "vu-live",
+      label: "MASTER",
+      level: -7,
+      scale: 2,
+      interactive: true,
+      presets: VU_PRESETS,
+      stateNote: "live — slider, presets, lamp switch",
+      meaning:
+        "Drag the slider or pick a position: the needle swings with a VU meter's ballistics, a 360 ms rise with a slight overshoot. Switch the lamp off to see the card without the bulb; it cools over about a third of a second.",
+    },
+  ];
+
+  const VU_LAMP: VUMeterFixtureConfig[] = [
+    {
+      id: "vu-lamp-lit",
+      label: "LAMP ON",
+      level: -20,
+      scale: 2.5,
+      stateNote: "2.5×, lamp on, needle at rest",
+      meaning:
+        "The illumination alone: brightest low in the middle, a hotter spot a little left of the axis, fading unevenly outward — a faint lift in the upper right, darker upper-left corner — with the frosted grain of the card over it. No ring, no edge, no cool white.",
+    },
+    {
+      id: "vu-lamp-unlit",
+      label: "LAMP OFF",
+      level: -20,
+      lamp: false,
+      scale: 2.5,
+      stateNote: "2.5×, lamp off",
+      meaning:
+        "The same card with the bulb off: cream in shadow, the print still legible, the vignette and the lip shadow unchanged — everything the bulb adds is in the difference between these two.",
+    },
+    {
+      id: "vu-compact",
+      label: "L",
+      level: -3,
+      scale: 1,
+      stateNote: "1× — 120 px, the compact size",
+      meaning: "The smallest the meter is meant to be shown: the numerals are 6.6 px and still separate.",
+    },
+  ];
+
+  const LED_LEVELS: LedLadderFixtureConfig[] = [
+    {
+      id: "led-low",
+      label: "PEAK",
+      level: -20,
+      scale: 1.25,
+      stateNote: "low — −20 dB",
+      meaning: "Four green segments lit from the bottom; the twelve above them dark but each still a visible block.",
+    },
+    {
+      id: "led-medium",
+      label: "PEAK",
+      level: -3,
+      scale: 1.25,
+      stateNote: "medium — −3 dB",
+      meaning: "All nine green and the first two amber: the green-to-amber transition.",
+    },
+    {
+      id: "led-high",
+      label: "PEAK",
+      level: -1,
+      scale: 1.25,
+      stateNote: "high — −1 dB",
+      meaning: "Every amber segment lit, the three red ones still dark: the amber-to-red boundary.",
+    },
+    {
+      id: "led-peak",
+      label: "PEAK",
+      level: 4,
+      scale: 1.25,
+      stateNote: "peak — +4 dB",
+      meaning: "All sixteen lit, through the top red segment.",
+    },
+  ];
+
+  const LED_PRESETS = [
+    { label: "silence", level: -60 },
+    { label: "low", level: -20 },
+    { label: "medium", level: -3 },
+    { label: "high", level: -1 },
+    { label: "peak", level: 4 },
+  ] as const;
+
+  const LED_LIVE: LedLadderFixtureConfig[] = [
+    {
+      id: "led-live",
+      label: "PEAK L",
+      level: -8,
+      scale: 1.5,
+      interactive: true,
+      presets: LED_PRESETS,
+      stateNote: "live — slider and presets",
+      meaning:
+        "Drag the slider: segments light cumulatively from the bottom as the level rises and go out from the top as it falls, instantly — an LED has no ballistics. The caption counts them.",
+    },
+  ];
+
+  const LED_DETAIL: LedLadderFixtureConfig[] = [
+    {
+      id: "led-detail",
+      label: "PEAK",
+      level: -1,
+      scale: 2.5,
+      stateNote: "2.5× — high, −1 dB",
+      meaning:
+        "To judge a segment: the hard dark seam round every block, the lens highlight along its top edge, the HI-to-BASE gradient of a lit block, the tight bloom behind it that leaves the edge crisp, and the unlit red blocks above — tinted, recessed, visibly off.",
+    },
+  ];
+
   onMount(() => {
     values = readTokenValues();
   });
@@ -830,6 +997,123 @@
       {/each}
     </div>
   </section>
+
+  <!-- ======================================================================
+       Component showcase — Task 1.5, the analog VU meter.
+       ====================================================================== -->
+  <section
+    class="dev-section"
+    data-dev-component="vu-meter"
+    aria-labelledby="dev-component-vu-meter"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-vu-meter">
+        Component — analog VU meter
+      </h2>
+      <p class="dev-section__blurb">
+        One reusable <code>VUMeter</code> component, hardware spec §4a. A
+        window recessed into a dark walnut frame — a brass bead, a near-black
+        bezel whose lip casts down onto the card — and behind the glass a
+        cream card lit by one incandescent bulb at the lower centre. The light
+        is not a gradient: three irregular pools of the lamp token are blurred
+        with large radii, a frosted grain and an off-centre vignette sit over
+        them, so it is warm, soft, uneven, brightest low in the middle, and
+        has no edge anywhere. Printed on the card: the arc, ticks radiating
+        from a pivot below the centre, numerals at the key points, the red
+        overload band from 0 to +3, and <strong>VU</strong>. A thin black
+        needle on a small hub, with a soft shadow on the card beneath it,
+        swings with a VU meter's ballistics.
+      </p>
+      <p class="dev-section__blurb">
+        Every level on this page is <strong>simulated</strong> — a number
+        typed into the fixture to place the needle. Nothing is measured; the
+        component is not connected to any audio, analysis or project state,
+        and the Console room does not use it yet (that is Task 2.1). The
+        bulb's slow brightness drift is on: it stays within 4% and stops under
+        <code>prefers-reduced-motion</code>.
+      </p>
+    </header>
+
+    <h3 class="dev-subtitle">Low, normal, high, overload — at 1.5×</h3>
+    <div class="dev-vu" data-dev-vu-positions>
+      {#each VU_POSITIONS as config (config.id)}
+        <VUMeterFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Live</h3>
+    <p class="dev-section__blurb">
+      The same component with its level on a slider. The controls are the
+      review sheet's, not the product's: a simulated value, labelled as such.
+    </p>
+    <div class="dev-vu dev-vu--live" data-dev-vu-live>
+      {#each VU_LIVE as config (config.id)}
+        <VUMeterFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">The lamp, enlarged: lit against unlit, and the compact size</h3>
+    <div class="dev-vu dev-vu--lamp" data-dev-vu-lamp>
+      {#each VU_LAMP as config (config.id)}
+        <VUMeterFixture {config} />
+      {/each}
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       Component showcase — Task 1.5, the LED segment ladder. A separate
+       component and a separate section: this is the other meter language,
+       and it must not be mistaken for the VU meter's.
+       ====================================================================== -->
+  <section
+    class="dev-section dev-section--ladder"
+    data-dev-component="led-ladder"
+    aria-labelledby="dev-component-led-ladder"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-led-ladder">
+        Component — LED segment ladder
+      </h2>
+      <p class="dev-section__blurb">
+        One reusable <code>LedLadder</code> component, hardware spec §4b, and
+        deliberately the opposite of the meter above: sixteen discrete,
+        hard-edged blocks in a recessed well that light cumulatively from the
+        bottom — nine green, four amber, three red — each a small lens with a
+        dark seam and a hairline highlight, lit in its family's HI-to-BASE
+        tones with a tight bloom that never softens the edge, unlit as the
+        die's own tint deep in the recess. dB numerals on the panel beside the
+        key segments make the relation between level and lit count readable.
+        No cream, no warm wash, no wide blur: this look is for a secondary peak
+        ladder and nowhere else — never for the master VU meters.
+      </p>
+      <p class="dev-section__blurb">
+        Levels are <strong>simulated</strong>, as above; the thresholds are a
+        demonstration scale, not agreed metering parameters. Not connected to
+        any audio, analysis or project state.
+      </p>
+    </header>
+
+    <h3 class="dev-subtitle">Low, medium, high, peak — at 1.25×</h3>
+    <div class="dev-led" data-dev-led-levels>
+      {#each LED_LEVELS as config (config.id)}
+        <LedLadderFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Live</h3>
+    <div class="dev-led dev-led--live" data-dev-led-live>
+      {#each LED_LIVE as config (config.id)}
+        <LedLadderFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">Segments, enlarged</h3>
+    <div class="dev-led dev-led--detail" data-dev-led-detail>
+      {#each LED_DETAIL as config (config.id)}
+        <LedLadderFixture {config} />
+      {/each}
+    </div>
+  </section>
 </div>
 
 <style>
@@ -1037,6 +1321,48 @@
 
   .dev-switches--detail {
     grid-template-columns: repeat(auto-fill, minmax(14rem, 20rem));
+  }
+
+  /* Meters: wide enough per column for the 1.5x VU meter (180px) and its
+     panel; the live and enlarged rows are capped so one meter does not
+     stretch across the sheet. */
+  .dev-vu {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr));
+    gap: var(--al-space-md);
+    min-width: 0;
+  }
+
+  .dev-vu--live {
+    grid-template-columns: minmax(12.5rem, 24rem);
+  }
+
+  .dev-vu--lamp {
+    grid-template-columns: repeat(auto-fill, minmax(21rem, 24rem));
+  }
+
+  .dev-led {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+    gap: var(--al-space-md);
+    min-width: 0;
+  }
+
+  .dev-led--live {
+    grid-template-columns: minmax(10rem, 20rem);
+  }
+
+  .dev-led--detail {
+    grid-template-columns: minmax(10rem, 14rem);
+  }
+
+  /* The ladder's section is set apart from the VU meter's by a heavier rule
+     above it: two meter languages, kept visibly separate. */
+  .dev-section--ladder {
+    border-top: 3px double #8a8a8a;
+    padding-top: var(--al-space-lg);
   }
 
   /* --- spacing ----------------------------------------------------------- */

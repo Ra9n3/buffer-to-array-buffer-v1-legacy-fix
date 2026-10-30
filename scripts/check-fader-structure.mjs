@@ -436,10 +436,11 @@ check(
 );
 check("the knob does not know the fader exists", !/Fader|fader/.test(knob));
 check("check:fader is wired into package.json", pkg.scripts?.["check:fader"] === "node scripts/check-fader-structure.mjs");
-// Task 1.4 delivered the tactile switch, so it is no longer a later-task file.
+// Task 1.4 delivered the tactile switch and Task 1.5 the meters, so they are
+// no longer later-task files.
 check(
   "no later-task component was built",
-  !["src/components/hardware/VUMeter.svelte", "src/components/hardware/Lamp.svelte", "src/components/hardware/EngravedLabel.svelte"].some(exists),
+  !["src/components/hardware/Lamp.svelte", "src/components/hardware/EngravedLabel.svelte"].some(exists),
 );
 
 // --- Report. -------------------------------------------------------------------
