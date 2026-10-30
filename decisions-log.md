@@ -639,3 +639,164 @@ light direction against the approved prints, the unpainted `cut` finish
 been started; it waits for the owner's explicit instruction.
 
 
+## Task 2.1 — Console meter bridge
+
+### D2.1.1 — The bridge is one deck of four engraved-outlined modules; at desktop the masters stand at the right end
+
+**Context.** Plan §3 puts "master stereo VU meters, channel meters for the
+current bank, stereo correlation display, spectrum ladder, transport, status
+and estimated processing time" in the Console's upper section; Task 2.1 skins
+the four meter/display parts only, 2.3 adds the rest. The Phase 0 zone was a
+grey box whose row took 0.9fr of the room height; real meters have fixed
+physical sizes and cannot stretch with the window.
+
+**Decision.** `ConsoleMeterBridge` is a bevelled warm-charcoal deck (the
+approved fixture-panel face: panel token, top-left key light, brushed grain,
+bevel insets) between two 14 px walnut end-cheeks, with four modules each
+outlined by a 1 px engraved groove and titled by an engraved `h3`: MASTER,
+CHANNELS 01–08, SPECTRUM, GONIOMETER. The deck is an inline-size container.
+From 1150 px of deck content width the modules sit in a named-area grid —
+the channel row over the spectrum and goniometer at the left, the master
+pair spanning both rows at the right end, and the free panel between them
+left empty on purpose for Task 2.3's transport / status / time. The master
+pair grows in steps with the deck (12 → 13.5 → 15 → 16.5 → 18 rem at 1150 /
+1180 / 1240 / 1290 / 1340 px), the channel meters stay at 4.875 rem (0.65×)
+and the ladders at 2.25 rem (0.75×). Below 1150 px the modules wrap in
+prominence order (master, spectrum, goniometer, channels; the goniometer
+moves up beside the masters under 900 px); the channel row, the spectrum bay
+and the master pair each scroll inside their own module when narrower than
+their content — never the page. Measured at 1280 × 900: bridge 1248 × 293
+px, masters 216 × 151 px, channel windows 78 × 54.6 px, no element outside
+the bridge, document `scrollWidth` = `clientWidth` at every width tested.
+
+**Reversible.** Yes — one new component folder and CSS; nothing else in the
+room depends on the arrangement.
+
+### D2.1.2 — Eight channel meters, two-digit identifiers (fixture; bank size stays deferred)
+
+**Context.** The plan defers the bank size ("channel-bank/paging system").
+The bridge needs a definite number of channel meters to be reviewed.
+
+**Decision (owner's choice, 2026-10-30).** The fixture bank is eight
+channels, `01`–`08`, the two-digit codes the Phase 0 bank already uses, each
+an approved `VUMeter` at 0.65× with its identifier as the meter's engraved
+label. No bank navigation. The real bank size is still a deferred plan
+decision; when it is taken, only `BANK_FIXTURE` (and later the project
+model) changes. The face numerals at 0.65× are 4.3 px — micro-print like a
+real bridge meter's; the identifiers are the legible print at 11 px.
+
+**Reversible.** Yes — one fixture array.
+
+### D2.1.3 — The spectrum is fifteen approved ladders in a recessed bay, on the approved scale, printed the hardware way
+
+**Context.** Spec §4b allows the LED ladder "only where a reference
+explicitly calls for a numeric/fast peak ladder display"; plan §3 calls the
+Console display a "spectrum ladder". The ladder draws its own dB numerals
+beside the column, which fifteen columns cannot each repeat, and its 6.4-unit
+numerals would be under 5 px at the column size.
+
+**Decision.** The spectrum display is composed of the approved `LedLadder`,
+one per band, inside a shallow recessed bay (recess token 72 % over panel,
+shadowed lip). The columns use `LED_LADDER_SCALE` verbatim — the same sixteen
+thresholds and green / amber / red bands — with only the `numeral` flags
+stripped, so no column prints a scale and no new scale is invented. Fifteen
+representative bands: every other ISO 1/3-octave centre from 25 Hz to 16 kHz
+(the R10 preferred numbers), printed as hardware analysers print them —
+`1k6`, `2k5`, `6k3`, three characters, no decimal point — in the engraved
+`value` label at 10 px, with a muted `Hz` after the last column. Columns are
+pitched at 26.5 px: the ladder wrapper is the ladder's full width and gives
+back its empty 18-unit print area with a negative margin, so each well sits
+centred over its label (measured well centre 69.25 px vs label centre 69.24
+px). Segments measure 12 × 3.75 px with 1.88 px between them.
+
+**Reversible.** Yes — `SPECTRUM_FIXTURE`, `SPECTRUM_SEGMENTS` and one
+component.
+
+### D2.1.4 — Goniometer and correlation strip: an illustrative, provisional treatment
+
+**Context.** The plan names a "stereo correlation display" / "stereo
+correlation/goniometer" and nothing more; the measurement is Phase 5.2's
+(plan §7, "stereo correlation, channel energy, width/mono compatibility").
+Task 2.1 forbids inventing an algorithm or an unspecified scale and asks for
+a simple illustrative treatment recorded as provisional.
+
+**Decision (owner's choice among three treatments, 2026-10-30).** A 100 ×
+100 px scope — recess-token floor faintly lifted at the centre, a 1 px metal
+frame lit along its top edge, a shadowed lip, a weak glass sheen — with a
+faint engraved graticule (the L and R diagonals, a ring at r = 42, a centre
+pin, `L` / `R` print) and one representative trace drawn three times over
+itself in the lamp / amber family (bloom: lamp token, 3.4 wide, 26 %, blurred
+1.8; body: lamp token, 1.25 wide, 66 %; core: amber-hi, 0.5 wide, 92 %), so
+it reads as a warm phosphor behind glass and never as a cold green VFD
+(plan §4). Beside it, a `CORRELATION` strip: a 96 × 8 px recessed slot with
+a lit amber index at the reading and the standard `−1 · 0 · +1` print — the
+one scale a correlation meter has, not one of ours. The trace is a fixed,
+deterministic point list (two sums of sines with non-simple frequency
+ratios, mapped mid-vertical / side-horizontal); the reading is the typed-in
+`+0.62`. The scope is `role="img"` with a spoken description; the strip is a
+`role="meter"` from −1 to +1. Everything about this treatment — the graticule,
+the trace, the strip, even whether a goniometer is the right display — is
+open until Phase 5.2 says what is measured.
+
+**Reversible.** Yes — one component and two fixture constants.
+
+### D2.1.5 — The fixtures are static
+
+**Decision (owner's choice, 2026-10-30).** No motion of the bridge's own: the
+needles, ladders, trace and index rest at their fixture values; the only
+animation inside the bridge is the approved VU meter's slow lamp drift
+(measured: 20 running animations under normal motion, 0 under
+`prefers-reduced-motion: reduce`). No timers, no demo controls.
+
+**Reversible.** Yes.
+
+### D2.1.6 — Housing: walnut end-cheeks, corner screws, and the bridge's own legend in place of the Phase 0 zone header
+
+**Decision (owner's choice, 2026-10-30).** The bridge is bounded by the
+deck's bevel and two walnut end-cheeks (wood token with a vertical figured
+grain, a lit top edge and a shadowed foot — plan §4's walnut side trim), four
+6 px slotted screws in the metal tokens at the deck's corners, and a thin
+metal-cream trim line under the top bevel. The grey "Zone 01 / Meter bridge /
+…" header is replaced by the bridge's engraved `METER BRIDGE` legend, which
+is the zone's `<h2 id="console-meter-title">` so the Console zone keeps its
+accessible name. The channel-bank zone keeps its grey header until 2.2.
+
+**Reversible.** Yes — CSS and one heading.
+
+### D2.1.7 — The Console grid rows are `max-content` / `minmax(max-content, 1fr)`, with vertical scroll inside the room as the short-window fallback
+
+**Context.** The Phase 0 rows (`minmax(7rem, 0.9fr)` / `minmax(16rem,
+2.4fr)`) shared the room height proportionally. A first build with `auto` /
+`minmax(16rem, 1fr)` measured the bridge zone collapsing below its content
+when the room was short: at 1024 × 768 and at 360 × 740 the bank zone's top
+edge lay above the bridge zone's bottom edge, the overlap hidden behind the
+deck because the deck is positioned — nothing visible in a screenshot,
+plain in the element geometry.
+
+**Decision.** `.console-layout` rows are `max-content` (the bridge) and
+`minmax(max-content, 1fr)` (the bank), with `overflow-y: auto` and
+`overflow-x: hidden` on the layout. A `max-content` minimum is the item's
+own content height whatever the free space, so neither zone can ever be
+sized under its content; when the window is too short for both, the room's
+layout scrolls vertically, the page never does (the shell's `overflow:
+hidden` is untouched) and nothing is clipped or overlapped. Measured: 1920 ×
+1080, 1440 × 900 and 1280 × 900 fit with no scroll (layout `scrollHeight` =
+`clientHeight`); 1024 × 768 scrolls 179 px and 768 × 1024 scrolls 71 px
+because the bridge (330 / 435 px) plus the Phase 0 bank's own content (363 /
+406 px) exceed the room. The Phase 0 bank's placeholder strips set that
+minimum; Task 2.2 will re-balance it.
+
+**Reversible.** Yes — one rule in the Console room.
+
+### D2.1.8 — The approved Phase 1 files are frozen by hash in `check:console-bridge`
+
+**Context.** Task 2.1 and every later Phase 2 task must not modify the
+approved components or tokens; a guard that only looks for the bridge's own
+patterns cannot see a stray edit in `VUMeter.svelte`.
+
+**Decision.** `scripts/check-console-bridge-structure.mjs` records the
+SHA-256 (line endings normalised) of the seven approved
+`src/components/hardware/*.svelte` files, `tokens.css` and `tokens.ts` as
+they stand at `1ba67c1`, and fails if any differs. Changing an approved file
+is therefore an explicit act: an owner decision in this log and a new hash in
+the same change. Process, not product; reversible by deleting the list.
