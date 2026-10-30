@@ -442,7 +442,7 @@ import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
       scale: 2.5,
       stateNote: "Cap-labelled at 2.5×, engaged",
       meaning:
-        "To judge the cap: the diagonal gradient from the HI tone at the top-left to the shaded bottom-right, the specular bloom over it, the bright top edge, the side wall and its foot, the drop shadow; and the lamp — hot core, lens edge, glass specular, spill on the panel.",
+        "To judge the cap: the diagonal gradient from the HI tone at the top-left to the shaded bottom-right, the specular bloom over it, the bright top edge, the side wall and its foot, the drop shadow; and the lamp — a pilot lamp: nickel bezel, recess wall, glass dome with its hot core and specular, the bloom staining the panel.",
     },
     {
       id: "switch-detail-panel",
@@ -770,16 +770,16 @@ import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
   ];
 
   const LAMP_STATES: LampFixtureConfig[] = [
-    { id: "lamp-amber-unlit", color: "amber", lit: false, scale: 1.6, name: "demo", stateNote: "amber — unlit", meaning: "A dark lens in its bezel: a trace of amber low in the glass, a pin of room light at the upper left. Visibly a lamp, visibly off." },
-    { id: "lamp-amber-lit", color: "amber", lit: true, scale: 1.6, name: "demo", stateNote: "amber — lit", meaning: "The incandescent token: a hot core above centre falling through the lamp body to a darker rim, the specular over it, the near glow, the spill on the panel below and to the right." },
-    { id: "lamp-red-unlit", color: "red", lit: false, scale: 1.6, name: "demo", stateNote: "red — unlit", meaning: "The same lens with a trace of red in it." },
-    { id: "lamp-red-lit", color: "red", lit: true, scale: 1.6, name: "demo", stateNote: "red — lit, the warning", meaning: "The red family, a step stronger than amber: a wider near glow and a heavier spill. A peak or warning indication, nothing else (spec §5)." },
+    { id: "lamp-amber-unlit", color: "amber", lit: false, scale: 1.6, name: "demo", stateNote: "amber — unlit", meaning: "Dead glass: dull dark amber-brown, never grey, with the cold filament's zigzag in it and the room light's specular dot at the top-left. Visibly a lamp, visibly off, no glow." },
+    { id: "lamp-amber-lit", color: "amber", lit: true, scale: 1.6, name: "demo", stateNote: "amber — lit", meaning: "The incandescent token behind glass: a white-warm hot core at the top-left falling through the saturated body to a dark glass rim, the specular dot over it, the filament swallowed, and the bloom — 2.5× the bezel — staining the panel round it." },
+    { id: "lamp-red-unlit", color: "red", lit: false, scale: 1.6, name: "demo", stateNote: "red — unlit", meaning: "The same dead glass in maroon, filament and specular as before." },
+    { id: "lamp-red-lit", color: "red", lit: true, scale: 1.6, name: "demo", stateNote: "red — lit, the warning", meaning: "The red family, its bloom a step stronger than amber's in opacity (red is darker, so it stains less in luminance). A peak or warning indication, nothing else (spec §5)." },
   ];
 
   const LAMP_DETAIL: LampFixtureConfig[] = [
-    { id: "lamp-detail-amber", color: "amber", lit: true, scale: 3, name: "demo", stateNote: "amber at 3× — 30 px glass", meaning: "To judge the bulb: the machined ring lit from the top-left, the dark recess round the glass, the core off-centre, the rim darker than the body, the blurred spill behind the housing and not on it." },
+    { id: "lamp-detail-amber", color: "amber", lit: true, scale: 3, name: "demo", stateNote: "amber at 3× — 30 px glass", meaning: "To judge the bulb: the nickel ring lit from the top-left, the 1px recess wall, the dome's hot core off-centre to the top-left, the rim darker than the body, the specular dot above the core, the bloom behind the bezel and not on it, breathing slowly." },
     { id: "lamp-detail-red", color: "red", lit: true, scale: 3, name: "demo", stateNote: "red at 3×", meaning: "The warning lamp at the same size." },
-    { id: "lamp-detail-unlit", color: "amber", lit: false, scale: 3, name: "demo", stateNote: "unlit at 3×", meaning: "The housing alone: ring, recess, dark glass, specular pin. Nothing glows." },
+    { id: "lamp-detail-unlit", color: "amber", lit: false, scale: 3, name: "demo", stateNote: "unlit at 3×", meaning: "Off: ring, recess wall, dead amber glass with the filament in it, the specular dot dimmer. Nothing glows." },
   ];
 
   const LAMP_LIVE: LampFixtureConfig[] = [
@@ -1375,15 +1375,17 @@ import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
         bulb behind a translucent lens in a machined bezel — the Task 1.4
         switch's lamp lifted out as a shared component (D1.4.3), scaled from
         one length (<code>--lamp-size</code>, the glass diameter, 10 px at
-        1×) and given its own housing. A metal ring lit from the top-left on a
-        drop shadow, a dark recess round the glass, the lens (unlit: dark
-        glass with a trace of its colour and a pin of room light; lit: a hot
-        core above centre falling through the lamp body to a darker rim, a
-        specular, a near glow), and a blurred spill on the panel behind the
-        housing, larger below and to the right. Amber is the incandescent
-        token <code>--al-material-lamp</code> inside the amber family; red is
-        the red family, a step stronger, for warnings and peaks (spec §5). No
-        third colour, no cold white, no flat disc.
+        1×) and given its own housing, restyled as a vintage pilot lamp
+        (D1.6.7): a hot object behind glass, not an LED dot. Seven layers, lit
+        from the top-left like the knobs and faders — the bloom (lit only,
+        screen-blended onto the panel, 2.5× the bezel), the nickel bezel, a
+        1px recess wall, the glass dome (lit: white-warm core to saturated
+        body to dark rim; off: dull tinted dead glass, maroon for red), the
+        filament (off only), the hot core (lit only) and the specular dot
+        (both states). Amber is the incandescent token
+        <code>--al-material-lamp</code> inside the amber family; red is the
+        red family, a step stronger, for warnings and peaks (spec §5). No
+        third colour, no pure white, no flat disc.
       </p>
       <p class="dev-section__blurb">
         Every state on this page is <strong>simulated</strong>: a checkbox

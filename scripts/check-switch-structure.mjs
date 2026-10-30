@@ -94,16 +94,21 @@ check(
   "the cap takes its three cream roles through functionToken()",
   ["hi", "base", "lo"].every((role) => sw.includes(`functionToken("cream", "${role}")`)),
 );
+const knobNickel = ["hi", "base", "mid", "lo", "deep"].map((k) => ((new RegExp(`--kn-nickel-${k}:\\s*(#[0-9a-f]{6})`, "i").exec(knob) ?? [])[1] ?? "").toLowerCase());
+const switchNickel = ["hi", "base", "mid", "lo", "deep"].map((k) => ((new RegExp(`--f-nickel-${k}:\\s*(#[0-9a-f]{6})`, "i").exec(style) ?? [])[1] ?? "").toLowerCase());
 check(
-  "no colour of its own: every hex literal is neutral black or white",
-  (sw.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []).every((h) => ["#000", "#000000", "#fff", "#ffffff"].includes(h.toLowerCase())),
-  "a non-neutral hex value would be a colour the token system does not own",
+  "no colour of its own: every hex literal is neutral black or white, or one of the lamp bezel's five nickel values — which are the knob's, value for value (D1.6.7)",
+  knobNickel.every(Boolean) &&
+    switchNickel.every((v, i) => v && v === knobNickel[i]) &&
+    (sw.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []).every((h) => ["#000", "#000000", "#fff", "#ffffff", ...knobNickel].includes(h.toLowerCase())),
+  `a non-neutral hex value would be a colour the token system does not own (knob ${knobNickel.join(",")} switch ${switchNickel.join(",")})`,
 );
 check(
-  "the well, seat and bezel come from the material and border tokens",
+  "the well and seat come from the material and border tokens; the lamp's dead glass and filament take the recess and metal tokens",
   style.includes("var(--al-material-recess)") &&
     style.includes("var(--al-border-strong)") &&
-    style.includes("var(--al-material-metal-shadow)"),
+    /--f-lamp-off-hi: color-mix\(in srgb, var\(--f-lamp-body\) \d+%, var\(--al-material-recess\)\)/.test(style) &&
+    /--f-lamp-filament: color-mix\(in srgb, var\(--f-lamp-body\) \d+%, var\(--al-material-metal\)\)/.test(style),
 );
 check(
   "the print comes from the text and type tokens",
@@ -267,67 +272,86 @@ check(
   !/\.switch\.is-pressed[^{]*switch__(lamp|lens)/.test(style) && !/\.switch\.is-engaged[^{]*switch__cap/.test(style),
 );
 
-// --- 4. The lamp. ---------------------------------------------------------------
+// --- 4. The lamp: a vintage pilot lamp, the shared Lamp's seven layers in place (D1.6.7). ---
 check(
   "the lamp colour is typed to amber or red only (spec §5)",
   /export type LampColour = "amber" \| "red"/.test(sw) && /lamp = "amber"/.test(script),
 );
 check(
-  "amber is the incandescent lamp token with the amber family round it; red is the red family",
+  "amber is the incandescent lamp token with the amber family round it; red is the red family; red's bloom is a step stronger and its dead glass more tinted (maroon)",
   /--f-lamp-body: var\(--al-material-lamp\)/.test(style) &&
     /--f-lamp-core: color-mix\(in srgb, var\(--al-function-amber-hi\)/.test(style) &&
     /--f-lamp-edge: var\(--al-function-amber-lo\)/.test(style) &&
     /\.switch--lamp-red \{[^}]*--f-lamp-body: var\(--al-function-red-base\)/s.test(style) &&
-    /\.switch--lamp-red \{[^}]*--f-lamp-edge: var\(--al-function-red-lo\)/s.test(style),
+    /\.switch--lamp-red \{[^}]*--f-lamp-edge: var\(--al-function-red-lo\)/s.test(style) &&
+    Number(/\.switch--lamp-red \{[^}]*--f-lamp-bloom: ([\d.]+)/s.exec(style)?.[1]) > Number(/--f-lamp-bloom: ([\d.]+)/.exec(style)?.[1]) &&
+    Number(/\.switch--lamp-red \{[^}]*--f-lamp-off-hi: color-mix\(in srgb, var\(--f-lamp-body\) (\d+)%/s.exec(style)?.[1]) > Number(/--f-lamp-off-hi: color-mix\(in srgb, var\(--f-lamp-body\) (\d+)%/.exec(style)?.[1]),
 );
 check(
   "no other lamp colour can be produced: only --lamp-amber / --lamp-red class hooks exist",
   (style.match(/\.switch--lamp-[a-z]+/g) ?? []).every((c) => c === ".switch--lamp-red" || c === ".switch--lamp-amber"),
 );
 check(
-  "the lamp is a lens in a thin metal bezel beside the cap, part of the switch, presentation only; the lamp box itself paints nothing (no background, no shadow)",
+  "the lamp is a lens in a nickel bezel beside the cap, part of the switch, presentation only; the lamp element itself paints nothing (no background, no shadow) and forms no stacking context (no transform), so its bloom can blend with the panel",
   /<span class="switch__lamp" data-part="lamp" aria-hidden="true">\s*<span class="switch__lens" data-part="lamp-lens"><\/span>/.test(markup) &&
     /\.switch__lamp \{[^}]*border-radius: 50%;/s.test(style) &&
-    !/\.switch__lamp \{[^}]*(background|box-shadow):/s.test(style),
+    !/\.switch__lamp \{[^}]*(background|box-shadow|transform|isolation|filter):/s.test(style),
 );
 check(
-  "the bezel and the recess are the lamp's ::before, lit from the top-left (D1.6.6): a 1px transparent border round the padding box carrying the 135° metal→metal-shadow ring (border-box), and the 1px gap a 135° recess gradient, darkest top-left, slightly lighter bottom-right (padding-box) — the same stops as the shared Lamp",
-  /\.switch__lamp::before \{[^}]*z-index: 0;[^}]*inset: -1px;[^}]*border: 1px solid transparent;[^}]*border-radius: 50%;/s.test(style) &&
-    /\.switch__lamp::before \{[^}]*linear-gradient\(\s*135deg,\s*color-mix\(in srgb, var\(--al-material-recess\) 70%, black\) 0%,\s*var\(--al-material-recess\) 50%,\s*color-mix\(in srgb, var\(--al-material-recess\) 86%, white\) 100%\s*\)\s*padding-box/s.test(style) &&
-    /\.switch__lamp::before \{[^}]*linear-gradient\(\s*135deg,\s*color-mix\(in srgb, var\(--al-material-metal\) 78%, white\) 0%,\s*var\(--al-material-metal\) 38%,\s*var\(--al-material-metal-shadow\) 72%,\s*color-mix\(in srgb, var\(--al-material-metal-shadow\) 70%, black\) 100%\s*\)\s*border-box/s.test(style) &&
+  "2+3 the bezel and the recess wall are the lamp's ::before: a 1px transparent border round the padding box carrying the 135° nickel ramp (hi top-left → deep bottom-right, border-box), the 1px gap a dark recess wall (padding-box); above the bloom, below the glass",
+  /\.switch__lamp::before \{[^}]*z-index: 1;[^}]*inset: -1px;[^}]*border: 1px solid transparent;[^}]*border-radius: 50%;/s.test(style) &&
+    /\.switch__lamp::before \{[^}]*linear-gradient\(\s*135deg,\s*color-mix\(in srgb, var\(--al-material-recess\) \d+%, black\) 0%,\s*var\(--al-material-recess\) \d+%,[^;]*\)\s*padding-box/s.test(style) &&
+    /\.switch__lamp::before \{[^}]*linear-gradient\(\s*135deg,\s*var\(--f-nickel-hi\) 0%,\s*var\(--f-nickel-base\) \d+%,\s*var\(--f-nickel-mid\) \d+%,\s*var\(--f-nickel-lo\) \d+%,\s*var\(--f-nickel-deep\) 100%\s*\)\s*border-box/s.test(style) &&
     !/\.switch__lamp::before \{[^}]*box-shadow/s.test(style),
 );
 check(
-  "unlit: dark glass with a trace of its colour at the top-left, clipped to the dome, no shadow or line on its edge — not off-by-opacity",
-  /\.switch__lens \{[^}]*overflow: hidden;[^}]*radial-gradient\(\s*circle at 34% 30%,\s*color-mix\(in srgb, var\(--f-lamp-body\) 2\d%, var\(--al-material-recess\)\) 0%,\s*var\(--al-material-recess\) 78%/s.test(style) &&
+  "4 off: dull dark glass in the lamp's own tint — a radial dome from the top-left in the off tones, clipped, no shadow or line on its edge, above the bezel — never a grey or black dot, never off-by-opacity",
+  /\.switch__lens \{[^}]*z-index: 2;[^}]*overflow: hidden;[^}]*radial-gradient\(\s*circle at 36% 32%,\s*var\(--f-lamp-off-hi\) 0%,\s*var\(--f-lamp-off-lo\) \d+%,\s*var\(--f-lamp-off-rim\) 100%/s.test(style) &&
     !/\.switch__lens \{[^}]*(box-shadow|rgba\(255, 255, 255)/s.test(style),
 );
 check(
-  "the highlight is one small soft white ellipse at the top-left of the dome, sized from the lens, blurred from --sw-lamp, low opacity: 0.22 off, 0.42 engaged",
-  /\.switch__lens::after \{[^}]*top: 9%;\s*left: 15%;\s*width: 44%;\s*height: 26%;[^}]*radial-gradient\(closest-side, rgba\(255, 255, 255, 0\.9\), rgba\(255, 255, 255, 0\)\);[^}]*filter: blur\(calc\(var\(--sw-lamp\) \* 0\.0\d\)\);[^}]*opacity: 0\.22;/s.test(style) &&
-    /\.switch\.is-engaged \.switch__lens::after \{[^}]*opacity: 0\.42;/s.test(style),
+  "5 the filament is a tiny zigzag stroke masked into the glass (inline SVG path, non-scaling 1px stroke), dull tinted metal at half opacity off, gone when engaged",
+  /\.switch__lens::before \{[^}]*background: var\(--f-lamp-filament\);[^}]*mask: url\("data:image\/svg\+xml,[^"]*path d='M6\.5 13\.4 9 10\.2 11\.5 13\.4 14 10\.2 16\.5 13\.4[^"]*vector-effect='non-scaling-stroke'[^"]*"\) center \/ 100% 100% no-repeat;[^}]*opacity: 0\.5;/s.test(style) &&
+    /\.switch\.is-engaged \.switch__lens::before \{[^}]*opacity: 0;/s.test(style),
 );
 check(
-  "lit: the dome is one radial gradient brightest at the top-left — hot core, body, lens edge — never a flat disc, no specular layer, no shadow",
-  /\.switch\.is-engaged \.switch__lens \{[^}]*radial-gradient\(\s*circle at 34% 30%,\s*var\(--f-lamp-core\) 0%,\s*var\(--f-lamp-body\) 4\d%,\s*var\(--f-lamp-edge\) 9\d%/s.test(style) &&
+  "7 the specular is one small soft white ellipse at the top-left of the glass, sized from the lens, blurred from --sw-lamp, in both states: 0.28 off, 0.55 engaged",
+  /\.switch__lens::after \{[^}]*top: 12%;\s*left: 18%;\s*width: 30%;\s*height: 19%;[^}]*radial-gradient\(closest-side, rgba\(255, 255, 255, 0\.\d+\), rgba\(255, 255, 255, 0\)\);[^}]*filter: blur\(calc\(var\(--sw-lamp\) \* 0\.0\d\)\);[^}]*opacity: var\(--f-lamp-specular\);/s.test(style) &&
+    /--f-lamp-specular: 0\.28;/.test(style) &&
+    /\.switch\.is-engaged \.switch__lens \{[^}]*--f-lamp-specular: 0\.55;/s.test(style),
+);
+check(
+  "4+6 lit: the glass alight — core warmed into the body at the top-left, through the saturated body and edge to a dark rim — with the hot core, a small white-warm blob to transparent within 26%, as the top layer; never a flat disc, no specular layer in the background, no shadow",
+  /\.switch\.is-engaged \.switch__lens \{[^}]*background:\s*radial-gradient\(\s*circle at 36% 32%,\s*var\(--f-lamp-core\) 0%,\s*color-mix\(in srgb, var\(--f-lamp-core\) \d+%, transparent\) \d+%,\s*transparent 26%\s*\),\s*radial-gradient\(\s*circle at 36% 32%,\s*color-mix\(in srgb, var\(--f-lamp-core\) \d+%, var\(--f-lamp-body\)\) 0%,\s*var\(--f-lamp-body\) \d+%,\s*var\(--f-lamp-edge\) \d+%,\s*color-mix\(in srgb, var\(--f-lamp-edge\) \d+%, black\) 100%/s.test(style) &&
     !/\.switch\.is-engaged \.switch__lens \{[^}]*(background:\s*var\(--f-lamp-body\);|box-shadow|rgba\(255, 255, 255)/s.test(style),
 );
 check(
-  "lit: no glow at the bezel — the one glow is the blurred, off-centre spill on the panel, painted under the bezel and the glass (z-index -1 in the lamp's stacking context; the glass above the bezel)",
-  !/0 0 6px 2px/.test(style) &&
-    /\.switch__lamp::after \{[^}]*z-index: -1;[^}]*inset: -70% -80% -90% -60%;[^}]*filter: blur\(2\.5px\);[^}]*opacity: 0;/s.test(style) &&
-    /\.switch__lens \{[^}]*z-index: 1;/s.test(style) &&
-    /\.switch\.is-engaged \.switch__lamp::after \{[^}]*opacity: 0\.[3-6]\d?;/s.test(style),
+  "1 the bloom is the lamp's ::after: a radial halo 2.5× the bezel's radius (a box 250% of the lamp) in the lamp's own colour, screen-blended onto the panel, fading to transparent, under the bezel (z-index 0), off until engaged; no near glow, no spill",
+  /\.switch__lamp::after \{[^}]*z-index: 0;[^}]*inset: -75%;[^}]*radial-gradient\(\s*circle closest-side,\s*color-mix\(in srgb, var\(--f-lamp-glow\) \d+%, transparent\) 0%,[^;]*transparent 100%\s*\);[^}]*mix-blend-mode: screen;[^}]*opacity: 0;/s.test(style) &&
+    /\.switch\.is-engaged \.switch__lamp::after \{[^}]*opacity: var\(--f-lamp-bloom\);/s.test(style) &&
+    !/0 0 6px 2px|filter: blur\(2\.5px\)|-70% -80% -90% -60%/.test(style),
 );
 check(
-  "the lamp sits level with the resting cap's face and does not move when the cap does",
-  /\.switch__lamp \{[^}]*transform: translateY\(calc\(-1 \* var\(--sw-lift\)\)\)/s.test(style) && !/is-pressed[^{]*switch__lamp/.test(style),
+  "the bloom breathes: 3.5% of opacity over 4 s, alternate, composed onto its own opacity (the 90 ms rise kept), only where animation-composition is supported",
+  /@supports \(animation-composition: add\) \{\s*\.switch\.is-engaged \.switch__lamp::after \{\s*animation: switch-lamp-breathe 4s ease-in-out infinite alternate;\s*animation-composition: add;/.test(style) &&
+    /@keyframes switch-lamp-breathe \{\s*from \{\s*opacity: 0;\s*\}\s*to \{\s*opacity: 0\.03\d?;\s*\}/.test(style),
 );
 check(
-  "the lamp's glow comes on faster than it goes off (thermal lag), and both respect reduced motion",
+  "the lamp sits level with the resting cap's face by a relative offset and does not move when the cap does",
+  /\.switch__lamp \{[^}]*position: relative;[^}]*top: calc\(-1 \* var\(--sw-lift\)\);/s.test(style) && !/is-pressed[^{]*switch__lamp/.test(style),
+);
+check(
+  "the lamp's glow comes on faster than it goes off (thermal lag), and under reduced motion neither transitions nor breathes — engaged or not",
   /\.switch__lens \{[^}]*transition:\s*background 160ms[^}]*\}/s.test(style) &&
     /\.switch\.is-engaged \.switch__lens \{[^}]*background 90ms/s.test(style) &&
-    /prefers-reduced-motion: reduce\)\s*\{[^}]*\.switch__lens,\s*\.switch__lens::after,\s*\.switch__lamp::after\s*\{\s*transition: none/s.test(style),
+    /prefers-reduced-motion: reduce\)\s*\{[^}]*\.switch__lens,\s*\.switch__lens::before,\s*\.switch__lens::after,\s*\.switch__lamp::after,\s*\.switch\.is-engaged \.switch__lens,\s*\.switch\.is-engaged \.switch__lens::before,\s*\.switch\.is-engaged \.switch__lens::after,\s*\.switch\.is-engaged \.switch__lamp::after\s*\{\s*transition: none;\s*animation: none;/s.test(style),
+);
+check(
+  "no pure white and no box-shadow anywhere in the lamp: the lamp rules carry no #fff, no opaque white, no shadow",
+  (() => {
+    const lampRules = style.slice(style.indexOf("/* --- the lamp ----"), style.indexOf("/* --- the panel print"));
+    return lampRules.length > 500 && !/#fff\b|#ffffff\b|white 100%|rgba\(255, 255, 255, 1\)|\bwhite;|box-shadow/i.test(lampRules);
+  })(),
 );
 
 // --- 5. A real button. -----------------------------------------------------------

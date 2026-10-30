@@ -212,6 +212,21 @@
     --f-lamp-body: var(--al-material-lamp);
     --f-lamp-edge: var(--al-function-amber-lo);
     --f-lamp-glow: var(--al-material-lamp);
+    --f-lamp-bloom: 0.8;
+    /* dead glass: the body colour sunk into the recess tone — dull, dark, warm */
+    --f-lamp-off-hi: color-mix(in srgb, var(--f-lamp-body) 30%, var(--al-material-recess));
+    --f-lamp-off-lo: color-mix(in srgb, var(--f-lamp-body) 12%, var(--al-material-recess));
+    --f-lamp-off-rim: color-mix(in srgb, var(--f-lamp-body) 8%, black);
+    --f-lamp-filament: color-mix(in srgb, var(--f-lamp-body) 40%, var(--al-material-metal));
+    --f-lamp-specular: 0.28;
+    /* nickel: the knob's ramp, value for value (Knob.svelte --kn-nickel-*),
+       repeated here on the owner's instruction, D1.6.7 — the same five
+       values as the shared Lamp */
+    --f-nickel-hi: #c2c6c9;
+    --f-nickel-base: #8f9498;
+    --f-nickel-mid: #6e7377;
+    --f-nickel-lo: #4f5357;
+    --f-nickel-deep: #2f3336;
 
     display: grid;
     grid-template-columns: auto auto;
@@ -247,6 +262,11 @@
     --f-lamp-body: var(--al-function-red-base);
     --f-lamp-edge: var(--al-function-red-lo);
     --f-lamp-glow: var(--al-function-red-base);
+    --f-lamp-bloom: 0.9;
+    /* maroon dead glass */
+    --f-lamp-off-hi: color-mix(in srgb, var(--f-lamp-body) 36%, var(--al-material-recess));
+    --f-lamp-off-lo: color-mix(in srgb, var(--f-lamp-body) 18%, var(--al-material-recess));
+    --f-lamp-off-rim: color-mix(in srgb, var(--f-lamp-body) 12%, black);
   }
 
   /* --- the base: seat (cap variant) or well (panel variant) --------------- */
@@ -421,34 +441,35 @@
 
   /* --- the lamp ------------------------------------------------------------ */
 
-  /* A small lens in a dark bezel beside the cap, lit from the top-left on
-     every layer (owner's re-shading direction after Task 1.6, D1.6.6). The
-     box is as it was — the lens plus a 1px gap — and the lamp itself paints
-     nothing: its ::before is the bezel and the gap, its ::after the spill, so
-     the spill can lie under the bezel. */
+  /* A vintage pilot lamp beside the cap — the same seven layers as the shared
+     Lamp (D1.6.7), built in place: bloom, nickel bezel, recess wall, glass,
+     filament, hot core, specular; one light from the top-left. The box is as
+     it was — the lens plus a 1px gap — and the lamp element itself paints
+     nothing: its ::before is the bezel and the recess wall, its ::after the
+     bloom. It is lifted level with the resting cap's face by a relative
+     offset, not a transform, so it forms no stacking context and the bloom
+     can screen-blend onto the panel. */
   .switch__lamp {
     grid-area: lamp;
     position: relative;
+    /* level with the resting cap's face; it does not move when the cap does */
+    top: calc(-1 * var(--sw-lift));
     display: block;
     box-sizing: content-box;
     width: var(--sw-lamp);
     height: var(--sw-lamp);
     padding: 1px;
     border-radius: 50%;
-    /* level with the resting cap's face; it does not move when the cap does */
-    transform: translateY(calc(-1 * var(--sw-lift)));
   }
 
-  /* The bezel and the recess. A 1px transparent border round the padding box
-     — the pixel the old ring shadow occupied — carries a thin dark metal ring,
-     a 135° gradient lit at the top-left and dark at the bottom-right; inside
-     it the 1px gap is a 135° gradient of the recess tone, darkest under the
-     bezel's top-left lip and slightly lighter where its inner wall catches
-     the light at the bottom-right. No drop shadow, no hairline. */
+  /* 2 the bezel and 3 the recess wall. A 1px transparent border round the
+     padding box carries the nickel ring, a 135° ramp lit at the top-left and
+     dark at the bottom-right; inside it the 1px gap is the recess wall,
+     darkest under the bezel's lip. No drop shadow, no hairline. */
   .switch__lamp::before {
     content: "";
     position: absolute;
-    z-index: 0;
+    z-index: 1;
     inset: -1px;
     box-sizing: border-box;
     border: 1px solid transparent;
@@ -456,100 +477,150 @@
     background:
       linear-gradient(
           135deg,
-          color-mix(in srgb, var(--al-material-recess) 70%, black) 0%,
-          var(--al-material-recess) 50%,
-          color-mix(in srgb, var(--al-material-recess) 86%, white) 100%
+          color-mix(in srgb, var(--al-material-recess) 60%, black) 0%,
+          var(--al-material-recess) 55%,
+          color-mix(in srgb, var(--al-material-recess) 78%, var(--f-nickel-lo)) 100%
         )
         padding-box,
       linear-gradient(
           135deg,
-          color-mix(in srgb, var(--al-material-metal) 78%, white) 0%,
-          var(--al-material-metal) 38%,
-          var(--al-material-metal-shadow) 72%,
-          color-mix(in srgb, var(--al-material-metal-shadow) 70%, black) 100%
+          var(--f-nickel-hi) 0%,
+          var(--f-nickel-base) 34%,
+          var(--f-nickel-mid) 62%,
+          var(--f-nickel-lo) 86%,
+          var(--f-nickel-deep) 100%
         )
         border-box;
     pointer-events: none;
   }
 
-  /* The dome, off: dark glass with a faint trace of its own colour at the
-     top-left; no shadow or line on its edge. */
+  /* 1 the bloom: the lit lamp's light on the panel, under the bezel. A box
+     2.5× the lamp's, so the halo's radius is 2.5× the bezel's; screen-blended
+     so it stains the panel; fades to nothing. Off by default. */
+  .switch__lamp::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset: -75%;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle closest-side,
+      color-mix(in srgb, var(--f-lamp-glow) 75%, transparent) 0%,
+      color-mix(in srgb, var(--f-lamp-glow) 30%, transparent) 32%,
+      transparent 100%
+    );
+    mix-blend-mode: screen;
+    opacity: 0;
+    transition: opacity 160ms ease-out;
+    pointer-events: none;
+  }
+
+  /* 4 the glass, off: dull dark glass in the lamp's own tint (amber: warm
+     brown; red: maroon) — coloured dead glass, never a grey or black dot. */
   .switch__lens {
     position: relative;
-    z-index: 1;
+    z-index: 2;
     display: block;
     width: 100%;
     height: 100%;
     overflow: hidden;
     border-radius: 50%;
     background: radial-gradient(
-      circle at 34% 30%,
-      color-mix(in srgb, var(--f-lamp-body) 22%, var(--al-material-recess)) 0%,
-      var(--al-material-recess) 78%
+      circle at 36% 32%,
+      var(--f-lamp-off-hi) 0%,
+      var(--f-lamp-off-lo) 55%,
+      var(--f-lamp-off-rim) 100%
     );
     transition: background 160ms ease-out;
   }
 
-  /* The highlight: one small soft white ellipse on the top-left of the dome,
-     tilted along its curve; every measure a share of the lens. */
+  /* 5 the filament: a tiny zigzag wire in the middle of the glass, dull
+     tinted metal at half opacity, seen only when the lamp is off. */
+  .switch__lens::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--f-lamp-filament);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 13.4 9 10.2 11.5 13.4 14 10.2 16.5 13.4 18.2 11.3' fill='none' stroke='black' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6.5 13.4 9 10.2 11.5 13.4 14 10.2 16.5 13.4 18.2 11.3' fill='none' stroke='black' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+    opacity: 0.5;
+    transition: opacity 160ms ease-out;
+    pointer-events: none;
+  }
+
+  /* 7 the specular: one small soft white ellipse at the top-left — the room
+     light on the glass, there on or off, dimmer when off. */
   .switch__lens::after {
     content: "";
     position: absolute;
-    top: 9%;
-    left: 15%;
-    width: 44%;
-    height: 26%;
+    top: 12%;
+    left: 18%;
+    width: 30%;
+    height: 19%;
     border-radius: 50%;
-    background: radial-gradient(closest-side, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0));
-    filter: blur(calc(var(--sw-lamp) * 0.04));
+    background: radial-gradient(closest-side, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0));
+    filter: blur(calc(var(--sw-lamp) * 0.03));
     transform: rotate(-40deg);
-    opacity: 0.22;
+    opacity: var(--f-lamp-specular);
     transition: opacity 160ms ease-out;
     pointer-events: none;
   }
 
-  /* The spill: the lamp's light on the panel round the bezel. Blurred, a
-     little larger below and to the right than above — an incandescent
-     source behind a lens, not an LED dot. Off by default; painted under the
-     bezel and the glass. */
-  .switch__lamp::after {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    inset: -70% -80% -90% -60%;
-    border-radius: 50%;
-    background: radial-gradient(
-      ellipse at 44% 40%,
-      var(--f-lamp-glow) 0%,
-      transparent 68%
-    );
-    filter: blur(2.5px);
-    opacity: 0;
-    transition: opacity 160ms ease-out;
-    pointer-events: none;
-  }
-
-  /* On: the dome brightest at the top-left — the family's HI tone warmed to
-     white — falling through the lamp body to the darker edge tone at the
-     rim; the highlight a little stronger; the spill behind. */
+  /* On: 4 the glass alight — the family's HI tone warmed toward white at the
+     top-left through the saturated body to a dark rim — with 6 the hot core,
+     a small white-warm blob, over it; the filament swallowed; the specular a
+     little stronger; 1 the bloom behind. */
   .switch.is-engaged .switch__lens {
-    background: radial-gradient(
-      circle at 34% 30%,
-      var(--f-lamp-core) 0%,
-      var(--f-lamp-body) 42%,
-      var(--f-lamp-edge) 92%
-    );
+    --f-lamp-specular: 0.55;
+
+    background:
+      radial-gradient(
+        circle at 36% 32%,
+        var(--f-lamp-core) 0%,
+        color-mix(in srgb, var(--f-lamp-core) 55%, transparent) 9%,
+        transparent 26%
+      ),
+      radial-gradient(
+        circle at 36% 32%,
+        color-mix(in srgb, var(--f-lamp-core) 60%, var(--f-lamp-body)) 0%,
+        var(--f-lamp-body) 38%,
+        var(--f-lamp-edge) 78%,
+        color-mix(in srgb, var(--f-lamp-edge) 65%, black) 100%
+      );
     transition: background 90ms ease-out;
   }
 
+  .switch.is-engaged .switch__lens::before {
+    opacity: 0;
+    transition: opacity 90ms ease-out;
+  }
+
   .switch.is-engaged .switch__lens::after {
-    opacity: 0.42;
     transition: opacity 90ms ease-out;
   }
 
   .switch.is-engaged .switch__lamp::after {
-    opacity: 0.5;
+    opacity: var(--f-lamp-bloom);
     transition: opacity 90ms ease-out;
+  }
+
+  /* the breathe: 3.5% of opacity added on top of the bloom's own, 4 s each
+     way — composed onto the value, so the 90 ms rise is kept; only where the
+     browser can compose, so an older one simply shows a still bloom */
+  @supports (animation-composition: add) {
+    .switch.is-engaged .switch__lamp::after {
+      animation: switch-lamp-breathe 4s ease-in-out infinite alternate;
+      animation-composition: add;
+    }
+  }
+
+  @keyframes switch-lamp-breathe {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 0.035;
+    }
   }
 
   /* --- the panel print (variant B) ---------------------------------------- */
@@ -599,13 +670,21 @@
     outline-offset: 2px;
   }
 
+  /* no motion: the engaged lamp rules carry their own transitions and the
+     breathe, so the lamp selectors here match their specificity and come last */
   @media (prefers-reduced-motion: reduce) {
     .switch__cap,
     .switch__cap::before,
     .switch__lens,
+    .switch__lens::before,
     .switch__lens::after,
-    .switch__lamp::after {
+    .switch__lamp::after,
+    .switch.is-engaged .switch__lens,
+    .switch.is-engaged .switch__lens::before,
+    .switch.is-engaged .switch__lens::after,
+    .switch.is-engaged .switch__lamp::after {
       transition: none;
+      animation: none;
     }
   }
 </style>

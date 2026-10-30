@@ -581,3 +581,47 @@ blur and gradient tone is derived from the indicator's own size (`--lp-size`
 **Reversible.** Yes — CSS only; the markup, props, hooks and accessible
 names are untouched. Guards `check:label-lamp` (74) and `check:switch` (65)
 now encode this look.
+
+### D1.6.7 — The lamps are vintage pilot lamps: seven layers, a screen-blended bloom, the knob's nickel repeated
+
+**Context.** After D1.6.6 the owner re-briefed the indicator lamps as
+vintage pilot/jewel lamps — "a hot object behind glass, not a flat dot" —
+with a fixed layer order: bloom halo (lit only, ~2.5× bezel radius,
+`mix-blend-mode: screen`), nickel bezel, 1px recess wall, glass dome (off:
+tinted dead glass, maroon for red), a zigzag filament seen only when off, a
+hot core (lit only), and a specular dot in both states; light constant from
+the top-left; no pure white or flat saturated fills; an optional 3–4%
+breathe. The referenced SVG never arrived; the owner chose to build from
+the written brief. Three points were put to the owner because the brief
+could not be followed literally: there is no shared nickel token (the
+knob's nickel is five hex values local to `Knob.svelte`; the fader has no
+nickel); the switch's built-in lamp is a CSS copy of the shared Lamp; and
+the existing panel spill would make a second glow.
+
+**Decision (owner's answers).** (1) The bezel uses the knob's five nickel
+values repeated locally in each lamp (`--lp-nickel-*` / `--f-nickel-*`); no
+token is added and the knob is untouched; both guards assert the values
+equal `Knob.svelte`'s. (2) The switch's lamp is restyled in place with the
+same seven layers; it does not migrate to the shared component. (3) The
+bloom replaces the spill — one glow — and the breathe is included: 3.5%
+of opacity over 4 s, alternate, composed onto the bloom's opacity with
+`animation-composition: add` inside `@supports`, so the 90 ms rise is kept
+and an older browser shows a still bloom; off under reduced motion.
+Consequences recorded here: the recess is now a fixed 1px wall at every
+size, so D1.6.3's "recess 0.1× the glass" is withdrawn — the default 10 px
+lamp's box is unchanged (15.2 px) but the review-sheet 16 px and 30 px
+lamps shrink (24.3 → 23.1, 45.6 → 41.6 px); D1.6.4's "red one step
+stronger" is now the bloom opacity (0.9 vs 0.8) and a more tinted dead
+glass (36% vs 30% body in recess) — red's bloom stains the panel less in
+luminance (+9 vs +14 L\*) because the red token is darker; the switch
+lamp's lift is a relative `top` offset instead of a transform, so the lamp
+forms no stacking context and its bloom can blend with the panel; the
+filament is an inline-SVG zigzag used as a CSS mask on a lens pseudo-
+element (no markup change in either component); the reduced-motion rules
+now name the lit/engaged selectors too — the Task 1.6 rules lost on
+specificity to the lit rules and never disabled a lit lamp's transitions.
+
+**Reversible.** Yes — CSS and review-sheet copy only; props, hooks and
+accessible names are unchanged. `check:label-lamp` (76) and `check:switch`
+(68) encode the look.
+
