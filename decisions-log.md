@@ -625,3 +625,17 @@ specificity to the lit rules and never disabled a lit lamp's transitions.
 accessible names are unchanged. `check:label-lamp` (76) and `check:switch`
 (68) encode the look.
 
+**Approved.** By the owner on 2026-10-30, as committed and pushed at
+`1ba67c1`; the red-stain and 10 px filament notes stand as accepted.
+
+## Phase 1 — approved
+
+On 2026-10-30 the owner approved the whole Phase 1 component set as it
+stands at `1ba67c1` (Tasks 1.1–1.6: tokens, knob, fader, tactile switch,
+VU meter and LED ladder, engraved label and lamp), closing the Phase 1
+review. The items that were held open for that review — D1.6.1's engraving
+light direction against the approved prints, the unpainted `cut` finish
+(D1.6.2), the lamp notes under D1.6.7 — stand as accepted. Phase 2 has not
+been started; it waits for the owner's explicit instruction.
+
+
