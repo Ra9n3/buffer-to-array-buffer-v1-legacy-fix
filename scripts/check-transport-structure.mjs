@@ -86,16 +86,19 @@ check(
 // --- 4. No page-scroll-revealed regions remain. ----------------------------
 check(
   "Console's scroll-reveal transport placeholder is gone",
-  !/transportVisible|console-transport/.test(consoleRoom),
+  // Task 0.3's placeholder was a `console-transport` zone revealed by window
+  // scroll; Task 2.3's real deck (`console-zone--transport`, always present)
+  // is not it.
+  !/transportVisible|data-transport-visible|is-visible|class="console-zone console-transport"/.test(consoleRoom),
 );
 check(
   "no room listens to window scroll to reveal content",
   !/transportVisible|addEventListener\("scroll"/.test(consoleRoom + arrangeRoom + mixerRoom),
 );
 check(
-  "Console still has exactly its two zones",
+  "Console has exactly its three zones, bridge over transport over bank (Task 2.3)",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="channel-bank"',
+    'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"',
 );
 check(
   "all three rooms are bounded to the viewport (no page-level scroll)",

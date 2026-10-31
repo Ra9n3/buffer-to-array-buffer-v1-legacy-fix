@@ -215,7 +215,7 @@ check("no instrument combobox or Prominence Tier control in the Console (plan §
 check("the strip and bank do not import the bridge or its fixtures", !/meter-bridge\//.test(strip + bank));
 check("the strip and slot do not import the Phase 0 placeholder or the mixer/arrange fixtures", !/ChannelStrip\.svelte|MixerChannelStrip|lib\/mixer|lib\/arrange/.test(strip + sendSlot));
 check("no instrument combobox: the send menu is a menu, not a combobox or select", !/combobox|<select|<datalist/.test(sendSlot));
-check("ConsoleRoom still has exactly its two zones, in order, and no Phase 0 bank frame", (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") === 'data-console-zone="meter-bridge",data-console-zone="channel-bank"' && !/console-bank\b|console-zone__header/.test(consoleRoom));
+check("ConsoleRoom keeps the bridge over the bank (Task 2.3 added its transport zone between them), and no Phase 0 bank frame", (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") === 'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"' && !/console-bank\b|console-zone__header/.test(consoleRoom));
 check("the approved bridge is byte-identical to Task 2.1's approved file", sha256(read("src/components/meter-bridge/ConsoleMeterBridge.svelte")) === "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002");
 check("the Phase 0 ChannelStrip placeholder is byte-identical to its Phase 0 file", sha256(placeholder) === "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58");
 check(

@@ -1,5 +1,6 @@
 <script lang="ts">
   import ChannelBank from "../components/ChannelBank.svelte";
+  import ConsoleTransport from "../components/console-transport/ConsoleTransport.svelte";
   import ConsoleMeterBridge from "../components/meter-bridge/ConsoleMeterBridge.svelte";
   import RoomShell from "../components/RoomShell.svelte";
 
@@ -21,7 +22,16 @@
      housing, rendering the <h2 id="console-channels-title"> as its engraved
      legend. The 20 regular track strips are skinned (TrackStrip, fixtures
      only); the pinned Bus / Returns strips stay Phase 0 placeholders until
-     Task 2.4. Both zones keep their data-console-zone hooks and names. */
+     Task 2.4. Both zones keep their data-console-zone hooks and names.
+
+     Task 2.3 restores the transport as a zone of its own — the Phase 0.2
+     skeleton had one; 0.6 removed its scroll-revealed placeholder — as the
+     ConsoleTransport deck between the bridge and the bank (owner, D2.3.1):
+     the four transport keys, the lamp-lit time and status windows and the
+     dominant MIX button, fixtures only. It renders the
+     <h2 id="console-transport-title"> as its engraved legend. The shell's
+     persistent mini transport (Task 0.6) is untouched and still the only
+     transport outside this room. */
 </script>
 
 <RoomShell
@@ -37,6 +47,14 @@
         aria-labelledby="console-meter-title"
       >
         <ConsoleMeterBridge />
+      </section>
+
+      <section
+        class="console-zone console-zone--transport"
+        data-console-zone="transport"
+        aria-labelledby="console-transport-title"
+      >
+        <ConsoleTransport />
       </section>
 
       <section
@@ -67,12 +85,14 @@
      minimums are max-content rather than auto on purpose: with a definite
      layout height and no free space, an auto row collapses below its content
      and the two zones overlap. On a window too short for both, the layout
-     scrolls vertically inside the room — never the page, and never sideways. */
+     scrolls vertically inside the room — never the page, and never sideways.
+     Task 2.3: the transport deck is a second max-content row between them. */
   .console-layout {
     display: grid;
     flex: 1 1 auto;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows:
+      max-content
       max-content
       minmax(max-content, 1fr);
     gap: 1rem;
@@ -90,9 +110,10 @@
     min-height: 0;
   }
 
-  /* Both skinned zones are their own housings: no placeholder frame round
-     them (Task 2.1 the bridge, Task 2.2 the bank). */
+  /* The skinned zones are their own housings: no placeholder frame round
+     them (Task 2.1 the bridge, Task 2.2 the bank, Task 2.3 the transport). */
   .console-zone--meter,
+  .console-zone--transport,
   .console-zone--channels {
     padding: 0;
     border: 0;

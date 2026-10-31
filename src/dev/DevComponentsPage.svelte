@@ -7,6 +7,7 @@ import VUMeterFixture, { type VUMeterFixtureConfig } from "./VUMeterFixture.svel
 import LedLadderFixture, { type LedLadderFixtureConfig } from "./LedLadderFixture.svelte";
 import EngravedLabelFixture, { type LabelFixtureConfig } from "./EngravedLabelFixture.svelte";
 import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
+import TransportFixture, { type TransportFixtureConfig } from "./TransportFixture.svelte";
   import {
     FUNCTION_ROLE_ORDER,
     TOKENS,
@@ -794,6 +795,22 @@ import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
     { id: "cluster-switch", color: "amber", lit: true, zoom: 2, label: "PAD", value: "26 dB", withSwitch: true, interactive: true, stateNote: "consistency check — beside the approved switch, both at 1×, magnified 2×", meaning: "Left: the Task 1.4 panel-labelled switch with its own built-in print and lamp, untouched. Right: the same legend, value and state from the two shared components. One flag drives both lamps; they must read as the same lamp and the same engraving. The switch keeps its internal lamp for now (D1.4.3) — replacing it is a later edit to an approved component, not part of this task." },
   ];
 
+  /* Task 2.3 — the Console transport deck's fixture snapshots, and the MIX
+     button alone. The same static fixtures the room prints; no state. */
+  const TRANSPORT_DECKS: TransportFixtureConfig[] = [
+    { id: "ready", stateNote: "READY — the Console's default (D2.3.4): stopped at 0:02:17, bar 12 beat 3; status READY · source RAW · BALANCED · est. mix 1:40; MIX lit steady." },
+    { id: "playing", snapshot: "playing", stateNote: "PLAYING — PLAY's lamp lit, STOP's dark; 0:37:11, bar 186; source PREVIEW." },
+    { id: "processing", snapshot: "processing", stateNote: "PROCESSING (simulated) — stage 3 of 7 ANALYSING SPECTRUM, progress 42 %, 0:58 left, profile LITE, one warning in red; MIX pulsing slowly (still under reduced motion), ignoring presses." },
+    { id: "complete", snapshot: "complete", stateNote: "COMPLETE — MIXED at 14:02, 2 manual edits since, rerun available; source RENDER; MIX lit steady." },
+  ];
+
+  const TRANSPORT_MIX: TransportFixtureConfig[] = [
+    { id: "mix-ready", mixOnly: "ready", stateNote: "ready — lit steady" },
+    { id: "mix-processing", mixOnly: "processing", stateNote: "processing — pulsing" },
+    { id: "mix-complete", mixOnly: "complete", stateNote: "complete — lit steady" },
+    { id: "mix-unlit", mixOnly: "ready", unlit: true, stateNote: "unlit — the dead cap, playground only" },
+  ];
+
   onMount(() => {
     values = readTokenValues();
   });
@@ -1428,6 +1445,42 @@ import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
       {/each}
     </div>
   </section>
+
+  <section
+    class="dev-section"
+    data-dev-component="console-transport"
+    aria-labelledby="dev-component-console-transport"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-console-transport">
+        Console — Transport deck and MIX button (Task 2.3)
+      </h2>
+      <p class="dev-section__blurb">
+        The Console's transport deck as the room renders it, printing each of
+        its fixture snapshots so every visual state can be reviewed side by
+        side: the four approved tactile switches as transport keys
+        (PREVIOUS · PLAY · STOP · NEXT, cap-labelled with their symbols, PLAY
+        and STOP a latching pair), the lamp-lit time and status windows, and
+        the dominant illuminated MIX button. Everything is
+        <strong>simulated</strong>: nothing plays, locates, renders or
+        persists, and the deck is the same component the room uses.
+      </p>
+    </header>
+
+    <h3 class="dev-subtitle">The deck in each fixture state</h3>
+    <div class="dev-transport" data-dev-transport-decks>
+      {#each TRANSPORT_DECKS as config (config.id)}
+        <TransportFixture {config} />
+      {/each}
+    </div>
+
+    <h3 class="dev-subtitle">The MIX button alone</h3>
+    <div class="dev-transport dev-transport--mix" data-dev-transport-mix>
+      {#each TRANSPORT_MIX as config (config.id)}
+        <TransportFixture {config} />
+      {/each}
+    </div>
+  </section>
 </div>
 
 <style>
@@ -1717,6 +1770,18 @@ import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
 
   .dev-lamps--clusters {
     grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  }
+
+  /* --- the transport deck: full width, one snapshot per row --------------- */
+  .dev-transport {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--al-space-lg);
+    min-width: 0;
+  }
+
+  .dev-transport--mix {
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 16rem));
   }
 
   /* --- spacing ----------------------------------------------------------- */

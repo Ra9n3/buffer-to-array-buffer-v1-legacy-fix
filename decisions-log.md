@@ -1198,3 +1198,165 @@ name, never a strip tint (D2.2.13, spec §7).
 
 Task 2.3 has not been started; it waits for the owner's prompt. This note
 is the only change after `b3df4f0`; it is uncommitted until instructed.
+
+## Task 2.3 — Console transport, status, time display & MIX button (2026-10-31)
+
+### D2.3.1 — The transport is its own full-width deck between the bridge and the bank (owner, 2026-10-31)
+
+**Context.** The plan's Console room puts "transport, status and estimated
+processing time" and the "large illuminated MIX button" in the "upper
+section", but the approved meter bridge (Task 2.1, `08bc7aa`) fills that
+section edge to edge; its reserved right-hand panel is 549 px wide at 1920,
+69 at 1440, 53 at 1280 and absent below (measured, D2.1 notes). Four keys,
+two displays and a dominant button do not fit a 53-px panel, and the owner's
+rule is that approved components are never shrunk and the bridge is not to
+be redesigned. The builder stopped and asked rather than invent.
+
+**Decision (owner).** The control area is a **third zone of the Console: a
+full-width deck between the meter bridge and the channel bank**, the same
+at every width; the bridge is untouched (its reserved panel stays bare until
+a later task gives it something). The deck wears the bridge's housing
+recipe — walnut cheeks, bevelled warm-charcoal panel — exactly as the bank
+does, so the room reads as one desk of three modules. `ConsoleRoom` grid
+rows become `max-content max-content minmax(max-content, 1fr)`; the new
+zone (`data-console-zone="transport"`, labelled by the deck's own engraved
+`h2#console-transport-title`) joins the no-placeholder-frame rule.
+Measured cost: the bank's top moves from 487 px to 628 px at ≥1280 (deck
+125 px + 16 px gap), to 666 at 1024 and 854 at 768 (deck 209 px, two rows);
+the room's vertical scroll grows by the same amount. The Phase 0 guards
+that asserted "exactly two zones" (`check:transport`, `check:console-bridge`,
+`check:channel-strip`) now assert the three zones in order.
+
+**Reversible.** Yes: the zone and the component are additive; nothing in
+the bridge or the bank changed (both pinned by hash in
+`check:console-transport`).
+
+### D2.3.2 — Transport keys PREVIOUS · PLAY · STOP · NEXT; the listening source is text, not a selector (owner, 2026-10-31)
+
+**Context.** Phase 0 (Task 0.6) fixed the product's transport conventions as
+Previous / Play / Stop / Next; plan §6 names three listening modes (raw stem
+playback, lightweight live preview, full rendered mix) and says MIX is
+separate from Play. The builder offered a RAW / PREVIEW / RENDER source
+selector as an option.
+
+**Decision (owner).** The deck's keys are exactly the four Phase 0 keys —
+**PREVIOUS · PLAY · STOP · NEXT** — each the approved `TactileSwitch`
+(cap-labelled, spec §2 variant A) printing its symbol on the cap
+(|◀ ▶ ■ ▶|) with its word engraved beneath; no record, loop, rewind or mode
+keys. The **listening source is printed as text in the status display**
+("Source RAW / PREVIEW / RENDER") and selected nowhere: no source switches
+exist in Task 2.3. PLAY and STOP are one exclusive latching pair (the
+engaged one's own lamp is lit; pressing the engaged key again changes
+nothing); PREVIOUS and NEXT are momentary and release themselves. This is
+the keys' own local UI state, seeded once from the fixture; it drives
+nothing (plan §14: playback is Phase 3).
+
+**Reversible.** Yes: a selector can be added to the deck later without
+touching the keys.
+
+### D2.3.3 — Time display: dark glass, amber lamp-lit digits, H:MM:SS large with bar · beat small (owner, 2026-10-31)
+
+**Context.** The plan sets no time format; the Phase 0 mini transport prints
+a placeholder `00:00:00.000`; plan §4 asks for warm lamp glow and forbids
+the cold VFD look.
+
+**Decision (owner).** The time display is a **dark glass window with amber
+lamp-lit digits**: `H:MM:SS` large (no leading zero on the hour — `0:02:17`,
+`0:37:11`), with `Bar N · Beat N` small beneath. Monospaced tabular digits
+(`--al-font-mono`, 1.75 rem) in the incandescent token
+(`--al-material-lamp` family) with a soft text-glow; the glass breathes 4 s
+like the family's lamps and is still under reduced motion. No milliseconds,
+no SMPTE frames, no sync or position tracking — the numbers are fixture
+values.
+
+**Reversible.** Yes: `formatClock` and the window's two lines.
+
+### D2.3.4 — Room default state READY; every state in the playground; the MIX states (owner, 2026-10-31)
+
+**Decision (owner).** The Console renders the deck in **READY**: stopped,
+`0:02:17` bar 12 beat 3, status `READY · Source RAW · BALANCED · Est. mix
+1:40`, MIX lit steady. The other snapshots live in the playground only
+(`#/dev/components`, section "Console — Transport deck and MIX button"):
+PLAYING (`0:37:11`, bar 186, PLAY lit, source PREVIEW), PROCESSING (stage 3
+of 7 "Analysing spectrum", 42 %, 0:58 left, profile LITE, one warning in
+red, MIX pulsing and ignoring presses) and COMPLETE ("MIXED at 14:02 · 2
+manual edits since · Rerun available · Source RENDER"). The MIX button's
+fixture states are `ready` (lit steady), `processing` (slow 1.8-s pulse,
+`aria-disabled`, still under reduced motion) and `complete` (lit steady —
+the status window, not the button, tells the two apart); an unlit "dead
+cap" exists for the playground only and is never shown in the room.
+
+**Reversible.** Yes: fixture data.
+
+### D2.3.5 — One `LampDisplay` component for both windows (builder, 2026-10-31)
+
+**Decision.** Instead of a `TimeDisplay` and a `StatusDisplay`, one
+`LampDisplay` (`kind="clock" | "status"`) draws the dark glass window: an
+engraved legend above, the glass (layered gradients and inset shadows,
+never flat — spec §6), a primary line, an optional progress slot (a 4-px
+groove with the lamp along it, shown only while processing) and a
+secondary line of dot-separated details whose last part may be printed in
+the red family as a warning (D1.6: amber = active, red = warning; no third
+colour). The clock kind sets the mono tabular numerals; the status kind sets
+the uppercase label face. The two windows level to one height in the deck
+(`flex: 1 1 auto`). Rationale: one glass recipe, one breathe animation, one
+reduced-motion rule, one accessible-name pattern (`aria-label` carrying the
+printed values and the word "simulated").
+
+**Reversible.** Yes.
+
+### D2.3.6 — `MixButton`: a lit rectangular lens, not a switch (builder, 2026-10-31; plan §3/§10)
+
+**Decision.** The MIX button is its own component, deliberately unlike the
+keys: a wide rectangular translucent amber cap (deck: 120 × 56 px against
+the keys' 40 × 40 caps; default 8 × 4.5 rem) in a dark bezelled well, lit
+from a bulb behind the glass with a warm spill onto the panel around it,
+the word MIX printed dark on the lit lens, "AUTOMATIC MIX" engraved
+beneath. It stands 3 px proud and sinks under the finger (`:active`), has a
+visible focus ring, is named "MIX — start the full mix" and described by the
+status window and the SIMULATED note. It has **no click handler**: pressing
+it starts nothing (plan §14: the automatic mix is Phase 5). While
+`processing` it is `aria-disabled` (kept in the tab order) and pulses; the
+pulse lives inside `prefers-reduced-motion: no-preference` only.
+
+**Reversible.** Yes.
+
+### D2.3.7 — Keys at 40 px; the deck never shrinks; the body wraps instead (builder, 2026-10-31; owner's standing rule)
+
+**Decision.** The four keys use the approved switch at `--switch-size:
+2.5rem` (40-px caps, the size the switch was approved at — the strips'
+MUTE / SOLO sit at 28 px because the strip is narrow, the deck is not).
+Keys, time window and MIX are `flex: 0 0 auto`; only the status window
+flexes, from a 16-rem floor to a 28-rem ceiling, and the body is
+`flex-wrap: wrap`, so a narrow deck grows a second row rather than
+compressing a control: one row at 1920 / 1280 / 1024 (deck 125 px), two
+rows at 768 (keys + time, then status + MIX; deck 209 px). No media or
+container query in the deck.
+
+**Reversible.** Yes.
+
+### D2.3.8 — The deck's copy says it is simulated (builder, 2026-10-31)
+
+**Decision.** The deck prints "SIMULATED — NO ENGINE CONNECTED" engraved at
+the right of its legend row, carries `data-simulated="simulated"` and names
+every window with ", simulated"; the keys' group and the MIX button are
+`aria-describedby` that note. The fixture file owns its own `SIMULATED`
+constant (never imported from the bridge or the strips).
+
+**Reversible.** Yes.
+
+### D2.3.9 — Earlier guards' Console-room snapshots revised for the third zone (builder, 2026-10-31)
+
+**Decision.** Three existing guards asserted the Console's zone list or
+grid as a snapshot of the room at their time: `check:transport` (0.6,
+"exactly its two zones" and a `console-transport` string ban that was aimed
+at the 0.3 scroll-reveal placeholder), `check:console-bridge` (2.1, two
+zones, two grid rows, the two-zone no-frame rule) and `check:channel-strip`
+(2.2, two zones). Each now asserts the three zones in order and the
+three-row grid; the 0.6 ban is narrowed to the placeholder's own markers
+(`transportVisible`, `data-transport-visible`, `is-visible`,
+`class="console-zone console-transport"`). No approved component file was
+touched (all pinned by hash in `check:console-transport`); these are test
+scripts, revised the way D2.1 revised Phase 0's and D2.2 revised 2.1's.
+
+**Reversible.** Yes.
