@@ -280,28 +280,15 @@
     min-height: 1.125rem;
   }
 
-  /* The organisational colour tab (spec §7): a small plastic tab in a slot
-     beside the name — the swatch token under a glossy top, a dark seam and
-     the slot's shadow. The colour never touches the panel. */
+  /* The organisational colour tab (spec §7): a small flat tab of the swatch
+     colour beside the name — no gloss, no highlight, no shadow (owner,
+     2026-10-31, D2.2.13). The colour never touches the panel. */
   .strip__tab {
     flex: 0 0 auto;
     width: 0.375rem;
     height: 1rem;
     border-radius: 1px;
     background-color: var(--org);
-    background-image:
-      linear-gradient(
-        180deg,
-        rgba(255, 255, 255, 0.38) 0%,
-        rgba(255, 255, 255, 0.1) 30%,
-        rgba(0, 0, 0, 0) 55%,
-        rgba(0, 0, 0, 0.32) 100%
-      ),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.2));
-    box-shadow:
-      0 0 0 1px rgba(0, 0, 0, 0.7),
-      inset 0 1px 0 rgba(255, 255, 255, 0.28),
-      0 1px 1px rgba(0, 0, 0, 0.45);
   }
 
   /* --- knob sections ------------------------------------------------------ */

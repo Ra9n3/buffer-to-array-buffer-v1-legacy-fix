@@ -1141,3 +1141,24 @@ slot, the strip and the fixtures — every one detected — files restored
 byte-identical.
 
 **Reversible.** Yes: one script.
+
+### D2.2.13 — The org-colour tab is flat (owner, 2026-10-31)
+
+**Context.** Reviewing the pushed strips (`1c094a9`) the owner marked the
+organisational colour tabs beside the track names and directed: remove
+the shadow / light effect from them. The tab had been drawn as a small
+glossy plastic tab (a top-light gradient, a side gradient, an inset
+highlight, a 1-px dark seam ring and a 1-px drop shadow).
+
+**Decision.** The tab is a **flat fill of the swatch token** and nothing
+else: `background-color: var(--org)` on the same 0.375 × 1 rem,
+1-px-radius box, beside the name, decorative (`aria-hidden`). Removed: both
+gradients, the inset highlight, the seam ring and the drop shadow — the
+whole light/shadow treatment, not only part of it, so the tab reads as a
+printed colour mark rather than a lit object. Nothing else in the head
+changes; the colour still never touches the panel (spec §7). Measured on
+the build: every tab 6 × 16 px, `background-image: none`,
+`box-shadow: none`, swatch colour unchanged (track 01–03:
+`rgb(192, 74, 58)`).
+
+**Reversible.** Yes: one CSS rule.
