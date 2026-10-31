@@ -12,10 +12,13 @@
  *      ChannelBank; twenty tracks; the pinned Bus / Returns strips are still
  *      the untouched Phase 0 ChannelStrip placeholders (Task 2.4's subject).
  *   2. The strip is COMPOSED of the approved Phase 1 components — Knob for
- *      trim, pan and the two sends, Fader for the level, TactileSwitch for
+ *      trim, pan and each send slot, Fader for the level, TactileSwitch for
  *      mute and solo, Lamp for peak, EngravedLabel for every legend — and
  *      draws no control of its own. Family and colour choices are the ones
- *      the spec and the owner fixed (D2.2.3 / D2.2.4).
+ *      the spec and the owner fixed (D2.2.3 / D2.2.4). The send slots
+ *      (D2.2.9) are two fixed positions, each a scribble-window menu button
+ *      over a green Knob; assignment and level are strip-local UI state
+ *      seeded from the fixture, never shared or persisted.
  *   3. The owner's geometry rules (D2.2.1) are in the source: a fixed strip
  *      width inside 150–165 px that never shrinks; the approved component
  *      sizes (40 px knobs, 1× fader at 160 px travel, 1× switches); no
@@ -65,6 +68,7 @@ const rule = (css, selector) => {
 };
 
 const strip = read("src/components/channel-strip/TrackStrip.svelte");
+const sendSlot = read("src/components/channel-strip/SendSlot.svelte");
 const bank = read("src/components/ChannelBank.svelte");
 const fixtures = read("src/components/channel-strip/track-strip-fixtures.ts");
 const consoleRoom = read("src/rooms/ConsoleRoom.svelte");
@@ -73,9 +77,11 @@ const pkg = JSON.parse(read("package.json"));
 
 const stripTemplate = templateOf(strip);
 const stripStyle = styleOf(strip);
+const slotTemplate = templateOf(sendSlot);
+const slotStyle = styleOf(sendSlot);
 const bankTemplate = templateOf(bank);
 const bankStyle = styleOf(bank);
-const allStripSource = [strip, bank, fixtures].join("\n");
+const allStripSource = [strip, sendSlot, bank, fixtures].join("\n");
 
 // --- 1. One strip, twenty tracks, pinned placeholders untouched. -------------
 check("TrackStrip.svelte exists under components/channel-strip", exists("src/components/channel-strip/TrackStrip.svelte"));
@@ -102,12 +108,32 @@ for (const name of ["EngravedLabel", "Fader", "Knob", "Lamp", "TactileSwitch"]) 
 }
 check("the strip draws no control of its own: no <svg>, <canvas>, <input> or <button>", !/<svg|<canvas|<input|<button/.test(stripTemplate));
 check("the bank draws nothing of its own either", !/<svg|<canvas|<input|<button/.test(bankTemplate));
-check("four knobs: trim, pan, rev send, dly send", count(stripTemplate, /<Knob\b/g) === 4 && /label="Trim"/.test(stripTemplate) && /label="Pan"/.test(stripTemplate) && /label="Rev send"/.test(stripTemplate) && /label="Dly send"/.test(stripTemplate));
+check("two knobs in the strip itself: trim and pan", count(stripTemplate, /<Knob\b/g) === 2 && /label="Trim"/.test(stripTemplate) && /label="Pan"/.test(stripTemplate));
 check("TRIM is the cream family (spec §5: trim and gain staging)", /label="Trim"\s+family="cream"/.test(stripTemplate));
 check("PAN is the blue-grey family (spec §5: pan and placement) with L / R extremes", /label="Pan"\s+family="bluegrey"/.test(stripTemplate) && /extremes=\{\["L", "R"\]\}/.test(stripTemplate));
-check("both sends are the green family (spec §5 / plan §8a: sends are green) with OFF / +6 extremes", count(stripTemplate, /family="green"/g) === 2 && count(stripTemplate, /extremes=\{\["OFF", "\+6"\]\}/g) === 2);
-check("the two sends sit together in one labelled bay", /<div class="strip__bay" role="group" aria-label=\{`Sends, \$\{track\.name\}`\}>\s*<Knob[\s\S]*?<Knob[\s\S]*?<\/div>/.test(stripTemplate));
-check("the knobs use the fixture ranges and formatters, not literals", /min=\{TRIM_RANGE\.min\}/.test(stripTemplate) && /min=\{PAN_RANGE\.min\}/.test(stripTemplate) && count(stripTemplate, /min=\{SEND_RANGE\.min\}/g) === 2 && /format=\{formatPan\}/.test(stripTemplate) && count(stripTemplate, /format=\{formatSend\}/g) === 2 && /format=\{trimFormat\}/.test(stripTemplate));
+check("the trim and pan knobs use the fixture ranges and formatters, not literals", /min=\{TRIM_RANGE\.min\}/.test(stripTemplate) && /min=\{PAN_RANGE\.min\}/.test(stripTemplate) && /format=\{formatPan\}/.test(stripTemplate) && /format=\{trimFormat\}/.test(stripTemplate));
+
+// --- 2b. Configurable send slots (D2.2.9). ------------------------------------
+check("SendSlot.svelte exists and the strip imports it with its SlotState type", exists("src/components/channel-strip/SendSlot.svelte") && /import SendSlot, \{ type SlotState \} from "\.\/SendSlot\.svelte"/.test(strip));
+check("the fixture fixes two slot positions per strip (owner: two, side by side)", /export const SEND_SLOT_COUNT = 2;/.test(fixtures));
+check("the strip seeds SEND_SLOT_COUNT slots from the fixture's sends, the rest unassigned at OFF", /Array\.from\(\{ length: SEND_SLOT_COUNT \}/.test(strip) && /send \? \{ to: send\.to, level: send\.level \} : \{ to: null, level: SEND_RANGE\.min \}/.test(strip));
+check("the slots are the strip's own UI state ($state), bound into each SendSlot", /let slots: SlotState\[\] = \$state\(/.test(strip) && /bind:slot=\{slots\[i\]\}/.test(stripTemplate) && /\{#each slots as _, i \(i\)\}\s*<SendSlot/.test(stripTemplate));
+check("the slots sit together in the one labelled bay and nowhere else", /<div class="strip__bay" role="group" aria-label=\{`Sends, \$\{track\.name\}`\}>\s*\{#each slots/.test(stripTemplate) && count(stripTemplate, /<SendSlot\b/g) === 1);
+check("each slot tells the other which return it feeds (no double assignment)", /taken=\{takenBy\(i\)\}/.test(stripTemplate) && /slots\.find\(\(_, j\) => j !== i\)\?\.to \?\? null/.test(strip));
+check("the slot's knob is the approved Knob, green family, legend Send n, OFF / +6 extremes, fixture range", /import Knob from "\.\.\/hardware\/Knob\.svelte"/.test(sendSlot) && /<Knob\s+label=\{legend\}\s+family="green"/.test(slotTemplate) && /min=\{SEND_RANGE\.min\}/.test(slotTemplate) && /extremes=\{\["OFF", "\+6"\]\}/.test(slotTemplate) && /format=\{formatSend\}/.test(slotTemplate) && /const legend = \$derived\(`Send \$\{index\}`\)/.test(sendSlot));
+check("the knob is bound to the slot's level and disabled while the slot is unassigned", /bind:value=\{slot\.level\}/.test(slotTemplate) && /disabled=\{assigned === null\}/.test(slotTemplate));
+check("an unassigned slot prints SEND; an assigned one prints the return's short name", /assigned \? assigned\.short : "SEND"/.test(sendSlot));
+check("the send label is a menu button (aria-haspopup, aria-expanded, data-send-label)", /<button\s+type="button"\s+class="slot__window"[\s\S]*?aria-haspopup="menu"[\s\S]*?aria-expanded=\{open\}[\s\S]*?data-send-label/.test(slotTemplate));
+check("the menu lists every fixture return as a menuitemradio and offers Remove only when assigned", /\{#each EFFECT_RETURNS as ret \(ret\.id\)\}/.test(slotTemplate) && /role="menuitemradio"\s+aria-checked=\{current\}/.test(slotTemplate) && /\{#if assigned\}\s*<button[^>]*data-send-remove/.test(slotTemplate) && /role="menu"/.test(slotTemplate));
+check("a return already fed by the other slot is offered disabled", /disabled=\{unavailable\}/.test(slotTemplate) && /const unavailable = ret\.id === taken/.test(slotTemplate));
+check("assigning takes the fixture's level for that return or the default; removing returns the slot to OFF", /fixtureLevels\[returnId\] \?\? DEFAULT_SEND_LEVEL/.test(sendSlot) && /slot\.to = null;\s*slot\.level = SEND_RANGE\.min;/.test(sendSlot));
+check("the menu closes on Escape (focus back to the label), on Tab and on a press outside", /event\.key === "Escape"/.test(sendSlot) && /windowEl\?\.focus\(\)/.test(sendSlot) && /event\.key === "Tab"/.test(sendSlot) && /<svelte:document onpointerdown=\{onDocumentPointerDown\} \/>/.test(slotTemplate) && /!rootEl\.contains\(event\.target as Node\)/.test(sendSlot));
+check("the menu is absolutely positioned above later content and spans the bay (never outside the strip)", /\.slot__menu \{[^}]*position:\s*absolute/s.test(slotStyle) && /\.slot__menu \{[^}]*z-index:\s*[1-9]/s.test(slotStyle) && /style:left=\{menuLeft\}/.test(slotTemplate) && /style:width=\{menuWidth\}/.test(slotTemplate) && /\$\{count\} \* 100%/.test(sendSlot));
+check("the slot draws no control of its own (no svg, canvas or input)", !/<svg|<canvas|<input/.test(slotTemplate));
+check("the slot carries its hooks: data-send-slot, data-send-state, data-send-to, data-send-menu, data-send-option", /data-send-slot=\{index\}/.test(slotTemplate) && /data-send-state=\{slotState\}/.test(slotTemplate) && /data-send-to=\{slot\.to \?\? ""\}/.test(slotTemplate) && /data-send-menu/.test(slotTemplate) && /data-send-option=\{ret\.id\}/.test(slotTemplate));
+check("the slot's state type is two fields only: the return (or null) and a level", /export interface SlotState \{\s*to: ReturnId \| null;\s*level: number;\s*\}/.test(sendSlot));
+check("the slot does not override the approved Knob's internals", !/:global|\.knob/.test(slotStyle));
+
 check("one fader, labelled Level, at its approved defaults (console taper, 160 travel, −60…+10 dB)", count(stripTemplate, /<Fader\b/g) === 1 && /<Fader label="Level" value=\{track\.level\} \/>/.test(stripTemplate));
 check("two panel-labelled switches: Mute (red lamp) and Solo (amber lamp), named per track", /<TactileSwitch variant="panel" label="Mute" lamp="red" engaged=\{track\.mute\} name=\{`Mute \$\{track\.name\}`\} \/>/.test(stripTemplate) && /<TactileSwitch variant="panel" label="Solo" lamp="amber" engaged=\{track\.solo\} name=\{`Solo \$\{track\.name\}`\} \/>/.test(stripTemplate) && count(stripTemplate, /<TactileSwitch\b/g) === 2);
 check("one red peak lamp, named per track", count(stripTemplate, /<Lamp\b/g) === 1 && /<Lamp lit=\{track\.peak\} color="red" name=\{`Peak, \$\{track\.name\}`\} \/>/.test(stripTemplate));
@@ -138,10 +164,14 @@ check('the fixture file exports SIMULATED = "simulated"', /export const SIMULATE
 check("bank and strip roots carry data-simulated", /data-channel-bank data-simulated=\{SIMULATED\}/.test(bankTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate));
 check("the strip's props are the fixture type only", /let \{ track \}: \{ track: TrackStripFixture \} = \$props\(\);/.test(strip));
 check(
-  "no audio, metering, timers, randomness or shared state in any strip file",
-  !/AudioContext|Analyser|AudioBuffer|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now|lib\/mixer|lib\/arrange|lib\/rooms|localStorage|fetch\(|\$state|\$effect|writable|onToggle|bind:/.test(allStripSource),
+  "no audio, metering, timers, randomness, stores or shared state in any strip file (local UI state only)",
+  !/AudioContext|Analyser|AudioBuffer|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now|lib\/mixer|lib\/arrange|lib\/rooms|localStorage|sessionStorage|fetch\(|svelte\/store|writable\(|readable\(|getContext|setContext|onToggle|\$effect/.test(allStripSource),
 );
-check("the fixtures vary: sends both OFF and non-zero", /reverbSend: -60/.test(fixtures) && /reverbSend: -\d\d?,/.test(fixtures.replace(/reverbSend: -60/g, "")) && /delaySend: -60/.test(fixtures) && /delaySend: -\d\d?,/.test(fixtures.replace(/delaySend: -60/g, "")));
+check("the only $state in the strip files is the slot list and the slot's own menu/element refs", count(strip, /\$state\(/g) === 1 && count(sendSlot, /\$state\(/g) === 4 && !/\$state/.test(fixtures + bank));
+check("the fixtures vary: tracks with no send, one send and two sends, to every return", count(fixtures, /sends: \[\]/g) >= 3 && count(fixtures, /sends: \[\{ to: "[a-z0-9]+", level: -\d+ \}\]/g) >= 3 && count(fixtures, /sends: \[\{ to: "[a-z0-9]+", level: -\d+ \}, \{ to: "[a-z0-9]+", level: -\d+ \}\]/g) >= 3 && /to: "room"/.test(fixtures) && /to: "plate"/.test(fixtures) && /to: "delay1"/.test(fixtures));
+check("no fixture track exceeds the slot count or names an unknown return", (fixtures.match(/sends: \[[^\]]*\]/g) ?? []).every((m) => count(m, /\{ to:/g) <= 2 && !/to: "(?!room|plate|delay1)/.test(m)));
+check("the effect returns are a typed fixture list: Room Reverb, Plate Reverb, Delay 1, with short prints", /export type ReturnId = "room" \| "plate" \| "delay1";/.test(fixtures) && /\{ id: "room", name: "Room Reverb", short: "ROOM" \}/.test(fixtures) && /\{ id: "plate", name: "Plate Reverb", short: "PLATE" \}/.test(fixtures) && /\{ id: "delay1", name: "Delay 1", short: "DELAY 1" \}/.test(fixtures));
+check("a default level exists for a return assigned in the UI without a fixture level", /export const DEFAULT_SEND_LEVEL = -\d+;/.test(fixtures));
 check("the fixtures vary: mute, solo and peak each lit on at least one track and unlit on others", /mute: true/.test(fixtures) && /mute: false/.test(fixtures) && /solo: true/.test(fixtures) && /solo: false/.test(fixtures) && /peak: true/.test(fixtures) && /peak: false/.test(fixtures));
 check("the fixtures vary: pans left, centre and right; trims above and below unity", /pan: -\d+/.test(fixtures) && /pan: 0,/.test(fixtures) && /pan: [1-9]\d*/.test(fixtures) && /trim: -\d/.test(fixtures) && /trim: [1-9]/.test(fixtures));
 check("the fixtures use several organisational swatches and the neutral one", new Set(fixtures.match(/org: (\d|"neutral")/g) ?? []).size >= 5 && /org: "neutral"/.test(fixtures));
@@ -152,13 +182,14 @@ check("the send range's minimum reads OFF", /SEND_RANGE = \{ min: -60/.test(fixt
 }
 
 // --- 5. Materials are tokens; the org colour is a tab. -----------------------
-check("no hex colour literal in the strip, bank or fixtures", !/#[0-9a-f]{3,8}\b/i.test(stripStyle + bankStyle + fixtures.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")));
+check("no hex colour literal in the strip, slot, bank or fixtures", !/#[0-9a-f]{3,8}\b/i.test(stripStyle + slotStyle + bankStyle + fixtures.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")));
 check("the strip's face is the panel token", /\.strip__face \{[^}]*background-color:\s*var\(--al-material-panel\)/s.test(stripStyle));
 check("the org colour is applied only to the tab, via the --org variable", /style:--org=\{orgToken\(track\.org\)\}/.test(stripTemplate) && count(stripStyle, /var\(--org\)/g) === 1 && /\.strip__tab \{[^}]*background-color:\s*var\(--org\)/s.test(stripStyle));
 check("the org tab is small (under 0.5rem wide, 1rem tall) and sits beside the name", /\.strip__tab \{[^}]*width:\s*0\.(25|3125|375|4375)rem/s.test(stripStyle) && /\.strip__tab \{[^}]*height:\s*1rem/s.test(stripStyle) && /<span\s+class="strip__tab"[\s\S]*?<\/span>\s*<EngravedLabel id=\{`\$\{uid\}-name`\}/.test(stripTemplate));
 check("the org tab is decorative (aria-hidden) — the name carries the identity", /class="strip__tab"[\s\S]*?aria-hidden="true"/.test(stripTemplate));
 check("orgToken maps swatch n to --al-org-n and neutral to --al-org-neutral", /`var\(--al-org-\$\{swatch\}\)`/.test(fixtures) && /export type OrgSwatch = 1 \| 2 \| 3 \| 4 \| 5 \| 6 \| 7 \| 8 \| "neutral"/.test(fixtures));
-check("spacing comes from the spacing tokens", count(stripStyle + bankStyle, /var\(--al-space-/g) >= 20);
+check("spacing comes from the spacing tokens", count(stripStyle + slotStyle + bankStyle, /var\(--al-space-/g) >= 20);
+check("the slot's greens are the green function tokens", /var\(--al-function-green-hi\)/.test(slotStyle) && !/--al-function-(amber|red|orange|cream|bluegrey)/.test(slotStyle));
 
 // --- 6. The bank. --------------------------------------------------------------
 check("the bank renders the zone's h2 legend with the id ConsoleRoom points at", /<EngravedLabel as="h2" id="console-channels-title" text="Channel bank" size="sm" \/>/.test(bankTemplate) && /aria-labelledby="console-channels-title"/.test(consoleRoom));
@@ -182,7 +213,8 @@ check("the bank sets no height of its own: the room's grid row and the strips si
 check("no screw heads in any strip file (owner's standing rule, D2.1.9)", !/(class=["'{][^"'}]*screw|\.[\w-]*screw[\w-]*\s*[{,:]|data-[\w-]*screw|__screw)/i.test(allStripSource));
 check("no instrument combobox or Prominence Tier control in the Console (plan §3)", !/combobox|<select|Prominence|prominence|tier/i.test(allStripSource + consoleRoom));
 check("the strip and bank do not import the bridge or its fixtures", !/meter-bridge\//.test(strip + bank));
-check("the strip does not import the Phase 0 placeholder or the mixer/arrange fixtures", !/ChannelStrip\.svelte|MixerChannelStrip|lib\/mixer|lib\/arrange/.test(strip));
+check("the strip and slot do not import the Phase 0 placeholder or the mixer/arrange fixtures", !/ChannelStrip\.svelte|MixerChannelStrip|lib\/mixer|lib\/arrange/.test(strip + sendSlot));
+check("no instrument combobox: the send menu is a menu, not a combobox or select", !/combobox|<select|<datalist/.test(sendSlot));
 check("ConsoleRoom still has exactly its two zones, in order, and no Phase 0 bank frame", (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") === 'data-console-zone="meter-bridge",data-console-zone="channel-bank"' && !/console-bank\b|console-zone__header/.test(consoleRoom));
 check("the approved bridge is byte-identical to Task 2.1's approved file", sha256(read("src/components/meter-bridge/ConsoleMeterBridge.svelte")) === "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002");
 check("the Phase 0 ChannelStrip placeholder is byte-identical to its Phase 0 file", sha256(placeholder) === "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58");

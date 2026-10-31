@@ -1026,3 +1026,118 @@ the same component and prints the same. Frozen Fader hash in
 `check:console-bridge`: `505bf5b8…` → `b46e55ec…`.
 
 **Reversible.** Yes: one function.
+
+### D2.2.9 — Configurable send slots: two fixed positions, side by side (owner, 2026-10-31)
+
+**Context.** The re-issued Task 2.2 prompt replaced the two fixed, pre-named
+sends (REV / DLY, D2.2.4) with *configurable* send slots: an unassigned slot
+prints SEND, clicking its label opens a compact menu of fixture returns,
+selecting assigns the slot to that return and the adjacent knob shows that
+return's send level; a slot can be changed or removed; each slot feeds one
+return; a track may carry several slots. Asked before code, the owner chose
+**two fixed slot positions side by side** (not a 2 × 2 grid, not a variable
+count).
+
+**Decision.** `SEND_SLOT_COUNT = 2` in the fixture module; `TrackStrip`
+always renders two `SendSlot`s in the existing sends bay (same place in the
+trim / pan / sends / fader / mute-solo-peak order; D2.2.1 geometry). The
+slot list is the strip's own UI state (`$state`), seeded once from
+`track.sends`, bound into each slot; nothing is shared, stored or
+persisted. The fixture return list `EFFECT_RETURNS` (Room Reverb, Plate
+Reverb, Delay 1 — the three returns the plan §8a names) is typed
+(`ReturnId`) and carries a short panel print per return, so that a later
+task can populate it from real Return buses without touching the strip.
+A return already fed by the other slot is offered in the menu but disabled
+("used"), which is how "each slot feeds exactly one return" and "the other
+slot's return is unavailable" are both met. Removing a slot's return sets
+the slot back to SEND / OFF; assigning takes the fixture's level for that
+return on that track if it has one, otherwise `DEFAULT_SEND_LEVEL` (−20 dB);
+changing the return keeps a non-OFF level (the operator re-points the send,
+the level is theirs). No effect processing, no return management, no
+routing — UI state only.
+
+**Measured.** The sends bay grows from 93.3 to 113.3 px (the 18-px window
+row plus its gap); the strip is 674.4 px tall at every viewport (was
+654.4); width 160 px unchanged.
+
+**Reversible.** Yes: one component, one fixture field, no approved file
+touched.
+
+### D2.2.10 — Fixtures pre-assign sends on some tracks, not all (owner, 2026-10-31)
+
+**Context.** Starting every strip empty would hide the assigned state and
+the level display from a review of the loaded room; filling every slot
+would hide the SEND state. The owner chose **pre-assigned on some tracks**.
+
+**Decision.** The twenty fixture rows carry 0, 1 or 2 sends chosen to read
+like a session: 01 Kick, 04, 07, 08, 09 none; 02 Snare → Plate −18; 03 →
+Plate −24; 05 / 06 → Room −30; 10 / 11 → Room −15 + Delay 1 −28; 12 →
+Plate −12 + Delay 1 −9; 13 → Room −10 + Delay 1 −20; 14 → Plate −6 +
+Delay 1 −20; 15 → Plate −14 + Delay 1 −16; 16 → Plate −14; 17 / 18 → Room
+−8; 19 → Room −26; 20 → Delay 1 −3. Every return appears, no row exceeds
+two sends or names a return outside the list (guarded).
+
+**Reversible.** Yes: fixture data.
+
+### D2.2.11 — Knob legend SEND 1 / SEND 2; the window is a separate clickable label (owner + builder, 2026-10-31)
+
+**Context.** The knob under each slot needs a legend. Options offered: AUX
+n, LEVEL, SEND n. The owner chose **SEND 1 / SEND 2**. Separately, the
+prompt wants the *label* of the slot to be the thing you click to open the
+menu, printing SEND when unassigned and the return name when assigned.
+
+**Decision.** The approved Knob always prints its own engraved legend and
+has no "hide label" or "interactive label" API, and the Knob is frozen
+(D2.2.2 opened only `--knob-size`). So the slot is two stacked parts: a
+**scribble window** — a `<button>` drawn with the knob's own value-window
+recess recipe (tokens only), 71 × 18 px, printing "SEND ▾" in the muted ink
+when unassigned and the return's short print ("PLATE ▾", "ROOM ▾", "DELAY
+1 ▾") in the green function ink when assigned, with the full return name in
+its `title` and accessible name — and, beneath it, the green Knob with
+`label="Send 1"` / `"Send 2"` (engraved uppercase → SEND 1 / SEND 2),
+disabled at OFF while unassigned. The window is `aria-haspopup="menu"` /
+`aria-expanded`; the menu is `role="menu"` with one `menuitemradio` per
+return (`aria-checked` on the current one) and a "Remove send" item when
+assigned; ArrowUp/Down walk the items, Enter/Space select, Escape closes
+and returns focus to the window, Tab and a press outside close it. The menu
+is absolutely positioned and spans the whole sends bay (144 px) rather than
+the 71-px slot, so that the full return names fit and nothing is ever
+drawn outside the strip — important because the tracks rail is the only
+horizontal scroller and clips vertically (`overflow-y: hidden`), so a menu
+hanging below a strip would be cut. Measured: menu box 144 × 71.4 px,
+inside the strip and the rail at 1920 and 1280; `elementFromPoint` at its
+centre returns the menu (it paints over the knobs and the fader); no return
+name is truncated ("used" note chosen over "in use" after a measured
+truncation of "Plate Reverb" at the 12-px item size).
+
+**Reversible.** Yes: `SendSlot.svelte` only.
+
+### D2.2.12 — Channel-strip guard revised for local UI state (builder, 2026-10-31)
+
+**Context.** `check:channel-strip` (D2.2.7) forbade `$state`, `$effect`,
+`writable`, `onToggle` and `bind:` anywhere in the strip files, because the
+base strip was a pure fixture renderer. Configurable slots need strip-local
+state and a two-way binding into the slot.
+
+**Decision.** The honesty rule now distinguishes *local UI state* from
+*shared or persistent state*: `$state` and `bind:` are allowed, counted and
+located (exactly one `$state` in the strip — the slot list — and four in
+the slot — `open` and three element refs; none in the fixtures or the
+bank); still forbidden everywhere: `$effect`, `svelte/store`, `writable(` /
+`readable(`, `getContext` / `setContext`, `localStorage` /
+`sessionStorage`, `fetch(`, audio and metering APIs, timers, randomness,
+`lib/mixer` / `lib/arrange` / `lib/rooms`. Twenty-three new assertions pin
+the slot design of D2.2.9–D2.2.11 (count = 2, seeding from the fixture,
+`bind:slot`, `taken`, green Knob `label={legend}` with OFF / +6 extremes,
+`disabled` while unassigned, SEND print, menu button semantics,
+`menuitemradio` list from `EFFECT_RETURNS`, Remove only when assigned,
+disabled "used" return, fixture-level-or-default on assign and OFF on
+remove, Escape / Tab / outside-press closing, absolute menu above later
+content spanning the bay, no svg / canvas / input, hooks, two-field
+`SlotState`, no Knob override, no combobox / select, fixture variety and
+bounds, typed return list, default level, green tokens, hex-free slot
+style). 82 → 105 checks; negative-tested with 20 mutations across the
+slot, the strip and the fixtures — every one detected — files restored
+byte-identical.
+
+**Reversible.** Yes: one script.

@@ -8,15 +8,17 @@
   import Knob from "../hardware/Knob.svelte";
   import Lamp from "../hardware/Lamp.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
+  import SendSlot, { type SlotState } from "./SendSlot.svelte";
   import {
     PAN_RANGE,
     SEND_RANGE,
+    SEND_SLOT_COUNT,
     SIMULATED,
     TRIM_RANGE,
     formatPan,
-    formatSend,
     formatSignedDb,
     orgToken,
+    type ReturnId,
     type TrackStripFixture,
   } from "./track-strip-fixtures";
 
@@ -36,9 +38,11 @@
    *               gain staging), ±20 dB with unity under the reference mark.
    *   PAN         the approved Knob, blue-grey family (spec §5: pan and
    *               stereo placement), L / C / R readout, centre under the mark.
-   *   SENDS       the two approved green Knobs (spec §5 / plan §8a: sends
-   *               are green), REV SEND and DLY SEND side by side in one
-   *               recessed bay so they read as one auxiliary group.
+   *   SENDS       two configurable send slots side by side in one recessed
+   *               bay (owner, D2.2.9): each a scribble window ("SEND", or
+   *               the assigned return's name — click to choose, change or
+   *               remove) over an approved green Knob (spec §5 / plan §8a:
+   *               sends are green) holding that return's send level.
    *   LEVEL       the approved Fader at its approved 1× size and 160 px
    *               travel — the strip's anchor.
    *   MUTE · SOLO two approved panel-labelled TactileSwitches with their
@@ -47,8 +51,10 @@
    *
    * Everything is a fixture (`track-strip-fixtures.ts`, SIMULATED): the
    * controls keep their approved local behaviour — drag, keyboard, numeric
-   * entry, press — and change only their own on-screen state. No audio, no
-   * routing, no mute/solo logic, no project state.
+   * entry, press — and change only their own on-screen state. The send
+   * slots' assignments and levels are this strip's own UI state, seeded
+   * from the fixture. No audio, no routing, no mute/solo logic, no project
+   * state.
    *
    * The strip is a fixed-width physical module (owner's rule, D2.2.1): it
    * never shrinks to fit a viewport; the bank scrolls instead.
@@ -58,6 +64,24 @@
   const uid = `ts${++nextId}`;
 
   const trimFormat = (value: number) => formatSignedDb(value, 1);
+
+  /* --- send slots: UI state seeded from the fixture -------------------------
+     Fixed positions (SEND_SLOT_COUNT); the fixture's sends fill them in order,
+     the rest start unassigned at OFF. Assigning in the UI takes the fixture's
+     level for that return if it has one. */
+  const fixtureLevels: Partial<Record<ReturnId, number>> = $derived(
+    Object.fromEntries(track.sends.map((send) => [send.to, send.level])),
+  );
+  // Seeded once from the fixture (strips are keyed by track id, so a strip
+  // never changes track); from then on it is the strip's own UI state.
+  // svelte-ignore state_referenced_locally
+  let slots: SlotState[] = $state(
+    Array.from({ length: SEND_SLOT_COUNT }, (_, i) => {
+      const send = track.sends[i];
+      return send ? { to: send.to, level: send.level } : { to: null, level: SEND_RANGE.min };
+    }),
+  );
+  const takenBy = (i: number): ReturnId | null => slots.find((_, j) => j !== i)?.to ?? null;
 </script>
 
 <li
@@ -117,31 +141,19 @@
       />
     </div>
 
-    <!-- SENDS: one recessed bay, two green knobs -->
+    <!-- SENDS: one recessed bay, two configurable slots -->
     <div class="strip__section strip__section--sends" data-strip-section="sends">
       <div class="strip__bay" role="group" aria-label={`Sends, ${track.name}`}>
-        <Knob
-          label="Rev send"
-          family="green"
-          min={SEND_RANGE.min}
-          max={SEND_RANGE.max}
-          step={SEND_RANGE.step}
-          value={track.reverbSend}
-          decimals={0}
-          extremes={["OFF", "+6"]}
-          format={formatSend}
-        />
-        <Knob
-          label="Dly send"
-          family="green"
-          min={SEND_RANGE.min}
-          max={SEND_RANGE.max}
-          step={SEND_RANGE.step}
-          value={track.delaySend}
-          decimals={0}
-          extremes={["OFF", "+6"]}
-          format={formatSend}
-        />
+        {#each slots as _, i (i)}
+          <SendSlot
+            index={i + 1}
+            count={SEND_SLOT_COUNT}
+            bind:slot={slots[i]}
+            taken={takenBy(i)}
+            {fixtureLevels}
+            trackName={track.name}
+          />
+        {/each}
       </div>
     </div>
 
@@ -298,7 +310,7 @@
   }
 
   /* The sends bay: a shallow recess milled into the face (the same recipe as
-     the bridge's spectrum bay) holding the two green knobs side by side. */
+     the bridge's spectrum bay) holding the two send slots side by side. */
   .strip__section--sends {
     padding: var(--al-space-3xs) 0;
   }
