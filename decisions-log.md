@@ -1162,3 +1162,39 @@ the build: every tab 6 × 16 px, `background-image: none`,
 `rgb(192, 74, 58)`).
 
 **Reversible.** Yes: one CSS rule.
+
+## Task 2.2 — approved
+
+On 2026-10-31 the owner wrote "everything up until this point is
+approved", closing Task 2.2 as it stands at `b3df4f0` on `main`: the base
+strips (`bd53eae`, D2.2.1–D2.2.7), the unsigned fader print (`69f53a6`,
+D2.2.8), the configurable send slots (`1c094a9`, D2.2.9–D2.2.12) and the
+flat org-colour tab (`b3df4f0`, D2.2.13). The earlier approvals (Phase 0,
+Phase 1 at `1ba67c1`, Task 2.1 at `08bc7aa`) are reconfirmed by the same
+sentence. The approval covers, in particular: the one Knob API change
+(`--knob-size`, D2.2.2) as the only change to an approved Phase 1
+component in this task besides D2.2.8's print; the fixed 160-px modules
+with the tracks rail as the only horizontal scroller and the room scrolling
+vertically; the send slot as a separate scribble window above a green Knob
+legended SEND 1 / SEND 2 (D2.2.11); the fixture pre-assignments (D2.2.10).
+The deviations and known issues listed in the report stand as accepted:
+the strip at 674.4 px (room scroll on every tested viewport), the 4.3-px
+knob numerals at 40 px, the PEAK legend 1 px shorter than MUTE / SOLO, the
+stretched pinned placeholders until Task 2.4, the bridge's eight channel
+meters against twenty tracks, and the empty reserved bridge panel until
+Task 2.3.
+
+Approved files as they stand (SHA-256, first 16 hex, for the next task's
+guard to pin the way D2.1.8 pinned Phase 1 and D2.2.7 pinned the bridge):
+`TrackStrip.svelte` `17059869a037d575`, `SendSlot.svelte`
+`8009eaf5ba033509`, `track-strip-fixtures.ts` `c76e8c14b7c9794b`,
+`ChannelBank.svelte` `a6031e29ac2f8d22`, `ConsoleRoom.svelte`
+`bf04568d82ca2a02`; `Knob.svelte` `df6c51572f28d00c` and `Fader.svelte`
+`b46e55ec95f4ddbe` as already frozen in `check:console-bridge`. Standing
+rules carried into every later task: no screw heads (D2.1.9); printed
+scales unsigned (D1.5.7, D2.2.8); approved controls are never scaled down,
+only placed (D2.2.1 / D2.2.2); the org colour is a flat tab beside the
+name, never a strip tint (D2.2.13, spec §7).
+
+Task 2.3 has not been started; it waits for the owner's prompt. This note
+is the only change after `b3df4f0`; it is uncommitted until instructed.
