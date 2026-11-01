@@ -8,6 +8,8 @@ import LedLadderFixture, { type LedLadderFixtureConfig } from "./LedLadderFixtur
 import EngravedLabelFixture, { type LabelFixtureConfig } from "./EngravedLabelFixture.svelte";
 import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
 import TransportFixture, { type TransportFixtureConfig } from "./TransportFixture.svelte";
+import PinnedStripFixture, { type PinnedStripFixtureConfig } from "./PinnedStripFixture.svelte";
+import { BUS_MASTERS, RETURN_STRIPS } from "../components/channel-strip/bus-return-fixtures";
   import {
     FUNCTION_ROLE_ORDER,
     TOKENS,
@@ -810,6 +812,25 @@ import TransportFixture, { type TransportFixtureConfig } from "./TransportFixtur
     { id: "mix-complete", mixOnly: "complete", stateNote: "complete — lamp off" },
   ];
 
+  /* Task 2.4 — the Console's pinned strips: the room's block as it stands,
+     then state variants copied from the fixtures with a flag or two changed.
+     Typed-in copies; no state. */
+  const PINNED_BLOCKS: PinnedStripFixtureConfig[] = [
+    {
+      id: "room",
+      stateNote: "The room's pinned block (D2.4.1): one Return strip per fixture return — R1 Room Reverb, R2 Plate Reverb (peak lit), R3 Delay 1 (bypassed) — then B1 Mix Bus at unity, farthest right.",
+    },
+    {
+      id: "states",
+      returns: [
+        { ...RETURN_STRIPS[0], mute: true, bypass: true, tone: 0 },
+        { ...RETURN_STRIPS[2], solo: true, peak: true, bypass: false, time: 20, second: 90, tone: 10 },
+      ],
+      buses: [{ ...BUS_MASTERS[0], solo: true, peak: true, mute: true, trim: -20, balance: -100, level: -60 }],
+      stateNote: "State variants: R1 muted and bypassed, TONE at FLAT; R3 soloed with its peak lit, TIME, FEEDBACK and TONE at their maxima (TIME at its minimum); B1 muted and soloed, peak lit, BUS TRIM and BALANCE at their minima, the master at the fader's floor.",
+    },
+  ];
+
   onMount(() => {
     values = readTokenValues();
   });
@@ -1478,6 +1499,37 @@ import TransportFixture, { type TransportFixtureConfig } from "./TransportFixtur
     <div class="dev-transport dev-transport--mix" data-dev-transport-mix>
       {#each TRANSPORT_MIX as config (config.id)}
         <TransportFixture {config} />
+      {/each}
+    </div>
+  </section>
+
+  <!-- Task 2.4 — the Console's pinned strips -->
+  <section
+    class="dev-section"
+    data-dev-component="pinned-strips"
+    aria-labelledby="dev-component-pinned-strips"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-pinned-strips">
+        Console — Bus master and Return strips (Task 2.4)
+      </h2>
+      <p class="dev-section__blurb">
+        The pinned strips at the end of the Console's channel bank, built on
+        the track strip's chassis so every control lines up with the track
+        strips beside them: a Return strip per effect return — the type
+        print RET, green knobs for decay or time, pre-delay or feedback and
+        tone, the effect's character in a window over the tone knob, a
+        BYPASS switch with its lamp, the RETURN fader — and the bus master —
+        an orange BUS TRIM, a blue-grey BALANCE, a blank panel where a track
+        has its sends, the MASTER fader. Everything is
+        <strong>simulated</strong>: the same fixture objects the room
+        renders; nothing sums, routes or persists.
+      </p>
+    </header>
+
+    <div class="dev-transport" data-dev-pinned-blocks>
+      {#each PINNED_BLOCKS as config (config.id)}
+        <PinnedStripFixture {config} />
       {/each}
     </div>
   </section>

@@ -1,7 +1,9 @@
 <script lang="ts">
-  import ChannelStrip from "./ChannelStrip.svelte";
+  import BusMasterStrip from "./channel-strip/BusMasterStrip.svelte";
+  import ReturnStrip from "./channel-strip/ReturnStrip.svelte";
   import TrackStrip from "./channel-strip/TrackStrip.svelte";
   import EngravedLabel from "./hardware/EngravedLabel.svelte";
+  import { BUS_MASTERS, RETURN_STRIPS } from "./channel-strip/bus-return-fixtures";
   import { SIMULATED, TRACK_STRIPS } from "./channel-strip/track-strip-fixtures";
 
   /**
@@ -9,33 +11,33 @@
    *
    * The Console's lower section: the 20 regular track channel strips (the
    * skinned `TrackStrip`, Task 2.2) in a horizontally scrolling rail, and
-   * the pinned Bus / Returns area fixed at the right (plan §3: pinned and
-   * not scrollable). The pinned strips are still the Phase 0 grey
-   * `ChannelStrip` placeholders — Task 2.4 skins them; nothing about them
-   * changes here.
+   * the pinned Bus / Returns area fixed at the right (plan §3 / §8a: the
+   * Return channels and the bus master pinned at the end of the bank, never
+   * scrolling with the tracks). Task 2.4 skinned the pinned strips: one
+   * `ReturnStrip` per fixture Return — the same returns the track send
+   * slots feed, however many the list holds — then the `BusMasterStrip`
+   * farthest right (the Phase 0.3 order), all on the track strip's chassis
+   * so that every control lines up across the whole bank.
    *
    * The housing is the meter bridge's: walnut end-cheeks and the charcoal
    * deck with its trim line, so that the two zones of the Console read as
    * one desk (D2.2.5). The CSS values are copied from the approved bridge
    * (Task 2.1); the bridge itself is neither imported nor touched.
    *
-   * Geometry (owner's rules, D2.2.1): every track strip is a fixed 10rem
-   * module. As many complete strips as fit are visible; the remainder are
-   * reached by scrolling the tracks region sideways. The strips never
-   * shrink, and the pinned area never scrolls away.
+   * Geometry (owner's rules, D2.2.1): every strip is a fixed 10rem module,
+   * pinned or not. As many complete track strips as fit are visible; the
+   * remainder are reached by scrolling the tracks region sideways. The
+   * strips never shrink, and the pinned area never scrolls away. Where the
+   * window is too narrow to hold the pinned block beside at least two
+   * complete track strips, the pinned block moves under the rail as its own
+   * row and scrolls sideways on its own only if it must (owner, D2.4.2 —
+   * Phase 0's column mode with its threshold raised).
    */
-  const pinnedStrips: Array<{
-    code: string;
-    name: string;
-    kind: "bus" | "return";
-  }> = [
-    { code: "R1", name: "Reverb Return", kind: "return" },
-    { code: "R2", name: "Delay Return", kind: "return" },
-    { code: "BUS", name: "Bus master", kind: "bus" },
-  ];
-
   const first = TRACK_STRIPS[0]?.id ?? "";
   const last = TRACK_STRIPS[TRACK_STRIPS.length - 1]?.id ?? "";
+  const firstPinned = RETURN_STRIPS[0]?.id ?? BUS_MASTERS[0]?.id ?? "";
+  const lastPinned = BUS_MASTERS[BUS_MASTERS.length - 1]?.id ?? RETURN_STRIPS[RETURN_STRIPS.length - 1]?.id ?? "";
+  const pinnedCount = RETURN_STRIPS.length + BUS_MASTERS.length;
 </script>
 
 <div class="bank" data-channel-bank data-simulated={SIMULATED}>
@@ -46,47 +48,53 @@
 
     <!-- The zone's heading. ConsoleRoom's channels <section> is labelled by
          this id; the legend is the bank's own engraved print. -->
+    <!-- The deck is a two-column grid: the legend row over the rails row.
+         The pinned column is as wide as its rail, so its legend stands
+         exactly over its modules; the two rails start on one line, so the
+         track modules and the pinned modules line up control for control. -->
     <header class="bank__legend">
       <EngravedLabel as="h2" id="console-channels-title" text="Channel bank" size="sm" />
       <EngravedLabel text={`Tracks ${first}\u2013${last}`} size="xs" tone="muted" />
     </header>
 
-    <div class="bank__body">
-      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-      <div
-        class="bank__tracks"
-        data-channel-bank-tracks
-        role="region"
-        tabindex="0"
-        aria-label={`Track channel strips ${first} to ${last}, ${SIMULATED} settings; scrolls sideways`}
-      >
-        <ol class="bank__rail" aria-label={`Tracks ${first} through ${last}`}>
-          {#each TRACK_STRIPS as track (track.id)}
-            <TrackStrip {track} />
-          {/each}
-        </ol>
-      </div>
-
-      <aside
-        class="bank__pinned"
-        data-channel-bank-pinned
-        aria-label="Pinned bus and Return channels"
-      >
-        <div class="bank__pinned-legend">
-          <EngravedLabel as="p" text="Bus / Returns" size="xs" />
-        </div>
-        <ul class="bank__pinned-row">
-          {#each pinnedStrips as strip}
-            <ChannelStrip
-              code={strip.code}
-              name={strip.name}
-              kind={strip.kind}
-              pinned
-            />
-          {/each}
-        </ul>
-      </aside>
+    <div class="bank__pinned-legend">
+      <EngravedLabel as="p" text="Bus / Returns" size="xs" />
+      <EngravedLabel text={`${firstPinned}\u2013${lastPinned}`} size="xs" tone="muted" />
     </div>
+
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div
+      class="bank__tracks"
+      data-channel-bank-tracks
+      role="region"
+      tabindex="0"
+      aria-label={`Track channel strips ${first} to ${last}, ${SIMULATED} settings; scrolls sideways`}
+    >
+      <ol class="bank__rail" aria-label={`Tracks ${first} through ${last}`}>
+        {#each TRACK_STRIPS as track (track.id)}
+          <TrackStrip {track} />
+        {/each}
+      </ol>
+    </div>
+
+    <!-- The pinned rail: outside the scroller, fixed at the right (or, in
+         column mode, under the track rail). Returns first, in the shared
+         return list's order; the bus master farthest right (0.3). -->
+    <aside
+      class="bank__pinned"
+      data-channel-bank-pinned
+      data-pinned-count={pinnedCount}
+      aria-label="Pinned bus and Return channels"
+    >
+      <ul class="bank__pinned-row" aria-label="Return buses, then the bus master">
+        {#each RETURN_STRIPS as ret (ret.returnId)}
+          <ReturnStrip {ret} />
+        {/each}
+        {#each BUS_MASTERS as bus (bus.id)}
+          <BusMasterStrip {bus} />
+        {/each}
+      </ul>
+    </aside>
   </div>
 
   <div class="bank__cheek bank__cheek--right" aria-hidden="true"></div>
@@ -157,9 +165,14 @@
   /* --- the deck -------------------------------------------------------- */
   .bank__deck {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: var(--al-space-2xs);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "legend pinned-legend"
+      "tracks pinned";
+    gap: var(--al-space-2xs) var(--al-space-md);
+    align-items: end;
     min-width: 0;
     padding: var(--al-space-xs) var(--al-space-md) var(--al-space-sm);
     background-color: var(--al-material-panel);
@@ -186,6 +199,7 @@
 
   .bank__legend {
     display: flex;
+    grid-area: legend;
     align-items: baseline;
     justify-content: space-between;
     gap: var(--al-space-md);
@@ -193,32 +207,41 @@
     padding: 0 var(--al-space-md);
   }
 
-  /* =======================================================================
-     THE BODY — the scrolling track rail and the pinned area beside it
-     ======================================================================= */
-  .bank__body {
+  .bank__pinned-legend {
     display: flex;
-    align-items: stretch;
-    gap: var(--al-space-md);
+    grid-area: pinned-legend;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--al-space-xs);
     min-width: 0;
+    padding: 0 var(--al-space-sm);
   }
 
-  /* The tracks region: the ONLY horizontal scroller. It is the rail the
-     modules are bolted to — a recess in the deck, a little darker than the
-     panel, with the modules standing proud of it. */
-  .bank__tracks {
-    flex: 1 1 auto;
+  /* =======================================================================
+     THE RAILS — the scrolling track rail and the pinned rail beside it.
+     A rail is a recess in the deck, a little darker than the panel, that
+     the modules are bolted to and stand proud of. The tracks' rail is the
+     ONLY horizontal scroller (the pinned rail scrolls only in column mode,
+     below).
+     ======================================================================= */
+  .bank__tracks,
+  .bank__pinned {
+    align-self: stretch;
     min-width: 0;
     padding: var(--al-space-xs) var(--al-space-xs) var(--al-space-sm);
     border-radius: 3px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    overscroll-behavior-x: contain;
     background-color: color-mix(in srgb, var(--al-material-recess) 55%, var(--al-material-panel));
     box-shadow:
       inset 0 2px 4px rgba(0, 0, 0, 0.55),
       inset 0 0 0 1px var(--al-border-strong),
       0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .bank__tracks {
+    grid-area: tracks;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
     scrollbar-width: thin;
     scrollbar-color: var(--al-material-metal-shadow) var(--al-material-recess);
   }
@@ -239,52 +262,55 @@
     list-style: none;
   }
 
-  /* --- the pinned area: outside the scroller, fixed at the right ----------- */
+  /* --- the pinned rail: outside the scroller, fixed at the right ----------- */
   .bank__pinned {
     display: flex;
-    flex: 0 0 auto;
+    grid-area: pinned;
     flex-direction: column;
-    gap: var(--al-space-2xs);
-    min-width: 0;
-    padding: var(--al-space-2xs) var(--al-space-sm) var(--al-space-sm);
-    border-radius: 3px;
-    /* an engraved outline round the module, as on the bridge */
-    box-shadow:
-      inset 0 0 0 1px var(--al-bevel-shadow),
-      inset 0 1px 0 1px rgba(255, 255, 255, 0.045),
-      0 1px 0 rgba(255, 255, 255, 0.04);
+    align-items: flex-start;
   }
 
-  .bank__pinned-legend {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    min-height: 0.875rem;
-  }
-
-  /* The pinned strips are the Phase 0 placeholders, untouched (Task 2.4);
-     this row keeps exactly their Phase 0 geometry: a flex row, 0.5rem gap. */
+  /* The pinned modules on their rail: the track rail's row, the same gap.
+     The row keeps the modules' own height (it does not stretch to the
+     rail), and inside it the modules stretch to one another — the bus
+     master's blank panel takes up the difference. */
   .bank__pinned-row {
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     align-items: stretch;
-    gap: 0.5rem;
-    min-height: 0;
+    gap: var(--al-space-2xs);
+    width: max-content;
+    min-width: 100%;
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
-  /* Narrow widths (Phase 0's own break): the pinned area drops below the
-     rail and scrolls on its own. */
-  @media (max-width: 40rem) {
-    .bank__body {
-      flex-direction: column;
+  /* Column mode (owner, D2.4.2): under 68.75rem = 1100 px the deck cannot
+     hold the pinned block (four 10rem modules) beside two complete track
+     strips, so the pinned column moves under the rail — still pinned, never
+     scrolling with the tracks — and its rail scrolls sideways on its own
+     only when the modules outgrow the window. The threshold is the sum of
+     the parts: pinned rail 668 + gap 12 + two strips and their rail 336 =
+     1016 px of deck, plus the deck's and the cheeks' 84 px = 1100. */
+  @media (width < 68.75rem) {
+    .bank__deck {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto auto auto auto;
+      grid-template-areas:
+        "legend"
+        "tracks"
+        "pinned-legend"
+        "pinned";
     }
 
-    .bank__pinned-row {
-      flex: 0 0 auto;
+    .bank__pinned-legend {
+      padding-top: var(--al-space-xs);
+    }
+
+    .bank__pinned {
       overflow-x: auto;
+      overflow-y: hidden;
       overscroll-behavior-x: contain;
       scrollbar-width: thin;
       scrollbar-color: var(--al-material-metal-shadow) var(--al-material-recess);

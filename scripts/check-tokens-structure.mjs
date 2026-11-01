@@ -247,7 +247,9 @@ const roomSources = [
   "src/rooms/ArrangeRoom.svelte",
   "src/rooms/MixerRoom.svelte",
   // ChannelBank.svelte left this list in Task 2.2 (the bank is skinned);
-  // ChannelStrip.svelte (the pinned placeholders) stays until Task 2.4.
+  // ChannelStrip.svelte (the Phase 0 pinned placeholder) is unused since
+  // Task 2.4 (ReturnStrip / BusMasterStrip replaced it) and is kept
+  // byte-identical, so it stays on this list.
   "src/components/ChannelStrip.svelte",
   "src/components/ArrangeTrackRow.svelte",
   "src/components/ArrangeTimelineLane.svelte",

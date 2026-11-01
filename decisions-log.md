@@ -1590,3 +1590,188 @@ transport's controls are the approved components placed, never scaled or
 modified (D2.3.1–2).
 
 Task 2.4 has not been started; it waits for the owner's prompt.
+
+## Task 2.4 — Console bus-master and Return-bus strips (2026-11-01; uncommitted, awaiting review)
+
+### D2.4.1 — The pinned Returns are derived from the shared return list, not a Reverb / Delay pair (owner, 2026-11-01)
+
+**Context.** Phase 0.3 drew two pinned placeholders, "Reverb Return" and
+"Delay Return", beside the bus master. The Task 2.2 send slots already
+name three returns (`EFFECT_RETURNS`: Room Reverb, Plate Reverb, Delay 1),
+and the Task 2.4 prompt forbids hard-coding one reverb and one delay. The
+builder asked which Returns the Console pins.
+
+**Decision (owner).** The three the send menu names — and derived from
+that list: `RETURN_STRIPS = EFFECT_RETURNS.map(…)` gives one Return strip
+per listed return, numbered R1, R2, … in list order, named by
+`effectReturn(id).name`, with per-return settings keyed by `ReturnId` (the
+type checker refuses a return without settings). A return added to the
+shared list grows a strip; a send assigned on a track always has a visible
+Return at the end of the bank. The bus master is a list too (`BUS_MASTERS`,
+one entry). The guard asserts the derivation and the absence of the words
+"Reverb Return" / "Delay Return" outside comments.
+
+**Reversible.** Yes — fixture data; the pinned area renders whatever the
+lists hold.
+
+### D2.4.2 — Column mode under 68.75 rem (1100 px): the pinned block drops under the track rail (owner, 2026-11-01)
+
+**Context.** A real strip is 160 px; three Returns and the bus master make
+a 664-px pinned rail (4 × 160 + 3 × 4 + 12 padding), against the Phase 0
+placeholders' 320. Beside the rail at 1024 there would be room for one
+complete track; at 768 none. Phase 0 already had a column mode (its break
+at 40 rem). The builder asked what to do where the pinned block no longer
+fits beside at least two complete tracks.
+
+**Decision (owner).** Keep Phase 0's column mode and raise its threshold:
+below 68.75 rem = 1100 px the deck stacks legend / tracks / pinned legend /
+pinned; the pinned rail gets `overflow-x: auto; overscroll-behavior-x:
+contain` there only, so it scrolls sideways on its own if it must (at 768
+it has 684 px for 664 and does not). Above the threshold the tracks rail
+is the only horizontal scroller and the pinned rail sits beside ≥ 2
+complete tracks (2 at 1100, 3 at 1280, 4 at 1440, 7 at 1920). The number
+is the sum of the parts and is written in the source: pinned rail 668 +
+gap 12 + two strips and their rail 336 = 1016 px of deck, plus the deck's
+and the cheeks' 84 px = 1100. Measured at 1100 (row) and 1099 (column).
+
+**Reversible.** Yes — one media query.
+
+### D2.4.3 — The Return strip's controls; TONE under the character window, the second control in the knob section (owner + builder, 2026-11-01)
+
+**Context.** Plan §8a lists a Return's processing controls (character /
+algorithm, decay or delay time, pre-delay, tone / damping, delay feedback,
+output level, bypass); the Console strip is to stay legible and simple
+(plan §3). The builder offered the owner three sets; the owner chose the
+aligned full set: DECAY / TIME knob, TONE knob, bay with CHARACTER window
+over the PRE-DELAY / FEEDBACK knob and a BYPASS switch, RETURN fader,
+MUTE · SOLO · PEAK.
+
+**Decision (owner, with one builder deviation).** The chosen set is
+built, all in the green family (spec §5: sends / reverb / delay), with the
+character as a plain print in the send window's recipe and green ink and
+BYPASS the approved panel switch with an amber lamp lit while bypassed.
+**Deviation:** measured in the browser, the bay's half-width knob slot is
+71 px and the approved Knob's legend ellipsises past it — "PRE-DELAY" is
+76.4 px, "FEEDBACK" 73.4, "TONE" 36.5; the knob's label width is not a
+prop and the knob is never modified. Rather than abbreviate the plan's
+words, the two knobs trade places: the second control (PRE-DELAY /
+FEEDBACK) takes the full-width second knob section and TONE sits under the
+character window. Same controls, same geometry; eleven pinned legends
+measured, none overflows. Parameter ranges are provisional (DECAY 0.2–10 s,
+PRE-DELAY 0–200 ms, TIME 20–2000 ms, FEEDBACK 0–90 %, TONE −10…+10 with
+FLAT at 0) until the model (Task 3.1) and the Mixer chain detail (Task
+2.9) settle them. Rule for later bay knobs: legends ≤ ~70 px.
+
+**Reversible.** Yes — swapping `knobB` and the bay knob back is a
+one-line change if the owner prefers the original order with "PRE-DLY" /
+"FDBK".
+
+### D2.4.4 — The bus master: BUS TRIM (orange), BALANCE, a blank bay, the MASTER fader (owner, 2026-11-01)
+
+**Context.** The plan names no bus-master control set for the Console;
+the strip must align with the tracks and the Returns. The builder asked
+which controls the bus master carries.
+
+**Decision (owner).** The same skeleton as a track: BUS TRIM in the orange
+family the spec reserves for bus / group masters, on the tracks' ±20 dB
+TRIM range and readout; BALANCE in blue-grey on the tracks' PAN range (L /
+R, "C"); where a track has its sends bay, a **blank panel** of the bay's
+exact height (113.3 px, `data-blank-panel`) — an unpopulated slot, not a
+decoration — so the MASTER fader and the footer stay on the tracks' lines;
+MUTE · SOLO · PEAK. Farthest right, as Phase 0.3 placed it. The ranges and
+formatters are re-exported from the track fixtures, not copied.
+
+**Reversible.** Yes.
+
+### D2.4.5 — One shared chassis, `StripModule`, copied value for value from the track strip; `TrackStrip` untouched (builder, 2026-11-01)
+
+**Context.** The prompt asks the pinned strips to match the track strips'
+styling, sizing, spacing and control alignment, and to modify shared
+components only where required for correct reuse; `TrackStrip` is approved
+and hash-pinned (D2.2.7's rule applied by the 2.3 guard).
+
+**Decision (builder).** The pinned strips are built on a new
+`StripModule.svelte`: the track strip's housing, head, six sections,
+approved Fader and MUTE · SOLO · PEAK footer, with the two knob sections and
+the bay supplied as snippets by `ReturnStrip` / `BusMasterStrip`, and a
+blank panel when no bay is given. Its CSS is the track strip's value for
+value — the way the bank copied the bridge's housing (D2.2.5) — and the new
+guard asserts fifteen rule bodies **equal** the track strip's (`.strip` ↔
+`.module`, face, sections, seams, head, ident, name row, tab, knob
+sections, bay, fader, switches, peak) so the two cannot drift. Measured:
+pinned modules 160 × 674.4 with sections 38.6 / 87.3 / 87.3 / 113.3 /
+273.3 / 66.6, fader / caps / peak at the tracks' y at every width. No
+approved component changed (all hash-pinned).
+
+**Reversible.** Yes; folding `TrackStrip` onto the module is a candidate
+for Task 3.1, when the track strip is reopened for the model.
+
+### D2.4.6 — The bank's deck is a two-column grid with a shared legend row; the track strips do not move (builder, 2026-11-01)
+
+**Context.** The first 2.4 layout gave the pinned column its own legend
+row inside the column, which pushed the track strips down 18 px against
+the 2.2 baseline — a regression of an approved zone.
+
+**Decision (builder).** The deck is a grid: `grid-template-columns:
+minmax(0, 1fr) auto`, areas `"legend pinned-legend" / "tracks pinned"`.
+The pinned legend ("Bus / Returns · R1–B1", derived from the lists) stands
+over its own rail in the legend row; both rails start on one line; the two
+rails share the recess recipe. Measured: track 01 at the baseline's x / y
+at every width (48 / 657.1 at ≥ 1280, 48 / 694.4 at 1024, 48 / 869.6 at
+768); the bank's height unchanged in row mode (719 px).
+
+**Reversible.** Yes.
+
+### D2.4.7 — Fewer complete track strips are visible beside the pinned rail; stated, not hidden (builder, 2026-11-01)
+
+**Context.** The pinned rail grew from 320 to 664 px.
+
+**Decision (builder).** Under the owner's standing rules (strips are
+fixed 160-px modules, never shrunk; the pinned area never scrolls away;
+the app never overflows) the visible count of complete tracks falls from
+Phase 0's 9 / 6 / 5 to 7 / 4 / 3 at 1920 / 1440 / 1280; at 1024 and 768,
+now column mode, it rises from 3 / 2 to 5 / 4 and the Console grows taller
+(bank 1433 px, reached by the room's vertical scroll). Recorded in the
+report's viewport matrix with the Phase 0 baseline measured on `d2e2e6d`
+before any change.
+
+**Reversible.** Not without breaking a standing rule or pinning fewer
+Returns (fixture data, owner's call).
+
+### D2.4.8 — Guards: `check:bus-return` added; the Task 2.3 bank pin re-pinned; `ChannelStrip.svelte` kept, unused (builder, 2026-11-01)
+
+**Context.** `check-console-transport` pinned `ChannelBank.svelte` by hash
+as an approved file in Task 2.3; `check-channel-strip` asserted the Phase 0
+placeholders in the pinned area; the Phase 0 `ChannelStrip.svelte` is
+pinned by the 2.3 guard and listed by the tokens guard.
+
+**Decision (builder).** New `scripts/check-bus-return-structure.mjs`
+(`npm run check:bus-return`, 103 checks, 14-mutation negative test):
+composition, the chassis equality of D2.4.5, the fixture derivation of
+D2.4.1, materials, the column mode of D2.4.2, no screws, seventeen
+approved-file hashes including `ConsoleRoom`, the bridge, the transport
+files and the Phase 0 placeholder, no dependency change. The transport
+guard's bank pin is updated to the bank's new hash with a comment (the
+bank is 2.4's to change; the deck above it is untouched). The channel-strip
+guard's five placeholder checks become checks of the new pinned area (107).
+`ChannelStrip.svelte` stays in the tree byte-identical and unused;
+deleting it is a one-file removal plus two guard lines, left to the owner.
+
+**Reversible.** Yes.
+
+### D2.4.9 — A Return is identified by existing Console elements only (builder, 2026-11-01)
+
+**Context.** The prompt asks that a Return be visually identifiable as a
+Return without introducing a new visual language.
+
+**Decision (builder).** The identification is carried by elements that
+already exist in these roles: the type print `RET` beside the number (as
+`TRK` on a track, `BUS` on the master); the green knob family already
+meaning "sends / reverb / delay" on the track send knobs; the character
+window in the send slot's window recipe and green ink, so a Return's window
+and the sends that feed it read as one family; the fader legend RETURN
+where a track reads LEVEL; the engraved name from the shared list. No new
+colour, shape, texture or print; the only new CSS is the window and two
+flex wrappers; no hex, no glow, nothing behind print, no screws.
+
+**Reversible.** Yes.

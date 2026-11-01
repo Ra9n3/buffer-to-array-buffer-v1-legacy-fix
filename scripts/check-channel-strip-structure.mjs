@@ -9,8 +9,11 @@
  * tests is the source-level contract:
  *
  *   1. One reusable TrackStrip, rendered once per fixture track by the
- *      ChannelBank; twenty tracks; the pinned Bus / Returns strips are still
- *      the untouched Phase 0 ChannelStrip placeholders (Task 2.4's subject).
+ *      ChannelBank; twenty tracks; the pinned Bus / Returns area renders the
+ *      Task 2.4 strips (one ReturnStrip per fixture return, then the
+ *      BusMasterStrip) — never a TrackStrip and no longer the Phase 0
+ *      ChannelStrip placeholder, which stays in the tree untouched and
+ *      unused (check:bus-return pins the pinned strips themselves).
  *   2. The strip is COMPOSED of the approved Phase 1 components — Knob for
  *      trim, pan and each send slot, Fader for the level, TactileSwitch for
  *      mute and solo, Lamp for peak, EngravedLabel for every legend — and
@@ -31,8 +34,10 @@
  *   5. Materials are tokens: no hex colour literal in any strip file; the
  *      organisational colour is the small tab, never a strip-wide fill.
  *   6. The bank: a bridge-matching housing, the tracks region is the only
- *      horizontal scroller, the pinned aside sits outside it, the Phase 0
- *      ≤40rem column mode is kept.
+ *      horizontal scroller in row mode, the pinned aside sits outside it in
+ *      the deck grid's second column, and under 68.75rem (1100 px) the deck
+ *      stacks — the pinned rail under the tracks, scrolling on its own
+ *      (Task 2.4, D2.4.2: Phase 0's column mode with its threshold raised).
  *   7. Scope: no screw heads (D2.1.9); no instrument combobox or Prominence
  *      Tier control in the Console; the approved bridge and the Phase 0
  *      ChannelStrip are untouched; no dependency added or changed.
@@ -97,8 +102,8 @@ check("the TrackStrip is rendered exactly once in the bank's template", count(ba
 check("the strip is a list item that names itself by its track name (role=group, aria-labelledby)", /<li\s+class="strip"\s+role="group"\s+aria-labelledby=\{`\$\{uid\}-name`\}/.test(stripTemplate) && /id=\{`\$\{uid\}-name`\} text=\{track\.name\}/.test(stripTemplate));
 check("the strip carries its hooks: data-track-strip, data-track-org, data-simulated, data-strip-section", /data-track-strip=\{track\.id\}/.test(stripTemplate) && /data-track-org=/.test(stripTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate) && count(stripTemplate, /data-strip-section="/g) === 6);
 check("the six sections are head, trim, pan, sends, fader, switches — in that order", (stripTemplate.match(/data-strip-section="([a-z]+)"/g) ?? []).map((m) => m.slice(20, -1)).join(",") === "head,trim,pan,sends,fader,switches");
-check("the pinned Bus / Returns strips are still the Phase 0 ChannelStrip placeholders", /<ChannelStrip\s+code=\{strip\.code\}\s+name=\{strip\.name\}\s+kind=\{strip\.kind\}\s+pinned\s*\/>/.test(bankTemplate) && count(bankTemplate, /<ChannelStrip\b/g) === 1);
-check("the three pinned strips are unchanged: R1 Reverb Return, R2 Delay Return, BUS Bus master", /\{ code: "R1", name: "Reverb Return", kind: "return" \},\s*\{ code: "R2", name: "Delay Return", kind: "return" \},\s*\{ code: "BUS", name: "Bus master", kind: "bus" \}/.test(bank));
+check("the pinned area renders the Task 2.4 strips: one ReturnStrip per fixture return, then the BusMasterStrip (the bus master farthest right, 0.3)", /<aside[\s\S]*\{#each RETURN_STRIPS as ret \(ret\.returnId\)\}\s*<ReturnStrip \{ret\} \/>\s*\{\/each\}\s*\{#each BUS_MASTERS as bus \(bus\.id\)\}\s*<BusMasterStrip \{bus\} \/>\s*\{\/each\}/.test(bankTemplate) && count(bankTemplate, /<ReturnStrip\b/g) === 1 && count(bankTemplate, /<BusMasterStrip\b/g) === 1);
+check("the bank no longer renders or imports the Phase 0 ChannelStrip placeholder", !/ChannelStrip\b/.test(bank));
 check("ChannelStrip.svelte (the placeholder) is untouched: no tokens, no hardware imports, Phase 0 width", !/var\(--al-|hardware\//.test(placeholder) && /flex: 0 0 6rem/.test(placeholder));
 check("no TrackStrip is rendered in the pinned area (the <aside>)", !/<aside[\s\S]*<TrackStrip/.test(bankTemplate));
 
@@ -197,14 +202,15 @@ check("the bank is a bridge-matching housing: two walnut cheeks round a deck", c
 check("the bank's deck is the panel token with the bridge's trim line", /\.bank__deck \{[^}]*background-color:\s*var\(--al-material-panel\)/s.test(bankStyle) && /var\(--b-trim\) 1px, var\(--b-trim\) 2px/.test(bankStyle));
 {
   const tracks = rule(bankStyle, ".bank__tracks");
-  check("the tracks region is the only horizontal scroller in the bank's desktop layout", /overflow-x:\s*auto/.test(tracks) && /overflow-y:\s*hidden/.test(tracks) && /overscroll-behavior-x:\s*contain/.test(tracks) && count(bankStyle.replace(/@media[\s\S]*$/, ""), /overflow-x:\s*auto/g) === 1);
+  check("the tracks region is the only horizontal scroller in the bank's row layout", /overflow-x:\s*auto/.test(tracks) && /overflow-y:\s*hidden/.test(tracks) && /overscroll-behavior-x:\s*contain/.test(tracks) && count(bankStyle.replace(/@media[\s\S]*$/, ""), /overflow-x:\s*auto/g) === 1);
   check("the rail is a flex row sized by its content (max-content), never shrinking its strips", /\.bank__rail \{[^}]*display:\s*flex/s.test(bankStyle) && /\.bank__rail \{[^}]*width:\s*max-content/s.test(bankStyle));
   check("the tracks region is keyboard reachable and named", /data-channel-bank-tracks\s+role="region"\s+tabindex="0"\s+aria-label=/.test(bankTemplate) && /\.bank__tracks:focus-visible/.test(bankStyle));
 }
-check("the pinned aside sits outside the scroller, after it, fixed width (flex 0 0 auto)", /<\/div>\s*<aside\s+class="bank__pinned"\s+data-channel-bank-pinned/.test(bankTemplate) && /\.bank__pinned \{[^}]*flex:\s*0 0 auto/s.test(bankStyle));
-check("the pinned aside keeps its hook, name and an engraved Bus / Returns legend", /aria-label="Pinned bus and Return channels"/.test(bankTemplate) && /<EngravedLabel as="p" text="Bus \/ Returns" size="xs" \/>/.test(bankTemplate));
-check("the pinned row keeps the Phase 0 placeholder geometry (flex row, 0.5rem gap)", /\.bank__pinned-row \{[^}]*gap:\s*0\.5rem/s.test(bankStyle));
-check("the Phase 0 ≤40rem column mode is kept (pinned below, scrolling on its own)", /@media \(max-width: 40rem\) \{[\s\S]*\.bank__body \{[^}]*flex-direction:\s*column/s.test(bankStyle) && /@media \(max-width: 40rem\) \{[\s\S]*\.bank__pinned-row \{[^}]*overflow-x:\s*auto/s.test(bankStyle));
+check("the pinned aside sits outside the scroller, after it, in the deck grid's own column (grid-area pinned, sized by its content)", /<\/div>\s*(<!--[\s\S]*?-->\s*)?<aside\s+class="bank__pinned"\s+data-channel-bank-pinned/.test(bankTemplate) && /\.bank__pinned \{[^}]*grid-area:\s*pinned/s.test(bankStyle) && /\.bank__deck \{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) auto/s.test(bankStyle) && /"legend pinned-legend"\s*"tracks pinned"/.test(bankStyle));
+check("the pinned aside keeps its hook, name and an engraved Bus / Returns legend over it", /aria-label="Pinned bus and Return channels"/.test(bankTemplate) && /<EngravedLabel as="p" text="Bus \/ Returns" size="xs" \/>/.test(bankTemplate) && /\.bank__pinned-legend \{[^}]*grid-area:\s*pinned-legend/s.test(bankStyle));
+check("the pinned row is the track rail's row: flex, the rail's gap, content-sized, modules stretching to one another", /\.bank__pinned-row \{[^}]*display:\s*flex/s.test(bankStyle) && /\.bank__pinned-row \{[^}]*gap:\s*var\(--al-space-2xs\)/s.test(bankStyle) && /\.bank__pinned-row \{[^}]*width:\s*max-content/s.test(bankStyle) && /\.bank__pinned-row \{[^}]*align-items:\s*stretch/s.test(bankStyle) && /\.bank__rail \{[^}]*gap:\s*var\(--al-space-2xs\)/s.test(bankStyle));
+check("the pinned rail and the track rail are one recess recipe, and the track strips did not move: the pinned legend shares the header row", /\.bank__tracks,\s*\.bank__pinned \{/.test(bankStyle) && /<header class="bank__legend">\s*<EngravedLabel as="h2" id="console-channels-title" text="Channel bank" size="sm" \/>\s*<EngravedLabel text=\{`Tracks \$\{first\}\\u2013\$\{last\}`\} size="xs" tone="muted" \/>\s*<\/header>/.test(bankTemplate));
+check("column mode under 68.75rem (1100 px, D2.4.2): the deck stacks legend / tracks / pinned legend / pinned, and only then the pinned rail scrolls on its own", /@media \(width < 68\.75rem\) \{[\s\S]*\.bank__deck \{[^}]*"legend"\s*"tracks"\s*"pinned-legend"\s*"pinned"/s.test(bankStyle) && /@media \(width < 68\.75rem\) \{[\s\S]*\.bank__pinned \{[^}]*overflow-x:\s*auto/s.test(bankStyle) && !/40rem/.test(bankStyle));
 check("the bank keeps its Phase 0 hooks", /data-channel-bank\b/.test(bankTemplate) && /data-channel-bank-tracks/.test(bankTemplate) && /data-channel-bank-pinned/.test(bankTemplate));
 check("the Phase 0 fluid grid (--visible-track-count) is gone", !/visible-track-count|grid-auto-columns/.test(bankStyle));
 check("the bank sets no height of its own: the room's grid row and the strips size it", !/\sheight:\s*100%/.test(bankStyle) && !/max-height/.test(bankStyle));
@@ -214,6 +220,7 @@ check("no screw heads in any strip file (owner's standing rule, D2.1.9)", !/(cla
 check("no instrument combobox or Prominence Tier control in the Console (plan §3)", !/combobox|<select|Prominence|prominence|tier/i.test(allStripSource + consoleRoom));
 check("the strip and bank do not import the bridge or its fixtures", !/meter-bridge\//.test(strip + bank));
 check("the strip and slot do not import the Phase 0 placeholder or the mixer/arrange fixtures", !/ChannelStrip\.svelte|MixerChannelStrip|lib\/mixer|lib\/arrange/.test(strip + sendSlot));
+check("the bank imports the pinned strips and their fixtures from the channel-strip folder (Task 2.4)", /import BusMasterStrip from "\.\/channel-strip\/BusMasterStrip\.svelte"/.test(bank) && /import ReturnStrip from "\.\/channel-strip\/ReturnStrip\.svelte"/.test(bank) && /import \{ BUS_MASTERS, RETURN_STRIPS \} from "\.\/channel-strip\/bus-return-fixtures"/.test(bank));
 check("no instrument combobox: the send menu is a menu, not a combobox or select", !/combobox|<select|<datalist/.test(sendSlot));
 check("ConsoleRoom keeps the bridge over the bank (Task 2.3 added its transport zone between them), and no Phase 0 bank frame", (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") === 'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"' && !/console-bank\b|console-zone__header/.test(consoleRoom));
 check("the approved bridge is byte-identical to Task 2.1's approved file", sha256(read("src/components/meter-bridge/ConsoleMeterBridge.svelte")) === "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002");

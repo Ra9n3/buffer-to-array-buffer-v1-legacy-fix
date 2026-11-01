@@ -213,7 +213,10 @@ const pinned = {
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
   "src/components/meter-bridge/ConsoleMeterBridge.svelte": "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002",
-  "src/components/ChannelBank.svelte": "a6031e29ac2f8d223276f9219190153453d2fa9d990a5d52cc170dc129798b69",
+  // Task 2.4 re-pinned the bank: its pinned area now renders the Return and
+  // bus-master strips (the deck above it is untouched; check-bus-return guards
+  // the bank's new structure).
+  "src/components/ChannelBank.svelte": "d8079a833c0b8a4bdd111c741122b4810ffd2ba664876dc435a32002ecc9f1fa",
   "src/components/channel-strip/TrackStrip.svelte": "17059869a037d575beb0623a10989b2f9335fe35a1d34a889b737f409913ba35",
   "src/components/channel-strip/SendSlot.svelte": "8009eaf5ba0335099deb62a315116e67450750c118370d974596ead37b468b31",
   "src/components/channel-strip/track-strip-fixtures.ts": "c76e8c14b7c9794b14747a83a51926870a24c6a587405259f05ac6a415e151c5",
