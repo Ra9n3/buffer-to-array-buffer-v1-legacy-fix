@@ -1775,3 +1775,58 @@ colour, shape, texture or print; the only new CSS is the window and two
 flex wrappers; no hex, no glow, nothing behind print, no screws.
 
 **Reversible.** Yes.
+
+## Task 2.4 — approved for now
+
+On 2026-11-01 the owner wrote "commit and push, approved for now", closing
+Task 2.4 as delivered in `2b36389` (D2.4.1–D2.4.9). The approval covers:
+the Return strips derived from the shared return list (three today) and
+the bus master farthest right, all on the track strip's chassis
+(`StripModule`, copied value for value, the track strip untouched); the
+Return's green DECAY / TIME and PRE-DELAY / FEEDBACK knobs, the character
+window over the TONE knob, BYPASS with an amber lamp and the RETURN fader —
+including the TONE-in-the-bay swap made for legend fit; the bus master's
+orange BUS TRIM, blue-grey BALANCE, blank bay and MASTER fader; the bank's
+grid deck with the pinned rail outside the scroller; column mode under
+68.75 rem; the stated cost in visible track strips (7 / 4 / 3 at 1920 /
+1440 / 1280). The deviations and known issues in the report stand as
+accepted for now, the parameter ranges as provisional.
+
+"For now" — two questions the owner raised at review are **recorded as
+open, not decided**, for the model (Task 3.1) and the Mixer chain detail
+(Task 2.9); the builder's explanation was given, no change was directed:
+
+- **BALANCE on the mix bus.** The owner's reading — a balance control
+  changes the relative levels of the bus's existing left and right
+  channels (attenuating one side, no cross-feed, the image does not move),
+  which is not a stereo panner that moves the whole image — is the sense
+  in which the strip is labelled BALANCE and not PAN. The build is visual
+  only: the legend, the blue-grey family and the tracks' ±100 L / C / R
+  readout reused for printing; the DSP meaning is to be fixed in the model
+  as balance, not pan. Whether the readout stays `L 100 / C / R 100` or
+  prints attenuation in dB is open. The related question — what PAN means
+  on a genuinely stereo *track* (balance, or a stereo panner with width;
+  plan §9 flags mono files duplicated to L / R) — belongs to 3.1, not to
+  this task.
+- **TONE on the Returns.** Plan §8a names the control "tone / damping": a
+  single bipolar control, not an EQ section and not a hi-cut with a
+  frequency readout. Built as −10 … +10 with FLAT at centre, darker below,
+  brighter above; the intended sense is wet-path damping / tilt (reverb
+  high-frequency damping of the tail; the delay's feedback-path filter).
+  The exact mapping is provisional (D2.4.3); precise filters, if wanted,
+  belong in the Mixer's chain view (2.9). Changing the Console knob to an
+  explicit HI-CUT with a kHz readout remains an option (a fixture-level
+  change to `TONE_PARAM`; legend to be measured against the 71-px slot).
+
+Approved files as they stand (SHA-256, first 16 hex, for the next task's
+guard to pin as D2.2.7 / the 2.3 and 2.4 guards did): `StripModule.svelte`
+`d7fab0ed97b0c78d`, `ReturnStrip.svelte` `5f50749a6e1aba35`,
+`BusMasterStrip.svelte` `e3d4f49f39979d2c`, `bus-return-fixtures.ts`
+`551fa3fc978362f3`, `ChannelBank.svelte` `d8079a833c0b8a4b`,
+`PinnedStripFixture.svelte` `a7798e353712b1dc`. Standing rules carried
+forward: no screw heads (D2.1.9); approved components placed, never scaled
+or modified; strips are fixed 160-px modules; the tracks rail is the only
+horizontal scroller in row mode; bay knob legends ≤ ~70 px (D2.4.3);
+Returns are data derived from the shared list (D2.4.1).
+
+Task 2.5 has not been started; it waits for the owner's prompt.
