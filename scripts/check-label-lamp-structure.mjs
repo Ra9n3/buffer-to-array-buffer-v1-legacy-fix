@@ -211,7 +211,8 @@ check(
   "no room, strip or shared-state module references either new component",
   // ChannelBank.svelte left this list in Task 2.2: the skinned bank prints its legends with EngravedLabel.
   // ArrangeRoom.svelte left in Task 2.5: the track list's header prints its legends with EngravedLabel.
-  ["src/rooms/ConsoleRoom.svelte", "src/rooms/MixerRoom.svelte", "src/components/ChannelStrip.svelte", "src/components/MixerChannelStrip.svelte", "src/components/MixerDetailPanel.svelte", "src/components/MiniTransport.svelte", "src/lib/mixer.ts", "src/lib/arrange.ts", "src/lib/rooms.ts"]
+  // MixerDetailPanel.svelte left in Task 2.8: the processing-chain detail panel prints its legends with EngravedLabel.
+  ["src/rooms/ConsoleRoom.svelte", "src/rooms/MixerRoom.svelte", "src/components/ChannelStrip.svelte", "src/components/MixerChannelStrip.svelte", "src/components/MiniTransport.svelte", "src/lib/mixer.ts", "src/lib/arrange.ts", "src/lib/rooms.ts"]
     .filter(exists)
     .every((rel) => !/EngravedLabel|hardware\/Lamp|<Lamp\b/.test(read(rel))),
 );

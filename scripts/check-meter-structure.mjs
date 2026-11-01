@@ -160,7 +160,9 @@ check(
 check(
   "numerals are printed at key points only: a subset of the marks, with −20, 0 and +3 among them",
   (() => {
-    const marks = [...V.moduleScript.matchAll(/\{ db: (-?\d+), weight: "(\w+)"(, numeral: true)? \}/g)];
+    // Task 2.8 added a second mark table (GR_MARKS, the gain-reduction face); this check reads the VU face only.
+    const vuTable = V.moduleScript.slice(V.moduleScript.indexOf("export const VU_MARKS"), V.moduleScript.indexOf("];", V.moduleScript.indexOf("export const VU_MARKS")));
+    const marks = [...vuTable.matchAll(/\{ db: (-?\d+), weight: "(\w+)"(, numeral: true)? \}/g)];
     const numerals = marks.filter((m) => m[3]).map((m) => Number(m[1]));
     return marks.length >= 12 && numerals.length < marks.length && numerals.length <= 8 && [-20, 0, 3].every((v) => numerals.includes(v));
   })(),
@@ -169,11 +171,11 @@ check(
   "the overload band is red (the red family) from 0 to +3 and the numerals past 0 are red; the rest of the print is dark ink on cream",
   /d=\{arc\(ARC_R \+ 0\.35 \+ RED_BAND_W \/ 2, VU_RED_FROM, VU_MAX\)\}/.test(V.markup) &&
     /--v-red: color-mix\(in srgb, var\(--al-function-red-base\)/.test(V.style) &&
-    /red: mark\.db > VU_RED_FROM/.test(V.script) &&
+    /red: (?:!isGr && )?mark\.db > VU_RED_FROM/.test(V.script) && // Task 2.8: the GR face has no red band
     /--v-ink: var\(--al-text-on-cream\)/.test(V.style) &&
     /\.vu__numeral\.is-red \{[^}]*fill: var\(--v-red\)/.test(V.style),
 );
-check('"VU" is printed at the bottom centre of the arc, above the hub', /data-part="legend" x=\{PIVOT_X\} y=\{PIVOT_Y - 15\.5\}>VU</.test(V.markup));
+check('"VU" is printed at the bottom centre of the arc, above the hub (Task 2.8: "GR" on the gain-reduction face)', /data-part="legend" x=\{PIVOT_X\} y=\{PIVOT_Y - 15\.5\}>(?:VU|\{isGr \? "GR" : "VU"\})</.test(V.markup));
 check(
   "the needle is a thin tapered black blade pivoting on a small circular hub",
   /const NEEDLE_TIP_W = 0\.5;/.test(V.script) && /const NEEDLE_BASE_W = 1\.7;/.test(V.script) && /--v-needle: color-mix\(in srgb, var\(--al-text-on-cream\) \d+%, black\)/.test(V.style) && /class="vu__hub" data-part="hub" cx=\{PIVOT_X\} cy=\{PIVOT_Y\} r=\{HUB_R\}/.test(V.markup) && num(V.script, "HUB_R") <= 4,
@@ -287,7 +289,7 @@ for (const [name, M, dataAttr] of [["VU meter", V, "data-vu-meter"], ["ladder", 
     `the ${name} is role="meter" with min, max, now and a spoken value, and its SVG is hidden from the tree`,
     new RegExp(`role="meter"[\\s\\S]*?aria-valuemin=[\\s\\S]*?aria-valuemax=[\\s\\S]*?aria-valuenow=[\\s\\S]*?aria-valuetext=\\{valueText\\}[\\s\\S]*?${dataAttr}`).test(M.markup) && /<svg[^>]*aria-hidden="true"/.test(M.markup),
   );
-  check(`the ${name} takes a name: label or an explicit accessible name`, /aria-label=\{name \?\? label \?\? "/.test(M.markup));
+  check(`the ${name} takes a name: label or an explicit accessible name`, /aria-label=\{name \?\? label \?\? (?:"|\(isGr \? ")/.test(M.markup)); // Task 2.8: the GR face names itself
   check(`the ${name} has no interaction: no pointer or key handlers, no tabindex, no button`, !/onpointer|onkeydown|tabindex|<button|<input/.test(M.markup));
   check(`the ${name} has an engraved label under it in the knob's and fader's style`, /font-family: var\(--al-font-label\);[\s\S]*?letter-spacing: var\(--al-letter-spacing-engraved\);/.test(rule(M.style, name === "VU meter" ? ".vu__label" : ".led__label")));
 }

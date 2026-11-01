@@ -264,7 +264,7 @@ check("no screw heads in the new files (D2.1.9)", !/screw/i.test(newSource + roo
 // (two comments), TrackStrip / StripModule / ReturnStrip / BusMasterStrip (the
 // optional `identity` snippet, D2.7.2). MixerChannelStrip.svelte was deleted.
 const pinned = {
-  "src/components/MixerDetailPanel.svelte": "b99bcea6003b90c4ea1d23b812cee211cd86392eaa24ff67fb72866e6ce06215",
+  "src/components/MixerDetailPanel.svelte": "0e596aba090663fe9846d00e7e814f83f02b60712cc221cef24e6d0c2a1008aa",
   "src/rooms/MixerRoom.svelte": "20b70cfef7ede76c4ca78ef6099873abe938e6da47d6b1dcd1cc2cacc45e383f",
   "src/lib/mixer.ts": "f0721db5dc50e2231bca58d379918ec562de301e49eb0b8a20a7c8b54dcbab51",
   "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
@@ -282,7 +282,7 @@ const pinned = {
   "src/components/hardware/Fader.svelte": "b46e55ec95f4ddbe544175f7e0a340e7378a8cff3af674e431aad2a08d5be372",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
-  "src/components/hardware/VUMeter.svelte": "350d8169a1e4aa9f0a816349aa88be0757078813370f21c01b62987fd0b0fa9b",
+  "src/components/hardware/VUMeter.svelte": "c3d850c80d9d53c70ed31c603fe23c011402f813e56bce963494086466347394",
   "src/components/hardware/LedLadder.svelte": "d09d6f36455731128c7f32189b8e641686f603c293968b5629f55fb61f1628b7",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",

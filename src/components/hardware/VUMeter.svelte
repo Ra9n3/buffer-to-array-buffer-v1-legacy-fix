@@ -59,6 +59,42 @@
   export function vuAngle(db: number): number {
     return -VU_SWEEP / 2 + VU_SWEEP * vuPosition(db);
   }
+
+  /**
+   * TWO FACES (Task 2.8). The instrument is the same; only the printed card
+   * differs. `"vu"` is the face above. `"gr"` is a dedicated gain-reduction
+   * scale: 0 dB of reduction at the RIGHT stop, 20 dB at the left, the
+   * needle falling leftward as reduction increases — a VU meter switched to
+   * read gain reduction, with the card printed for that job. No red band,
+   * no signed numerals, "GR" for the legend. It keeps the movement's own law
+   * (linear in modulation from the 0 stop), so the first few dB take most of
+   * the arc exactly as they do on the VU face.
+   */
+  export type MeterFace = "vu" | "gr";
+  export const GR_MIN = 0;
+  export const GR_MAX = 20;
+  export const GR_MARKS: readonly VUMark[] = [
+    { db: 0, weight: "major", numeral: true },
+    { db: 1, weight: "major", numeral: true },
+    { db: 2, weight: "medium" },
+    { db: 3, weight: "major", numeral: true },
+    { db: 4, weight: "minor" },
+    { db: 5, weight: "major", numeral: true },
+    { db: 7, weight: "minor" },
+    { db: 10, weight: "major", numeral: true },
+    { db: 15, weight: "minor" },
+    { db: 20, weight: "major", numeral: true },
+  ];
+
+  /** Where a gain-reduction value sits along the arc: 0 at the left stop (20 dB), 1 at the right (0 dB). */
+  export function grPosition(db: number): number {
+    const clamped = Math.min(GR_MAX, Math.max(GR_MIN, db));
+    return (modulation(-clamped) - modulation(-GR_MAX)) / (modulation(0) - modulation(-GR_MAX));
+  }
+
+  export function grAngle(db: number): number {
+    return -VU_SWEEP / 2 + VU_SWEEP * grPosition(db);
+  }
 </script>
 <script lang="ts">
   /**
@@ -96,8 +132,10 @@
   let {
     /** Engraved under the housing: "L", "MASTER", … Optional. */
     label = null,
-    /** Reading in dB VU. Values past the end stops rest on them. */
+    /** Reading in dB VU (or dB of gain reduction on the "gr" face). Values past the end stops rest on them. */
     level = VU_MIN,
+    /** The printed card: the VU face (default, unchanged) or the gain-reduction face. */
+    face = "vu" as MeterFace,
     /** Bulb power. Off, the card is dark cream in shadow and the print still reads. */
     lamp = true,
     /** The slow filament drift (spec §4a's optional variation). Off under prefers-reduced-motion regardless. */
@@ -107,6 +145,7 @@
   }: {
     label?: string | null;
     level?: number;
+    face?: MeterFace;
     lamp?: boolean;
     lampDrift?: boolean;
     name?: string | null;
@@ -142,9 +181,13 @@
   const SHADOW_DX = 1.1;
   const SHADOW_DY = 1.6;
 
-  const clampedLevel = $derived(Math.min(VU_MAX, Math.max(VU_MIN, level)));
-  const angle = $derived(vuAngle(level));
-  const overload = $derived(clampedLevel >= VU_RED_FROM);
+  const isGr = $derived(face === "gr");
+  const faceMin = $derived(isGr ? GR_MIN : VU_MIN);
+  const faceMax = $derived(isGr ? GR_MAX : VU_MAX);
+  const clampedLevel = $derived(Math.min(faceMax, Math.max(faceMin, level)));
+  const angle = $derived(isGr ? grAngle(level) : vuAngle(level));
+  /** The red zone belongs to the VU face only. */
+  const overload = $derived(!isGr && clampedLevel >= VU_RED_FROM);
 
   /** Point at radius r from the pivot, deg clockwise from straight up. */
   const polar = (r: number, deg: number): [number, number] => {
@@ -162,13 +205,25 @@
 
   const numeral = (db: number): string => (db < 0 ? `\u2212${-db}` : db > 0 ? `+${db}` : "0");
 
-  const marks = VU_MARKS.map((mark) => {
-    const a = vuAngle(mark.db);
-    const [x1, y1] = polar(ARC_R, a);
-    const [x2, y2] = polar(ARC_R + TICK[mark.weight], a);
-    const [nx, ny] = polar(NUMERAL_R, a);
-    return { ...mark, x1, y1, x2, y2, nx, ny, red: mark.db > VU_RED_FROM, text: numeral(mark.db) };
-  });
+  const marks = $derived(
+    (isGr ? GR_MARKS : VU_MARKS).map((mark) => {
+      const a = isGr ? grAngle(mark.db) : vuAngle(mark.db);
+      const [x1, y1] = polar(ARC_R, a);
+      const [x2, y2] = polar(ARC_R + TICK[mark.weight], a);
+      const [nx, ny] = polar(NUMERAL_R, a);
+      return {
+        ...mark,
+        x1,
+        y1,
+        x2,
+        y2,
+        nx,
+        ny,
+        red: !isGr && mark.db > VU_RED_FROM,
+        text: isGr ? String(mark.db) : numeral(mark.db),
+      };
+    }),
+  );
 
   const needlePoints = [
     [PIVOT_X - NEEDLE_BASE_W / 2, PIVOT_Y + NEEDLE_TAIL],
@@ -183,9 +238,11 @@
   const pivotOrigin = `${f((PIVOT_X / W) * 100)}% ${f((PIVOT_Y / H) * 100)}%`;
 
   const valueText = $derived(
-    `${level < VU_MIN ? "below \u221220" : level > VU_MAX ? "over +3" : numeral(Math.round(clampedLevel * 10) / 10)} VU${
-      overload ? ", in the red" : ""
-    }${lamp ? "" : ", lamp off"}`,
+    isGr
+      ? `${Math.round(clampedLevel * 10) / 10} dB gain reduction${lamp ? "" : ", lamp off"}`
+      : `${level < VU_MIN ? "below \u221220" : level > VU_MAX ? "over +3" : numeral(Math.round(clampedLevel * 10) / 10)} VU${
+          overload ? ", in the red" : ""
+        }${lamp ? "" : ", lamp off"}`,
   );
 </script>
 <div
@@ -198,6 +255,7 @@
   style:--vu-shadow-dx={`${SHADOW_DX}px`}
   style:--vu-shadow-dy={`${SHADOW_DY}px`}
   data-vu
+  data-vu-face={face}
   data-vu-level={f(clampedLevel)}
   data-vu-angle={f(angle)}
   data-vu-lamp={lamp}
@@ -206,9 +264,9 @@
   <div
     class="vu__window"
     role="meter"
-    aria-label={name ?? label ?? "VU meter"}
-    aria-valuemin={VU_MIN}
-    aria-valuemax={VU_MAX}
+    aria-label={name ?? label ?? (isGr ? "Gain-reduction meter" : "VU meter")}
+    aria-valuemin={faceMin}
+    aria-valuemax={faceMax}
     aria-valuenow={clampedLevel}
     aria-valuetext={valueText}
     data-vu-meter
@@ -377,12 +435,14 @@
              ============================================================== -->
         <g class="vu__scale" data-part="scale">
           <path class="vu__arc" d={arc(ARC_R, VU_MIN, VU_MAX)} />
-          <path
-            class="vu__arc-red"
-            data-part="red-band"
-            d={arc(ARC_R + 0.35 + RED_BAND_W / 2, VU_RED_FROM, VU_MAX)}
-            style:stroke-width={RED_BAND_W}
-          />
+          {#if !isGr}
+            <path
+              class="vu__arc-red"
+              data-part="red-band"
+              d={arc(ARC_R + 0.35 + RED_BAND_W / 2, VU_RED_FROM, VU_MAX)}
+              style:stroke-width={RED_BAND_W}
+            />
+          {/if}
           {#each marks as mark (mark.db)}
             <line
               class={`vu__tick is-${mark.weight}`}
@@ -396,7 +456,7 @@
           {#each marks.filter((m) => m.numeral) as mark (mark.db)}
             <text class="vu__numeral" class:is-red={mark.red} x={f(mark.nx)} y={f(mark.ny)}>{mark.text}</text>
           {/each}
-          <text class="vu__legend" data-part="legend" x={PIVOT_X} y={PIVOT_Y - 15.5}>VU</text>
+          <text class="vu__legend" data-part="legend" x={PIVOT_X} y={PIVOT_Y - 15.5}>{isGr ? "GR" : "VU"}</text>
         </g>
 
         <!-- ==============================================================

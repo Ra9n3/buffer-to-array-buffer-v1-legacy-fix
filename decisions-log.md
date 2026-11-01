@@ -2524,3 +2524,165 @@ re-lettered. Approved hashes (sha256, first 16): `MixerBank.svelte`
 the push of `2b36389`, `0939cb1`, `bc7f5c5` and this commit (needs a PAT
 and the push signal); the tier / selection state shared across rooms
 (Task 3.1); the numeric Priority override; the detail panel split (2.9).
+
+## Task 2.8 — Mixer processing-chain detail for standard tracks (2026-11-02; uncommitted, awaiting review)
+
+Second build. The first 2.8 build was undone and purged on the owner's
+instruction (2026-11-01: "return to the last checkpoint — `8a9aec2`, and
+drop every 2.8 trace"); nothing of it was restored or consulted as a
+spec. Direction for this build (owner, 2026-11-01): **"closer to the
+documents"** — the plan and the hardware reference implemented as
+written, the owner's twelve clarifications applied only where the
+documents are silent. Report: `task-reports/2.8-report.md`.
+
+### D2.8.1 — The owner's clarifications, as applied (owner, 2026-11-01)
+
+Auto / Manual is parameter OWNERSHIP (Auto = open to future engine
+updates; Manual = user-owned, protected); bypass is a separate state.
+Turning a knob makes only that parameter Manual; the compressor character
+gets the same ownership. A module shows AUTO / MIXED / MANUAL with ALL
+Auto and ALL Manual actions — never a binary lamp that could misrepresent
+Mixed. Returning a parameter to Auto changes ownership only: no value is
+reset, nothing is recommended, there is no engine. The gain-reduction
+meter uses the approved VU housing with a DEDICATED GR scale (0 at the
+right, reduction increasing leftward), fixed illustrative readings. The
+EQ graph: solid = the current response from the local control values,
+dotted = the loaded response; neither is a spectrum; dynamic-EQ shading is
+an illustrative range with no controls. Character is a fixture selection
+with no emulation claim and never overwrites Manual values. The chain
+rail is fixture state only. Unsupported channel kinds get an explicit
+empty state. The explanation card is clearly authored fixture text and
+never implies audio was analysed. No DSP, analysis, automatic mixing or
+persistence.
+
+### D2.8.2 — One branch, on the existing kind; the room and the session model untouched (builder, 2026-11-02)
+
+`MixerDetailPanel` keeps its one prop (the room's selected
+`MixerChannelEntry`); `MixerRoom.svelte` and `lib/mixer.ts` are
+byte-identical to 2.7 (pinned). The panel branches once —
+`supportsChainDetail` = `kind === "track"` — between the chain and an
+explicit `role="status"` empty state naming the kind ("Processing detail
+for return bus / bus channels is not available in this build"); no
+selection has its own message. The identity header is read from the
+shared session (code, name, the strip's org tab via `orgToken`, Arrange
+family / source / role / tier). The housing copies `MixerBank`'s cheek,
+radius, wood tones and trim value for value (the guard compares them).
+
+### D2.8.3 — The chain model: `lib/mixer-chain.ts`, fixtures only (builder, 2026-11-02)
+
+The eight blocks are the existing `PROCESSING_CHAIN_STEPS` (plan §8) in
+order, each with a "home" (strip / panel / fixture) for its tooltip and
+`blockEngaged` from fixture state plus the two bypass switches. Each
+parameter is `{ spec, value, original, mode }`; `setParamValue` snaps /
+clamps and sets Manual; `setMode` touches the mode only; `setAllModes`
+touches modes only; `setCharacter` sets the selection Manual and nothing
+else. One `ChainState` per standard track is created when the room
+mounts and edited in place (room lifetime; no persistence by design).
+Specs: FREQ 20 Hz–20 kHz log · GAIN ±15 dB / 0.5 · Q 0.3–10 log (bells) ·
+THRESH −40…0 / 1 · RATIO list 1 … 20 : 1 · ATTACK 0.1–100 ms log · RELEASE
+10–1000 ms log · MAKEUP 0…+20 / 0.5. Twenty fixtures, 2–4 authored notes
+each, with the representative states listed in the report.
+
+### D2.8.4 — EQ: four bands on the approved Knob; the response graph draws the settings (builder, 2026-11-02)
+
+The plan gives no band count; four bands — LF low shelf, LMF / HMF bells
+with Q, HF high shelf — are the console form (assumption 1 in the
+report). Knobs are the approved Knob at the strips' 40 px
+(`--knob-size: 2.5rem`, the one approved API), amber family, with a MODE
+switch (approved panel TactileSwitch, "Mode" / Auto · Manual, amber lamp
+= Manual) and a tooltip carrying parameter, value, "loaded as" and
+ownership. The graph (`EqGraph`, SVG `role="img"` with a spoken
+description): log 20 Hz–20 kHz, ±15 dB (the gain range); the current
+curve and the loaded curve come from shelf / bell maths applied to the
+control values — drawing only, nothing measured, no animation; the loaded
+curve is dotted cream and appears only once a value differs; a dynamic
+band shades its illustrative depth with a hatch and is marked DYN on its
+plate. BYPASS (approved switch, amber lamp = bypassed, the ReturnStrip
+precedent) dims the traces to 0.4 and darkens blocks 03 / 04 on the rail.
+The band plates fold from one row to two under a 632 px bay by container
+query (`39.5rem`); no knob is ever shrunk.
+
+### D2.8.5 — Compressor: character, five controls, the GR face on the approved meter (builder, 2026-11-02)
+
+CHARACTER is the approved ScribbleSelect over VCA · Opto · FET · Vari-Mu
+(plan §8), function-bound to `setCharacter`, with its own MODE switch and
+a "was <loaded>" print once changed. THRESH · RATIO · ATTACK · RELEASE ·
+MAKEUP (assumption 2) are red-family ChainKnobs. Gain reduction is the
+approved `VUMeter` with the new optional `face="gr"`: same movement, a
+card printed 20 · 10 · 5 · 3 · 1 · 0 left to right, no red band, legend
+"GR", aria 0–20 "n dB gain reduction"; the reading is the fixture's fixed
+value and 0 while bypassed. The `face` prop defaults to `"vu"`; the VU
+face, law, marks and exports are unchanged; no Console or dev file passes
+it; the Console fingerprint is identical to the 2.7 baseline.
+
+### D2.8.6 — Ghosts outside the artwork; Knob.svelte untouched (builder, 2026-11-02)
+
+The ghost is a dashed pointer in a separate 400 × 400 overlay in
+`ChainKnob`, at −135° + 270° × the loaded value's sweep fraction (the
+Knob's own law), inert (`pointer-events: none`, `aria-hidden`), drawn
+only once the value differs from the loaded one — and kept after the
+parameter returns to Auto because the value still differs. The dotted
+curve and "was <X>" are the other two ghosts (plan §10).
+
+### D2.8.7 — "What changed and why": authored fixture text, stamped (builder, 2026-11-02)
+
+A cream card (`--al-material-cream`) of the fixture's notes, each tagged
+EQ / DYN EQ / COMP / CLEANUP, under the plan's own title, stamped FIXTURE
+TEXT with a tooltip stating no audio was analysed and no engine has run.
+The card does not react to edits (there is no engine to explain a
+change); the knob tooltips carry the "loaded as" fact.
+
+### D2.8.8 — Layout: bays side by side from 1280, stacked below; plates their own height (builder, 2026-11-02)
+
+The EQ bay is `flex: 1 1 36rem`, the compressor bay its content's 568 px;
+they share a row from 1280 up and stack beneath it; `align-items:
+flex-start`, so a plate is never stretched over panel it has nothing to
+put on (the deck shows under the compressor plate at ≥ 1280). The panel
+keeps 2.7's `align-self: flex-start; min-height: 100%` so it may grow
+past its grid row and the room scrolls. Bank, pinned block, strips and
+identity are unchanged at every width (measured identical to the 2.7
+matrix).
+
+### D2.8.9 — Guards: `check:mixer-detail` added; five guards amended as hand-overs (builder, 2026-11-02)
+
+New `scripts/check-mixer-detail-structure.mjs` (100 checks; ten mutations
+caught). Amendments: `check:mixer` — the placeholder's `sends` /
+`auto-manual` / `ghost-indicator` regions replaced by the five 2.8
+regions, "does not branch by kind" → "branches only to an explicit empty
+state, no Return / bus chain", "placeholder not skinned" → "panel is
+skinned", the `MixerChannel` import check accepts `MixerChannelEntry`,
+`MixerDetailPanel` re-pinned; `check:meter` — three VU-face checks scoped
+to the VU face and the GR legend / aria name allowed; `check:tokens` and
+`check:label-lamp` — `MixerDetailPanel.svelte` leaves their "not yet
+skinned" lists; `check:arrange-rows`, `check:console-bridge`,
+`check:console-transport` — `VUMeter.svelte` (and the panel) re-pinned.
+Totals: 16 guards, 1277 / 1277; `npm run check` 0 / 0; build
+`dist/index.html` `206dc01456dd6e60` (469.68 kB).
+
+## Task 2.8 — approved
+
+Owner, 2026-11-02: **"commit and push, approved."** Task 2.8 is closed as
+built and reported in `task-reports/2.8-report.md`; D2.8.1–D2.8.9 stand.
+The approval covers the processing-chain panel for standard tracks on the
+Task 2.7 bank (identity header from the shared session; the eight-block
+rail; the four-band EQ with its response graph; the compressor with
+character, five controls and the GR face on the approved VU meter;
+Auto / Manual as ownership with AUTO / MIXED / MANUAL and ALL switches;
+the three ghosts; the authored, stamped "What changed and why"; the
+explicit empty state for Return / bus), the one shared-component change
+(`VUMeter` optional `face`, VU face unchanged), the eleven documented
+assumptions where the documents are silent, and the deviations listed in
+the report. Approved hashes: `MixerDetailPanel.svelte`
+`0e596aba090663fe`, `VUMeter.svelte` `c3d850c80d9d53c7`,
+`mixer-chain.ts` `ca552319984ac217`, `ChainKnob.svelte`
+`251284ad9c971058`, `AutoManualControls.svelte` `a66b99885b9a4594`,
+`ProcessingChain.svelte` `d58f3d2542d84efb`, `EqGraph.svelte`
+`66f5a008df82bd27`, `EqSection.svelte` `1618e2fcf2f2f32a`,
+`CompressorSection.svelte` `00d46e4e9990e6e1`, `WhatChanged.svelte`
+`07ae383c56611fdf`, `check-mixer-detail-structure.mjs`
+`2a42bf41fabdbf63`; build `dist/index.html` `206dc01456dd6e60`
+(469.68 kB). Committed on this signal; pushed with `8a9aec2`, `bc7f5c5`,
+`0939cb1` and `2b36389` once the owner's PAT is supplied inline (never
+stored; to be revoked after the push). Open, carried forward: Task 2.9
+(Return / bus detail), Task 3.1 (shared tier / selection state), the
+numeric Priority override, a Knob `parse` prop, PAT revocation.

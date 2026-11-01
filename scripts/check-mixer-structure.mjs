@@ -110,11 +110,15 @@ check("the room is bounded to the viewport so the page cannot grow (app.css, Tas
 check("the room carries its hooks: data-mixer-room with the selected channel, data-mixer-layout", /data-mixer-room data-selected-channel=\{selectedId\}/.test(roomTemplate) && /data-mixer-layout/.test(roomTemplate));
 check("the Phase 0 column strip is gone (MixerChannelStrip.svelte deleted, nothing imports it)", !exists("src/components/MixerChannelStrip.svelte") && !/MixerChannelStrip/.test(mixerAndData));
 check("detail panel is tagged as a region", detail.includes('data-mixer-region="detail-panel"'));
-for (const region of ["selection", "processing-chain", "eq-graph", "compressor", "sends", "auto-manual", "ghost-indicator", "what-changed"]) {
+// Task 2.8 replaced the Task 0.5 placeholder with the processing-chain panel:
+// the "sends" placeholder region has no detail counterpart (sends live on the
+// strips), "auto-manual" is the per-module AutoManualControls and
+// "ghost-indicator" the per-knob ghost pointer (both checked by check:mixer-detail).
+for (const region of ["selection", "processing-chain", "eq-graph", "compressor", "what-changed"]) {
   check(`detail region "${region}" is present`, detail.includes(`data-mixer-region="${region}"`));
 }
-check("detail panel does not branch by channel kind (Task 2.9)", !/channel\.kind\s*===/.test(detail) && !/channel\.kind\s*!==/.test(detail));
-check("the detail panel still receives a MixerChannel {id, code, name, kind} — the interface is kept", /export interface MixerChannel \{\s*readonly id: string;\s*readonly code: string;\s*readonly name: string;\s*readonly kind: ChannelKind;\s*\}/.test(data) && /import type \{ MixerChannel \} from "\.\.\/lib\/mixer"/.test(detail));
+check("detail panel branches by channel kind only to an explicit empty state — no Return or bus chain (Task 2.9)", /channel\.kind === "track"/.test(detail) && /data-detail-empty/.test(detail) && !/ReturnStrip|BusMasterStrip|return-chain|bus-chain/.test(detail));
+check("the detail panel still receives the room's selected channel {id, code, name, kind} — the interface is kept (Task 2.8 types it as the MixerChannelEntry the room already hands over)", /export interface MixerChannel \{\s*readonly id: string;\s*readonly code: string;\s*readonly name: string;\s*readonly kind: ChannelKind;\s*\}/.test(data) && (/import type \{ MixerChannel \} from "\.\.\/lib\/mixer"/.test(detail) || /type MixerChannelEntry \} from "\.\.\/lib\/mixer"/.test(detail)) && /channel \}: \{ channel: MixerChannel(?:Entry)? \| undefined \} = \$props\(\)/.test(detail));
 
 // --- 3. Reuse of the approved strips. -----------------------------------------
 check("the track channel is the approved TrackStrip (Task 2.2), rendered once with the fixture strip", /import TrackStrip from "\.\.\/channel-strip\/TrackStrip\.svelte"/.test(trackCh) && count(templateOf(trackCh), /<TrackStrip\b/g) === 1 && /<TrackStrip track=\{channel\.strip\}>/.test(trackCh));
@@ -191,7 +195,7 @@ check("no permanent explanatory text in the Mixer room or bank (tooltips only)",
 check("no screw heads in the Mixer (owner's standing rule, D2.1.9)", !/(class=["'{][^"'}]*screw|\.[\w-]*screw[\w-]*\s*[{,:]|data-[\w-]*screw|__screw)/i.test(mixerAndData));
 check("no audio, DSP, routing or timing API in the Mixer", !/AudioContext|AudioParam|Analyser|AudioBuffer|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now|\.mp3|\.wav|Waveform/i.test(mixerAndData));
 check("no meter bridge or transport in the Mixer", !/meter-bridge|data-console-zone|MiniTransport|data-mini-transport/.test(room));
-check("no Phase 2 tokens leak back into the Task 0.5 detail panel (it is untouched)", !/var\(--al-/.test(detail));
+check("the detail panel is skinned with the design tokens (Task 2.8 replaced the Task 0.5 placeholder)", /var\(--al-/.test(detail));
 check("no dependency added or changed", !("dependencies" in pkg) && JSON.stringify(Object.keys(pkg.devDependencies).sort()) === JSON.stringify(["@sveltejs/vite-plugin-svelte", "@types/node", "svelte", "svelte-check", "typescript", "vite", "vite-plugin-singlefile"]));
 check("check:mixer is wired into package.json", pkg.scripts?.["check:mixer"] === "node scripts/check-mixer-structure.mjs");
 // Approved files the Mixer builds on and must not have changed (Console and
@@ -201,7 +205,7 @@ check("check:mixer is wired into package.json", pkg.scripts?.["check:mixer"] ===
 const pinned = {
   "src/components/ChannelBank.svelte": "d8079a833c0b8a4bdd111c741122b4810ffd2ba664876dc435a32002ecc9f1fa",
   "src/rooms/ConsoleRoom.svelte": "ab8450a981b9ef4a8fbf4382e225994340f7be2936dbdafb3ddd402b16af6645",
-  "src/components/MixerDetailPanel.svelte": "b99bcea6003b90c4ea1d23b812cee211cd86392eaa24ff67fb72866e6ce06215",
+  "src/components/MixerDetailPanel.svelte": "0e596aba090663fe9846d00e7e814f83f02b60712cc221cef24e6d0c2a1008aa",
   "src/components/ArrangeTrackRow.svelte": "439d1889603ef90851917bcdfa735372b079c092e4a12148dbdebd3eda498c90",
   "src/rooms/ArrangeRoom.svelte": "f1438bc03b63822ad908e0841a6be49175cd9b1b2848ae4682f5cbd449689de3",
   "src/components/channel-strip/SendSlot.svelte": "8009eaf5ba0335099deb62a315116e67450750c118370d974596ead37b468b31",

@@ -252,10 +252,10 @@ const roomSources = [
   // header are skinned); ArrangeTimelineLane.svelte left in Task 2.6 (the
   // timeline — lanes, clips, ruler and tempo track — is skinned).
   // MixerRoom.svelte left in Task 2.7 (the Mixer's channel strips are
-  // skinned) and MixerChannelStrip.svelte was deleted by it; the Task 0.5
-  // detail panel stays until Task 2.9.
+  // skinned) and MixerChannelStrip.svelte was deleted by it.
+  // MixerDetailPanel.svelte left in Task 2.8 (the processing-chain detail
+  // panel is skinned).
   "src/components/ChannelStrip.svelte",
-  "src/components/MixerDetailPanel.svelte",
   "src/components/RoomNav.svelte",
   "src/components/RoomShell.svelte",
   "src/components/MiniTransport.svelte",
