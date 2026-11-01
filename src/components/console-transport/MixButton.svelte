@@ -2,39 +2,40 @@
   /**
    * ALLOY MIX button — Task 2.3 (plan §3 "large illuminated MIX button";
    * §10 "the main call to action and must be visually dominant"; hardware
-   * spec §2 for the well and the press, §4a for the lamp light, §6 layered
-   * light-and-shadow, never a flat fill).
+   * spec §2 for the well and the press, §6 layered light-and-shadow, never a
+   * flat fill). Owner's review change of 2026-11-01 (D2.3.12): the cap is
+   * coloured just like the transport keys, with a little lamp beside it.
    *
-   * One large illuminated push-button: a translucent amber cap lit from
-   * behind by a lamp — brightest low and centre where the bulb sits, fading
-   * towards the rim, a gloss along the top edge — standing 3 px proud of a
-   * dark recessed well, its light spilling softly onto the panel round it.
-   * The legend MIX is printed dark on the lit cap, as the legends of
-   * illuminated keys are. It is unmistakably not a transport key: the keys
-   * are small cream caps with a lamp beside them; this is one big lit cap.
+   * One large push-button wearing the transport keys' cap — the approved
+   * tactile switch's cream cap (variant A), value for value: the same convex 135° ramp lit
+   * from the top-left, the same edge lights and shades, the same gloss bloom
+   * in the upper-left, the same cream wall and foot under it — standing 3 px
+   * proud of a dark recessed well, with the legend MIX printed in the keys'
+   * ink. It is still unmistakably not a transport key: the keys are small
+   * square caps; this is one wide cap the size of three of them. Beside it,
+   * where a key's lamp is, sits the approved pilot Lamp (Task 1.6): lit while
+   * the mix runs, off otherwise.
    *
    * States (fixture, D2.3.4):
-   *   ready       lit steady — the session can be mixed.
-   *   processing  lit, the lamp slowly pulsing while the render runs
-   *               (still under reduced motion); the button ignores presses.
-   *   complete    lit steady — a rerun is available.
-   * `lit={false}` shows the dead cap for the playground only.
+   *   ready       the lamp is off — the session can be mixed.
+   *   processing  the lamp is lit while the render runs (it breathes as the
+   *               Lamp does, not under reduced motion); the button ignores
+   *               presses.
+   *   complete    the lamp is off — a rerun is available.
    *
    * Pressing it does nothing in Task 2.3: no render, no automatic mix, no
    * project state (plan §14: Phases 5–8). The cap sinks under the finger
    * because a key does; that is the whole of its behaviour.
    */
+  import Lamp from "../hardware/Lamp.svelte";
   import type { MixState } from "./transport-fixtures";
 
   let {
     state = "ready",
-    lit = true,
     name = "MIX — start the full mix",
     describedBy = null,
   }: {
     state?: MixState;
-    /** Playground only: the unlit cap. The Console never shows it. */
-    lit?: boolean;
     name?: string;
     /** id(s) of the text that explains the state — the status display. */
     describedBy?: string | null;
@@ -45,13 +46,11 @@
 
 <div
   class="mix"
-  class:is-lit={lit}
   class:is-busy={busy}
   data-mix-button
   data-mix-state={state}
-  data-mix-lit={lit}
+  data-mix-lamp={busy}
 >
-  <span class="mix__spill" aria-hidden="true"></span>
   <button
     type="button"
     class="mix__button"
@@ -66,6 +65,11 @@
       </span>
     </span>
   </button>
+  <!-- The mixing lamp: the approved pilot lamp beside the cap, as beside a
+       key. Presentation: the button's description carries the state. -->
+  <span class="mix__lamp" data-part="lamp">
+    <Lamp lit={busy} color="amber" />
+  </span>
 </div>
 
 <style>
@@ -76,42 +80,27 @@
     --mx-radius: 6px;
     --mx-lift: 3px;
     --mx-well: var(--al-space-sm);
-    /* --- the lamp and the glass, from the tokens ------------------------- */
-    --mx-core: color-mix(in srgb, var(--al-function-amber-hi) 72%, white);
-    --mx-body: var(--al-material-lamp);
-    --mx-rim: var(--al-function-amber-base);
-    --mx-edge: var(--al-function-amber-lo);
-    --mx-ink: var(--al-function-amber-ink);
-    --mx-spill: var(--al-material-lamp);
-    /* dead glass: the body sunk into the recess tone */
-    --mx-off-hi: color-mix(in srgb, var(--mx-body) 34%, var(--al-material-recess));
-    --mx-off-lo: color-mix(in srgb, var(--mx-body) 14%, var(--al-material-recess));
+    /* --- the cap: the transport keys' cream, the switch's recipe ---------- */
+    --mx-cap-hi: var(--al-function-cream-hi);
+    --mx-cap-base: var(--al-function-cream-base);
+    --mx-cap-lo: var(--al-function-cream-lo);
+    --mx-cap-dim: color-mix(in srgb, var(--mx-cap-base) 46%, var(--mx-cap-lo));
+    --mx-wall: color-mix(in srgb, var(--mx-cap-lo) 70%, black);
+    --mx-wall-foot: color-mix(in srgb, var(--mx-cap-lo) 42%, black);
+    --mx-ink: var(--al-text-on-cream);
 
     position: relative;
     display: inline-grid;
-    place-items: center;
+    grid-template-columns: auto auto;
+    grid-template-areas: "button lamp";
+    align-items: center;
+    column-gap: var(--al-space-xs);
     padding-top: var(--mx-lift);
-  }
-
-  /* --- the light on the panel ---------------------------------------------- */
-  .mix__spill {
-    position: absolute;
-    inset: var(--mx-lift) 0 0 0;
-    border-radius: calc(var(--mx-radius) + var(--mx-well));
-    opacity: 0;
-    pointer-events: none;
-    box-shadow:
-      0 0 18px 5px color-mix(in srgb, var(--mx-spill) 30%, transparent),
-      0 0 44px 14px color-mix(in srgb, var(--mx-spill) 13%, transparent);
-    transition: opacity 120ms ease-out;
-  }
-
-  .mix.is-lit .mix__spill {
-    opacity: 1;
   }
 
   /* --- the button: the well is its face ------------------------------------ */
   .mix__button {
+    grid-area: button;
     position: relative;
     display: block;
     margin: 0;
@@ -147,7 +136,7 @@
       0 1px 0 rgba(255, 255, 255, 0.05);
   }
 
-  /* --- the cap ------------------------------------------------------------- */
+  /* --- the cap: the keys' cap (the switch's variant A), value for value ---- */
   .mix__cap {
     position: relative;
     display: grid;
@@ -156,62 +145,71 @@
     height: var(--mx-height);
     border-radius: var(--mx-radius);
     overflow: hidden;
-    background-color: var(--mx-off-hi);
-    background-image:
-      /* the gloss along the top edge of the glass */
-      linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.08) 22%, rgba(255, 255, 255, 0) 45%),
-      /* the rim falling off into the dead tone */
-      radial-gradient(120% 110% at 50% 60%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.38) 100%),
-      linear-gradient(180deg, var(--mx-off-hi), var(--mx-off-lo));
-    /* the wall: the cap stands proud of the well floor */
+    /* the convex top: lit from the top-left, turning away at the bottom-right */
+    background: linear-gradient(135deg, var(--mx-cap-hi) 0%, var(--mx-cap-hi) 10%, var(--mx-cap-base) 48%, var(--mx-cap-dim) 100%);
+    /* edge light, edge shade, inner turn, side wall, foot, drop shadow */
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.25),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
-      0 var(--mx-lift) 0 0 color-mix(in srgb, var(--mx-edge) 60%, black),
-      0 calc(var(--mx-lift) + 1px) 0 0 rgba(0, 0, 0, 0.6),
-      0 calc(var(--mx-lift) + 2px) 4px rgba(0, 0, 0, 0.6);
+      inset 0 1px 0 rgba(255, 255, 255, 0.85),
+      inset 1px 0 0 rgba(255, 255, 255, 0.45),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.28),
+      inset -1px 0 0 rgba(0, 0, 0, 0.14),
+      inset -2px -3px 4px rgba(0, 0, 0, 0.16),
+      0 var(--mx-lift) 0 0 var(--mx-wall),
+      0 calc(var(--mx-lift) + 1px) 0 0 var(--mx-wall-foot),
+      0 calc(var(--mx-lift) + 2px) 3px rgba(0, 0, 0, 0.55);
     transform: translateY(calc(-1 * var(--mx-lift)));
     transition:
       transform 70ms ease-out,
-      box-shadow 70ms ease-out,
-      filter 120ms ease-out;
+      box-shadow 70ms ease-out;
   }
 
-  /* lit: the lamp behind the glass — brightest low and centre, uneven */
-  .mix.is-lit .mix__cap {
-    background-color: var(--mx-body);
-    background-image:
-      linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.1) 22%, rgba(255, 255, 255, 0) 45%),
-      radial-gradient(70% 85% at 50% 72%, var(--mx-core) 0%, color-mix(in srgb, var(--mx-core) 40%, var(--mx-body)) 34%, rgba(0, 0, 0, 0) 72%),
-      radial-gradient(130% 120% at 50% 55%, rgba(0, 0, 0, 0) 58%, color-mix(in srgb, var(--mx-edge) 55%, transparent) 100%),
-      linear-gradient(180deg, var(--mx-rim), var(--mx-body) 45%, var(--mx-rim));
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.4),
-      inset 0 -1px 0 rgba(0, 0, 0, 0.25),
-      0 var(--mx-lift) 0 0 var(--mx-edge),
-      0 calc(var(--mx-lift) + 1px) 0 0 rgba(0, 0, 0, 0.6),
-      0 calc(var(--mx-lift) + 2px) 4px rgba(0, 0, 0, 0.6);
+  /* the gloss: the keys' broad specular bloom in the upper-left over a faint
+     second sheen, on its own layer so it dims when pressed */
+  .mix__cap::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      radial-gradient(
+        62% 46% at 30% 20%,
+        rgba(255, 255, 255, 0.78) 0%,
+        rgba(255, 255, 255, 0.22) 46%,
+        rgba(255, 255, 255, 0) 72%
+      ),
+      radial-gradient(
+        50% 30% at 70% 88%,
+        rgba(255, 255, 255, 0.14) 0%,
+        rgba(255, 255, 255, 0) 70%
+      );
+    opacity: 1;
+    transition: opacity 70ms ease-out;
+    pointer-events: none;
   }
 
-  /* the press: the cap sinks to a 1 px wall and the spill dims a little */
+  /* the press: the cap sinks to a 1 px wall, the bloom dims, the inner shade
+     deepens — the keys' press */
   .mix__button:active:not([aria-disabled="true"]) .mix__cap {
     transform: translateY(-1px);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.3),
-      inset 0 2px 4px rgba(0, 0, 0, 0.25),
-      0 1px 0 0 var(--mx-edge),
-      0 2px 0 0 rgba(0, 0, 0, 0.6),
-      0 2px 2px rgba(0, 0, 0, 0.5);
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 1px 0 0 rgba(255, 255, 255, 0.22),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.3),
+      inset -1px 0 0 rgba(0, 0, 0, 0.16),
+      inset 0 2px 3px rgba(0, 0, 0, 0.22),
+      0 1px 0 0 var(--mx-wall),
+      0 2px 0 0 var(--mx-wall-foot),
+      0 2px 2px rgba(0, 0, 0, 0.45);
   }
 
-  .mix:has(.mix__button:active:not([aria-disabled="true"])) .mix__spill {
-    opacity: 0.82;
+  .mix__button:active:not([aria-disabled="true"]) .mix__cap::before {
+    opacity: 0.35;
   }
 
-  /* --- the legend: printed dark on the glass ------------------------------- */
+  /* --- the legend: the keys' ink on the cream, flat print ------------------ */
   .mix__legend {
     position: relative;
-    color: color-mix(in srgb, var(--mx-ink) 55%, var(--al-text-muted));
+    color: var(--mx-ink);
     font-family: var(--al-font-label);
     font-size: calc(var(--mx-height) * 0.42);
     font-weight: var(--al-font-weight-black);
@@ -219,42 +217,18 @@
     line-height: 1;
     text-indent: 0.18em; /* centre the tracked word optically */
     text-transform: uppercase;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.12);
+    /* the ink sits a hair below the gloss: a faint lit edge under it */
+    text-shadow: 0 0.5px 0 rgba(255, 255, 255, 0.28);
     user-select: none;
     -webkit-user-select: none;
   }
 
-  .mix.is-lit .mix__legend {
-    color: var(--mx-ink);
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.28);
-  }
-
-  /* --- processing: a slow pulse of the lamp, not a spinner ------------------ */
-  @media (prefers-reduced-motion: no-preference) {
-    .mix.is-lit.is-busy .mix__cap {
-      animation: mix-pulse 1.8s ease-in-out infinite alternate;
-    }
-
-    .mix.is-lit.is-busy .mix__spill {
-      animation: mix-spill-pulse 1.8s ease-in-out infinite alternate;
-    }
-  }
-
-  @keyframes mix-pulse {
-    from {
-      filter: brightness(0.86);
-    }
-    to {
-      filter: brightness(1.08);
-    }
-  }
-
-  @keyframes mix-spill-pulse {
-    from {
-      opacity: 0.55;
-    }
-    to {
-      opacity: 1;
-    }
+  /* --- the lamp: level with the resting cap's face, as beside a key -------- */
+  .mix__lamp {
+    grid-area: lamp;
+    position: relative;
+    top: calc(-1 * var(--mx-lift));
+    display: block;
+    line-height: 0;
   }
 </style>

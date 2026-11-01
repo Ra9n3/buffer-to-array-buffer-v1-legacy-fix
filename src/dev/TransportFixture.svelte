@@ -25,8 +25,6 @@
     readonly snapshot?: keyof typeof TRANSPORT_STATE_FIXTURES;
     /** MIX button alone, in this state, instead of the deck. */
     readonly mixOnly?: MixState;
-    /** MIX button alone: the dead cap (never shown in the Console). */
-    readonly unlit?: boolean;
     readonly stateNote: string;
   }
 
@@ -38,7 +36,7 @@
 <figure class="transport-fixture" class:transport-fixture--mix={config.mixOnly !== undefined} data-dev-transport-fixture={config.id}>
   {#if config.mixOnly !== undefined}
     <div class="transport-fixture__panel">
-      <MixButton state={config.mixOnly} lit={!config.unlit} name={`MIX, ${config.mixOnly}${config.unlit ? ", unlit" : ""}`} />
+      <MixButton state={config.mixOnly} name={`MIX, ${config.mixOnly}`} />
     </div>
   {:else}
     <ConsoleTransport {fixture} headingId={`dev-transport-${config.id}`} />

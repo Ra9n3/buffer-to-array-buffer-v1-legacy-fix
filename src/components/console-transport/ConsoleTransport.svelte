@@ -20,14 +20,15 @@
    *              printing its symbol on the cap with its word engraved
    *              beneath. PLAY and STOP latch and exclude each other; the
    *              engaged one's lamp is lit. PREVIOUS and NEXT are momentary.
-   *   TIME       a lamp-lit glass window: H:MM:SS large, bar · beat small
-   *              (owner, D2.3.3).
-   *   STATUS     the same glass: the mix state word first, then the details
+   *   TIME       a display screen on the meters' cream card: H:MM:SS large,
+   *              bar · beat small (owner, D2.3.3; D2.3.10–13).
+   *   STATUS     the same screen: the mix state word first, then the details
    *              — listening source, hardware profile, the estimate; while
    *              processing, the stage, its progress and the time left; any
    *              warnings in red (plan §10). The listening source is text
    *              here and nowhere else (owner, D2.3.2).
-   *   MIX        the dominant illuminated button, at the right end.
+   *   MIX        the dominant button, in the keys' cream with its mixing
+   *              lamp beside it, at the right end (owner, D2.3.12).
    *
    * Everything is fixture data (`transport-fixtures.ts`), SIMULATED and
    * labelled so: nothing plays, locates, renders or persists. The only
@@ -138,23 +139,32 @@
         </div>
       </div>
 
-      <!-- TIME -->
+      <!-- TIME — a window column built like a key column: a cap-high seat the
+           glass is centred on, over a label line, so the body's centring lands
+           the glass on the key caps (owner, 2026-11-01). The legend floats
+           above the glass and moves with it. -->
       <div class="transport__time" data-transport-time>
-        <LampDisplay kind="clock" legend="Time" primary={clock} secondary={beatPrint} name={timeName} />
+        <div class="window__seat" data-window-seat>
+          <LampDisplay kind="clock" legend="Time" primary={clock} secondary={beatPrint} name={timeName} />
+        </div>
+        <span class="window__shim" aria-hidden="true"><EngravedLabel text="Time" size="xs" tone="muted" /></span>
       </div>
 
       <!-- STATUS -->
       <div class="transport__status" data-transport-status-display>
-        <LampDisplay
-          kind="status"
-          legend="Status"
-          primary={word}
-          secondary={details}
-          {progress}
-          warning={fixture.mix.warnings > 0}
-          name={statusName}
-          id={`${uid}-status`}
-        />
+        <div class="window__seat" data-window-seat>
+          <LampDisplay
+            kind="status"
+            legend="Status"
+            primary={word}
+            secondary={details}
+            {progress}
+            warning={fixture.mix.warnings > 0}
+            name={statusName}
+            id={`${uid}-status`}
+          />
+        </div>
+        <span class="window__shim" aria-hidden="true"><EngravedLabel text="Status" size="xs" tone="muted" /></span>
       </div>
 
       <!-- MIX -->
@@ -276,6 +286,14 @@
      is the one flexible part), never shrinking a control.
      ======================================================================= */
   .transport__body {
+    --switch-size: 2.5rem; /* 40 px key caps; the strips' MUTE / SOLO are 28.
+                              Set here, once, because the windows' seats are
+                              the caps' height too. */
+    --window-height: 4.53125rem; /* 72.5 px: the windows' frame height, the one
+                                    size written down (owner, 2026-11-01) —
+                                    what the frames measured when they still
+                                    stretched to the MIX column's row. */
+
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -286,8 +304,6 @@
 
   /* --- the keys: approved switches at a transport key's size --------------- */
   .transport__keys {
-    --switch-size: 2.5rem; /* 40 px caps; the strips' MUTE / SOLO are 28 */
-
     display: flex;
     flex: 0 0 auto;
     gap: var(--al-space-sm);
@@ -315,17 +331,37 @@
   }
 
   .transport__status {
-    flex: 1 1 16rem; /* keys 291 + time 184 + this + MIX 136 + gaps fit a 1024 window in one row */
-    min-width: 16rem;
+    /* keys 291 + time 184 + this + MIX with its lamp 157 + three 24-px gaps
+       fit a 1024 window (940 px) in one row; the floor came down from 16rem
+       when the lamp arrived (D2.3.12) */
+    flex: 1 1 14.5rem;
+    min-width: 14.5rem;
     max-width: 28rem;
   }
 
-  /* the windows fill their row's height so the two glasses are level */
+  /* each window column is a key column's shape — a seat the caps' height,
+     the keys' gap, a label line — so the body's align-items: center puts the
+     seat where the switches' seats are; the glass is centred on the seat and
+     stands over it. Nothing here is measured or offset by hand. */
   .transport__time,
   .transport__status {
     display: flex;
     flex-direction: column;
-    align-self: stretch;
+    gap: var(--al-space-2xs);
+  }
+
+  .window__seat {
+    display: flex;
+    align-items: center;
+    height: var(--switch-size);
+    min-width: 0;
+  }
+
+  /* the label line beneath the seat, mirroring the keys' words: it keeps the
+     column's shape and is never seen or read */
+  .window__shim {
+    display: flex;
+    visibility: hidden;
   }
 
   /* --- MIX: at the right end of its row ------------------------------------- */

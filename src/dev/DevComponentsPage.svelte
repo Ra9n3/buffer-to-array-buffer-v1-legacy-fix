@@ -798,17 +798,16 @@ import TransportFixture, { type TransportFixtureConfig } from "./TransportFixtur
   /* Task 2.3 — the Console transport deck's fixture snapshots, and the MIX
      button alone. The same static fixtures the room prints; no state. */
   const TRANSPORT_DECKS: TransportFixtureConfig[] = [
-    { id: "ready", stateNote: "READY — the Console's default (D2.3.4): stopped at 0:02:17, bar 12 beat 3; status READY · source RAW · BALANCED · est. mix 1:40; MIX lit steady." },
+    { id: "ready", stateNote: "READY — the Console's default (D2.3.4): stopped at 0:02:17, bar 12 beat 3; status READY · source RAW · BALANCED · est. mix 1:40; MIX's lamp off." },
     { id: "playing", snapshot: "playing", stateNote: "PLAYING — PLAY's lamp lit, STOP's dark; 0:37:11, bar 186; source PREVIEW." },
-    { id: "processing", snapshot: "processing", stateNote: "PROCESSING (simulated) — stage 3 of 7 ANALYSING SPECTRUM, progress 42 %, 0:58 left, profile LITE, one warning in red; MIX pulsing slowly (still under reduced motion), ignoring presses." },
-    { id: "complete", snapshot: "complete", stateNote: "COMPLETE — MIXED at 14:02, 2 manual edits since, rerun available; source RENDER; MIX lit steady." },
+    { id: "processing", snapshot: "processing", stateNote: "PROCESSING (simulated) — stage 3 of 7 ANALYSING SPECTRUM, progress 42 %, 0:58 left, profile LITE, one warning in red; MIX's lamp lit (mixing), the button ignoring presses." },
+    { id: "complete", snapshot: "complete", stateNote: "COMPLETE — MIXED at 14:02, 2 manual edits since, rerun available; source RENDER; MIX's lamp off." },
   ];
 
   const TRANSPORT_MIX: TransportFixtureConfig[] = [
-    { id: "mix-ready", mixOnly: "ready", stateNote: "ready — lit steady" },
-    { id: "mix-processing", mixOnly: "processing", stateNote: "processing — pulsing" },
-    { id: "mix-complete", mixOnly: "complete", stateNote: "complete — lit steady" },
-    { id: "mix-unlit", mixOnly: "ready", unlit: true, stateNote: "unlit — the dead cap, playground only" },
+    { id: "mix-ready", mixOnly: "ready", stateNote: "ready — lamp off" },
+    { id: "mix-processing", mixOnly: "processing", stateNote: "processing — lamp lit" },
+    { id: "mix-complete", mixOnly: "complete", stateNote: "complete — lamp off" },
   ];
 
   onMount(() => {
@@ -1460,8 +1459,9 @@ import TransportFixture, { type TransportFixtureConfig } from "./TransportFixtur
         its fixture snapshots so every visual state can be reviewed side by
         side: the four approved tactile switches as transport keys
         (PREVIOUS · PLAY · STOP · NEXT, cap-labelled with their symbols, PLAY
-        and STOP a latching pair), the lamp-lit time and status windows, and
-        the dominant illuminated MIX button. Everything is
+        and STOP a latching pair), the time and status screens on the meters'
+        cream card, and the dominant MIX button in the
+        keys' cream with its mixing lamp beside it. Everything is
         <strong>simulated</strong>: nothing plays, locates, renders or
         persists, and the deck is the same component the room uses.
       </p>

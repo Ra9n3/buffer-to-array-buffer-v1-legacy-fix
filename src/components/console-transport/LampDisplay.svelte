@@ -1,23 +1,31 @@
 <script lang="ts">
   /**
-   * ALLOY lamp-lit display window — Task 2.3 (plan §3 "time/status display";
-   * §4 "recessed windows … soft incandescent amber/gold lamp glow", "no LED
-   * aesthetic … avoid cold blue/green VFD styling"; hardware spec §4a for the
-   * light, §6 for the layering).
+   * ALLOY display window — Task 2.3 (plan §3 "time/status display"; owner's
+   * review changes of 2026-11-01, D2.3.10–D2.3.13: a display on the VU
+   * meters' lamp-lit cream card).
    *
-   * A dark glass window recessed into the deck behind a thin metal frame —
-   * the goniometer's scope recipe (Task 2.1) — with its print lit from behind
-   * by a warm lamp: the numerals and words are the amber-hi token with a
-   * soft, wide bloom, never a crisp edge, and the glass itself carries a
-   * faint warm wash that is brightest low and centre where the bulb would
-   * sit, breathing by a few percent like the approved lamps (still under
-   * reduced motion). The engraved legend sits on the panel above the frame.
+   * The screen is the approved VU meter's face, value for value: the cream
+   * card in shadow with the bulb off, the lit card washed over it at 0.8,
+   * the bezel lip's shadow along the top, left and (faintly) right inside
+   * edges, the off-centre vignette, and one restrained diagonal sheen of
+   * glass over everything — plus a hint of the bulb itself at the lower
+   * centre (the lamp token's pool, its hotter core, the faint lift toward the
+   * upper right), at a fraction of the meter's strength. The print is set in
+   * Orbitron Medium (Matt McInerney, SIL Open Font License; owner's choice,
+   * D2.3.13), kept inside the project (src/assets/fonts/orbitron) and used
+   * for the numbers and the words alike — in the VU face's own ink (black on
+   * cream), a warning in the VU face's red, never with a glow and with
+   * nothing drawn behind it: the live print alone on the card. The engraved
+   * legend floats above the frame and moves with it. No scan lines, no other
+   * decoration.
    *
    * Two kinds, one recipe (D2.3.3):
    *   clock   the big tabular H:MM:SS with the bar · beat beneath it.
    *   status  the state word, an optional progress slot, and the details.
    * Everything printed is a fixture string passed in; the window formats
-   * nothing and knows nothing about playback or rendering.
+   * nothing and knows nothing about playback or rendering. The window takes
+   * its height from the deck (`--window-height`): the deck writes that number
+   * down once.
    */
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
 
@@ -48,6 +56,10 @@
   } = $props();
 
   const fill = $derived(progress === null ? 0 : Math.min(1, Math.max(0, progress)));
+
+  /* The separator between details: the owner's middle dot. Orbitron has no
+     glyph for it, so the next family in the stack draws it. */
+  const SEPARATOR = "\u00B7";
 </script>
 
 <div class={`display display--${kind}`} role="group" aria-label={name} {id} data-lamp-display={kind}>
@@ -56,7 +68,6 @@
   </div>
   <div class="display__frame" data-part="frame">
     <div class="display__glass" data-part="glass">
-      <span class="display__light" aria-hidden="true"></span>
       <span class="display__primary" data-part="primary">{primary}</span>
       {#if progress !== null}
         <span class="display__slot" data-part="progress" aria-hidden="true">
@@ -66,63 +77,67 @@
       {#if secondary.length > 0}
         <span class="display__secondary" data-part="secondary">
           {#each secondary as part, i (i)}
-            {#if i > 0}<span class="display__dot" aria-hidden="true">·</span>{/if}
+            {#if i > 0}<span class="display__dot" aria-hidden="true">{SEPARATOR}</span>{/if}
             <span class="display__part" class:is-warning={warning && i === secondary.length - 1}>{part}</span>
           {/each}
         </span>
       {/if}
+      <span class="display__reflection" aria-hidden="true"></span>
     </div>
   </div>
 </div>
 
 <style>
-  .display {
-    /* --- the lamp behind the glass, from the tokens ---------------------- */
-    --dp-ink: var(--al-function-amber-hi);
-    --dp-core: color-mix(in srgb, var(--al-function-amber-hi) 70%, white);
-    --dp-lamp: var(--al-material-lamp);
-    --dp-dim: color-mix(in srgb, var(--al-material-lamp) 78%, var(--al-text-muted));
-    --dp-warn: var(--al-function-red-hi);
-    --dp-warn-lamp: var(--al-function-red-base);
-    /* the floor of the recess: the goniometer's */
-    --dp-floor-centre: color-mix(in srgb, var(--al-material-recess) 84%, var(--al-material-surface));
-    --dp-floor-edge: color-mix(in srgb, var(--al-material-recess) 92%, black);
-    --dp-frame: var(--al-material-metal-shadow);
-    /* the bloom: a near, a mid and a far halo, all the lamp's colour */
-    --dp-bloom:
-      0 0 1px var(--dp-core),
-      0 0 5px var(--dp-lamp),
-      0 0 12px color-mix(in srgb, var(--dp-lamp) 55%, transparent),
-      0 0 24px color-mix(in srgb, var(--dp-lamp) 28%, transparent);
-    --dp-bloom-small:
-      0 0 1px color-mix(in srgb, var(--dp-core) 60%, transparent),
-      0 0 4px color-mix(in srgb, var(--dp-lamp) 70%, transparent),
-      0 0 10px color-mix(in srgb, var(--dp-lamp) 30%, transparent);
+  /* The display face, from the project's own copy (SIL OFL, see
+     src/assets/fonts/orbitron/README.md). Inlined into the single-file build. */
+  @font-face {
+    font-family: "Orbitron";
+    src: url("../../assets/fonts/orbitron/Orbitron-Medium.subset.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: block;
+  }
 
+  .display {
+    /* --- the VU meter's card and bulb, value for value (VUMeter.svelte) ---- */
+    --dp-card-unlit: color-mix(in srgb, var(--al-material-cream) 46%, black);
+    --dp-card-lit: color-mix(in srgb, var(--al-material-cream) 80%, var(--al-material-lamp));
+    --dp-lamp: var(--al-material-lamp);
+    --dp-lamp-core: color-mix(in srgb, var(--al-function-amber-hi) 55%, white);
+    /* --- the print: the VU face's ink and its red; never a glow ------------ */
+    --dp-ink: var(--al-text-on-cream);
+    --dp-warn: color-mix(in srgb, var(--al-function-red-base) 85%, var(--al-function-red-lo));
+    /* the progress slot's lamp */
+    --dp-core: color-mix(in srgb, var(--al-function-amber-hi) 70%, white);
+    --dp-frame: var(--al-material-metal-shadow);
+
+    position: relative;
     display: flex;
-    flex: 1 1 auto; /* fills a flex column, so two windows side by side are level */
+    flex: 1 1 auto; /* fills its seat's width */
     flex-direction: column;
-    gap: var(--al-space-2xs);
     min-width: 0;
   }
 
+  /* the legend floats on the panel above the frame and moves with it */
   .display__legend {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
     display: flex;
     align-items: center;
     min-height: 0.875rem;
+    margin-bottom: var(--al-space-2xs);
     padding: 0 var(--al-space-3xs);
   }
 
-  /* --- the frame and the glass: the scope recipe ---------------------------- */
+  /* --- the frame and the screen ---------------------------------------------- */
   .display__frame {
-    flex: 1 1 auto;
+    box-sizing: border-box;
+    height: var(--window-height, auto);
     min-width: 0;
     padding: 1px;
     border-radius: 3.5px;
-    background: linear-gradient(180deg, var(--al-material-metal) 0%, var(--dp-frame) 50%, var(--al-bevel-shadow) 100%);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.05),
-      0 1px 2px rgba(0, 0, 0, 0.4);
+    background-color: var(--dp-frame);
   }
 
   .display__glass {
@@ -136,68 +151,58 @@
     padding: var(--al-space-xs) var(--al-space-md);
     border-radius: 2.5px;
     overflow: hidden;
+    /* the card with the bulb off, and over it, top layer first: */
+    background-color: var(--dp-card-unlit);
     background-image:
-      /* the room light across the glass, top-left */
-      linear-gradient(100deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.015) 30%, rgba(255, 255, 255, 0) 48%),
-      radial-gradient(120% 100% at 50% 50%, var(--dp-floor-centre) 0%, var(--dp-floor-edge) 100%);
-    box-shadow:
-      inset 0 2px 3px rgba(0, 0, 0, 0.8),
-      inset 0 0 0 1px var(--al-border-strong);
+      /* the bezel lip's shadow: 10 px down from the top, 7 px in from the
+         left, 4 px in from the right — the meter's stops, lit from the
+         top-left, nothing bright at the bottom-right */
+      linear-gradient(180deg, rgba(0, 0, 0, 0.4) 0, rgba(0, 0, 0, 0) 10px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.3) 0, rgba(0, 0, 0, 0) 7px),
+      linear-gradient(270deg, rgba(0, 0, 0, 0.14) 0, rgba(0, 0, 0, 0) 4px),
+      /* the vignette, centred low, its focus a little left */
+      radial-gradient(78% 78% at 50% 70%, rgba(0, 0, 0, 0) 46%, rgba(0, 0, 0, 0.14) 76%, rgba(0, 0, 0, 0.4) 100%),
+      /* a hint of the bulb at the lower centre: its hot core a little left of
+         its axis, its pool, the faint lift toward the upper right — the
+         meter's three lights at roughly a quarter of their strength */
+      radial-gradient(22% 45% at 48% 100%, color-mix(in srgb, var(--dp-lamp-core) 22%, transparent) 0%, rgba(0, 0, 0, 0) 100%),
+      radial-gradient(50% 85% at 48% 92%, color-mix(in srgb, var(--dp-lamp) 28%, transparent) 0%, rgba(0, 0, 0, 0) 100%),
+      radial-gradient(26% 40% at 73% 42%, color-mix(in srgb, var(--dp-lamp) 10%, transparent) 0%, rgba(0, 0, 0, 0) 100%),
+      /* the lit card: the wash at 0.8 over the card in shadow */
+      linear-gradient(color-mix(in srgb, var(--dp-card-lit) 80%, transparent), color-mix(in srgb, var(--dp-card-lit) 80%, transparent));
     user-select: none;
     -webkit-user-select: none;
   }
 
-  /* the lamp's wash on the glass: brightest low and centre, uneven, dim */
-  .display__light {
+  /* the glass over the card: the meter's one restrained diagonal sheen */
+  .display__reflection {
     position: absolute;
     inset: 0;
-    background:
-      radial-gradient(75% 95% at 50% 105%, color-mix(in srgb, var(--dp-lamp) 16%, transparent) 0%, color-mix(in srgb, var(--dp-lamp) 6%, transparent) 45%, rgba(0, 0, 0, 0) 75%),
-      radial-gradient(40% 60% at 38% 100%, color-mix(in srgb, var(--dp-lamp) 7%, transparent) 0%, rgba(0, 0, 0, 0) 100%);
+    background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.03) 28%, rgba(255, 255, 255, 0) 46%);
     pointer-events: none;
   }
 
-  @media (prefers-reduced-motion: no-preference) {
-    .display__light {
-      animation: display-breathe 4s ease-in-out infinite alternate;
-    }
-  }
-
-  @keyframes display-breathe {
-    from {
-      opacity: 0.94;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  /* --- the lit print --------------------------------------------------------- */
+  /* --- the print: the live segments alone, no glow on text or numbers, ever -- */
   .display__primary {
     position: relative;
     display: block;
     min-width: 0;
-    overflow: hidden;
     color: var(--dp-ink);
+    font-family: "Orbitron", var(--al-font-mono);
+    font-weight: var(--al-font-weight-medium);
+    letter-spacing: var(--al-letter-spacing-normal);
     line-height: 1;
     white-space: nowrap;
-    text-overflow: ellipsis;
-    text-shadow: var(--dp-bloom);
+    text-shadow: none;
   }
 
   .display--clock .display__primary {
-    font-family: var(--al-font-mono);
     font-size: 1.75rem;
-    font-weight: var(--al-font-weight-semibold);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
   }
 
   .display--status .display__primary {
-    font-family: var(--al-font-label);
     font-size: 1.125rem;
-    font-weight: var(--al-font-weight-bold);
-    letter-spacing: var(--al-letter-spacing-label);
     text-transform: uppercase;
   }
 
@@ -208,15 +213,15 @@
     gap: 0 var(--al-space-xs);
     align-items: baseline;
     min-width: 0;
-    color: var(--dp-dim);
-    font-family: var(--al-font-label);
+    color: var(--dp-ink);
+    font-family: "Orbitron", var(--al-font-label);
     font-size: var(--al-text-size-xs);
-    font-weight: var(--al-font-weight-semibold);
+    font-weight: var(--al-font-weight-medium);
     font-variant-numeric: tabular-nums;
-    letter-spacing: var(--al-letter-spacing-engraved);
+    letter-spacing: var(--al-letter-spacing-normal);
     line-height: var(--al-line-height-tight);
     text-transform: uppercase;
-    text-shadow: var(--dp-bloom-small);
+    text-shadow: none;
   }
 
   .display--clock .display__secondary {
@@ -233,10 +238,6 @@
 
   .display__part.is-warning {
     color: var(--dp-warn);
-    text-shadow:
-      0 0 1px var(--dp-warn),
-      0 0 5px color-mix(in srgb, var(--dp-warn-lamp) 75%, transparent),
-      0 0 12px color-mix(in srgb, var(--dp-warn-lamp) 35%, transparent);
   }
 
   /* --- the progress slot: a groove in the glass with the lamp along it ------- */

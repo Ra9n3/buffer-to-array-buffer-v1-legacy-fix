@@ -10,6 +10,12 @@ const __dirname = path.dirname(__filename);
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [svelte(), viteSingleFile()],
+  build: {
+    // The Console's segment-display fonts (src/assets/fonts/dseg, ~5 KB each)
+    // sit just above Vite's default 4 KB inline limit; inline them so the
+    // build stays one self-contained HTML file. Everything else keeps the default.
+    assetsInlineLimit: (filePath) => (filePath.endsWith(".woff2") ? true : undefined),
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

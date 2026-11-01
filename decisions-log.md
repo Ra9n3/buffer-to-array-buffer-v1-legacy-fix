@@ -1360,3 +1360,194 @@ touched (all pinned by hash in `check:console-transport`); these are test
 scripts, revised the way D2.1 revised Phase 0's and D2.2 revised 2.1's.
 
 **Reversible.** Yes.
+
+### D2.3.10 — Review change: the Time / Status windows become segment-display screens, centred on the key caps (owner, 2026-11-01)
+
+**Decision.** Two changes to the transport deck's TIME and STATUS boxes
+only, after the pushed checkpoint `ab31d04` (an earlier hand-drawn SVG
+segment attempt on 2026-10-31 was withdrawn by the owner before any record
+— "return to the last checkpoint" — and is not in the repository).
+
+*Vertical alignment.* The boxes' vertical centre is to equal the key caps'
+(the caps only, not the words beneath), by the project's flex method and
+no hand offsets. Each window column is now built like a key column — a
+seat the caps' height (`--switch-size`, hoisted from `.transport__keys` to
+`.transport__body` so both read it; the value is unchanged) with the glass
+centred on it, the keys' gap, then a hidden label line mirroring the keys'
+words — so `.transport__body`'s existing `align-items: center` lands the
+seat where the switches' seats are. The windows no longer stretch; the
+legend is absolutely positioned above the frame and moves with it.
+Because the glass no longer takes its height from the row, its height is
+written down once in the deck: `--window-height: 4.53125rem` (72.5 px —
+exactly what the frames measured at the checkpoint; owner's choice over
+reusing `--mix-height`, which at 56 px could not hold the two-line
+PROCESSING / COMPLETE details). The approved switch raises its cap 3 px
+above its seat (its internal `--sw-lift`), so flex-only centring lands the
+box centre **1.5 px below** the cap centre at every width (measured
+551.44 vs 549.94 at 1920). The owner chose this over copying the lift and
+seat clearance into the deck and asked for the offset to be reported, not
+corrected.
+
+*Old Casio negative-LCD look.* The faces are the open-source DSEG fonts
+(keshikan, v0.46, SIL OFL 1.1), kept in `src/assets/fonts/dseg/` with the
+licence and a README, loaded by `@font-face` with relative `url()`s and
+inlined into the single-file build (`vite.config.ts` gains an
+`assetsInlineLimit` callback for `.woff2`; no dependency change). "DSEG7
+Classic" sets the clock digits; "DSEG14 Classic" sets the status word, the
+details and the clock's bar / beat line (seven-segment has no letters).
+Lit segments keep the colours the window always printed in (`--dp-ink`
+amber-hi, `--dp-dim`, `--dp-warn`) with one faint glow in the segment's
+own colour (`0 0 6px`, 40 %); behind every live line a ghost of the same
+text, same font, size and position, at opacity 0.1 with no glow, every
+letter and digit replaced by the all-segments glyph ("8" / "~"), spaces,
+colons and punctuation kept — measured per character, the ghost and live
+glyph boxes coincide to 0.00 px in every state. The screen is flat and
+matte (`--dp-screen`, the recess token darkened, no gradient), recessed
+with one inset shadow offset to the top-left (`inset 2px 2px 3px`, the
+checkpoint's own values), no bright bottom-right edge, a very faint
+reflection across the top-left corner (the checkpoint's room-light stops
+at 135°), no wash, no breathing, no scan lines. The frame is a flat dark
+ring. The middle-dot separator is replaced by "-" (the face has no "·");
+at the owner's acceptance of the builder's recommendation, segment text
+uses the font's own spacing (`--al-letter-spacing-normal`) in place of the
+engraved / label tracking, and the regular weight.
+
+**Deviation from the hardware spec, by owner instruction.** Spec §6
+("layered gradients, never flat") and plan §4 ("warm lamp glow") are set
+aside for these two screens only: the owner asked for a flat matte screen
+and a subtle backlight glow. The guard's "layered, never flat" and
+"breathe" checks for the window were replaced accordingly; nothing else in
+the family changes.
+
+**Consequences reported, not fixed (owner's rule for this change).** At
+1920 / 1280 / 1024 nothing outside the two boxes moved (every key, cap,
+word, lamp, the MIX column, title, note, bank and bridge rectangles are
+identical before and after). At 768 the first row is no longer propped up
+by the stretched time column, so the deck is 12.9 px shorter (208.9 →
+196.0), the keys / MIX / bank move up with it, the TIME legend stands
+3.9 px above the deck's top edge, the TIME box's top edge crosses the
+"SIMULATED — NO ENGINE CONNECTED" note by 4.4 px, and the STATUS legend
+overlaps the PREV word. On the playground page at 1024 (narrower fixture
+frame) the STATUS legend overlaps the note. DSEG's space is a quarter cell
+(0.2 em), so word gaps read narrow; its diagonal-segment letters (Y, X, K,
+M, N, V, W, Z) anti-alias dimmer than straight ones at 18 / 11 px on a 1×
+display (the Bold face does not cure it).
+
+**Reversible.** Yes — the checkpoint is `ab31d04`.
+
+### D2.3.11 — Review change: the screens take the VU meters' card, black print, a hint of the bulb, no glow on text ever (owner, 2026-11-01)
+
+**Decision.** Following D2.3.10 the owner asked that the TIME and STATUS
+boxes have the same background as the VU meters, that their text and
+numbers be black, that the boxes carry a little hint of lamp effect, and
+that the text and numbers never have any glow. `LampDisplay.svelte` now
+takes the approved `VUMeter.svelte`'s card value for value: the cream card
+in shadow (`cream 46 % black`) as the base, the lit card (`cream 80 % lamp`)
+washed over it at 0.8, the bezel lip's shadow along the top (0.4 over
+10 px), left (0.3 over 7 px) and right (0.14 over 4 px), the meter's
+off-centre vignette (78 % at 50 % 70 %; 0 → 0.14 → 0.4), and its one
+diagonal glass sheen (0.07 → 0.03 → 0) over the print. The hint of the
+bulb is the meter's three lights — the pool and the faint upper-right lift
+in the lamp token, the hot core in the amber-hi-and-white mix — placed as
+on the meter (lower centre, a little left; upper right) but at roughly a
+quarter of its strength (28 %, 10 %, 22 % alpha), static. The print is
+the VU face's ink, `--al-text-on-cream`, on every line; the hierarchy is
+by size alone. A warning stays red — the standing rule (Task 1.6, plan §10)
+— in the VU face's own red (`red-base 85 % red-lo`). `text-shadow` is
+`none` on the live print and the ghost; the glow variable is gone and the
+guard refuses any other `text-shadow` in the window. The earlier recess
+shadow and faint reflection are replaced by the meter's lip and sheen; the
+ghost layer (0.1 of the live colour, now black) and everything in D2.3.10
+about fonts, alignment and height are unchanged. No geometry moved
+(rectangles identical to D2.3.10 at every width). No approved component
+was touched.
+
+**Reversible.** Yes.
+
+### D2.3.12 — Review change: MIX in the keys' cream with a mixing lamp beside it; Segment16A (CC0) for words and numbers; no ghost print (owner, 2026-11-01)
+
+**Decision.** The owner's third review of the deck asked for three things.
+(1) *"The mix knob should be coloured just like the other transport
+knobs."* `MixButton.svelte` drops its amber glass lens, its lamp-behind-the-
+cap and its spill on the panel, and wears the transport keys' cap instead:
+the approved `TactileSwitch.svelte` variant-A cap recipe value for value —
+the function-cream tokens (`hi` / `base` / `lo`), the 46 % dim, the 135°
+convex ramp (hi 0–10 %, base 48 %, dim 100 %), the same edge lights and
+shades, the same gloss bloom (62 % × 46 % at 30 % 20 %) over the same faint
+second sheen, the 70 % / 42 % cream wall and foot, the keys' press (the
+bloom dims to 0.35, the inner shade deepens, the cap sinks to a 1 px wall),
+and the legend in the keys' ink `--al-text-on-cream` with the keys' faint
+lit edge under it. Geometry, legend typography, the well, the lift, the
+focus ring and the accessibility contract are unchanged; `lit` (the
+playground's dead cap) no longer exists, so the prop and its playground
+entry are gone. Asked how the mixing state should then show, the owner
+answered: *"add a little lamp next to it, it should be lighted at mixing
+state."* The approved `Lamp.svelte` (Task 1.6) now sits beside the cap where
+a key's lamp sits — the keys' gap (`--al-space-xs`), level with the resting
+cap's face, at the Lamp's own default size (10 px glass, the switch's lamp)
+— lit only while `state === "processing"`, off for `ready` and `complete`.
+It is presentation (no name): the button's `aria-describedby` and
+`aria-disabled` carry the state as before. MIX has no animation of its own
+any more; the lit Lamp breathes as approved (not under reduced motion). The
+MIX column grows by the lamp and its gap, 136 → 157.2 px, so to keep the
+deck on one row at 1024 (as reported for Task 2.3) the status window's
+floor comes down from 16 rem to 14.5 rem (the one number changed in the
+deck; it bites only at 1024, where the status window is 235.8 px instead of
+256.9). (2) *"Try Segment16A on the text and the numbers, if it is totally
+free."* It is: the Segment16 families are CC0 Public Domain (Daniel
+Wikholm, 2017 — "No rights reserved. No attribution required.", the
+designer's note shipped with the font). The Regular face is kept in the
+project (`src/assets/fonts/segment16/`: the original TTF, a 3 148-byte
+Latin subset as woff2 that the screens load, the designer's note, a README
+with the provenance and the subset command) and replaces both DSEG faces
+for the clock, the words and the small print alike, at the sizes the window
+always had, regular weight, the font's own spacing. The DSEG folder is left
+in place but is referenced nowhere (not bundled; can be deleted on
+instruction). Because the face has the middle dot, the detail separator is
+the owner's original `·` again (the D2.3.10 substitution `-` is undone);
+no other character is substituted — the face draws `:` as two short
+segments and `.` as a zero-width point on the preceding cell, and both are
+shown as the font draws them. (3) *"Without this ghost of the same text —
+it should be clean."* The ghost layer of D2.3.10 (`ghostOf()`, the
+`display__ghost` spans, `--dp-ghost`, the line/cell wrappers) is removed
+entirely; the screens carry the live print alone. The guard now refuses any
+ghost (no function, markup, class, variable or all-segments glyph), pins
+the Segment16A files, licence and single `@font-face`, the `·` separator
+and the keys' recipe on MIX, and checks the Lamp beside it.
+
+**Reversible.** Yes.
+
+### D2.3.13 — Review change: Orbitron for the text and the numbers in the Time / Status windows (owner, 2026-11-01)
+
+**Decision.** Asked what to continue with, the owner answered: *"change
+only the text and the numbers inside the time and status bar to this one"*
+— Orbitron (1001fonts.com). Orbitron (Matt McInerney, 2009, The League of
+Moveable Type) is under the SIL Open Font License 1.1 with the reserved
+name "Orbitron": free for personal and commercial use, embedding and
+bundling allowed, the font may not be sold on its own — the licence text
+from the download is kept beside the font. The release has four weights
+(Light 300, Medium 500, Bold 700, Black 900); Medium — the weight its own
+name table calls "Regular" — is used for every line, through the existing
+`--al-font-weight-medium` token, at the sizes the windows always had, the
+font's own spacing and kerning. The Medium TTF, a Latin subset as woff2
+(5 032 B, kerning kept, the stylistic-alternate and small-cap features
+dropped), the OFL and a README live in `src/assets/fonts/orbitron/`;
+`LampDisplay.svelte` loads it with one `@font-face` and uses it for the
+clock, the state word and the small print. Nothing else in the windows
+changed (card, lamp hint, ink, red warning, no glow, no ghost, height,
+seats, legends). The Segment16A and DSEG folders, now referenced nowhere,
+are taken out of the tree (copies in `evidence/transport/fonts-tried/`,
+outside the repository) so the project carries only the face it uses.
+Properties of this face that the owner should know, all measured: it is
+proportional with no tabular-figures feature (`1` is 391/1000 em against
+826–834 for the other digits), so the clock's width changes with its
+digits — 98.8 px for `0:37:11` against 128.8 px for `0:00:00` at 28 px; it
+has no middle dot, so the `·` separator is drawn by the next family in the
+stack (4 px wide at 11 px); and it is wide — at the deck's narrowest
+single-row width (1024, status glass 234 px) the processing state's word
+"ANALYSING SPECTRUM" (242.7 px at 18 px) is clipped by 21 px at the right
+and the complete state's four-line details are clipped by 6 px at the
+bottom; every state fits at 1280, 1920 and 768. Not fixed (the owner's
+standing rule: report, do not fix); options are listed in the report.
+
+**Reversible.** Yes.
