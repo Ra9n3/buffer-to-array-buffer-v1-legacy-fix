@@ -1551,3 +1551,42 @@ bottom; every state fits at 1280, 1920 and 768. Not fixed (the owner's
 standing rule: report, do not fix); options are listed in the report.
 
 **Reversible.** Yes.
+
+## Task 2.3 — approved
+
+On 2026-11-01 the owner wrote "approved, commit and push", closing Task 2.3
+as it stands after the four review changes of that day: the deck itself
+(`9b6e614` carried the Task 2.2 approval note; `ab31d04`, D2.3.1–D2.3.9)
+and the review commit `102d1dc` (D2.3.10–D2.3.13). The approval covers, in
+particular: the full-width deck between the bridge and the bank with four
+approved tactile switches as PREVIOUS · PLAY · STOP · NEXT; the Time and
+Status windows on the VU meter's lamp-lit cream card, 72.5 px tall, centred
+on the key caps by flex (centre +1.55 px below the caps, accepted), black
+print in Orbitron Medium (SIL OFL, kept in the project) with the `·`
+separator, a red warning, no glow, no ghost; the MIX button in the keys'
+cream with the approved Lamp beside it, lit only while processing; the
+status floor at 14.5 rem; the listening source as status text; H:MM:SS with
+bar · beat; READY as the room's default. The deviations and known issues
+listed in the report stand as accepted: the 768 legend overlaps (Time
+legend 3.9 px above the deck's top, Status legend over the PREV word), the
+1024 clipping in the processing and complete states (state word by 21 px,
+four-line details by 6 px — font width), the clock's width changing with
+its digits (no tabular figures in the face), `complete` and `ready`
+reading alike on MIX (lamp off), the warning kept red, and the bare
+reserved bridge panel at 1920 until later tasks.
+
+Approved files as they stand (SHA-256, first 16 hex, for the next task's
+guard to pin the way D2.2.7 pinned the bridge and this task's guard pinned
+the strips): `ConsoleTransport.svelte` `b5bd2efed4f4e19f`,
+`LampDisplay.svelte` `19634fdde214a7d5`, `MixButton.svelte`
+`5b08e6e8f505c478`, `transport-fixtures.ts` `0333ddc273f3cd1e`,
+`ConsoleRoom.svelte` `ab8450a981b9ef4a`, `TransportFixture.svelte`
+`f9ff5f4a4c75a204`, `Orbitron-Medium.subset.woff2` `655276db0bafd8fe`,
+`Orbitron-Medium.ttf` `826f71504dfc50c8`. Standing rules carried into
+every later task: no screw heads (D2.1.9); no glow on display text or
+numbers, ever, and nothing drawn behind the live print (D2.3.11–12); fonts
+live in the project with their licences, never on a CDN (D2.3.10); the
+transport's controls are the approved components placed, never scaled or
+modified (D2.3.1–2).
+
+Task 2.4 has not been started; it waits for the owner's prompt.
