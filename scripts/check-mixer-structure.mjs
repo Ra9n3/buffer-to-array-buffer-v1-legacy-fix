@@ -127,7 +127,19 @@ check(
   /font-size:\s*var\(--track-header-name-size\)/.test(strip),
 );
 
-// The Arrange row must keep its literal geometry and must agree with the tokens.
+// The Arrange row keeps the box geometry the Mixer header mirrors: the shared
+// row height and the 0.25rem / 0.5rem padding (Task 2.5 prints them as the
+// 4 px / 8 px spacing tokens). Task 2.5 skinned the row with the approved
+// EngravedLabel — the code at the label's sm size (0.6875rem, the shared
+// token's value), the name at md (0.8125rem) — so the Phase 0 literal
+// typography parity (code / name / identity gap) is suspended until the
+// Mixer strip is skinned with the same components (D2.5.8). The Mixer's
+// tokens below are unchanged.
+const tokensCss = read("src/lib/tokens.css");
+const spaceToken = (name) => {
+  const m = new RegExp(`--al-space-${name}:\\s*([^;]+);`).exec(tokensCss);
+  return m ? m[1].trim() : null;
+};
 check(
   "ArrangeTrackRow still takes its height from --arrange-row-height",
   /height:\s*var\(--arrange-row-height\)/.test(arrangeRow),
@@ -138,24 +150,22 @@ check(
   `token is ${token("track-header-height")}`,
 );
 check(
-  "Arrange row padding (0.25rem 0.5rem) equals the shared token pair",
-  token("track-header-padding-block") === "0.25rem" &&
+  "Arrange row padding (space-2xs space-sm = 4px 8px = 0.25rem 0.5rem) equals the shared token pair",
+  /padding:\s*var\(--al-space-2xs\)\s+var\(--al-space-sm\)/.test(arrangeRow) &&
+    spaceToken("2xs") === "4px" &&
+    spaceToken("sm") === "8px" &&
+    token("track-header-padding-block") === "0.25rem" &&
     token("track-header-padding-inline") === "0.5rem",
 );
 check(
-  "Arrange code size (0.6875rem) equals the shared token",
-  /\.arrange-track-row__code\s*{[^}]*font-size:\s*0\.6875rem/s.test(arrangeRow) &&
+  "Arrange code print (EngravedLabel sm = 0.6875rem) equals the shared token",
+  /<EngravedLabel\s+text=\{track\.code\}\s+size="sm"/.test(arrangeRow) &&
+    /--al-text-size-xs:\s*0\.6875rem;/.test(tokensCss) &&
     token("track-header-code-size") === "0.6875rem",
 );
 check(
-  "Arrange name size (0.875rem) equals the shared token",
-  /\.arrange-track-row__name\s*{[^}]*font-size:\s*0\.875rem/s.test(arrangeRow) &&
-    token("track-header-name-size") === "0.875rem",
-);
-check(
-  "Arrange identity gap (0.375rem) equals the shared token",
-  /\.arrange-track-row__identity\s*{[^}]*gap:\s*0\.375rem/s.test(arrangeRow) &&
-    token("track-header-gap") === "0.375rem",
+  "Mixer header tokens keep their Phase 0 values (name 0.875rem, gap 0.375rem) until the Mixer skin",
+  token("track-header-name-size") === "0.875rem" && token("track-header-gap") === "0.375rem",
 );
 check(
   "selection is drawn without changing box size",

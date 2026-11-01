@@ -1,23 +1,11 @@
 <script lang="ts">
+  import ArrangeTimelineHeader from "../components/ArrangeTimelineHeader.svelte";
   import ArrangeTimelineLane from "../components/ArrangeTimelineLane.svelte";
   import ArrangeTrackRow from "../components/ArrangeTrackRow.svelte";
+  import EngravedLabel from "../components/hardware/EngravedLabel.svelte";
   import RoomShell from "../components/RoomShell.svelte";
-  import {
-    ARRANGE_BARS,
-    ARRANGE_BAR_COUNT,
-    ARRANGE_RULER_LABEL_INTERVAL,
-    ARRANGE_STRUCTURE_MARKERS,
-    ARRANGE_TRACKS,
-    type StructureMarkerPlaceholder,
-  } from "../lib/arrange";
-
-  function markerSpan(marker: StructureMarkerPlaceholder): string {
-    return `span ${marker.barCount}`;
-  }
-
-  function isLabelledBar(bar: number): boolean {
-    return (bar - 1) % ARRANGE_RULER_LABEL_INTERVAL === 0;
-  }
+  import { ARRANGE_BAR_COUNT, ARRANGE_TRACKS } from "../lib/arrange";
+  import { clipsOf } from "../lib/arrange-timeline";
 </script>
 
 <RoomShell
@@ -26,7 +14,7 @@
   purpose="Import and organize the session."
   hideHeader
 >
-  <div class="arrange-room" data-arrange-room>
+  <div class="arrange-room" style:--arrange-bar-count={ARRANGE_BAR_COUNT} data-arrange-room>
     <!-- One scroller drives both axes. The grid inside it holds the track-list
          column and the timeline in shared grid rows, so a track row and its
          lane are the same grid row and cannot drift apart. -->
@@ -39,76 +27,45 @@
       aria-label="Arrange track list and timeline, scrolls vertically and horizontally"
     >
       <div class="arrange-grid" data-arrange-grid>
+        <!-- The track list's header: the panel's engraved legends, laid out
+             as the row's lines are, so each sits over the field it names —
+             SOURCE over the source-type windows (the full print SOURCE TYPE
+             is 87 px at xs and the legend's room at the 12rem list floor is
+             176 − 92 − 6 = 78 px; the selector itself is still labelled
+             "Source type", as INSTRUMENT stood over the name window before)
+             and FAMILY over the family windows, ROLE over the role prints and
+             TIER over the tier windows (Task 2.5 and its follow-ups). The
+             name needs none. -->
         <div
           class="arrange-corner"
           data-arrange-region="track-list-header"
           aria-hidden="true"
         >
-          <p class="arrange-corner__eyebrow">Track list</p>
-          <p class="arrange-corner__columns">Track</p>
-        </div>
-
-        <div
-          class="arrange-timeline-head"
-          data-arrange-region="timeline-header"
-        >
-          <!-- Band order, top to bottom: bar ruler, tempo, structure markers.
-               The ruler is the timeline's primary reference so it sits highest,
-               and the structure markers sit nearest the lanes they describe. -->
-          <div
-            class="arrange-ruler"
-            style:--arrange-bar-count={ARRANGE_BAR_COUNT}
-            data-arrange-region="timeline-ruler"
-            aria-hidden="true"
-          >
-            {#each ARRANGE_BARS as bar (bar)}
-              <div
-                class="arrange-ruler__bar"
-                class:is-labelled={isLabelledBar(bar)}
-              >
-                {#if isLabelledBar(bar)}
-                  <span class="arrange-ruler__label">{bar}</span>
-                {/if}
-              </div>
-            {/each}
-          </div>
-
-          <div
-            class="arrange-tempo"
-            data-arrange-region="tempo-track"
-            aria-label="Tempo track placeholder"
-          >
-            <span class="arrange-tempo__label">Tempo track</span>
-            <span class="arrange-tempo__detail">
-              Tempo timeline placeholder — reserved for Task 2.6
-            </span>
-          </div>
-
-          <div
-            class="arrange-structure"
-            style:--arrange-bar-count={ARRANGE_BAR_COUNT}
-            data-arrange-region="structure-markers"
-            role="group"
-            aria-label="Song structure markers, placeholder spans"
-          >
-            {#each ARRANGE_STRUCTURE_MARKERS as marker, index (index)}
-              <div
-                class="arrange-structure__marker"
-                style:grid-column={markerSpan(marker)}
-              >
-                <span class="arrange-structure__label">{marker.label}</span>
-              </div>
-            {/each}
+          <EngravedLabel text="Track list" size="sm" as="p" />
+          <div class="arrange-corner__legend" data-arrange-legend>
+            <div class="arrange-corner__legend-line">
+              <EngravedLabel text="Source" size="xs" tone="muted" as="p" />
+              <span class="arrange-corner__tier-legend">
+                <EngravedLabel text="Family" size="xs" tone="muted" as="p" align="center" />
+              </span>
+            </div>
+            <div class="arrange-corner__legend-line">
+              <EngravedLabel text="Role" size="xs" tone="muted" as="p" />
+              <span class="arrange-corner__tier-legend">
+                <EngravedLabel text="Tier" size="xs" tone="muted" as="p" align="center" />
+              </span>
+            </div>
           </div>
         </div>
+
+        <!-- The timeline's head: bar ruler, tempo track, structure markers
+             (Task 0.4 order; Task 2.6 skin) — sticky at the top beside the
+             corner, the same 2 px baseline. -->
+        <ArrangeTimelineHeader />
 
         {#each ARRANGE_TRACKS as track (track.code)}
-          <ArrangeTrackRow
-            code={track.code}
-            name={track.name}
-            laneId={`lane-${track.code}`}
-          />
-          <ArrangeTimelineLane code={track.code} laneId={`lane-${track.code}`} />
+          <ArrangeTrackRow {track} laneId={`lane-${track.code}`} />
+          <ArrangeTimelineLane code={track.code} laneId={`lane-${track.code}`} name={track.name} org={track.org} clips={clipsOf(track.code)} />
         {/each}
       </div>
     </div>
@@ -141,8 +98,18 @@
        Single value — every track row and timeline lane inherits it, so
        alignment cannot be affected by changing it. */
     --arrange-row-height: 5rem;
-    --arrange-track-list-width: clamp(10rem, 16vw, 15rem);
-    --arrange-timeline-width: 2400px;
+    /* The list column: 16vw between 12rem and 15rem. Task 2.5 raised the
+       floor from 10rem to 12rem (192 px, owner D2.5.3) so the skinned row's
+       source/family line and role/tier line keep their room at 1024 and 768. */
+    --arrange-track-list-width: clamp(12rem, 16vw, 15rem);
+    /* Horizontal scale (Task 2.6): ONE bar width places every ruler mark,
+       every lane grid line and every clip edge; the timeline's width is the
+       bar count times it (56 × 44 px = 2464 px — Task 0.4's 2400 px rounded
+       to whole bars so marks land on whole pixels). --arrange-bar-count is
+       set inline from ARRANGE_BAR_COUNT. 2.75rem = 44 px: a beat is 11 px,
+       the finest tick the ruler draws. */
+    --arrange-bar-width: 2.75rem;
+    --arrange-timeline-width: calc(var(--arrange-bar-count) * var(--arrange-bar-width));
     /* Ruler and structure bands are compact reference strips (22px).
        The tempo band is taller because it holds a real timeline (tempo values
        over bars) rather than a single label row. */
@@ -150,14 +117,19 @@
     --arrange-tempo-height: 2.25rem;
   }
 
+  /* the workspace: a recessed bay in the panel holding the work surface the
+     lanes sit on (Task 2.6 — the Phase 0 dashed frame and white field go);
+     the browser's scrollbars take the dark scheme so they sit on the surface */
   .arrange-scroll {
     flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
-    border: 2px dashed #8a8a8a;
-    background: #fbfbfb;
+    border: 1px solid var(--al-bevel-shadow);
+    background-color: var(--al-material-surface);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.45);
+    color-scheme: dark;
   }
 
   .arrange-grid {
@@ -169,145 +141,70 @@
     min-width: 100%;
   }
 
+  /* The corner: the list column's panel head — the same charcoal and grain
+     as the rows (ArrangeTrackRow.svelte), the header baseline kept at its
+     Phase 0 thickness so the first row and lane still share one top edge. */
   .arrange-corner {
     position: sticky;
     top: 0;
     left: 0;
     z-index: 4;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
     gap: 0.125rem;
     min-width: 0;
     padding: 0.375rem 0.5rem;
-    border-right: 2px solid #8a8a8a;
-    border-bottom: 2px solid #8a8a8a;
-    background: #e4e4e4;
+    border-bottom: 2px solid rgba(0, 0, 0, 0.62);
+    background-color: var(--al-material-panel);
+    background-image:
+      radial-gradient(
+        140% 70% at 22% 0%,
+        rgba(255, 255, 255, 0.06) 0%,
+        rgba(255, 255, 255, 0.012) 40%,
+        rgba(0, 0, 0, 0.2) 100%
+      ),
+      repeating-linear-gradient(
+        92deg,
+        rgba(255, 255, 255, 0.012) 0 1px,
+        rgba(0, 0, 0, 0.012) 1px 2px
+      );
+    box-shadow:
+      inset 0 1px 0 var(--al-bevel-light),
+      inset -1px 0 0 rgba(0, 0, 0, 0.62);
   }
 
-  .arrange-corner__eyebrow {
-    margin: 0;
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #5d5d5d;
-  }
-
-  .arrange-corner__columns {
-    margin: 0;
-    overflow: hidden;
-    font-size: 0.6875rem;
-    color: #454545;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .arrange-timeline-head {
-    position: sticky;
-    top: 0;
-    z-index: 3;
+  /* the legends: the row's lines 2 and 3, the family and tier legends as
+     wide as the row's family / tier windows (ArrangeTrackRow.svelte
+     .row__family, .row__tier — 5.75rem, one column) and centred on them */
+  .arrange-corner__legend {
     display: flex;
     flex-direction: column;
+    gap: 0.125rem;
     min-width: 0;
-    border-bottom: 2px solid #8a8a8a;
-    background: #e4e4e4;
+    margin-top: 0.125rem;
   }
 
-  .arrange-structure,
-  .arrange-ruler {
-    display: grid;
-    /* Column count comes from ARRANGE_BAR_COUNT so the structure markers, the
-       ruler, and the timeline length share one source of truth. */
-    grid-template-columns: repeat(var(--arrange-bar-count), minmax(0, 1fr));
-    min-width: 0;
-  }
-
-  .arrange-structure {
-    height: var(--arrange-band-height);
-  }
-
-  .arrange-structure__marker {
+  .arrange-corner__legend-line {
     display: flex;
-    align-items: center;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--al-space-xs);
     min-width: 0;
-    padding: 0 0.25rem;
-    border-right: 1px solid #b5b5b5;
-    border-bottom: 1px solid #b5b5b5;
-    overflow: hidden;
   }
 
-  .arrange-structure__label {
-    overflow: hidden;
-    font-size: 0.6875rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .arrange-tempo {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    height: var(--arrange-tempo-height);
+  .arrange-corner__tier-legend {
+    flex: 0 0 5.75rem;
     min-width: 0;
-    padding: 0 0.5rem;
-    border-bottom: 1px solid #b5b5b5;
-    overflow: hidden;
   }
 
-  .arrange-tempo__label {
-    flex: 0 0 auto;
-    font-size: 0.6875rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: #5d5d5d;
-  }
-
-  .arrange-tempo__detail {
-    min-width: 0;
-    overflow: hidden;
-    font-size: 0.6875rem;
-    color: #5d5d5d;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .arrange-ruler {
-    height: var(--arrange-band-height);
-    /* Separation between the time bar and the tempo track. Darker and heavier
-       than the per-bar ticks so the two bands read as distinct rows. */
-    border-bottom: 2px solid #6d6d6d;
-  }
-
-  .arrange-ruler__bar {
-    position: relative;
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    padding-left: 0.25rem;
-    border-left: 1px solid #cfcfcf;
-    overflow: hidden;
-  }
-
-  .arrange-ruler__bar.is-labelled {
-    border-left-color: #9a9a9a;
-  }
-
-  .arrange-ruler__label {
-    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-    font-size: 0.625rem;
-    color: #454545;
-  }
 
   @media (max-width: 40rem) {
     .arrange-room {
-      --arrange-track-list-width: 8.5rem;
+      /* the row's three lines need the 12rem floor even here (Task 2.5) */
+      --arrange-track-list-width: 12rem;
       --arrange-row-height: 4.25rem;
     }
-
-
   }
 </style>

@@ -1830,3 +1830,517 @@ horizontal scroller in row mode; bay knob legends ≤ ~70 px (D2.4.3);
 Returns are data derived from the shared list (D2.4.1).
 
 Task 2.5 has not been started; it waits for the owner's prompt.
+
+## Task 2.5 — Arrange track-list rows (2026-11-01; uncommitted, awaiting review)
+
+### D2.5.1 — Three Prominence Tiers, default Supporting (owner, 2026-11-01)
+
+**Context.** The Task 2.5 prompt says "Prominence Tier control (e.g.
+primary / secondary)"; the plan §5a defines three tiers — Primary,
+Supporting, Background — backed by a Priority 1–10 and defaulting to
+Supporting. The builder asked which to build.
+
+**Decision (owner).** Three tiers, `primary | supporting | background`,
+as the plan has them; the fixture default is Supporting. The Priority
+number behind a tier is not shown in Task 2.5 (plan §5a shows it only
+"when the user asks for finer control"). The "needs confirmation" state a
+defaulted tier carries until confirmed (plan §5a) is not drawn yet —
+follow-up, see the report.
+
+### D2.5.2 — The tier control is a scribble-window select, the same recipe as the instrument combobox (owner, 2026-11-01)
+
+**Context.** Three tiers could be a three-position switch (TactileSwitch
+pair / trio) or a select window. A switch trio costs ~90 px of width per
+row at 28 px caps; the row has 176 px at the 1024 / 768 widths.
+
+**Decision (owner).** One control recipe for both choices in the row: the
+Task 2.2 send slot's scribble window + raised plate, lifted into a shared
+hardware component `ScribbleSelect.svelte` (xs = the strips' 18 px window
+for the tier, sm = a 22 px window with 11 px print for the instrument).
+The send slot itself is untouched (byte-pinned); its rules were copied
+value for value, the guard compares them.
+
+### D2.5.3 — The list column's floor is raised from 10rem to 12rem (owner, 2026-11-01)
+
+**Context.** Phase 0 gave the list `clamp(10rem, 16vw, 15rem)` = 163.8 px
+at 1024 and 160 px at 768. Three lines of identity, an instrument window
+and a role print beside an 88 px tier window do not fit 144 px of content.
+
+**Decision (owner).** `clamp(12rem, 16vw, 15rem)` — 240 / 230.4 / 204.8 /
+192 / 192 px at 1920 / 1440 / 1280 / 1024 / 768 (1920–1280 unchanged). The
+≤ 40rem override also becomes 12rem (was 8.5rem). The timeline loses 28 px
+at 1024 and 32 px at 768 (measured 836 → 806, 584 → 550 px visible). The
+row height stays 5rem (4.25rem ≤ 40rem). The Mixer's `--track-column-width`
+in `app.css` is unchanged (the Mixer is out of scope); the two columns now
+differ below 1200 px — the Mixer skin task re-aligns them.
+
+### D2.5.4 — The org marker is the Console's flat 6 × 16 tab beside the code (owner, 2026-11-01)
+
+**Decision (owner).** The same mark in every room: `.row__tab` is the
+TrackStrip's `.strip__tab` rule, value for value (the guard compares the
+rule bodies) — `background-color: var(--org)` only, no gloss, no shadow
+(D2.2.13). Nothing else in the row reads `--org`; the row's face is the
+approved panel. Never a row tint (prompt; guard).
+
+### D2.5.5 — The row's three lines; the legends live in the corner, over their fields (builder, 2026-11-01)
+
+**Context.** The prompt asks for compact rows with concise labels and no
+redundant text. Inline "ROLE" / "TIER" legends on line 3 cost ~54 px and
+overflow the 176 px line at the 12rem floor.
+
+**Decision (builder).** Line 1: tab · code (EngravedLabel sm, muted) ·
+name (EngravedLabel md, bright, truncating with its title). Line 2: the
+instrument window, full width. Line 3: the role as an engraved print at
+the left, the tier window (fixed 5.5rem = 88 px, so it keeps one width
+whatever it prints) at the right. No legends in the row: the corner cell —
+which sits directly above row 01, sticky — prints TRACK LIST, then
+INSTRUMENT over the instrument windows, then ROLE at the left and TIER
+centred over the 88 px tier column (measured: legend x/width 148.4/88 =
+tier window x/width at 1440). Role and tier read as two kinds of thing —
+one a print, one a window — and the tooltips name each ("Role: Rhythm —
+the track's musical function"; "Prominence tier, Kick: Primary — how the
+track is treated in mix conflicts"). Budget: 4 + 18 + 4 + 22 + 4 + 18 + 4 =
+74 px in the 80 px row, centred (3 px slack top and bottom); at ≤ 40rem the
+gaps close to 1 px and the three lines fit the 68 px row exactly
+(measured 68, no overflow).
+
+### D2.5.6 — The row's instrument and tier are local `$state`, seeded from the fixture (builder, 2026-11-01)
+
+**Decision.** As the Console strip's send slots (Task 2.2): `let
+instrumentId = $state(track.instrument)`, `let tier = $state(track.tier)`,
+bound to the two windows; exposed as `data-track-instrument` /
+`data-track-tier` for tests. Nothing is written back, stored, routed or
+played. A change in one row touches no other row (verified: row 03 → Toms
+left 02 and 04 unchanged). Task 3.1's project model replaces this.
+
+### D2.5.7 — The track rows derive their names and colours from the Console's `TRACK_STRIPS` (builder, 2026-11-01)
+
+**Context.** Phase 0's Arrange rows were "Track NN". The plan §5 wants one
+session across rooms; the Console already names twenty tracks with
+organisational colours (Task 2.2).
+
+**Decision.** `lib/arrange.ts` imports `TRACK_STRIPS` and builds each row
+from it (`code = strip.id`, `name`, `org`), adding a typed-in
+instrument / role / tier per track id (`SESSION_SETTINGS`, twenty
+entries); rows beyond the list are neutral "Track NN" with the plan's
+defaults (Other / Rhythm / Supporting). The Task 0.4 contract survives:
+`createArrangeTracks(count)`, `PLACEHOLDER_TRACK_COUNT = 20`,
+`ARRANGE_TRACKS = createArrangeTracks(ARRANGE_TRACK_COUNT)`; the old type
+name `ArrangeTrackPlaceholder` is kept as an alias. The Mixer still prints
+"Track NN" from `lib/mixer.ts` (out of scope; open item).
+
+### D2.5.8 — Mixer typography parity with the Arrange row is suspended until the Mixer skin (builder, 2026-11-01)
+
+**Context.** `check-mixer-structure.mjs` asserted the Phase 0 Arrange
+row's literal `0.6875rem` code, `0.875rem` name and `0.375rem` identity
+gap equal the Mixer's `--track-header-*` tokens. The Arrange row now prints
+with EngravedLabel: the code at sm (= 0.6875rem, still equal), the name at
+md (0.8125rem — the label has no 0.875rem step).
+
+**Decision.** The guard keeps the box parity (row height 5rem; padding
+4 px / 8 px, now `--al-space-2xs` / `--al-space-sm`, equal to the Mixer
+tokens), keeps the code-size equality, and pins the Mixer's name-size and
+gap tokens at their Phase 0 values instead of comparing them with the row.
+`app.css` and the Mixer files are byte-pinned by the new guard. The Mixer
+skin task re-establishes typography parity by using the same labels.
+
+### D2.5.9 — `ScribbleSelect`: select-only combobox semantics, a scrolling plate, drop-up (builder, 2026-11-01)
+
+**Decision.** `button role="combobox" aria-haspopup="listbox"
+aria-expanded aria-controls`, accessible name "<Instrument | Prominence
+tier>, <track>: <current>. Choose"; the plate `role="listbox"` of
+`role="option" aria-selected`, roving focus, ArrowUp / Down (wrapping),
+Home / End, Enter / Space, Escape (back to the window), Tab (leaves),
+first-letter type-ahead, outside press closes. The plate is at least as
+wide as its window, at most 16rem, scrolls inside itself past
+`min(16rem, 60vh)` (the 19-instrument list is 256 px tall and scrolls),
+and drops upward when the nearest scrolling ancestor has more room above
+the window than below (verified on row 20). The selected option's dot is
+amber (engaged), not the send slot's green (that green says "routed").
+`overflow-y: auto` lives in the component, not in the row or lane (the
+Arrange guard's rule). A row with an open plate is lifted to `z-index: 3`
+(`.row:has([aria-expanded="true"])`) because sticky siblings paint in DOM
+order; the Phase 0 `overflow: hidden` left the row for that reason.
+
+### D2.5.10 — Guards: `check:arrange-rows` added (91 checks); three guards edited (builder, 2026-11-01)
+
+**Decision.** New `scripts/check-arrange-rows-structure.mjs` (wired as
+`check:arrange-rows`): the Task 0.4 cell contract, composition, the
+select's recipe parity with the send slot and its ARIA / keyboard, Role ≠
+Tier, three tiers, fixture derivation, local state, flat tab / no tint,
+the corner's legends, the 12rem floor, Phase 0 timeline untouched, no
+screws, 29 byte-pins (timeline lane, Mixer trio + `lib/mixer.ts`,
+`app.css`, Console room, bank, strips, slot, fixtures, hardware
+components, tokens, bridge, transport, shell), no dependency change, the
+playground section. Negative-tested: 28 single-line mutations each
+produce a FAIL and the tree is restored byte-identically. Edited:
+`check-mixer-structure.mjs` (D2.5.8; 41 → 40 checks),
+`check-tokens-structure.mjs` §7 (ArrangeRoom + ArrangeTrackRow leave the
+"no Phase 2 skinning" list; 60 → 58), `check-label-lamp-structure.mjs`
+(ArrangeRoom leaves the no-EngravedLabel list; the corner prints with it;
+precedent ChannelBank, Task 2.2). `check-arrange-structure.mjs` is
+unchanged and still passes 30/30.
+
+## Task 2.5 — approved
+
+**Owner, 2026-11-01:** "Task 2.5 is already implemented and approved."
+Approved as delivered in `task-reports/2.5-report.md`, uncommitted (the
+owner's follow-up prompt says "do not commit or tag"; the commit waits for
+the owner's commit signal). Approved file hashes (sha256, first 16):
+`ScribbleSelect.svelte` `8b3e4a28c84e24ea`, `ArrangeTrackRow.svelte`
+`32e4738a25963ff0`, `ArrangeRoom.svelte` `8ed43c6b234862dd`,
+`lib/arrange.ts` `afdf5753db1019ce`, `ArrangeRowFixture.svelte`
+`1a394a32d4c75c0b`, `check-arrange-rows-structure.mjs` `d416b0d23cb205b2`.
+The follow-up below (instrument family + name selectors) changes the row,
+the data file, the corner's legends, the playground block and the guard
+on top of this state; D2.5.1–D2.5.10 stand.
+
+## Task 2.5 follow-up — Instrument family and name selectors (2026-11-01; uncommitted, awaiting review)
+
+### D2.5.11 — Two windows on line 2: the instrument NAME at the left (flexible), the FAMILY at the right in the tier window's column (builder, 2026-11-01)
+
+**Context.** The owner's follow-up replaces the single instrument list
+with a FAMILY selector (ten broad categories) and a dependent NAME
+selector, in the approved 80 px row and the approved column widths. Line
+2 is the only line with room for two windows (a fourth line does not fit
+the 72 px of content).
+
+**Decision (builder).** Line 2 = the name window (ScribbleSelect sm,
+`flex: 1 1 auto`) + the family window (ScribbleSelect sm, `flex: 0 0
+5.5rem`, the tier window's exact width and x — measured equal at all five
+widths). The name gets the flexible width because it is the longer print;
+the two fixed windows stack as one 88 px column at the right (FAMILY over
+TIER), the identity prints (name, instrument, role) align at the left.
+The corner's legends follow: INSTRUMENT · FAMILY / ROLE · TIER. The row's
+height, padding, tab, name line, role print and tier window are unchanged.
+Cost: the name window is 82 px at the 12rem floor (192 px column), so the
+longer fixture names truncate with an ellipsis (full name in the tooltip)
+— 10 of 20 rows at 1024 / 768 ("Electric guitar", "Electric bass", "Lead
+vocal", "Backing vocal", "Percussion"), 7 at 1280, 3 at 1440 ("Electric
+guitar"), none at 1920. The names stay standalone (as the owner's
+examples: "Analog synth", not "Analog"); shortening the in-family names
+("Electric" under GUITAR) would cut the truncation and is offered as an
+option, not done.
+
+### D2.5.12 — The family is derived from the instrument; a family change prints the family's first name only when the current name does not belong (builder, 2026-11-01)
+
+**Decision.** One piece of instrument state per row, `instrumentId`; the
+family shown is `familyOf(instrumentId)`, the name list
+`instrumentsOf(family)` — so the name can never be outside the family
+shown and nothing has to be reconciled. Choosing a family the current
+name already belongs to changes nothing; choosing another sets the
+family's fixture default, its first name in list order (Drums → Kick,
+Keys → Piano, Strings → Violin, Brass → Trumpet, Woodwinds → Flute,
+Synths → Analog synth, FX → Riser, Guitar → Electric guitar, Bass →
+Electric bass, Vocals → Lead vocal). That is a fixture default on a user
+action, not a classification. Neither choice reads or writes role or
+tier (guarded; verified in the browser both ways). A track with no
+instrument (rows beyond the session) now carries `instrument: null` —
+both windows print a dash and the name window is disabled until a family
+is chosen; the Task 2.5 "Other" instrument is gone with the owner's
+family list (no "Other" family). Session tracks 08 / 09 become
+`electric-bass`, 20 becomes `riser`; the rest keep their ids. The tier
+list, its Supporting default and the role list are untouched; the plan's
+"needs confirmation" state is still not drawn (as reported in 2.5) —
+nothing here changes that.
+
+### D2.5.13 — `ScribbleSelect`: focus after the plate is placed (bug fix in the shared component, builder, 2026-11-01)
+
+**Context.** Opening a plate that must drop upward (a row in the lower
+half of the room) focused the current option in the same microtask that
+decided the flip, before Svelte had moved the plate — the browser
+scrolled the room to the still-downward plate, then the plate flipped up
+under the sticky header. The ten-family plate on row 08 at 1440 × 900
+showed it (Task 2.5's row-20 check did not: the room was already at its
+scroll end).
+
+**Decision.** The one change to the shared component in this follow-up:
+`openList` awaits `tick()` after opening (the plate exists), places it,
+awaits `tick()` again (the plate sits where it will stay), then focuses.
+Verified: row 08 family at 1440 × 900 — room scroll unchanged (0), plate
+upward, inside the scroller, clear of the header, top and bottom visible;
+rows 03 / 08 / 10 / 20 likewise. Nothing else in the component changed.
+
+## Task 2.5 follow-up (family + name selectors) — approved
+
+**Owner, 2026-11-01:** "Task 2.5 and its Instrument Family / Instrument
+Name follow-up are already implemented and approved." Approved as
+delivered in the report's first follow-up section, uncommitted (the next
+prompt says "do not commit or tag"). Approved hashes (sha256, first 16):
+`ScribbleSelect.svelte` `4974f298c86b07a1`, `ArrangeTrackRow.svelte`
+`71565b0250120fae`, `ArrangeRoom.svelte` `c145b0e68b5caff8`,
+`lib/arrange.ts` `34bac8b967af8b24`, `DevComponentsPage.svelte`
+`9f117373ad437b1f`, `ArrangeRowFixture.svelte` `1a394a32d4c75c0b`,
+`check-arrange-rows-structure.mjs` `84c848ddeedfb879`. The second
+follow-up below (Family / Source Type, stable ids) changes the data file,
+the row, the corner's legend, the playground and the guard on top of this
+state; D2.5.1–D2.5.13 stand except where D2.5.14–D2.5.18 say otherwise.
+
+## Task 2.5 second follow-up — Family and Source Type, stable ids (2026-11-01; uncommitted, awaiting review)
+
+### D2.5.14 — Family and Source Type are two states with one invariant; sources are a local catalog of stable snake_case ids (builder, 2026-11-01)
+
+**Context.** The owner's second follow-up aligns the row's metadata with
+the planned rule-based auto-mix engine: the engine will look rules up by
+a stable source identity, never by a label or a track name.
+
+**Decision.** `src/lib/arrange.ts` replaces the instrument list with a
+catalog local to Task 2.5: `FAMILIES` (eleven, owner's order, Percussion
+its own family) and `SOURCE_TYPES` — 54 entries, each
+`{ sourceTypeId, label, familyId }` with a snake_case id (`kick`,
+`synth_bass`, `lead_vocal`, `sub_808_bass`, `spoken_rap_vocal`…) that is
+the canonical identity; the label is display only and may change without
+touching the id. The owner's conventions are encoded in the data, not in
+code: Synth Bass and Sub / 808 Bass under Bass; Synth Lead / Pad / Pluck /
+Arp / Texture / Other under Synths; Overheads and Room under Drums (drum
+recordings); FX = source material (Impact, Riser / Sweep, Atmosphere,
+Other FX), not returns. "Unspecified" is not a catalog entry: it is
+`sourceTypeId: null`, offered as the empty option id (`UNSPECIFIED_ID`)
+first in every family's list by `sourceOptionsOf`. The row holds two
+states, `familyId` and `sourceTypeId` (D2.5.12's single derived state is
+withdrawn — a family with no source is now a legal, common state), with
+the invariant "a source is null or belongs to the family shown", kept by
+`isValidSource` in `chooseFamily`. `ArrangeTrack` carries
+`familyId: FamilyId | null` and `sourceTypeId: string | null`; the twenty
+session tracks are explicitly assigned valid pairs (19 Shaker →
+percussion / shaker, 20 Riser FX → fx / riser_sweep, 08 / 09 bass /
+electric_bass, 10 / 11 guitar / distorted_electric_guitar, 12 guitar /
+clean_electric_guitar, 16 vocals / vocal_double…); a track beyond the
+session has neither. No other catalog in the project fits (the Console's
+`TRACK_STRIPS` are names and colours, not identities), so nothing shared
+was touched.
+
+### D2.5.15 — A family change clears an incompatible source to Unspecified — never a default (owner, 2026-11-01; supersedes D2.5.12's default-first rule)
+
+**Decision.** `chooseFamily`: the same family is a no-op; another family
+is set, and the source is kept only if `isValidSource` says it belongs
+(in practice: only when it is already null), otherwise cleared to
+`null` — the window prints UNSPECIFIED and the row's
+`data-track-source-type` attribute is absent. Nothing picks the family's
+first or a "suitable" source; the user chooses. `chooseSource` sets the
+id or clears it (the Unspecified option). Neither handler reads or
+writes `tier`, `track.role` or `track.name` (guarded by text; verified in
+the browser: a walk through all eleven families on row 01 left PRIMARY /
+RHYTHM, and tier → source → tier round trips left each other alone).
+Initial fixture pairs stay explicitly assigned (D2.5.14).
+
+### D2.5.16 — The family / tier column is 5.75rem (92 px), from 5.5rem (builder, 2026-11-01)
+
+**Context.** PERCUSSION is the longest family word; at the sm 11 px
+window print it needs 70.5 px of text room and the 5.5rem window offered
+70 (88 − 2 border − 8 padding − 6 chevron − 2 gap).
+
+**Decision.** `.row__family`, `.row__tier` and the corner's
+`.arrange-corner__tier-legend` are `flex: 0 0 5.75rem` — one column,
+still stacked, still the same recipe. Cost: the source window at the
+12rem list floor is 78 px (was 82), so the long catalog labels truncate
+one character sooner (measured: 13 of 20 rows at 1024 / 768, 9 at 1280,
+3 at 1440 / 1920 — the two guitar labels and Distorted Electric Guitar's
+neighbours; the full label is in the tooltip and the plate). PERCUSSION
+is whole at every width (measured, not truncated). Rejected: the xs
+print on line 2 (changes the approved compact styling); a ragged family
+window (breaks the stack over the tier window).
+
+### D2.5.17 — The corner legend over the source windows prints SOURCE; the selector is labelled "Source type" (builder, 2026-11-01)
+
+**Context.** The owner renamed the selector "Source Type". The corner
+legend is a column header beside the FAMILY legend; the full print SOURCE
+TYPE at xs measures 87.1 px, and the legend's room at the 12rem floor is
+176 − 92 − 6 = 78 px — it pushed the FAMILY legend 9 px right of its
+window at 1024 and 768 (measured before the change: span at 115.1 vs the
+window at 106). Narrower column, smaller print or a clipped legend were
+all worse than a shorter word; the pinned `EngravedLabel` cannot be
+re-tracked.
+
+**Decision.** The corner prints SOURCE (51.2 px) over the source windows
+— the precedent is the approved first follow-up, whose corner printed
+INSTRUMENT over a selector labelled "Instrument name". The selector's
+accessible name, the tooltip and the report all say "Source type"; the
+glossary term is unchanged. Measured after the change: both right-hand
+legends sit exactly over the 92 px windows at 1920 / 1440 / 1280 /
+1024 / 768. If the owner prefers the full print at every width, the
+options are a 12.5rem list floor (owner decision D2.5.3 would move) or a
+smaller legend size — flagged, not done.
+
+### D2.5.18 — The display name is a prop the row never writes; a review-only rename harness in the playground (builder, 2026-11-01)
+
+**Decision.** `track.name` stays a read-only prop of the row (no `name`
+state, no handler touches it, no name matching anywhere — guarded), so
+renaming and source assignment cannot interfere by construction. Because
+the room has no rename control yet (naming is not this task), the
+playground's `rename` block gives `ArrangeRowFixture` a `renameTo` config:
+a plain page button (`data-dev-rename`, deliberately not hardware) swaps
+the first row's `name` prop "Kick" ↔ "Big Kick"; the row is keyed by code
+so its state persists across the swap. Verified: rename leaves
+`sourceTypeId` kick; choosing Clap afterwards leaves the name "Big Kick";
+a family change afterwards leaves the name and the tier. No auto-naming,
+no name recognition, nothing in the product UI.
+
+## Task 2.5 second follow-up (Family / Source Type, stable ids) — approved for now
+
+**Owner, 2026-11-01:** "approved for now." Approved as delivered in the
+report's "Follow-up 2" section, with its two noted deviations (the SOURCE
+corner legend, D2.5.17; the 5.75rem column, D2.5.16) accepted for now.
+Still uncommitted and untagged by instruction (no commit signal given).
+Approved hashes (sha256, first 16): `lib/arrange.ts` `c46be59b874e70c7`,
+`ArrangeTrackRow.svelte` `439d1889603ef908`, `ArrangeRoom.svelte`
+`68b0b784831e10ab`, `DevComponentsPage.svelte` `871c99dfb891cb9a`,
+`ArrangeRowFixture.svelte` `facc39b60df21345`,
+`check-arrange-rows-structure.mjs` `a4f74216021b5570`,
+`ScribbleSelect.svelte` `4974f298c86b07a1` (unchanged); build
+`dist/index.html` `fa124c6e44f3ccda` (402.11 kB). D2.5.1–D2.5.18 stand.
+Open, carried forward: the "needs confirmation" state is not drawn; the
+full SOURCE TYPE legend print would need a wider list floor or a smaller
+legend size.
+
+## Task 2.6 — Arrange timeline, waveform placeholders, tempo markers (2026-11-01; uncommitted, awaiting review)
+
+### D2.6.1 — Owner design answers taken before code (owner, 2026-11-01)
+
+**Decision.** One `ask_user` round before any code, as the prompt requires
+when something is open: (1) lanes are the **dark grey-green work surface**
+(`--al-material-surface`) with **cream waveforms** (`--al-material-cream`,
+flat, no glow — D2.3); (2) the track's org colour appears on the timeline
+as **the same flat 6 × 16 tab at each clip head** (D2.2.13; never a clip or
+lane tint — no second colour-marker system); (3) **stereo halves only for
+stereo sources** (Piano, Synth Pad, Riser FX), mono stems on the midline
+(Task 0.4 sized the 80 px lane for the stereo case); (4) the **tempo
+fixture has a few changes** and the time signature **4/4 is printed once**,
+beside the first marker.
+
+### D2.6.2 — One bar width: 2.75rem (44 px); the timeline is 56 × 44 = 2464 px (builder, 2026-11-01)
+
+**Decision.** The room defines `--arrange-bar-width: 2.75rem` once and
+derives `--arrange-timeline-width: calc(var(--arrange-bar-count) *
+var(--arrange-bar-width))`; the bar count reaches CSS as an inline custom
+property from `ARRANGE_BAR_COUNT`. Every horizontal position in the head
+and the lanes — ruler bar lines, four-bar lines, beat ticks, numerals, tempo
+flags, structure spans, lane grid, clip left and width — is a bar-unit
+`calc()` on that property, so the ruler's lines, the lanes' lines and the
+clips' edges are the same lines by construction (guarded; measured
+`dx = 0` for every clip, numeral, tempo and section mark at all five
+widths). 44 px was chosen over Task 0.4's 2400 px / 42.86 px per bar so a
+bar is a whole number of pixels and a beat (11 px) is too; the timeline
+grows from 2400 to 2464 px (+64 px, inside the same single scroller — no
+other geometry changes). The list column (`clamp(12rem, 16vw, 15rem)`) and
+the 5rem row are untouched (guarded, pinned).
+
+### D2.6.3 — The ruler is a console scale: metal marks, three weights, numerals every four bars (builder, 2026-11-01)
+
+**Decision.** The ruler band (1.375rem) prints musical time the way the
+fader prints its scale (Task 1.3): four-bar lines the band's full height,
+bar lines 9 px, beat ticks 4 px, all from the bottom edge; majors from 90 %
+of `--al-material-metal`, minors from 45 % (`color-mix`), no colour of its
+own. The numerals are the approved `ARRANGE_RULER_LABELS` (every four bars,
+`ARRANGE_RULER_LABEL_INTERVAL` untouched) as `EngravedLabel xs value muted`
+set 4 px right of their bar line. The seam between the ruler and the tempo
+track is the owner's Task 0.4 "heavier, darker" line, cut as a groove:
+`--al-bevel-shadow` over `--al-bevel-light`. The head keeps the Task 0.4
+band order ruler → tempo → structure and its 82 px (22 + 36 + 22 + 2 px
+baseline), equal to the list corner, so the first row and the first lane
+share one top edge (measured 0 at all widths).
+
+### D2.6.4 — The tempo track is a track: fixture markers as cream flags with value print, a held-tempo step trace (builder, 2026-11-01)
+
+**Decision.** The tempo band (2.25rem) is the same work surface and bar
+grid as the lanes, so a marker reads against the lines the clips sit on.
+Each fixture marker is a 1 px cream flag at its exact bar plus
+`"NNN BPM"` (`EngravedLabel xs value`) — the first also prints `4/4`
+(muted) once. Below the print a 1.5 px cream step trace
+(`tempoTracePath`, `vector-effect="non-scaling-stroke"`) holds each tempo
+to the next marker and steps at it, drawn against a fixed 96–128 BPM
+band, so a change is seen as a step and its size can be compared. Fixture:
+**120 @ bar 1 (4/4) · 112 @ 41 (Bridge) · 120 @ 45 (Solo) · 104 @ 53
+(Outro)** — each change on a section start of the approved structure
+(guarded). Nothing detects, analyses or edits tempo: no inputs, buttons or
+handlers in the head (guarded). A tooltip on the marker spells the held
+tempo out; that is the only explanatory text.
+
+### D2.6.5 — Clips are raised plates in bar units; the waveform placeholder is drawn, deterministic and local (builder, 2026-11-01)
+
+**Decision.** `lib/arrange-timeline.ts` (new, beside the approved
+`arrange.ts`, which stays byte-identical) holds the clip fixture — **20
+tracks, 53 clips**, every clip inside bars 1–56, sorted and
+non-overlapping per track (guarded) — and a small generator: a seeded
+mulberry32 hash (no `Math.random`, no clock) and sixteen "kind" recipes
+(kick, snare, snare bottom, hat, overheads, room, bass, rhythm / lead
+guitar, piano, pad, vocal, vocal double, harmony, shaker, riser) that place
+hits in the bar, decay them, vary density and phrase, scaled by the
+section's dynamics (Intro .72 … Chorus 1 … Outro .7). The result is a
+16-peaks-per-bar envelope rendered once as an SVG path (mono: centre 50,
+half 44; stereo: two halves at 26 / 74, half 21) stretched to the plate.
+Each clip is a plate on the surface (`--al-material-surface-raised`, 1 px
+dark edge, 2 px radius, lit top edge), `left = (startBar − 1) × bar width`,
+`width = bars × bar width − 1 px` (a seam between touching clips), 4 px in
+from the lane's top and bottom; the drawing is two layers of the one path —
+peaks at .42, body (`<use>`, 60 % height) at .78 — the overview look of a
+tape editor without a second drawing. Nothing is read from audio; the
+fixture is kept outside `arrange.ts` because the Task 0.4 guard sums every
+`barCount:` in that file to 56.
+
+### D2.6.6 — The lane carries no print; one tooltip per clip; no interaction (builder, 2026-11-01)
+
+**Decision.** The lane prints nothing permanent (no labels, no bar
+numbers, no track name — the list row says who it is, the ruler says
+where); the only text is the clip's `title` ("Kick · bars 5–40 · mono").
+The lane's boundary is one dark hair line below; the bar grid is a hair
+line per bar and a slightly firmer one per four bars, no beat lines (the
+ruler carries those). The lane and the head have no handlers, drag,
+focus, inputs or buttons (guarded): Task 2.6 is the skin of the workspace,
+not the editor. The lane's new props (`name`, `org`, `clips`) are optional
+with safe defaults, so the Task 0.4 call shape still renders (guarded).
+
+### D2.6.7 — The scroller becomes the work surface; the head component owns the three bands (builder, 2026-11-01)
+
+**Decision.** The Phase 0 dashed frame and white field are gone: the one
+scroller is the work surface in a 1 px `--al-bevel-shadow` frame with an
+inset shadow and `color-scheme: dark` for the browser's scrollbars. The
+head's three bands moved from the room into `ArrangeTimelineHeader.svelte`
+(rendered once, sticky, `z-index 3` under the corner's 4) so the room file
+stays the layout and the head is reviewable on its own in the playground;
+the Task 0.4 guard now reads the band regions from that component (same
+names, same order) and checks the room renders it exactly once. Verified by
+measurement: after `scrollLeft 600 / scrollTop 400` the head stays at the
+scroller's top and the corner at its left, head and lanes shift by the same
+−600 px, rows and lanes by the same −400 px, all 20 pairs aligned at 80 px.
+
+### D2.6.8 — Guards: new `check:arrange-timeline`; three existing guards edited as planned hand-overs (builder, 2026-11-01)
+
+**Decision.** `scripts/check-arrange-timeline-structure.mjs` (68 checks,
+negative-tested with 51 mutations — all caught after the "no permanent
+text in the lane" check was strengthened to strip tags and blocks and
+require an empty remainder; sha256-verified restores)
+pins the contract above. Three existing guards changed, each the hand-over
+their own text anticipated: `check-arrange-structure.mjs` (Task 0.4) reads
+the head regions from the header component and adds two checks (head
+rendered once; head scrolls nothing) — 32 checks (was 30); `check-arrange-rows-structure.mjs`
+(Task 2.5) drops the lane pin (now the 2.6 file) and replaces its "Phase 0
+colours stay until Task 2.6" and "2400px" checks with the new recipes —
+106 checks; `check-tokens-structure.mjs` takes the lane off its "no tokens
+yet" list ("the timeline lane stays Phase 0 until Task 2.6") — 57 checks.
+The rows guard's approved hash `a4f74216021b5570` therefore changes; the
+row, row fixture, select, strip, strip fixtures, EngravedLabel, tokens,
+app.css, Mixer and Console are pinned by the new guard and are byte-
+identical to their approved files.
+
+## Task 2.6 — approved
+
+**Owner, 2026-11-01:** "approved, commit." Approved as delivered in
+`task-reports/2.6-report.md`; D2.6.1–D2.6.8 stand. Committed on this
+signal — commit only, no push, no tag. Approved hashes (sha256, first 16):
+`ArrangeRoom.svelte` `f1438bc03b63822a`, `ArrangeTimelineLane.svelte`
+`39b736fe00c61fd0`, `ArrangeTimelineHeader.svelte` `8f696f7ec9f07d6e`,
+`lib/arrange-timeline.ts` `2a9eafb1fab0a3ca`,
+`ArrangeTimelineFixture.svelte` `952ba9b353851a03`,
+`DevComponentsPage.svelte` `272ed2757a8a7f69`,
+`check-arrange-timeline-structure.mjs` `7dd9a6c647750b9a`,
+`check-arrange-structure.mjs` `b0dfcb14cf9cfca5`,
+`check-arrange-rows-structure.mjs` `4d9c9fe463d5d590`,
+`check-tokens-structure.mjs` `68a1601ed219abdf`; build `dist/index.html`
+`84648e66a95c208d` (418.89 kB). The Task 2.5 work (approved earlier, never
+given a commit signal) shares files with 2.6 and its `ArrangeRoom.svelte`
+state could not be reconstructed hash-exactly, so 2.5, its two follow-ups
+and 2.6 are committed together in one commit (see the 2.6 report's
+Approval note). Open, carried forward: the push (needs a PAT and the push
+signal); the design calls flagged for possible reversal — no beat lines in
+the lanes, the org tab travelling with its clip head.

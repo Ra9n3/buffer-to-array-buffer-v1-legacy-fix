@@ -13,7 +13,9 @@
  *      container (the desync defect this task rules out).
  *   4. Both track row and lane take their height from the shared
  *      --arrange-row-height custom property.
- *   5. All seven planned regions are still present.
+ *   5. All seven planned regions are still present (Task 2.6 moved the three
+ *      head bands into ArrangeTimelineHeader.svelte, which the room renders
+ *      exactly once inside the sticky head cell).
  *
  * This catches the specific regression risk — someone re-splitting the track
  * list and timeline into two independently scrolling columns — that a type
@@ -44,6 +46,7 @@ function check(name, condition, detail = "") {
 const room = read("src/rooms/ArrangeRoom.svelte");
 const trackRow = read("src/components/ArrangeTrackRow.svelte");
 const lane = read("src/components/ArrangeTimelineLane.svelte");
+const head = read("src/components/ArrangeTimelineHeader.svelte");
 const data = read("src/lib/arrange.ts");
 
 // --- 1. Exactly one scroll container in the room.
@@ -153,15 +156,23 @@ check(
 );
 
 // --- 5. Planned regions present.
-for (const region of [
-  "track-list-header",
-  "timeline-header",
-  "structure-markers",
-  "tempo-track",
-  "timeline-ruler",
-]) {
-  check(`region "${region}" is present`, room.includes(`data-arrange-region="${region}"`));
+check(
+  'region "track-list-header" is present',
+  room.includes('data-arrange-region="track-list-header"'),
+);
+// Task 2.6: the timeline head is its own component, rendered once by the room
+// in the head row's second cell; its three bands keep the planned region names.
+for (const region of ["timeline-header", "timeline-ruler", "tempo-track", "structure-markers"]) {
+  check(`region "${region}" is present`, head.includes(`data-arrange-region="${region}"`));
 }
+check(
+  "the room renders the timeline head component exactly once",
+  (room.match(/<ArrangeTimelineHeader\b/g) ?? []).length === 1,
+);
+check(
+  "the timeline head creates no scrolling axis of its own",
+  ![...head.matchAll(/overflow(?:-[xy])?\s*:\s*([^;]+);/g)].some((m) => /auto|scroll/.test(m[1])),
+);
 check(
   'region "timeline-lane" is present',
   lane.includes('data-arrange-region="timeline-lane"'),

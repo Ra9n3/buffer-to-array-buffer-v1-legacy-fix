@@ -9,7 +9,10 @@ import EngravedLabelFixture, { type LabelFixtureConfig } from "./EngravedLabelFi
 import LampFixture, { type LampFixtureConfig } from "./LampFixture.svelte";
 import TransportFixture, { type TransportFixtureConfig } from "./TransportFixture.svelte";
 import PinnedStripFixture, { type PinnedStripFixtureConfig } from "./PinnedStripFixture.svelte";
+import ArrangeRowFixture, { type ArrangeRowFixtureConfig } from "./ArrangeRowFixture.svelte";
+  import ArrangeTimelineFixture, { type ArrangeTimelineFixtureConfig } from "./ArrangeTimelineFixture.svelte";
 import { BUS_MASTERS, RETURN_STRIPS } from "../components/channel-strip/bus-return-fixtures";
+import { ARRANGE_TRACKS, SOURCE_TYPES } from "../lib/arrange";
   import {
     FUNCTION_ROLE_ORDER,
     TOKENS,
@@ -831,6 +834,85 @@ import { BUS_MASTERS, RETURN_STRIPS } from "../components/channel-strip/bus-retu
     },
   ];
 
+  /* Task 2.5 — the Arrange track-list rows: the room's own rows at the
+     room's column width, the narrow column, and the stress cases (a long
+     name, a long source label, the compact row), the unassigned row and the
+     rename harness. Typed-in copies; no state. */
+  /* Task 2.6 — the Arrange timeline: the head and a few row / lane pairs at
+     the room's widths, the stereo and multi-clip cases, the tempo changes. */
+  const ARRANGE_TIMELINE_BLOCKS: ArrangeTimelineFixtureConfig[] = [
+    {
+      id: "session",
+      width: "min(100%, 1200px)",
+      tracks: [ARRANGE_TRACKS[0], ARRANGE_TRACKS[7], ARRANGE_TRACKS[12], ARRANGE_TRACKS[14]],
+      stateNote: "The workspace from bar 1 (1200 px: list column at its 15rem cap beside ~21 visible bars): the ruler's bar and beat marks with a numeral every four bars, 120 BPM · 4/4 on the tempo track, the section marks — Kick (mono transients, in from bar 5), Bass DI (notes a beat), Piano (stereo halves from bar 1), Lead Vocal (phrases, five takes). Scroll it: the head and the list stay put.",
+    },
+    {
+      id: "changes",
+      width: "min(100%, 1200px)",
+      scrollToBar: 36,
+      tracks: [ARRANGE_TRACKS[11], ARRANGE_TRACKS[13], ARRANGE_TRACKS[18], ARRANGE_TRACKS[19]],
+      stateNote: "The same workspace scrolled to bars 37–56: the tempo steps 120 → 112 (Bridge, bar 41) → 120 (Solo, bar 45) → 104 (Outro, bar 53), each a flag and a step in the trace; the Lead Gtr solo, the Synth Pad swell, the Shaker's 16ths, the Riser FX swelling into the Solo (stereo).",
+    },
+    {
+      id: "narrow",
+      width: "768px",
+      listWidth: "12rem",
+      tracks: [ARRANGE_TRACKS[1], ARRANGE_TRACKS[4], ARRANGE_TRACKS[19]],
+      stateNote: "768 px — the list column at its 12rem floor (192 px) beside 13 visible bars: the ruler and the clips keep their scale (the timeline scrolls); nothing is squeezed to make room.",
+    },
+    {
+      id: "compact",
+      width: "640px",
+      listWidth: "12rem",
+      rowHeight: "4.25rem",
+      tracks: [ARRANGE_TRACKS[0], ARRANGE_TRACKS[12]],
+      stateNote: "The compact row height (≤ 40rem viewports, 4.25rem): the drawings scale with the lane; a mono and a stereo clip.",
+    },
+  ];
+
+  const ARRANGE_ROW_BLOCKS: ArrangeRowFixtureConfig[] = [
+    {
+      id: "session",
+      tracks: [0, 2, 7, 11, 13, 14, 16, 19].map((i) => ARRANGE_TRACKS[i]),
+      stateNote: "The room's rows at the room's column width (clamp 12–15rem): a sample across the fixture session — Kick (Drums · Kick, Primary), Snare Bottom (Double), Bass DI (Bass · Electric Bass), Lead Gtr (Guitar · Clean Electric Guitar, Lead, Primary), Synth Pad (Synths · Synth Pad, Harmony, Background), Lead Vocal (Vocals · Lead Vocal), Harmony 1 (Backing Vocal), Riser FX (FX · Riser / Sweep). The FAMILY window offers the eleven families; the SOURCE TYPE window the chosen family's sources and Unspecified.",
+    },
+    {
+      id: "narrow",
+      width: "12rem",
+      tracks: [ARRANGE_TRACKS[9], ARRANGE_TRACKS[12], ARRANGE_TRACKS[18]],
+      stateNote: "The column at its 12rem floor (192 px — the 1024 and 768 widths): Rhythm Gtr L (Distorted Electric Guitar, truncating), Piano, Shaker (Percussion — its own family, not a drum).",
+    },
+    {
+      id: "stress",
+      width: "12rem",
+      sources: [...SOURCE_TYPES, { sourceTypeId: "long_test_source", label: "Acoustic guitar, nylon string, close mic, take 2", familyId: "guitar" }],
+      tracks: [
+        { code: "21", name: "Backing vocal stack left wide double take 3 comp", org: 4, familyId: "guitar", sourceTypeId: "long_test_source", role: "harmony", tier: "background" },
+        { code: "22", name: "Electric guitar rhythm right amp DI blend", org: 6, familyId: "guitar", sourceTypeId: "distorted_electric_guitar", role: "rhythm", tier: "supporting" },
+      ],
+      stateNote: "Stress at the 12rem floor: a 47-character track name and a 47-character source label (a test entry in the Guitar family), then the catalog's longest label, Distorted Electric Guitar — all truncate with an ellipsis, the full text in the tooltip; the row keeps its 5rem.",
+    },
+    {
+      id: "unset",
+      tracks: [{ code: "23", name: "Track 23", org: "neutral", familyId: null, sourceTypeId: null, role: "rhythm", tier: "supporting" }],
+      stateNote: "A track with nothing assigned (the plan's defaults: no family, no source, Rhythm, Supporting): both windows print a dash and the SOURCE TYPE window is disabled until a family is chosen; choosing one prints Unspecified and offers the family's sources — no default is picked.",
+    },
+    {
+      id: "rename",
+      tracks: [ARRANGE_TRACKS[0]],
+      renameTo: "Big Kick",
+      stateNote: "Display name versus source type: the RENAME control swaps the row's display name (a prop) — the source type stays kick; choosing another source afterwards keeps the customised name. Review-only control.",
+    },
+    {
+      id: "compact",
+      width: "12rem",
+      rowHeight: "4.25rem",
+      tracks: [ARRANGE_TRACKS[0], ARRANGE_TRACKS[14]],
+      stateNote: "The compact row (viewports ≤ 40rem, outside the review matrix): 4.25rem with the three lines closed up to 1 px gaps.",
+    },
+  ];
+
   onMount(() => {
     values = readTokenValues();
   });
@@ -1530,6 +1612,65 @@ import { BUS_MASTERS, RETURN_STRIPS } from "../components/channel-strip/bus-retu
     <div class="dev-transport" data-dev-pinned-blocks>
       {#each PINNED_BLOCKS as config (config.id)}
         <PinnedStripFixture {config} />
+      {/each}
+    </div>
+  </section>
+
+  <!-- Task 2.5 — the Arrange track-list rows -->
+  <section
+    class="dev-section"
+    data-dev-component="arrange-rows"
+    aria-labelledby="dev-component-arrange-rows"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-arrange-rows">
+        Arrange — track-list rows (Task 2.5)
+      </h2>
+      <p class="dev-section__blurb">
+        The Arrange room's track-list row on the family's charcoal panel,
+        three lines in the shared 5rem: the flat organisational-colour tab,
+        number and engraved name; the source type and its family in two
+        scribble-window comboboxes; the role as an engraved print and the
+        Prominence Tier in a third window at the right. Everything is
+        <strong>simulated</strong>: the rows are the room's fixtures; choosing
+        a family, a source type or a tier changes that row's own state and
+        nothing else.
+      </p>
+    </header>
+
+    <div class="dev-transport" data-dev-arrange-blocks>
+      {#each ARRANGE_ROW_BLOCKS as config (config.id)}
+        <ArrangeRowFixture {config} />
+      {/each}
+    </div>
+  </section>
+
+  <section
+    class="dev-section"
+    data-dev-component="arrange-timeline"
+    aria-labelledby="dev-component-arrange-timeline"
+  >
+    <header class="dev-section__head">
+      <h2 class="dev-section__title" id="dev-component-arrange-timeline">
+        Arrange — timeline, waveform placeholders, tempo markers (Task 2.6)
+      </h2>
+      <p class="dev-section__blurb">
+        The Arrange workspace's timeline on the dark grey-green work surface:
+        the bar ruler printed as a console scale (bar marks, beat ticks, a
+        numeral every four bars), the tempo track with its fixture markers
+        and held-tempo trace, the song's sections, and one clip or more per
+        track — a raised plate on the surface carrying a drawn waveform
+        placeholder in cream (mono on the midline, stereo as two halves) and
+        the track's organisational tab at its head. Everything is
+        <strong>simulated</strong>: fixture bars, fixture tempo, drawn
+        envelopes; nothing is read from audio, nothing plays, nothing can be
+        moved.
+      </p>
+    </header>
+
+    <div class="dev-transport" data-dev-arrange-timeline-blocks>
+      {#each ARRANGE_TIMELINE_BLOCKS as config (config.id)}
+        <ArrangeTimelineFixture {config} />
       {/each}
     </div>
   </section>

@@ -244,15 +244,15 @@ check("tokens.css is loaded by the app", /import "\.\/lib\/tokens\.css"/.test(ma
 // --- 7. No Phase 2 skinning. ----------------------------------------------
 const roomSources = [
   "src/rooms/ConsoleRoom.svelte",
-  "src/rooms/ArrangeRoom.svelte",
   "src/rooms/MixerRoom.svelte",
   // ChannelBank.svelte left this list in Task 2.2 (the bank is skinned);
   // ChannelStrip.svelte (the Phase 0 pinned placeholder) is unused since
   // Task 2.4 (ReturnStrip / BusMasterStrip replaced it) and is kept
-  // byte-identical, so it stays on this list.
+  // byte-identical, so it stays on this list. ArrangeRoom.svelte and
+  // ArrangeTrackRow.svelte left in Task 2.5 (the track-list rows and their
+  // header are skinned); ArrangeTimelineLane.svelte left in Task 2.6 (the
+  // timeline — lanes, clips, ruler and tempo track — is skinned).
   "src/components/ChannelStrip.svelte",
-  "src/components/ArrangeTrackRow.svelte",
-  "src/components/ArrangeTimelineLane.svelte",
   "src/components/MixerChannelStrip.svelte",
   "src/components/MixerDetailPanel.svelte",
   "src/components/RoomNav.svelte",
