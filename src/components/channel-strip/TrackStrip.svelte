@@ -3,6 +3,7 @@
   let nextId = 0;
 </script>
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import Fader from "../hardware/Fader.svelte";
   import Knob from "../hardware/Knob.svelte";
@@ -58,8 +59,17 @@
    *
    * The strip is a fixed-width physical module (owner's rule, D2.2.1): it
    * never shrinks to fit a viewport; the bank scrolls instead.
+   *
+   * `identity` (Task 2.7, optional, default none): a room may extend the
+   * head with one more section of its own — the Mixer puts its instrument
+   * identity print and channel controls there (plan §3 / §5a: those belong
+   * to Arrange and Mixer, not the Console). The section is rendered between
+   * the head and TRIM, divided by the same machined rule as every other
+   * section, and the strip draws nothing into it. Without the prop the
+   * markup and CSS are exactly the approved Task 2.2 strip: the Console
+   * passes nothing and renders byte-for-byte the same.
    */
-  let { track }: { track: TrackStripFixture } = $props();
+  let { track, identity }: { track: TrackStripFixture; identity?: Snippet } = $props();
 
   const uid = `ts${++nextId}`;
 
@@ -109,6 +119,14 @@
         <EngravedLabel id={`${uid}-name`} text={track.name} size="sm" kind="value" truncate />
       </div>
     </header>
+
+    {#if identity}
+      <!-- IDENTITY EXTENSION (Task 2.7): the room's own section under the head;
+           absent in the Console -->
+      <div class="strip__section strip__section--identity" data-strip-section="identity">
+        {@render identity()}
+      </div>
+    {/if}
 
     <!-- TRIM -->
     <div class="strip__section strip__section--knob" data-strip-section="trim">
@@ -289,6 +307,13 @@
     height: 1rem;
     border-radius: 1px;
     background-color: var(--org);
+  }
+
+  /* --- the optional identity extension (Task 2.7) ------------------------ */
+  .strip__section--identity {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--al-space-2xs) var(--al-space-3xs);
   }
 
   /* --- knob sections ------------------------------------------------------ */

@@ -48,6 +48,7 @@
     disabled = false,
     hook = null,
     onchange = null,
+    onchoose = null,
   }: {
     options: readonly SelectOption[];
     /** The chosen option's id. */
@@ -64,7 +65,15 @@
     disabled?: boolean;
     /** Value of the root's `data-select` hook; defaults to the label. */
     hook?: string | null;
+    /** The value changed (a different option was chosen). */
     onchange?: ((id: string) => void) | null;
+    /**
+     * An option was chosen — the current one included (Task 2.7, owner's
+     * choice, D2.7.4): the Mixer confirms a suggested Prominence tier by
+     * choosing any tier, re-choosing the one shown included. Fires after
+     * `onchange`; `onchange` and the value are unchanged by this addition.
+     */
+    onchoose?: ((id: string) => void) | null;
   } = $props();
 
   const uid = `sel${++nextId}`;
@@ -136,6 +145,7 @@
       value = id;
       onchange?.(id);
     }
+    onchoose?.(id);
     close();
   }
 

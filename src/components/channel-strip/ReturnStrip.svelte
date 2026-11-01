@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import Knob from "../hardware/Knob.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
   import StripModule from "./StripModule.svelte";
@@ -39,8 +40,12 @@
    * window printed in the same green ink as an assigned send window, and
    * the fader legended RETURN. Fixtures only (`bus-return-fixtures.ts`,
    * SIMULATED): no effect processing, no routing, no project state.
+   *
+   * `identity` (Task 2.7, optional, default none) is handed straight to the
+   * module's optional identity extension under the head; the Console passes
+   * nothing and the strip renders exactly as approved.
    */
-  let { ret }: { ret: ReturnStripFixture } = $props();
+  let { ret, identity = null }: { ret: ReturnStripFixture; identity?: Snippet | null } = $props();
 
   const params = $derived(RETURN_PARAMS[ret.effect]);
 </script>
@@ -55,6 +60,7 @@
   hook={ret.id}
   sectionA={params.time.id}
   sectionB={params.second.id}
+  {identity}
   baySection="effect"
   bayLabel={`Effect, ${ret.name}`}
   faderLabel="Return"

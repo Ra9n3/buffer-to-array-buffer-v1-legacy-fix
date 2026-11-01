@@ -167,7 +167,7 @@ check("the Return's bay is the effect bay: the character window over the TONE kn
 check("the character window is a plain print (no button, no menu) with the character's name in its title and accessible name", !/aria-haspopup|<button/.test(retTemplate) && /title=\{`Character: \$\{ret\.character\.name\}`\}/.test(retTemplate) && /aria-label=\{`Character, \$\{ret\.character\.name\}`\}/.test(retTemplate));
 check("the character window is the send window's recipe in the green ink (recess, subtle border, mono, 2xs, uppercase)", /\.effect__window \{[^}]*background:\s*var\(--al-material-recess\)/s.test(retStyle) && /\.effect__window \{[^}]*border:\s*1px solid var\(--al-border-subtle\)/s.test(retStyle) && /\.effect__window \{[^}]*color:\s*var\(--al-function-green-hi\)/s.test(retStyle) && /\.effect__window \{[^}]*font-family:\s*var\(--al-font-mono\)/s.test(retStyle) && /\.effect__window \{[^}]*font-size:\s*var\(--al-text-size-2xs\)/s.test(retStyle) && /\.effect__window \{[^}]*text-transform:\s*uppercase/s.test(retStyle) && /\.effect__window \{[^}]*min-height:\s*1\.125rem/s.test(retStyle));
 check("the Return's fader is legended Return and holds the fixture's output level", /faderLabel="Return"\s+faderValue=\{ret\.level\}/.test(retTemplate));
-check("the Return's props are the fixture type only", /let \{ ret \}: \{ ret: ReturnStripFixture \} = \$props\(\);/.test(ret));
+check("the Return's props are the fixture type and the optional identity snippet only (Task 2.7, forwarded to the module)", /let \{ ret, identity = null \}: \{ ret: ReturnStripFixture; identity\?: Snippet \| null \} = \$props\(\);/.test(ret));
 
 // Bus master strip.
 check("the bus strip is typed BUS, kind bus, hooked by its code", /type=\{bus\.type\}\s+typeTitle="Bus master"/.test(busTemplate) && /kind="bus"/.test(busTemplate) && /hook=\{bus\.id\}/.test(busTemplate));
@@ -175,7 +175,7 @@ check("BUS TRIM is the orange family (spec §5: bus / group masters) on the trac
 check("BALANCE is the blue-grey family on the track strips' PAN range with L / R extremes and the pan readout", /<Knob\s+label="Balance"\s+family="bluegrey"\s+min=\{BALANCE_RANGE\.min\}\s+max=\{BALANCE_RANGE\.max\}\s+step=\{BALANCE_RANGE\.step\}\s+value=\{bus\.balance\}\s+decimals=\{0\}\s+extremes=\{\["L", "R"\]\}\s+format=\{formatBalance\}/.test(busTemplate));
 check("the bus strip has exactly those two knobs, no bay (the blank panel) and no switch of its own", count(busTemplate, /<Knob\b/g) === 2 && !/bay\s*=|\{#snippet bay/.test(busTemplate) && !/<TactileSwitch|<Lamp/.test(busTemplate));
 check("the bus's fader is legended Master and holds the fixture's level", /faderLabel="Master"\s+faderValue=\{bus\.level\}/.test(busTemplate));
-check("the bus strip's props are the fixture type only", /let \{ bus \}: \{ bus: BusMasterFixture \} = \$props\(\);/.test(bus));
+check("the bus strip's props are the fixture type and the optional identity snippet only (Task 2.7, forwarded to the module)", /let \{ bus, identity = null \}: \{ bus: BusMasterFixture; identity\?: Snippet \| null \} = \$props\(\);/.test(bus));
 check("the bus reuses the track strips' ranges and formatters by re-export, not by copy", /export \{ PAN_RANGE as BALANCE_RANGE, TRIM_RANGE as BUS_TRIM_RANGE, formatPan as formatBalance, formatSignedDb \};/.test(fixtures) && !/BALANCE_RANGE = \{|BUS_TRIM_RANGE = \{/.test(fixtures));
 
 // --- 4. Fixture honesty; nothing wired. ----------------------------------------
@@ -210,7 +210,9 @@ check("the pinned row keeps the modules' own height and stretches them to one an
 check("no screw heads in any new file (owner's standing rule, D2.1.9)", !/(class=["'{][^"'}]*screw|\.[\w-]*screw[\w-]*\s*[{,:]|data-[\w-]*screw|__screw)/i.test(newSource + devFixture + bank));
 check("no instrument combobox or Prominence Tier control in the pinned strips (plan §3)", !/combobox|<select|Prominence|prominence|tier/i.test(newSource));
 check("the new strips do not import the track strip, the send slot, the bridge, the transport or the Phase 0 placeholder", !/import [^;]*(TrackStrip|SendSlot|meter-bridge\/|console-transport\/|ChannelStrip\.svelte|MixerChannelStrip)/.test(newSource));
-check("the Mixer and Arrange rooms and the shell do not import the pinned strips", !/ReturnStrip|BusMasterStrip|StripModule|bus-return-fixtures/.test(["src/rooms/MixerRoom.svelte", "src/rooms/ArrangeRoom.svelte", "src/App.svelte", "src/components/RoomShell.svelte", "src/components/MiniTransport.svelte"].map(read).join("\n")));
+// (The Mixer left this list in Task 2.7: its Return and bus channels ARE the
+//  pinned strips, composed through src/components/mixer/*; check:mixer covers it.)
+check("the Arrange room and the shell do not import the pinned strips", !/ReturnStrip|BusMasterStrip|StripModule|bus-return-fixtures/.test(["src/rooms/ArrangeRoom.svelte", "src/App.svelte", "src/components/RoomShell.svelte", "src/components/MiniTransport.svelte"].map(read).join("\n")));
 check("the playground renders the pinned strips through PinnedStripFixture in its own section", /import PinnedStripFixture, \{ type PinnedStripFixtureConfig \} from "\.\/PinnedStripFixture\.svelte"/.test(devPage) && /data-dev-component="pinned-strips"/.test(devPage) && /<PinnedStripFixture \{config\} \/>/.test(devPage) && /import ReturnStrip from "\.\.\/components\/channel-strip\/ReturnStrip\.svelte"/.test(devFixture) && /import BusMasterStrip from "\.\.\/components\/channel-strip\/BusMasterStrip\.svelte"/.test(devFixture));
 const pinned = {
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
@@ -221,7 +223,8 @@ const pinned = {
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
   "src/components/meter-bridge/ConsoleMeterBridge.svelte": "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002",
-  "src/components/channel-strip/TrackStrip.svelte": "17059869a037d575beb0623a10989b2f9335fe35a1d34a889b737f409913ba35",
+  // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
+  "src/components/channel-strip/TrackStrip.svelte": "1e06056cd61e307e5e20d541e62309167b3c0cdde7a46085cfb436ac3f578cfa",
   "src/components/channel-strip/SendSlot.svelte": "8009eaf5ba0335099deb62a315116e67450750c118370d974596ead37b468b31",
   "src/components/channel-strip/track-strip-fixtures.ts": "c76e8c14b7c9794b14747a83a51926870a24c6a587405259f05ac6a415e151c5",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",

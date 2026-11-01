@@ -100,8 +100,12 @@ check("the TrackStrip is rendered exactly once in the bank's template", count(ba
   check("track ids are unique and sequential", ids.join(",") === Array.from({ length: 20 }, (_, i) => String(i + 1).padStart(2, "0")).join(","));
 }
 check("the strip is a list item that names itself by its track name (role=group, aria-labelledby)", /<li\s+class="strip"\s+role="group"\s+aria-labelledby=\{`\$\{uid\}-name`\}/.test(stripTemplate) && /id=\{`\$\{uid\}-name`\} text=\{track\.name\}/.test(stripTemplate));
-check("the strip carries its hooks: data-track-strip, data-track-org, data-simulated, data-strip-section", /data-track-strip=\{track\.id\}/.test(stripTemplate) && /data-track-org=/.test(stripTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate) && count(stripTemplate, /data-strip-section="/g) === 6);
-check("the six sections are head, trim, pan, sends, fader, switches — in that order", (stripTemplate.match(/data-strip-section="([a-z]+)"/g) ?? []).map((m) => m.slice(20, -1)).join(",") === "head,trim,pan,sends,fader,switches");
+check("the strip carries its hooks: data-track-strip, data-track-org, data-simulated, data-strip-section", /data-track-strip=\{track\.id\}/.test(stripTemplate) && /data-track-org=/.test(stripTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate) && count(stripTemplate, /data-strip-section="/g) === 7);
+// Task 2.7: one OPTIONAL section, `identity`, sits between the head and TRIM —
+// rendered only when a room passes the `identity` snippet (the Mixer does, the
+// Console does not), so the Console strip is still the six approved sections.
+check("the six sections are head, trim, pan, sends, fader, switches — in that order, with the optional Task 2.7 identity section between head and trim", (stripTemplate.match(/data-strip-section="([a-z]+)"/g) ?? []).map((m) => m.slice(20, -1)).join(",") === "head,identity,trim,pan,sends,fader,switches");
+check("the identity section is optional: guarded by {#if identity}, rendering the snippet and nothing else; the Console bank passes none", /\{#if identity\}\s*(<!--[\s\S]*?-->\s*)?<div class="strip__section strip__section--identity" data-strip-section="identity">\s*\{@render identity\(\)\}\s*<\/div>\s*\{\/if\}/.test(stripTemplate) && /<TrackStrip \{track\} \/>/.test(bankTemplate) && !/identity/.test(bank));
 check("the pinned area renders the Task 2.4 strips: one ReturnStrip per fixture return, then the BusMasterStrip (the bus master farthest right, 0.3)", /<aside[\s\S]*\{#each RETURN_STRIPS as ret \(ret\.returnId\)\}\s*<ReturnStrip \{ret\} \/>\s*\{\/each\}\s*\{#each BUS_MASTERS as bus \(bus\.id\)\}\s*<BusMasterStrip \{bus\} \/>\s*\{\/each\}/.test(bankTemplate) && count(bankTemplate, /<ReturnStrip\b/g) === 1 && count(bankTemplate, /<BusMasterStrip\b/g) === 1);
 check("the bank no longer renders or imports the Phase 0 ChannelStrip placeholder", !/ChannelStrip\b/.test(bank));
 check("ChannelStrip.svelte (the placeholder) is untouched: no tokens, no hardware imports, Phase 0 width", !/var\(--al-|hardware\//.test(placeholder) && /flex: 0 0 6rem/.test(placeholder));
@@ -167,7 +171,7 @@ check("the bank does not override the approved components' internals either", !/
 check("the fixture file declares itself SIMULATED in its header", /SIMULATED fixture data/.test(fixtures.slice(0, 600)));
 check('the fixture file exports SIMULATED = "simulated"', /export const SIMULATED = "simulated" as const/.test(fixtures));
 check("bank and strip roots carry data-simulated", /data-channel-bank data-simulated=\{SIMULATED\}/.test(bankTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate));
-check("the strip's props are the fixture type only", /let \{ track \}: \{ track: TrackStripFixture \} = \$props\(\);/.test(strip));
+check("the strip's props are the fixture type and the optional identity snippet only (Task 2.7)", /let \{ track, identity \}: \{ track: TrackStripFixture; identity\?: Snippet \} = \$props\(\);/.test(strip));
 check(
   "no audio, metering, timers, randomness, stores or shared state in any strip file (local UI state only)",
   !/AudioContext|Analyser|AudioBuffer|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now|lib\/mixer|lib\/arrange|lib\/rooms|localStorage|sessionStorage|fetch\(|svelte\/store|writable\(|readable\(|getContext|setContext|onToggle|\$effect/.test(allStripSource),

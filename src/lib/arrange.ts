@@ -253,12 +253,20 @@ export interface ArrangeTrack {
   readonly sourceTypeId: string | null;
   readonly role: RoleId;
   readonly tier: ProminenceTier;
+  /**
+   * Plan §5a: a track whose classification was only suggested keeps the
+   * default tier (Supporting) and is marked "needs confirmation" until the
+   * user confirms a tier. Optional — absent means confirmed — so every
+   * existing fixture and consumer is unchanged (Task 2.7; the Mixer strip
+   * shows the state, the Arrange row does not draw it, D2.5.1).
+   */
+  readonly tierConfirmed?: boolean;
 }
 
 /** Task 0.4 name, kept for anything that still imports it. */
 export type ArrangeTrackPlaceholder = ArrangeTrack;
 
-type TrackSettings = Pick<ArrangeTrack, "familyId" | "sourceTypeId" | "role" | "tier">;
+type TrackSettings = Pick<ArrangeTrack, "familyId" | "sourceTypeId" | "role" | "tier" | "tierConfirmed">;
 
 /**
  * The fixture session's family / source type / role / tier per track, keyed
@@ -266,6 +274,9 @@ type TrackSettings = Pick<ArrangeTrack, "familyId" | "sourceTypeId" | "role" | "
  * not classification). Names and colours are NOT here: they come from the
  * Console's list. A track missing from this table gets the plan's defaults:
  * no family, no source (nothing is classified for it), Rhythm, Supporting.
+ * Two doubles (09 Bass Amp, 16 Vocal Double) sit on the default tier with
+ * `tierConfirmed: false` — fixture setup for the plan's "needs confirmation"
+ * state, which the Mixer strip shows (Task 2.7, D2.7.4).
  */
 const SESSION_SETTINGS: Readonly<Record<string, TrackSettings>> = {
   "01": { familyId: "drums", sourceTypeId: "kick", role: "rhythm", tier: "primary" },
@@ -276,14 +287,14 @@ const SESSION_SETTINGS: Readonly<Record<string, TrackSettings>> = {
   "06": { familyId: "drums", sourceTypeId: "overheads", role: "rhythm", tier: "supporting" },
   "07": { familyId: "drums", sourceTypeId: "room", role: "rhythm", tier: "background" },
   "08": { familyId: "bass", sourceTypeId: "electric_bass", role: "rhythm", tier: "primary" },
-  "09": { familyId: "bass", sourceTypeId: "electric_bass", role: "double", tier: "supporting" },
+  "09": { familyId: "bass", sourceTypeId: "electric_bass", role: "double", tier: "supporting", tierConfirmed: false },
   "10": { familyId: "guitar", sourceTypeId: "distorted_electric_guitar", role: "rhythm", tier: "supporting" },
   "11": { familyId: "guitar", sourceTypeId: "distorted_electric_guitar", role: "rhythm", tier: "supporting" },
   "12": { familyId: "guitar", sourceTypeId: "clean_electric_guitar", role: "lead", tier: "primary" },
   "13": { familyId: "keys", sourceTypeId: "piano", role: "rhythm", tier: "supporting" },
   "14": { familyId: "synths", sourceTypeId: "synth_pad", role: "harmony", tier: "background" },
   "15": { familyId: "vocals", sourceTypeId: "lead_vocal", role: "lead", tier: "primary" },
-  "16": { familyId: "vocals", sourceTypeId: "vocal_double", role: "double", tier: "supporting" },
+  "16": { familyId: "vocals", sourceTypeId: "vocal_double", role: "double", tier: "supporting", tierConfirmed: false },
   "17": { familyId: "vocals", sourceTypeId: "backing_vocal", role: "harmony", tier: "background" },
   "18": { familyId: "vocals", sourceTypeId: "backing_vocal", role: "harmony", tier: "background" },
   "19": { familyId: "percussion", sourceTypeId: "shaker", role: "rhythm", tier: "background" },

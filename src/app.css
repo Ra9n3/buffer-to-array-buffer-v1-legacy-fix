@@ -8,8 +8,11 @@
      the Arrange track headers in row height, padding, label alignment and
      typography scale. These values are the single source for that geometry.
      ArrangeTrackRow keeps its own literal values (it was not to be edited);
-     MixerChannelStrip consumes these tokens, and scripts/check-mixer-structure.mjs
-     asserts the two representations stay identical.
+     MixerChannelStrip consumed these tokens, and scripts/check-mixer-structure.mjs
+     asserted the two representations stayed identical. Task 2.5 skinned the
+     Arrange rows and Task 2.7 retired MixerChannelStrip (the Mixer now renders
+     the shared channel strips), so nothing reads these any more; they stay as
+     the Task 0.5 record until the shell is skinned.
      ------------------------------------------------------------------------- */
   --track-header-height: 5rem;
   --track-column-width: clamp(10rem, 16vw, 15rem);
@@ -337,13 +340,15 @@ a {
 }
 
 /* ---------------------------------------------------------------------------
-   Mixer room shell bounding — Task 0.5.
+   Mixer room shell bounding — Task 0.5 (rules unchanged by Task 2.7).
 
-   The Mixer is a two-pane workspace that scrolls internally: the channel column
-   scrolls on its own and the detail panel scrolls on its own. The room is pinned
-   to the available viewport height so neither pane can push the page taller.
-   Scoped to [data-active-room="mixer"], so Console and Arrange are untouched.
-   The Mixer keeps its room header (unlike Arrange, whose header is hidden).
+   The Mixer is a workspace that scrolls internally: Task 0.5's two panes side
+   by side, since Task 2.7 the strip bank over the detail panel, the layout
+   scrolling vertically inside the room (MixerRoom's `.mixer-layout`). The room
+   is pinned to the available viewport height so nothing can push the page
+   taller. Scoped to [data-active-room="mixer"], so Console and Arrange are
+   untouched. The Mixer keeps its room header (unlike Arrange, whose header is
+   hidden).
    --------------------------------------------------------------------------- */
 [data-active-room="mixer"] .room-host {
   padding: 0.625rem 0.75rem;

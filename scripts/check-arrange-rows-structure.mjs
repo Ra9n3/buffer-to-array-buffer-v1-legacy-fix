@@ -220,7 +220,10 @@ check("a source change sets the source only; the Unspecified option clears it", 
 check("neither choice touches the role, the tier or the display name (independent axes; the name is a read-only prop)", (() => { const fam = rowScript.match(/function chooseFamily[\s\S]*?\n  \}/)?.[0] ?? ""; const src = rowScript.match(/function chooseSource[\s\S]*?\n  \}/)?.[0] ?? ""; return fam.length > 0 && src.length > 0 && !/tier|role|name/i.test(fam + src) && !/track\.name\s*=|name\s*=\s*[^=]/.test(rowScript.replace(/aria-labelledby|track\.name\b(?!\s*=[^=])/g, "")) && !/\$state[^;]*\bname\b/.test(rowScript); })());
 check("the row never infers a source or a family from the track name (no name matching, no auto-classification)", !/track\.name\.(match|includes|toLowerCase|startsWith|search)|RegExp\(|\.test\(track\.name/.test(rowScript + data.replace(/\/\*[\s\S]*?\*\//g, "")));
 check("the row exposes its family and source for tests (the source attribute is absent when Unspecified)", /data-track-family=\{familyId\}/.test(rowTemplate) && /data-track-source-type=\{sourceTypeId\}/.test(rowTemplate) && !/data-track-instrument/.test(rowTemplate));
-const sessionPairs = [...data.matchAll(/^  "(\d\d)": \{ familyId: "([a-z]+)", sourceTypeId: "([a-z0-9_]+)", role: "[a-z]+", tier: "[a-z]+" \},$/gm)].map((m) => ({ code: m[1], family: m[2], source: m[3] }));
+// (Task 2.7 added the optional `tierConfirmed: false` to two session lines —
+//  the plan's "needs confirmation" fixture for the Mixer; the pair parse and
+//  the count below allow it.)
+const sessionPairs = [...data.matchAll(/^  "(\d\d)": \{ familyId: "([a-z]+)", sourceTypeId: "([a-z0-9_]+)", role: "[a-z]+", tier: "[a-z]+"(?:, tierConfirmed: false)? \},$/gm)].map((m) => ({ code: m[1], family: m[2], source: m[3] }));
 check("every session track's family / source pair is valid (the source exists and belongs to that family); Shaker is Percussion, the Riser is FX", sessionPairs.length === 20 && sessionPairs.every((p) => FAMILY_ORDER.includes(p.family) && sourceRows.some((r) => r.id === p.source && r.family === p.family)) && sessionPairs.some((p) => p.code === "19" && p.family === "percussion" && p.source === "shaker") && sessionPairs.some((p) => p.code === "20" && p.family === "fx" && p.source === "riser_sweep") && sessionPairs.some((p) => p.code === "01" && p.source === "kick") && sessionPairs.some((p) => p.code === "15" && p.source === "lead_vocal"));
 check("an unset track (beyond the session) has no family and no source — nothing is classified for it — and the plan's role / tier defaults", /readonly familyId: FamilyId \| null;/.test(data) && /readonly sourceTypeId: string \| null;/.test(data) && /const UNSET_SETTINGS: TrackSettings = \{ familyId: null, sourceTypeId: null, role: "rhythm", tier: DEFAULT_TIER \};/.test(data) && !/readonly instrument/.test(data));
 check("the old instrument API is gone (no half-migrated importer)", !/INSTRUMENTS|INSTRUMENT_FAMILIES|familyOf\(|instrumentsOf\(|defaultInstrument|hook="instrument"|data-track-instrument/.test([row, data, devPage, devFixture, room].join("\n")));
@@ -230,7 +233,7 @@ check("no detection, classification, filename parsing, audio / MIDI, persistence
 // --- 5. Fixture honesty. -----------------------------------------------------------
 check("names and org colours derive from the Console's track list (one session), never retyped", /import \{ TRACK_STRIPS, type OrgSwatch \} from "\.\.\/components\/channel-strip\/track-strip-fixtures";/.test(data) && /const strip = TRACK_STRIPS\[index\];/.test(data) && /return \{ code: strip\.id, name: strip\.name, org: strip\.org, \.\.\.\(SESSION_SETTINGS\[strip\.id\] \?\? UNSET_SETTINGS\) \};/.test(data) && !/name: "Kick"/.test(data));
 check("the Task 0.4 factory and count survive (the arrange guard's contract)", /export function createArrangeTracks\(/.test(data) && /export const PLACEHOLDER_TRACK_COUNT = 20;/.test(data) && /createArrangeTracks\(ARRANGE_TRACK_COUNT\)/.test(data) && /export type ArrangeTrackPlaceholder = ArrangeTrack;/.test(data));
-check("every one of the twenty session tracks has typed-in settings", count(data, /^  "\d\d": \{ familyId: "[a-z]+", sourceTypeId: "[a-z0-9_]+", role: "(lead|rhythm|double|harmony)", tier: "(primary|supporting|background)" \},$/gm) === 20);
+check("every one of the twenty session tracks has typed-in settings", count(data, /^  "\d\d": \{ familyId: "[a-z]+", sourceTypeId: "[a-z0-9_]+", role: "(lead|rhythm|double|harmony)", tier: "(primary|supporting|background)"(?:, tierConfirmed: false)? \},$/gm) === 20);
 check("the row's choices are its own $state, seeded from the fixture, written nowhere", /let sourceTypeId = \$state<string \| null>\(track\.sourceTypeId\);/.test(rowScript) && /let tier = \$state<ProminenceTier>\(track\.tier\);/.test(rowScript) && !/writable\(|readable\(|localStorage|sessionStorage|fetch\(|import .*lib\/mixer|import .*store/.test(row));
 check("the row is marked simulated and exposes its state for tests (family, source type, tier, role)", /data-simulated=\{SIMULATED\}/.test(rowTemplate) && /data-track-source-type=\{sourceTypeId\}/.test(rowTemplate) && /data-track-tier=\{tier\}/.test(rowTemplate));
 check("the data file says it is simulated fixture data", /SIMULATED fixture data/.test(data));
@@ -256,20 +259,23 @@ check("the Phase 0 placeholder frame is gone from the scroller (Task 2.6 skins t
 check("no screw heads in the new files (D2.1.9)", !/screw/i.test(newSource + room));
 // (The timeline lane left this pin set with Task 2.6 — it is that task's file,
 //  covered by check:arrange-timeline.)
+// Task 2.7 re-pinned, at their 2.7 state, the files it changed by owner-approved
+// additions: MixerRoom.svelte and lib/mixer.ts (the Mixer's own files), app.css
+// (two comments), TrackStrip / StripModule / ReturnStrip / BusMasterStrip (the
+// optional `identity` snippet, D2.7.2). MixerChannelStrip.svelte was deleted.
 const pinned = {
-  "src/components/MixerChannelStrip.svelte": "58db5ec5bcb57e430aa07225e6b6cf3c757740e2c92dd7b2d95c066af85bb18d",
   "src/components/MixerDetailPanel.svelte": "b99bcea6003b90c4ea1d23b812cee211cd86392eaa24ff67fb72866e6ce06215",
-  "src/rooms/MixerRoom.svelte": "f43f992a0be8922ff76d43d1cb799a65dd5ce63f6dac60cfa1a0ec866da3f70b",
-  "src/lib/mixer.ts": "8035d47ef8a826568b0f42fd23377682e86176ac49016aaadb63d73dee2d5410",
-  "src/app.css": "ada0e0ec75de4e0bec9f8b0b57111ee35c115aecf63c8ad743f1a300f3fb4379",
+  "src/rooms/MixerRoom.svelte": "20b70cfef7ede76c4ca78ef6099873abe938e6da47d6b1dcd1cc2cacc45e383f",
+  "src/lib/mixer.ts": "f0721db5dc50e2231bca58d379918ec562de301e49eb0b8a20a7c8b54dcbab51",
+  "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
   "src/rooms/ConsoleRoom.svelte": "ab8450a981b9ef4a8fbf4382e225994340f7be2936dbdafb3ddd402b16af6645",
   "src/components/ChannelBank.svelte": "d8079a833c0b8a4bdd111c741122b4810ffd2ba664876dc435a32002ecc9f1fa",
-  "src/components/channel-strip/TrackStrip.svelte": "17059869a037d575beb0623a10989b2f9335fe35a1d34a889b737f409913ba35",
+  "src/components/channel-strip/TrackStrip.svelte": "1e06056cd61e307e5e20d541e62309167b3c0cdde7a46085cfb436ac3f578cfa",
   "src/components/channel-strip/SendSlot.svelte": "8009eaf5ba0335099deb62a315116e67450750c118370d974596ead37b468b31",
   "src/components/channel-strip/track-strip-fixtures.ts": "c76e8c14b7c9794b14747a83a51926870a24c6a587405259f05ac6a415e151c5",
-  "src/components/channel-strip/StripModule.svelte": "d7fab0ed97b0c78d342a3fe91e8265ca5203b969bdaa2f12e11d0df8500a73ac",
-  "src/components/channel-strip/ReturnStrip.svelte": "5f50749a6e1aba354529db709482e349a85c3e4ae294894203831ad736d26dac",
-  "src/components/channel-strip/BusMasterStrip.svelte": "e3d4f49f39979d2c619f72751f12fd47edd199f1b1487a973ae3f8510d40c941",
+  "src/components/channel-strip/StripModule.svelte": "07c4b872de43f7120672ea81ed7830140e5732cd9280ac17a486120e1d1aa453",
+  "src/components/channel-strip/ReturnStrip.svelte": "40fa6988990c42267ed75d2ae68547e9e4b743e8b40e6a99d4f3a5a28b5b69d9",
+  "src/components/channel-strip/BusMasterStrip.svelte": "58cf7fac0d685dc891454aab5595066a286b66a33354598562e6a959998a35b2",
   "src/components/channel-strip/bus-return-fixtures.ts": "551fa3fc978362f3f7e48cb1a81110fa2b2ba09d4a3886630a02dc3594df1b1e",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/components/hardware/Knob.svelte": "df6c51572f28d00ca07b98551914f8f11837df147d557c9113e94cd29732fdf6",
@@ -289,7 +295,10 @@ const pinned = {
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }
-check("the Console and Mixer rooms do not import the select or the Arrange data", !/ScribbleSelect|lib\/arrange/.test(["src/rooms/ConsoleRoom.svelte", "src/rooms/MixerRoom.svelte", "src/components/ChannelBank.svelte", "src/components/channel-strip/TrackStrip.svelte"].map(read).join("\n")));
+// (The Mixer left this list in Task 2.7: its strips print the Arrange
+//  classification and carry the tier select — plan §5a puts the tier in the
+//  Mixer; check:mixer covers it. The Console still knows neither.)
+check("the Console room, bank and strip do not import the select or the Arrange data", !/ScribbleSelect|lib\/arrange/.test(["src/rooms/ConsoleRoom.svelte", "src/components/ChannelBank.svelte", "src/components/channel-strip/TrackStrip.svelte"].map(read).join("\n")));
 check("the playground renders the rows through ArrangeRowFixture in its own section, with session, narrow, stress, unset, rename and compact blocks", /import ArrangeRowFixture, \{ type ArrangeRowFixtureConfig \} from "\.\/ArrangeRowFixture\.svelte"/.test(devPage) && /data-dev-component="arrange-rows"/.test(devPage) && /<ArrangeRowFixture \{config\} \/>/.test(devPage) && ["session", "narrow", "stress", "unset", "rename", "compact"].every((id) => new RegExp(`id: "${id}"`).test(devPage)) && /import ArrangeTrackRow from "\.\.\/components\/ArrangeTrackRow\.svelte"/.test(devFixture));
 check("the stress block carries a long name and a long source label (a test entry in the Guitar family, passed through the catalog prop); the unset block a track with no family and no source", /name: "Backing vocal stack left wide double take 3 comp"/.test(devPage) && /sources: \[\.\.\.SOURCE_TYPES, \{ sourceTypeId: "long_test_source", label: "Acoustic guitar, nylon string, close mic, take 2", familyId: "guitar" \}\]/.test(devPage) && /familyId: null, sourceTypeId: null, role: "rhythm", tier: "supporting"/.test(devPage) && /<ArrangeTrackRow \{track\} laneId=\{`dev-lane-\$\{track\.code\}`\} \{sources\} \/>/.test(devFixture));
 check("the rename harness is review-only: a dev button in the fixture swaps the first row's display name (a prop) — the row has no rename control and the harness never writes a source or a family", /renameTo: "Big Kick"/.test(devPage) && /data-dev-rename/.test(devFixture) && /\{ \.\.\.baseTracks\[0\], name: config\.renameTo \}/.test(devFixture) && !/sourceTypeId|familyId/.test(scriptOf(devFixture).replace(/\/\*[\s\S]*?\*\//g, "")) && !/rename/i.test(row));

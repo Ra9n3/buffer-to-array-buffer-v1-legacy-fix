@@ -2344,3 +2344,183 @@ and 2.6 are committed together in one commit (see the 2.6 report's
 Approval note). Open, carried forward: the push (needs a PAT and the push
 signal); the design calls flagged for possible reversal — no beat lines in
 the lanes, the org tab travelling with its clip head.
+
+## Task 2.7 — Mixer channel strips (2026-11-01; uncommitted, awaiting review)
+
+### D2.7.1 — Owner design answers taken before code (owner, 2026-11-01)
+
+**Decision.** Four questions were put to the owner before any code and the
+recommendations were accepted: (1) layout **stacked** — the full-width
+strip bank on top in the Console's housing, the Task 0.5 detail panel full
+width beneath it, the room scrolling vertically inside its bounded shell;
+(2) identity = a **FAMILY · SOURCE engraved print plus the Tier
+ScribbleSelect**, as one extra section under the strip's name head, through
+a backward-compatible optional snippet on the approved strips (the Console
+passes nothing); (3) selection = a **cap-labelled SEL TactileSwitch** on
+every strip, lamp lit on the selected channel, radio behaviour; (4) needs
+confirmation = an **amber Lamp beside the tier window**, lit until
+confirmed; confirming = choosing any tier, re-choosing Supporting included,
+via a small optional `onchoose` callback on ScribbleSelect; the fixture
+starts 09 Bass Amp and 16 Vocal Double unconfirmed. Working assumptions
+stated with the questions and not objected to: the Mixer reads the same
+session as the Console and Arrange (names, colours and control values from
+`TRACK_STRIPS`, classification from `ARRANGE_TRACKS` by code, Returns and
+the bus from the Task 2.4 fixtures), retiring the Phase 0 "Track NN"
+placeholders; tier and selection are local UI state per room (no store, no
+cross-room synchronisation — the project-model task's); the numeric
+Priority override is not in scope.
+
+### D2.7.2 — The identity extension: one optional section, three rows, 81 px; family and source printed on two lines (builder, 2026-11-01)
+
+**Decision.** `TrackStrip` and `StripModule` take an optional `identity`
+snippet (`ReturnStrip` / `BusMasterStrip` forward it, default null),
+rendered only when given as a seventh section `data-strip-section="identity"`
+between the head and the first knob section, divided by the same machined
+rule, with the head's paddings (2xs / 3xs). Without the prop the markup and
+CSS are the approved files' — the Console bank passes nothing and was
+measured identical before and after (bank, rails, strips 01 / 20 / R1 / B1
+with every section, cap, knob and lamp at 1440 and 1024; a pixel
+comparison of the bank differs only inside three lit breathing lamps, max
+2 / 255). The Mixer fills the section with `MixerIdentity`: row 1 the
+muted family print beside SEL (the cap switch's 34.1 px sets the row), row
+2 the bright source-type print (16 px), row 3 the tier window and its lamp
+(18 px); 2 px gaps, 4 px paddings — 80.1 px plus the rule, 81.1 px in all,
+the same on tracks, Returns and the bus so every control stays on one line
+across the bank. **Deviation from the ≈ 56 px estimate given with the
+questions:** the one-line "FAMILY · SOURCE" print was measured in the
+strip's own type (Roboto Condensed, xs: "GUITARS · ELECTRIC GUITAR" 178 px,
+"VOCALS · VOCAL DOUBLE" 160 px, "PERCUSSION · SHAKER" 144 px) against the
+144 px available inside the strip — it would have truncated the primary
+identity on four tracks; splitting it over two lines costs 25 px and
+truncates nothing but the catalog's longest label ("Distorted Electric
+Guitar", 10 and 11, tooltip holds the full name). The strip grows from
+674.4 to 755.5 px. Family and source are prints, not windows: editing
+stays in Arrange (owner, D2.7.1); the role is in the source print's
+tooltip; Returns print RETURN and their effect (Reverb / Delay), the bus
+prints BUS MASTER and keeps blank lines (D2.4.4's blank panel, the same
+idea).
+
+### D2.7.3 — SEL: the approved cap switch, bound and put back (builder, 2026-11-01)
+
+**Decision.** SEL is `TactileSwitch variant="cap" label="Sel" lamp="amber"`
+named "Select <channel>", its `engaged` bound to the strip's own `sel`
+state, which an effect resyncs to the room's `selectedId`; a press that
+would disengage the lit SEL is put back (`else sel = true`) — a desk's
+SELECT does not unselect, the detail panel always shows one channel. The
+switch itself is unchanged: it still toggles and reports; the wrapper
+decides. Verified in the browser: pressing SEL on 03 moves the lamp and the
+detail panel; pressing the lit SEL keeps it; Space on R1's SEL and Enter on
+B1's select them (Return bus, Bus in the panel); exactly one lamp lit at
+any time. `selectedId` stays `$state` in `MixerRoom.svelte`, the bank only
+passes it down and reports up.
+
+### D2.7.4 — Needs confirmation: `tierConfirmed?` on the fixture, the Lamp, and `onchoose` on the select (builder, 2026-11-01)
+
+**Decision.** `ArrangeTrack.tierConfirmed?: boolean` (optional; absent =
+confirmed — no existing fixture or consumer changes); `SESSION_SETTINGS`
+09 and 16 carry `tierConfirmed: false`. The Mixer track strip seeds
+`tier` and `confirmed` from the fixture into its own `$state`, draws
+`Lamp lit={!confirmed} color="amber"` named "Needs confirmation, <track>"
+beside the tier window, and confirms on the select's new `onchoose` —
+which fires on EVERY choice, the current option included, after an
+unchanged `onchange` (the only change to the approved ScribbleSelect; the
+value and `onchange` behave exactly as before). Verified: re-choosing
+Supporting on 09 puts its lamp out with the tier unchanged; choosing
+Background on 16 by keyboard changes the tier and puts its lamp out. The
+Arrange row still does not draw the flag (D2.5.1) and the two rooms' tier
+copies are independent — the shared project model is a later task.
+
+### D2.7.5 — One session: `lib/mixer.ts` derives its channels (builder, 2026-11-01)
+
+**Decision.** `MIXER_TRACKS` = `TRACK_STRIPS` joined to `ARRANGE_TRACKS`
+by code (`track-01 … track-20`); `MIXER_RETURNS` = `RETURN_STRIPS`
+(`return-room`, `return-plate`, `return-delay1`, codes R1–R3);
+`MIXER_BUSES` = `BUS_MASTERS` (`bus-B1`); `MIXER_CHANNELS` in the
+Console bank's order, tracks then Returns then the bus master. The
+`MixerChannel {id, code, name, kind}` interface, `channelKindLabel`,
+`findChannel`, `PROCESSING_CHAIN_STEPS` and `DEFAULT_MIXER_SELECTION`
+are kept for the untouched detail panel; `createTrackChannels`,
+`MIXER_BUS_AND_RETURN_CHANNELS` and the "Track NN" / "Reverb Return" /
+"Delay Return" / "Bus master" placeholders are gone. No name, colour,
+value or classification is re-declared anywhere in the Mixer.
+
+### D2.7.6 — The Mixer bank is the Console bank's housing, value for value; the room scrolls vertically (builder, 2026-11-01)
+
+**Decision.** `MixerBank.svelte` copies the Console `ChannelBank`'s style
+block value for value (the guard compares the two blocks after renaming the
+classes), so the Mixer reads as a desk of the same make and the same rules
+hold unchanged: fixed 10rem modules, the tracks' rail the only horizontal
+scroller, the pinned block fixed outside it, column mode under 68.75rem.
+Measured: 7 / 4 / 3 complete track strips at 1920 / 1440 / 1280, column
+mode at 1024 and 768 with the pinned row not scrolling, strips 160 px and
+755.5 px everywhere, no overlap, no page overflow. `MixerRoom` stacks the
+bank over the detail panel in a one-column grid (`max-content` /
+`minmax(24rem, 1fr)`) that scrolls vertically inside the bounded room,
+`overflow-x: hidden` (the `.console-layout` rule). Consequence to note: at
+a 1000 px-tall window the detail panel starts below the fold (the layout
+is 1200 px in row mode, 1995 px in column mode) and is reached by
+scrolling — inherent in the stacked choice; Task 2.9 (detail panel) may
+revisit the split.
+
+### D2.7.7 — Guards: `check:mixer` rewritten for the 2.7 contract; six guards edited as hand-overs (builder, 2026-11-01)
+
+**Decision.** `scripts/check-mixer-structure.mjs` (87 checks, was 40; 15
+mutations, all caught, copy-verified restores) pins: the stacked room; the
+reuse of the three approved strips rendered once each and no recreated
+control; the optional extension's backward compatibility (the Console bank
+passing nothing, byte-identical ChannelBank / ConsoleRoom / detail panel /
+Arrange row and room); the derived channels and the three kinds; the
+prints, SEL and its radio behaviour; the tier select, lamp, `tierConfirmed`
+fixture and the exact `onchoose` addition; local selection state; the
+layout rules; scope (no screws, audio, persistence, automatic
+classification, numeric priority, dependency change). Six existing guards
+changed, each the hand-over its own text anticipated: `check-tokens` takes
+MixerRoom off its "no tokens yet" list and drops the deleted strip (55
+checks, was 57); `check-channel-strip` allows the optional seventh section
+and the new prop (108, was 107); `check-bus-return` allows the forwarded
+prop and takes the Mixer off the "does not import the pinned strips" list
+(103); `check-arrange-rows` allows `tierConfirmed: false` in the session
+parse, narrows its "no select / Arrange data" check to the Console files,
+drops the deleted pin and re-pins the 2.7 files (105, was 106);
+`check-arrange-timeline` and `check-console-transport` re-pin the changed
+files (68, 102). Re-pinned at their 2.7 state: TrackStrip
+`1e06056cd61e307e`, StripModule `07c4b872de43f712`, ReturnStrip
+`40fa6988990c4226`, BusMasterStrip `58cf7fac0d685dc8`, ScribbleSelect
+`f0803769f208bca9`, arrange.ts `6b497f6d878362b5`, MixerRoom
+`20b70cfef7ede76c`, lib/mixer.ts `f0721db5dc50e223`, app.css
+`71bc0966dbdbad08` (two comment blocks brought up to date, no rule
+changed). 15 guards, 1181 checks, all passing.
+
+## Task 2.7 — approved for now
+
+**Owner, 2026-11-01:** "commit, approved for now." Approved as delivered in
+`task-reports/2.7-report.md`; D2.7.1–D2.7.7 stand. Committed on this
+signal — commit only, no push, no tag. The approval covers: the stacked
+room (bank over the Task 0.5 detail panel, scrolling vertically inside the
+bounded shell); the three approved strips reused through the optional
+`identity` snippet (the Console passing nothing, measured identical); the
+81 px identity section — family print beside SEL, source print, tier
+window and amber "needs confirmation" lamp — on every channel kind; SEL's
+radio behaviour; confirmation by any tier choice through ScribbleSelect's
+optional `onchoose`; the optional `tierConfirmed?` fixture flag with 09
+and 16 unconfirmed; the channels derived from the shared session; the
+Console bank's housing value for value; the measured matrix (7 / 4 / 3
+complete track strips at 1920 / 1440 / 1280, column mode under 1100 px).
+The deviations and follow-ups in the report stand as accepted for now —
+in particular the 81 px section (not the ≈ 56 px estimate) and the detail
+panel starting below the fold at 1000 px-tall windows, left to Task 2.9;
+the Return / bus identity wording is the builder's call and may be
+re-lettered. Approved hashes (sha256, first 16): `MixerBank.svelte`
+`cf220c4e4a92a6f4`, `MixerIdentity.svelte` `d6165febdfb805db`,
+`MixerTrackStrip.svelte` `ee4caa157ef1dbff`, `MixerReturnStrip.svelte`
+`c131f60b71904578`, `MixerBusStrip.svelte` `523718675e6d34ba`,
+`MixerRoom.svelte` `20b70cfef7ede76c`, `lib/mixer.ts` `f0721db5dc50e223`,
+`TrackStrip.svelte` `1e06056cd61e307e`, `StripModule.svelte`
+`07c4b872de43f712`, `ReturnStrip.svelte` `40fa6988990c4226`,
+`BusMasterStrip.svelte` `58cf7fac0d685dc8`, `ScribbleSelect.svelte`
+`f0803769f208bca9`, `lib/arrange.ts` `6b497f6d878362b5`, `app.css`
+`71bc0966dbdbad08`, `check-mixer-structure.mjs` `3f7bb379d6a05d21`; build
+`dist/index.html` `60cde15a89ab2615` (427.85 kB). Open, carried forward:
+the push of `2b36389`, `0939cb1`, `bc7f5c5` and this commit (needs a PAT
+and the push signal); the tier / selection state shared across rooms
+(Task 3.1); the numeric Priority override; the detail panel split (2.9).

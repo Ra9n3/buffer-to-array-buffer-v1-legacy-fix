@@ -148,7 +148,7 @@ const fixtures = [...lib.matchAll(/\{ trackCode: "(\d\d)", kind: "([a-z_]+)", ch
   clips: [...m[5].matchAll(/\{ startBar: (\d+), barCount: (\d+) \}/g)].map((c) => ({ start: +c[1], bars: +c[2] })),
 }));
 const barCount = +(data.match(/ARRANGE_BAR_COUNT = (\d+)/)?.[1] ?? 0);
-check("the approved track fixture is 20 tracks (the Console strip ids) of 56 bars, and arrange.ts is untouched", trackCodes.length === 20 && barCount === 56 && /code: strip\.id/.test(data) && sha("src/lib/arrange.ts") === "c46be59b874e70c75802290ec251efac02d853dcb58bdeb4c13907668c6b64e2", `${trackCodes.length} codes, ${barCount} bars`);
+check("the approved track fixture is 20 tracks (the Console strip ids) of 56 bars, and arrange.ts is at its Task 2.7 state (the optional tierConfirmed flag added, nothing else)", trackCodes.length === 20 && barCount === 56 && /code: strip\.id/.test(data) && sha("src/lib/arrange.ts") === "6b497f6d878362b545c39f6dc41565bdf6a858107f3f5b00d463dff927b26c1a", `${trackCodes.length} codes, ${barCount} bars`);
 check("the timeline fixture covers every approved track exactly once, in order, with at least one clip each", fixtures.length === 20 && fixtures.map((f) => f.code).join() === trackCodes.join() && fixtures.every((f) => f.clips.length >= 1), `${fixtures.length} fixtures`);
 check("every clip sits inside the song (bar 1 … 56) with a positive length; a track's clips are sorted and never overlap", fixtures.every((f) => f.clips.every((c, i) => c.start >= 1 && c.bars >= 1 && c.start + c.bars - 1 <= barCount && (i === 0 || c.start >= f.clips[i - 1].start + f.clips[i - 1].bars))));
 check("the fixture is 53 clips in all — the count the Task 2.6 report documents", fixtures.reduce((n, f) => n + f.clips.length, 0) === 53, `${fixtures.reduce((n, f) => n + f.clips.length, 0)} clips`);
@@ -166,13 +166,14 @@ check("no audio, playback, recording or persistence API anywhere in the timeline
 const pinned = {
   "src/components/ArrangeTrackRow.svelte": "439d1889603ef90851917bcdfa735372b079c092e4a12148dbdebd3eda498c90",
   "src/dev/ArrangeRowFixture.svelte": "facc39b60df21345ee4671e5bbbaa8d961bb2fb94501ad4d6e265e1843b6c642",
-  "src/components/hardware/ScribbleSelect.svelte": "4974f298c86b07a15b22075f59235fff07cf33a556e8b9824dfa5f5852128788",
-  "src/components/channel-strip/TrackStrip.svelte": "17059869a037d575beb0623a10989b2f9335fe35a1d34a889b737f409913ba35",
+  // (Task 2.7: ScribbleSelect gained the optional `onchoose` callback, TrackStrip the optional `identity` snippet, MixerRoom its strips, app.css two comments — re-pinned at that state.)
+  "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
+  "src/components/channel-strip/TrackStrip.svelte": "1e06056cd61e307e5e20d541e62309167b3c0cdde7a46085cfb436ac3f578cfa",
   "src/components/channel-strip/track-strip-fixtures.ts": "c76e8c14b7c9794b14747a83a51926870a24c6a587405259f05ac6a415e151c5",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
-  "src/app.css": "ada0e0ec75de4e0bec9f8b0b57111ee35c115aecf63c8ad743f1a300f3fb4379",
-  "src/rooms/MixerRoom.svelte": "f43f992a0be8922ff76d43d1cb799a65dd5ce63f6dac60cfa1a0ec866da3f70b",
+  "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
+  "src/rooms/MixerRoom.svelte": "20b70cfef7ede76c4ca78ef6099873abe938e6da47d6b1dcd1cc2cacc45e383f",
   "src/rooms/ConsoleRoom.svelte": "ab8450a981b9ef4a8fbf4382e225994340f7be2936dbdafb3ddd402b16af6645",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

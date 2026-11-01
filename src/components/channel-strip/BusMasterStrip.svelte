@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from "svelte";
   import Knob from "../hardware/Knob.svelte";
   import StripModule from "./StripModule.svelte";
   import {
@@ -31,8 +32,12 @@
    *
    * Fixtures only (`bus-return-fixtures.ts`, SIMULATED): no summing, no
    * routing, no project state.
+   *
+   * `identity` (Task 2.7, optional, default none) is handed straight to the
+   * module's optional identity extension under the head; the Console passes
+   * nothing and the strip renders exactly as approved.
    */
-  let { bus }: { bus: BusMasterFixture } = $props();
+  let { bus, identity = null }: { bus: BusMasterFixture; identity?: Snippet | null } = $props();
 
   const trimFormat = (value: number) => formatSignedDb(value, 1);
 </script>
@@ -47,6 +52,7 @@
   hook={bus.id}
   sectionA="trim"
   sectionB="balance"
+  {identity}
   faderLabel="Master"
   faderValue={bus.level}
   mute={bus.mute}

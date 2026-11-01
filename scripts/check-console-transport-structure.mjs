@@ -217,7 +217,8 @@ const pinned = {
   // bus-master strips (the deck above it is untouched; check-bus-return guards
   // the bank's new structure).
   "src/components/ChannelBank.svelte": "d8079a833c0b8a4bdd111c741122b4810ffd2ba664876dc435a32002ecc9f1fa",
-  "src/components/channel-strip/TrackStrip.svelte": "17059869a037d575beb0623a10989b2f9335fe35a1d34a889b737f409913ba35",
+  // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
+  "src/components/channel-strip/TrackStrip.svelte": "1e06056cd61e307e5e20d541e62309167b3c0cdde7a46085cfb436ac3f578cfa",
   "src/components/channel-strip/SendSlot.svelte": "8009eaf5ba0335099deb62a315116e67450750c118370d974596ead37b468b31",
   "src/components/channel-strip/track-strip-fixtures.ts": "c76e8c14b7c9794b14747a83a51926870a24c6a587405259f05ac6a415e151c5",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",

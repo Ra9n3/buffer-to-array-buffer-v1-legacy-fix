@@ -35,6 +35,13 @@
    *
    * Fixtures only (SIMULATED): the controls keep their approved local
    * behaviour and change nothing but their own on-screen state.
+   *
+   * `identity` (Task 2.7, optional, default none): the same optional section
+   * under the head that the track strip has — a room's own content (the
+   * Mixer's channel identity print and controls), rendered between the head
+   * and the first knob, divided by the same machined rule. Without it the
+   * module is exactly the approved Task 2.4 module: the Console passes
+   * nothing and renders byte-for-byte the same.
    */
   let {
     id,
@@ -46,6 +53,7 @@
     hook,
     sectionA,
     sectionB,
+    identity = null,
     bay = null,
     baySection = "bay",
     bayLabel = "",
@@ -71,6 +79,8 @@
     /** `data-strip-section` names of the two knob sections. */
     sectionA: string;
     sectionB: string;
+    /** The optional identity extension under the head (Task 2.7); omitted = none. */
+    identity?: Snippet | null;
     /** The bay's content; omitted = a blank panel of the bay's place. */
     bay?: Snippet | null;
     baySection?: string;
@@ -107,6 +117,14 @@
         <EngravedLabel id={`${uid}-name`} text={name} size="sm" kind="value" truncate />
       </div>
     </header>
+
+    {#if identity}
+      <!-- IDENTITY EXTENSION (Task 2.7): the room's own section under the head;
+           absent in the Console -->
+      <div class="module__section module__section--identity" data-strip-section="identity">
+        {@render identity()}
+      </div>
+    {/if}
 
     <!-- first knob -->
     <div class="module__section module__section--knob" data-strip-section={sectionA}>
@@ -261,6 +279,13 @@
     height: 1rem;
     border-radius: 1px;
     background-color: var(--org);
+  }
+
+  /* --- the optional identity extension (Task 2.7; the track strip's values) */
+  .module__section--identity {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--al-space-2xs) var(--al-space-3xs);
   }
 
   /* --- knob sections ------------------------------------------------------ */
