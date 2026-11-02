@@ -772,3 +772,196 @@ project-level undo of a switch; more than one project open; import of
 projects with their own channel structure (Phase 5); any reading of the
 hardware profile or export preferences (Phase 5). Listed as approval items
 in `task-reports/4.1-report.md`.
+
+## 12. Imported audio: assets, peaks and the import pipeline (Task 5.1)
+
+Phase 5's first step over the approved Phase 4 state: real stems come in
+through the Arrange room, are judged by the plan's rules (§11 of the plan,
+L497–515), copied into project-owned browser storage, fingerprinted,
+reduced to bounded waveform peaks and appended to the open project as
+tracks. Nothing here plays, analyses or processes audio — no Web Audio, no
+DSP, no analysis values (Phase 5.2+). Files: `src/lib/audio/wav.ts`,
+`src/lib/audio/import-rules.ts`, `src/lib/audio/peaks.ts`,
+`src/lib/audio/asset-store.ts`, `src/lib/arrange-audio.ts`,
+`src/lib/project/import.ts`, `src/lib/project/assets.svelte.ts`,
+`src/components/ArrangeImportBand.svelte`. Decisions: `decisions-log.md`
+D5.1.1–D5.1.12.
+
+### 12.1 The model: `Track.audio` and a nullable role
+
+```ts
+interface TrackAudio {
+  assetId: string;        // "asset-<uuid>" — the key of the copy and its peaks in the asset store
+  fileName: string;       // the file as chosen ("vocal lead.wav"); the track's name is its stem
+  sha256: string;         // SHA-256 of the copied bytes; the peaks carry the same fingerprint
+  bytes: number;          // size of the copy
+  encoding: "pcm" | "float";
+  bitDepth: 24 | 32;      // 24-bit PCM or 32-bit float — the plan's two formats
+  sampleRate: 48000;      // the only accepted rate
+  channels: 1 | 2;        // mono is accepted and flagged; duplicated L/R by the engine later
+  frames: number;         // length in sample frames (seconds = frames / sampleRate)
+  peakDbfs: number | null;// the sample peak of the file; null when silent
+  silent: boolean;        // peak ≤ −80 dBFS: kept, flagged, left out of analysis
+  importedAt: string;     // ISO time from the shell's clock
+}
+```
+
+`Track.audio` is `TrackAudio | null`; every fixture track is `null`, so the
+fixture session, its manifest and every approved behaviour are unchanged.
+An imported track has no fixture identity to invent, so `Track.role` became
+`RoleId | null` (`NO_ROLE` prints "—" / "Not assigned yet" in the rows, the
+Mixer identity and the Console) and its `family` / `sourceTypeId` start
+empty; tier is `supporting` (the default of D2.5.x); `org` is `neutral`.
+The imported track's channel chain is the neutral `createChainState("")`
+(no fixture bays pre-filled), its output is Master, its sends `null`.
+`TrackAudio` is identity and metadata only — never samples (guarded: no
+`Float32Array` / `ArrayBuffer` / `Blob` in `model.ts`).
+
+### 12.2 The format rules (`import-rules.ts`) — the plan's, exactly
+
+| rule                                    | outcome                                   | line printed (then the stamp)                                                                                                    |
+| --------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| not a WAV (MP3 / FLAC / AIFF / Ogg / text / empty) | `unsupported` → **REFUSED**           | "This is an MP3 file, not a WAV file; re-export the stem as a 48 kHz WAV, 24-bit or 32-bit float"                                |
+| WAV, compressed (ADPCM, µ-law, …)       | `unsupported` → **REFUSED**                | "… — a compressed WAV; re-export …"                                                                                              |
+| WAV, not 24-bit PCM / 32-bit float      | `unsupported` → **REFUSED**                | "44.1 kHz · 16-bit PCM · stereo — ALLOY takes 24-bit PCM or 32-bit float; re-export …"                                           |
+| WAV, not 48 kHz                         | `unsupported` → **REFUSED**                | "… — ALLOY works at 48 kHz and does not resample; re-export …"                                                                   |
+| more than two channels                  | `unsupported` → **REFUSED**                | "… — a stem is mono or stereo; re-export it as mono or stereo"                                                                   |
+| truncated / damaged header / data       | `corrupt` → **UNREADABLE**                 | "The file ends before its audio data does (3,456,000 bytes announced, 1,151,529 present) — the file is truncated"                 |
+| float data with NaN / ±Infinity         | `corrupt` → **UNREADABLE**                 | "1 sample is not a number — the float data is damaged"                                                                          |
+| the browser could not read / store it   | `failed` → **FAILED**                      | "could not be read: …" · "could not be stored: …" · "could not be fingerprinted: …"                                              |
+| mono                                    | `added` + flag `mono` → **MONO** stamp      | "… · mono · played on both sides"                                                                                               |
+| silent (peak ≤ −80 dBFS, `SILENCE_PEAK_DBFS`) | `added` + flag `silent` → **SILENT**  | "… · silent — kept, left out of analysis"                                                                                       |
+| shorter than 1 s (`SHORT_SECONDS`)      | `added` + flag `short`                     | "… · very short — processed as one buffer"                                                                                      |
+| shorter than the longest stem           | `added` + flag `padded` → **PADDED** stamp  | "… · shorter than the longest stem — padded to 0:12.0"                                                                          |
+
+An accepted line reads `m:ss.s · 48 kHz · 24-bit PCM · stereo` followed by
+its flags. The rules are constants, not a list a caller can widen:
+`ACCEPTED_SAMPLE_RATE = 48000`, `ACCEPTED_FORMATS = ["24-bit PCM", "32-bit
+float"]`, `MAX_CHANNELS = 2`. Nothing is resampled or converted. The format
+is judged (`judgeFormat`) **before** any sample is read; `wav.ts`'s sample
+reader is a general reader used by the peak pass and the tests, never a
+gate. "Padded" is computed at render (the room compares each stem with the
+longest) and in the report at import; no silence is written anywhere.
+
+### 12.3 The copy (`asset-store.ts`) — IndexedDB `alloy`
+
+One `AssetStore` interface (`name`, `put`, `getAsset`, `getPeaks`, `list`,
+`remove`), two implementations: `memoryAssetStore()` for the node tests
+and `indexedDbAssetStore(indexedDB)` for the browser — database **`alloy`**,
+version 1, object stores **`assets`** and **`peaks`**, both keyed by
+`assetId` (owner, 2026-11-02). `put(asset, peaks)` writes both records in
+one transaction.
+
+```ts
+interface AssetRecord { assetId; projectId; fileName; mimeType; size; sha256; format: AssetFormat; importedAt; bytes: Blob }
+interface PeaksRecord { assetId; sha256; peaks: PeakData }
+```
+
+The copy is the file's bytes, untouched (evidence: `blobSize === size`
+and an in-browser SHA-256 of the stored Blob equals `TrackAudio.sha256`
+for every stem). IndexedDB is reached in `asset-store.ts` and handed over
+by the shell only (`const idb = win.indexedDB; return idb ?
+indexedDbAssetStore(idb) : null;`); every other module receives the store.
+Without IndexedDB (`assets.attached === false`) the band refuses the import
+with one line and nothing is added; a reopened project's imported tracks
+print **MISSING**.
+
+### 12.4 The peaks (`peaks.ts`) — bounded, from the samples, under the fingerprint
+
+```ts
+interface PeakData {
+  schema: "alloy.peaks/1"; sampleRate; channels; frames;
+  framesPerBucket: 960; perSecond: 50; bucketCount;   // ceil(frames / 960)
+  data: Int8Array[];      // one per channel, 2 × bucketCount: [min₀, max₀, min₁, max₁, …] in 1/127
+  channelPeak: number[]; peak: number; nonFinite: number;
+}
+```
+
+`computePeaks(bytes, format)` walks the data chunk in slices (480 000
+frames at a time, never one allocation of the whole file), through the
+24-bit / float reader, and keeps the signed min / max of each 20 ms bucket
+scaled to Int8 — 2 bytes per bucket per channel: a 5-minute stereo stem is
+≈ 60 kB, a 12 s one 2 400 B (evidence), whatever the file's size; the PCM
+is never kept. Non-finite float samples are counted (`nonFinite`) and make
+the file `corrupt`. `peaksPath()` turns a channel into one SVG path (the
+lane draws it); `isPeakData()` validates a record read back. The peaks are
+stored under the asset's `sha256`; on reopen a record whose fingerprint
+differs from `TrackAudio.sha256` counts as missing.
+
+### 12.5 The pipeline (`import.ts`, `assets.svelte.ts`)
+
+`importFiles(sources, ctx)` — pure of the browser (`ctx` carries the
+store, the id source, the clock, `yieldBetween` and `onProgress`) — for
+each file in batch order: read → `inspectWav` → `judgeFormat` →
+`computePeaks` → `sha256Hex` → `store.put` → `createImportedTrack`. A
+file that fails any step gets its line and **nothing else happens for it**
+(no record, no track); the batch continues. After the batch the longest
+accepted length is known, so the shorter stems' lines gain `padded`. The
+result is `{ projectId, lines, stems, added, refused }` with `lines` in
+batch order.
+
+`assets` (module-level `$state`, a `.svelte.ts` store beside `project`):
+
+| member                                   | does                                                                                                                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `attach(store, { newId, now, yieldBetween? })` / `detach()` | the shell attaches the IndexedDB store before the lifecycle attaches and detaches it after `lifecycle.detach()`; the tests attach the memory store                                              |
+| `attached`, `storeName`                  | `false` / `null` without IndexedDB                                                                                                                                                                             |
+| `statusOf(trackId)`                      | `"pending" \| "ready" \| "missing"` for an imported track of the open project; `null` for a fixture track                                                                                                     |
+| `hydrate()`                              | after every project switch (`install()` ends `void assets.hydrate()`): clears the status map, reads each imported track's peaks (awaited one at a time; abandoned if the project changes mid-way), sets the track's clip from them, marks `ready` / `missing` |
+| `importBatch(sources, onProgress)`       | the pipeline against the open project; the accepted stems appended **in one structural change** (`appendTracks(tracks, arrangement)` → the registry grows by 50 fields per track, history is rebound), their clips set from the peaks just computed; throws when detached; if the project switched during the read the copies stay stored under the old project id and the lines say "stored, not added" |
+
+Tracks are appended with the next free code after the project's last
+(`nextTrackCode`: the fixture's 21, 22, …; an empty project's 01, 02, …)
+and `track-<code>` ids; the stem name is the file name without `.wav`.
+Imported tracks sit in the session's order after the existing ones.
+
+### 12.6 The timeline (`arrange-audio.ts`, `arrange-timeline.ts`)
+
+An empty project has no tempo; the first imported stem gives the
+arrangement `DEFAULT_TEMPO = { bar: 1, bpm: 120, signature: "4/4" }`
+(owner, 2026-11-02) and `barCount = ceil(longest stem in bars)`; the
+fixture keeps its markers and 56 bars (a 12 s stem is 6 bars there too).
+Every stem starts at bar 1. An imported clip is `{ clipId: "<code>-audio",
+source: "audio", kind: "audio", startBar: 1, barCount, channels, seconds,
+waves }` with its waveform drawn from the stored peaks at 32 points a bar;
+fixture clips carry `source: "fixture"` and are drawn as before. The lane
+prints `data-clip-source`, the header's ruler numerals come from
+`rulerLabels(barCount)` and its sections from the project (none for an
+imported project), and a row with audio is `data-simulated="false"` with
+the stamps **MONO · SILENT · PADDED · MISSING** (MISSING = the warning).
+
+### 12.7 Persistence and the lifecycle
+
+The manifest (`alloy.project-manifest/1`, §10.3) gains an **optional**
+`tracks` block — `[{ id, code, name, org, audio: TrackAudio }]` — written
+only when the project has imported tracks; the fixture's and an empty
+project's manifests are byte-for-byte what Task 4.1 wrote. Reopening =
+template + imported tracks (`withImportedTracks`, validated field by field
+by `isTrackAudio`; a duplicate id / code or a bad block → `damaged`) +
+saved values (D4.1.1); then `hydrate()` brings the waveforms back from the
+store. Imported tracks' 50 fields each are in the registry, so their
+Console / Mixer values autosave and reopen like the fixture's. Import is
+**not undoable** (the history is rebound by the structural change, D5.1.4);
+the clips are UI state, not fields. The asset records carry `projectId` but
+the store is one per browser: the project's structure is what binds an
+asset to a project, and a project switch clears the status map and the
+band's report, so nothing of one project shows under another (evidence:
+a new empty project after an import has no tracks, no statuses, no
+report; reopening the imported project brings all five back `ready`).
+
+### 12.7a Home after an import
+
+Home's counts line is the project's state ("2 tracks · 0 Returns · 0
+buses"); the template label beside the name and in the recent list is the
+project's **starting point, said as such** — `TEMPLATE_LABELS` is
+"Started empty" / "Started as the development session" (owner, 5.1 review,
+D5.1.13) — so a project started empty that now carries stems is never
+called empty. The `template` field itself is unchanged (§11.1).
+
+### 12.8 Not in this build (by design)
+
+Playback, analysis, the hardware benchmark, EQ / compression / reverb /
+delay, rendering; drag-and-drop import; removing an imported track or its
+copy; renaming; import of projects; an undo of an import; any text other
+than the band's line and the row's stamp for a validation result. Listed
+as approval items in `task-reports/5.1-report.md`.

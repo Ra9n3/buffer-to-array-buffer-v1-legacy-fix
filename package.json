@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "node --import ./tests/register.mjs --test tests/routing.test.mjs tests/store.test.mjs tests/history.test.mjs tests/persistence.test.mjs tests/clipboard.test.mjs tests/editing.test.mjs tests/shell.test.mjs tests/templates.test.mjs tests/lifecycle.test.mjs tests/settings.test.mjs",
+    "test": "node --import ./tests/register.mjs --test tests/routing.test.mjs tests/store.test.mjs tests/history.test.mjs tests/persistence.test.mjs tests/clipboard.test.mjs tests/editing.test.mjs tests/shell.test.mjs tests/templates.test.mjs tests/lifecycle.test.mjs tests/settings.test.mjs tests/wav.test.mjs tests/peaks.test.mjs tests/import.test.mjs",
     "check:arrange": "node scripts/check-arrange-structure.mjs",
     "check:mixer": "node scripts/check-mixer-structure.mjs",
     "check:transport": "node scripts/check-transport-structure.mjs",
@@ -29,7 +29,8 @@
     "check:project": "node scripts/check-project-store-structure.mjs",
     "check:routing": "node scripts/check-routing-structure.mjs",
     "check:editing": "node scripts/check-editing-structure.mjs",
-    "check:home-settings": "node scripts/check-home-settings-structure.mjs"
+    "check:home-settings": "node scripts/check-home-settings-structure.mjs",
+    "check:import": "node scripts/check-audio-import-structure.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",

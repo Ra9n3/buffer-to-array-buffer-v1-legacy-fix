@@ -1,10 +1,12 @@
 <script lang="ts">
+  import ArrangeImportBand from "../components/ArrangeImportBand.svelte";
   import ArrangeTimelineHeader from "../components/ArrangeTimelineHeader.svelte";
   import ArrangeTimelineLane from "../components/ArrangeTimelineLane.svelte";
   import ArrangeTrackRow from "../components/ArrangeTrackRow.svelte";
   import EmptyProjectNotice from "../components/EmptyProjectNotice.svelte";
   import EngravedLabel from "../components/hardware/EngravedLabel.svelte";
   import RoomShell from "../components/RoomShell.svelte";
+  import { assets } from "../lib/project/assets.svelte";
   import { arrangeTrackOf, project, trackMeta } from "../lib/project/store.svelte";
 
   /* Task 3.1: the room reads the one project store — the same tracks the
@@ -15,9 +17,18 @@
 
      Task 4.1: an empty project (no channels at all, owner D4.1.2) has no
      arrangement to show — no tracks, no bars, no markers — so the room shows
-     the explicit empty state in place of the scroller and grid. */
+     the explicit empty state in place of the scroller and grid.
+
+     Task 5.1: the import band sits above either — the one place stems enter
+     a project (plan §3). Imported tracks are tracks like the fixture's; the
+     row prints the stem's stamps and the lane draws the stem's own peaks.
+     PADDED is the project's reading: shorter than its longest stem. */
   const tracks = $derived(project.tracks);
   const arrangement = $derived(project.arrangement);
+  const longestSeconds = $derived(tracks.reduce((m, t) => (t.audio ? Math.max(m, t.audio.frames / t.audio.sampleRate) : m), 0));
+  function isPadded(audio: { frames: number; sampleRate: number } | null): boolean {
+    return audio !== null && longestSeconds - audio.frames / audio.sampleRate > 1 / audio.sampleRate;
+  }
 </script>
 
 <RoomShell
@@ -27,6 +38,7 @@
   hideHeader
 >
   <div class="arrange-room" style:--arrange-bar-count={arrangement.barCount} data-arrange-room>
+    <ArrangeImportBand />
     {#if project.isEmpty}
       <div class="arrange-empty">
         <EmptyProjectNotice headingId="arrange-empty-title" room="arrange" />
@@ -78,10 +90,17 @@
         <!-- The timeline's head: bar ruler, tempo track, structure markers
              (Task 0.4 order; Task 2.6 skin) — sticky at the top beside the
              corner, the same 2 px baseline. -->
-        <ArrangeTimelineHeader barCount={arrangement.barCount} tempoMarkers={arrangement.tempoMarkers} />
+        <ArrangeTimelineHeader barCount={arrangement.barCount} tempoMarkers={arrangement.tempoMarkers} sections={arrangement.sections} />
 
         {#each tracks as track (track.id)}
-          <ArrangeTrackRow track={arrangeTrackOf(track.id)} live={trackMeta(track.id)} laneId={`lane-${track.code}`} />
+          <ArrangeTrackRow
+            track={arrangeTrackOf(track.id)}
+            live={trackMeta(track.id)}
+            laneId={`lane-${track.code}`}
+            audio={track.audio}
+            padded={isPadded(track.audio)}
+            audioStatus={assets.statusOf(track.id)}
+          />
           <ArrangeTimelineLane code={track.code} laneId={`lane-${track.code}`} name={track.name} org={track.org} clips={arrangement.clips[track.id] ?? []} />
         {/each}
       </div>

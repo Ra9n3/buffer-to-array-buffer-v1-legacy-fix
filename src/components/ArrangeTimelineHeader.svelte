@@ -25,32 +25,36 @@
    * the room's one scroller; the corner (the list head) is the room's.
    */
   import EngravedLabel from "./hardware/EngravedLabel.svelte";
-  import {
-    ARRANGE_BAR_COUNT,
-    ARRANGE_RULER_LABELS,
-    ARRANGE_STRUCTURE_MARKERS,
-    type StructureMarkerPlaceholder,
-  } from "../lib/arrange";
+  import { ARRANGE_BAR_COUNT } from "../lib/arrange";
+  import { rulerLabels } from "../lib/arrange-audio";
   import {
     ARRANGE_SECTIONS,
     ARRANGE_TEMPO_MARKERS,
     BEATS_PER_BAR,
     tempoTracePath,
+    type ArrangeSection,
     type TempoMarker,
   } from "../lib/arrange-timeline";
 
   let {
     barCount = ARRANGE_BAR_COUNT,
     tempoMarkers = ARRANGE_TEMPO_MARKERS,
+    sections = ARRANGE_SECTIONS,
   }: {
     barCount?: number;
     tempoMarkers?: readonly TempoMarker[];
+    /** Task 5.1: the project's sections (the fixture's by default; an imported project has none and prints an empty band). */
+    sections?: readonly ArrangeSection[];
   } = $props();
 
   const trace = $derived(tempoTracePath(tempoMarkers, barCount));
+  /* Task 5.1: the numerals follow the bar count (every fourth bar), so a
+     timeline grown for an imported stem is numbered the same way the fixture's
+     56 bars are — for 56 the list is the fixture's ARRANGE_RULER_LABELS. */
+  const numerals = $derived(rulerLabels(barCount));
 
-  function markerSpan(marker: StructureMarkerPlaceholder): string {
-    return `span ${marker.barCount}`;
+  function markerSpan(section: ArrangeSection): string {
+    return `span ${section.barCount}`;
   }
 
   function tempoTitle(marker: TempoMarker): string {
@@ -67,7 +71,7 @@
   <!-- 1 · bar ruler: the marks are three background layers from the one bar
        width (bar lines, four-bar lines, beat ticks); the numerals are print -->
   <div class="ruler" data-arrange-region="timeline-ruler" aria-hidden="true">
-    {#each ARRANGE_RULER_LABELS as mark (mark.bar)}
+    {#each numerals as mark (mark.bar)}
       <span class="ruler__numeral" style:--bar={mark.bar - 1} data-ruler-bar={mark.bar}>
         <EngravedLabel text={mark.label} size="xs" kind="value" tone="muted" />
       </span>
@@ -110,14 +114,14 @@
     role="group"
     aria-label="Song structure markers, fixture sections"
   >
-    {#each ARRANGE_STRUCTURE_MARKERS as marker, index (index)}
+    {#each sections as section, index (index)}
       <div
         class="structure__marker"
-        style:grid-column={markerSpan(marker)}
-        data-structure-bar={ARRANGE_SECTIONS[index]?.startBar}
-        title={`${marker.label} · bars ${ARRANGE_SECTIONS[index]?.startBar}–${ARRANGE_SECTIONS[index]?.endBar}`}
+        style:grid-column={markerSpan(section)}
+        data-structure-bar={section.startBar}
+        title={`${section.label} · bars ${section.startBar}–${section.endBar}`}
       >
-        <EngravedLabel text={marker.label} size="xs" tone="normal" truncate />
+        <EngravedLabel text={section.label} size="xs" tone="normal" truncate />
       </div>
     {/each}
   </div>

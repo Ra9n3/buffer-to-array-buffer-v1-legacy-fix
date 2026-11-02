@@ -25,11 +25,19 @@
     arrange: "No tracks to arrange",
     mixer: "No channels to inspect",
   };
+
+  /* Task 5.1: where tracks come from now — the Arrange room's import band
+     (the plan's §3 workflow); the other rooms point there. */
+  const HOW: Readonly<Record<typeof room, string>> = {
+    console: "Import stems in Arrange to add tracks.",
+    arrange: "Import stems above to add tracks.",
+    mixer: "Import stems in Arrange to add tracks.",
+  };
 </script>
 
 <div class="empty" data-empty-project={room}>
   <EngravedLabel as="h2" id={headingId} text="Empty project" size="sm" />
-  <p class="empty__text">“{project.name}” has no tracks, Returns or buses yet — {WHAT[room].toLowerCase()}. Stem import arrives with the audio engine (Phase 5).</p>
+  <p class="empty__text">“{project.name}” has no tracks, Returns or buses yet — {WHAT[room].toLowerCase()}. {HOW[room]}</p>
   <p class="empty__link">
     <a href={HOME_HREF} data-empty-project-home><EngravedLabel text="Home: reopen a recent project or start another" size="xs" kind="value" /></a>
   </p>

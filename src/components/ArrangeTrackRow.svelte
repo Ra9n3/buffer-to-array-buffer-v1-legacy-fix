@@ -21,6 +21,8 @@
     type SourceType,
   } from "../lib/arrange";
   import type { TrackMetaLive } from "./arrange-row-live";
+  import type { TrackAudio } from "../lib/project/model";
+  import type { AudioStatus } from "../lib/project/assets.svelte";
 
   /**
    * ALLOY Arrange track-list row — Task 2.5 (Phase 2 skin of the Task 0.4 cell).
@@ -60,6 +62,9 @@
     laneId,
     sources = SOURCE_TYPES,
     live = null,
+    audio = null,
+    padded = false,
+    audioStatus = null,
   }: {
     track: ArrangeTrack;
     laneId: string;
@@ -73,9 +78,31 @@
      * component playground passes nothing).
      */
     live?: TrackMetaLive | null;
+    /**
+     * Task 5.1 (optional, default none): the imported stem behind the track
+     * — the row prints the plan's flags after the name (MONO, SILENT) and
+     * the two the project knows (PADDED: shorter than the longest stem,
+     * padded at render; MISSING: the stored copy is not there). A fixture
+     * track passes nothing and prints nothing; nothing else on the row
+     * changes.
+     */
+    audio?: Pick<TrackAudio, "channels" | "silent"> | null;
+    padded?: boolean;
+    audioStatus?: AudioStatus | null;
   } = $props();
 
   const uid = `ar${++nextId}`;
+
+  /** The stamps after the name, in a fixed order — short, muted, titled. */
+  const stamps = $derived.by((): readonly { id: string; text: string; title: string }[] => {
+    if (!audio) return [];
+    const list: { id: string; text: string; title: string }[] = [];
+    if (audio.channels === 1) list.push({ id: "mono", text: "MONO", title: "Mono stem: played on both sides" });
+    if (audio.silent) list.push({ id: "silent", text: "SILENT", title: "Silent stem: kept, left out of analysis" });
+    if (padded) list.push({ id: "padded", text: "PADDED", title: "Shorter than the longest stem: padded with silence to its length" });
+    if (audioStatus === "missing") list.push({ id: "missing", text: "MISSING", title: "The stored copy of this stem is missing or is not the file that was imported" });
+    return list;
+  });
 
   // The row's own settings when nothing is bound (the approved Task 2.5
   // local interaction), seeded once from the fixture. Family and source type
@@ -129,15 +156,25 @@
   data-track-family={model.familyId}
   data-track-source-type={model.sourceTypeId}
   data-track-tier={model.tier}
-  data-simulated={SIMULATED}
+  data-track-audio={audio ? "imported" : "none"}
+  data-simulated={audio ? false : SIMULATED}
 >
-  <!-- 1 · identity: tab, number, name -->
+  <!-- 1 · identity: tab, number, name (Task 5.1: then the stem's stamps, if any) -->
   <div class="row__ident">
     <span class="row__tab" style:--org={orgToken(track.org)} data-org-tab={String(track.org)} aria-hidden="true"></span>
     <EngravedLabel text={track.code} size="sm" kind="value" tone="muted" title={`Track ${track.code}`} />
     <span class="row__name">
       <EngravedLabel id={`${uid}-name`} text={track.name} size="md" kind="value" tone="bright" truncate />
     </span>
+    {#if stamps.length > 0}
+      <span class="row__stamps" data-track-stamps={stamps.map((s) => s.id).join(" ")}>
+        {#each stamps as stamp (stamp.id)}
+          <span class="row__stamp" class:is-warning={stamp.id === "missing"} data-track-stamp={stamp.id} title={stamp.title}>
+            <EngravedLabel text={stamp.text} size="xs" tone="muted" />
+          </span>
+        {/each}
+      </span>
+    {/if}
   </div>
 
   <!-- 2 · source type (the family's sources, or Unspecified) · family -->
@@ -250,6 +287,25 @@
   .row__name {
     flex: 1 1 auto;
     min-width: 0;
+  }
+
+  /* Task 5.1: the stem's stamps after the name — the panel's small muted
+     print, never a colour (the name truncates before they do; MISSING is
+     the one warning, marked by the rule under it, not by a colour on the print) */
+  .row__stamps {
+    display: inline-flex;
+    flex: 0 0 auto;
+    gap: var(--al-space-2xs);
+    align-items: center;
+  }
+
+  .row__stamp {
+    display: inline-flex;
+    padding-bottom: 1px;
+  }
+
+  .row__stamp.is-warning {
+    border-bottom: 1px solid var(--al-function-red-base);
   }
 
   /* --- 2 · source type · family -------------------------------------------- */

@@ -113,6 +113,7 @@ function trackOf(strip: TrackStripFixture, output: OutputRef): Track {
     loadedSendLevels,
     chain: createChainState(strip.id),
     display: { peak: strip.peak },
+    audio: null,
   };
 }
 

@@ -43,8 +43,9 @@
  * `saved` and `failed` describe the LAST attempt; `dirty` is always derived.
  */
 
+import type { OrgSwatch } from "../../components/channel-strip/track-strip-fixtures";
 import type { FieldRef, FieldValue } from "./fields";
-import type { ChannelId, Project, ProjectTemplateId } from "./model";
+import type { ChannelId, Project, ProjectTemplateId, Track, TrackAudio } from "./model";
 
 /* =========================================================================
    THE MANIFEST
@@ -63,14 +64,63 @@ export interface ProjectManifest {
   readonly project: { readonly id: string; readonly name: string; readonly template?: ProjectTemplateId };
   /** channel id → relative field path → value, in registry order. */
   readonly channels: Readonly<Record<string, Readonly<Record<string, FieldValue>>>>;
+  /**
+   * Imported tracks (Task 5.1): the structure the template cannot rebuild —
+   * identity, name, org swatch and the stem's asset reference + metadata.
+   * Present only when the project has imported tracks, so a manifest
+   * without them is byte-for-byte what Task 3.3 / 4.1 wrote. The settings of
+   * these tracks are in `channels` like any other channel's.
+   */
+  readonly tracks?: readonly ManifestTrack[];
 }
 
-export function buildManifest(project: Pick<Project, "id" | "name" | "template">, fields: readonly FieldRef[]): ProjectManifest {
+export interface ManifestTrack {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly org: OrgSwatch;
+  readonly audio: TrackAudio;
+}
+
+export function buildManifest(project: Pick<Project, "id" | "name" | "template"> & { readonly tracks?: readonly Pick<Track, "id" | "code" | "name" | "org" | "audio">[] }, fields: readonly FieldRef[]): ProjectManifest {
   const channels: Record<string, Record<string, FieldValue>> = {};
   for (const f of fields) {
     (channels[f.channel] ??= {})[f.rel] = f.get();
   }
-  return { schema: MANIFEST_SCHEMA, project: { id: project.id, name: project.name, template: project.template }, channels };
+  const imported = (project.tracks ?? []).filter((t) => t.audio !== null);
+  const manifest: ProjectManifest = { schema: MANIFEST_SCHEMA, project: { id: project.id, name: project.name, template: project.template }, channels };
+  if (imported.length === 0) return manifest;
+  return {
+    ...manifest,
+    tracks: imported.map((t) => ({ id: t.id, code: t.code, name: t.name, org: t.org, audio: { ...(t.audio as TrackAudio) } })),
+  };
+}
+
+const ORG_SWATCHES: readonly unknown[] = [1, 2, 3, 4, 5, 6, 7, 8, "neutral"];
+
+function isTrackAudio(value: unknown): value is TrackAudio {
+  if (!value || typeof value !== "object") return false;
+  const a = value as Partial<TrackAudio>;
+  return (
+    typeof a.assetId === "string" &&
+    typeof a.fileName === "string" &&
+    typeof a.sha256 === "string" &&
+    typeof a.bytes === "number" &&
+    (a.encoding === "pcm" || a.encoding === "float") &&
+    typeof a.bitDepth === "number" &&
+    typeof a.sampleRate === "number" &&
+    typeof a.channels === "number" &&
+    typeof a.frames === "number" &&
+    (a.peakDbfs === null || typeof a.peakDbfs === "number") &&
+    typeof a.silent === "boolean" &&
+    typeof a.importedAt === "string"
+  );
+}
+
+function isManifestTrack(value: unknown): value is ManifestTrack {
+  if (!value || typeof value !== "object") return false;
+  const t = value as Partial<ManifestTrack>;
+  return typeof t.id === "string" && t.id.startsWith("track-") && typeof t.code === "string" && typeof t.name === "string" && ORG_SWATCHES.includes(t.org) && isTrackAudio(t.audio);
 }
 
 export function serializeManifest(manifest: ProjectManifest): string {
@@ -86,6 +136,7 @@ export function parseManifest(text: string): ProjectManifest | null {
     if (m.schema !== MANIFEST_SCHEMA || !m.project || typeof m.project.id !== "string" || !m.channels || typeof m.channels !== "object") return null;
     if (typeof m.project.name !== "string") return null;
     if (m.project.template !== undefined && typeof m.project.template !== "string") return null;
+    if (m.tracks !== undefined && (!Array.isArray(m.tracks) || !m.tracks.every(isManifestTrack))) return null;
     return m as ProjectManifest;
   } catch {
     return null;

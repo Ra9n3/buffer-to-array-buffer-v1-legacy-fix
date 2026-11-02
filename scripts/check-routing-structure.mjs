@@ -198,9 +198,9 @@ const pinned = {
   "src/lib/mixer-chain.ts": "818fb94f4560f173819dacb76bf42726db67b28a18eb7288dacdba74f67919d2",
   // added / touched in Task 3.2, as reviewed
   "src/lib/project/routing.ts": "f5479a9e7013514fdfbc09ba1914cc88f78fdfa6f146c3773d1d5eb7a0740588",
-  "src/lib/project/model.ts": "45e54e6a0a95ffbfa2d9ad667f0b18d5ac11574ec54acef736193e913b02c7f1",
-  "src/lib/project/session.ts": "715bf6ea2c72290262ac98017b640b91e26f7e7e01e5415c2c3394cffd7b2fa2",
-  "src/lib/project/store.svelte.ts": "0e791c199586eadcb80ad6eca49387b4b61b5c63edb2728599e455d69f5c9011",
+  "src/lib/project/model.ts": "f8e9686f21d12d059f953d9f13d3be457ff08aac98ddb8e116e681a9e64a95ce",
+  "src/lib/project/session.ts": "079a77226200f30858f9588aafa0cb50b30b5c182b8e15a63f0fe9231a4736d5",
+  "src/lib/project/store.svelte.ts": "350d510d6d43fe679680731f1b5b11668fa5bbc065c51f781b624873fb2aaec2",
   "tests/loader.mjs": "51a401d95b0f35584ca7bce2dd564346ba6c1c2c066eeffa51ebd1ad5da15451",
   "tests/register.mjs": "80ef952e463fa5bf7eb9bf1b0a11dcbe5fe32e3a86391c2d596f6f41a8de7b56",
   "tests/routing.test.mjs": "bc389e8869b20fb0dc98ffa77e88d67c7c4c959622669fc7db7b7be96b37676d",

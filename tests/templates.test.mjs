@@ -18,8 +18,8 @@ import { validateGraph } from "../src/lib/project/routing.ts";
 
 test("the two templates: ids, labels, the type guard", () => {
   assert.deepEqual([...PROJECT_TEMPLATES], ["session-fixture", "empty"]);
-  assert.equal(TEMPLATE_LABELS["session-fixture"], "Development session");
-  assert.equal(TEMPLATE_LABELS.empty, "Empty project");
+  assert.equal(TEMPLATE_LABELS["session-fixture"], "Started as the development session");
+  assert.equal(TEMPLATE_LABELS.empty, "Started empty");
   assert.equal(isProjectTemplateId("empty"), true);
   assert.equal(isProjectTemplateId("session-fixture"), true);
   assert.equal(isProjectTemplateId("Empty"), false);

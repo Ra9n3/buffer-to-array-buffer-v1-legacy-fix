@@ -174,8 +174,8 @@ export interface Track {
   /** Instrument: the family and, within it, the source type (plan §5, §5a); null = not assigned / Unspecified. */
   familyId: FamilyId | null;
   sourceTypeId: string | null;
-  /** Musical function (plan §5) — independent of prominence (§5a). */
-  role: RoleId;
+  /** Musical function (plan §5) — independent of prominence (§5a). Null (Task 5.1): not assigned — an imported stem nobody has classified. */
+  role: RoleId | null;
   /** 1–10 (plan §5); the Prominence Tier is read from it (`tierOfPriority`). */
   priority: number;
   /** False while a suggested tier awaits the user's confirmation (plan §5a). */
@@ -192,6 +192,41 @@ export interface Track {
   /** The Mixer's processing chain (Task 2.8): EQ, compressor, ownership, originals, notes. */
   readonly chain: ChainState;
   readonly display: ChannelDisplay;
+  /**
+   * The imported stem behind the track (Task 5.1), or null for a track that
+   * has none (every fixture track). Structural, not a field: it is written
+   * once at import and travels in the manifest's `tracks` block.
+   */
+  readonly audio: TrackAudio | null;
+}
+
+/* =========================================================================
+   IMPORTED AUDIO (Task 5.1, plan §11 import rules)
+   ========================================================================= */
+
+/**
+ * What the project knows about an imported stem: the reference to its copy
+ * in the project-owned storage (lib/audio/asset-store.ts) and the facts the
+ * import read from the file. The copy's bytes and its peaks are not here —
+ * they are looked up by `assetId` and checked against `sha256`.
+ */
+export interface TrackAudio {
+  readonly assetId: string;
+  /** The original file's name, as imported. */
+  readonly fileName: string;
+  /** SHA-256 (hex) of the copied bytes; the peaks carry the same, so a drawing is always of these bytes. */
+  readonly sha256: string;
+  readonly bytes: number;
+  readonly encoding: "pcm" | "float";
+  readonly bitDepth: number;
+  readonly sampleRate: number;
+  readonly channels: number;
+  readonly frames: number;
+  /** The file's sample peak in dBFS (−Infinity for digital silence; null for an empty file). */
+  readonly peakDbfs: number | null;
+  /** Plan §11: a silent / empty stem — accepted, warned about, excluded from analysis targets later. */
+  readonly silent: boolean;
+  readonly importedAt: string;
 }
 
 /* =========================================================================

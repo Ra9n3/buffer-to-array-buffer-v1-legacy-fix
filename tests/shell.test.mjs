@@ -201,8 +201,11 @@ test("installProjectShell: ?debug exposes window.alloy; a disabled Web Storage l
   const fw = fakeWindow({ search: "?debug", localStorage: "throw" });
   const uninstall = installProjectShell(fw.win);
   assert.ok(fw.win.alloy);
-  // Task 4.1 added lifecycle, settings and the start-up outcome to the handle
-  assert.deepEqual(Object.keys(fw.win.alloy).sort(), ["autosave", "clipboard", "fields", "flush", "history", "lifecycle", "ops", "project", "restored", "settings"]);
+  // Task 4.1 added lifecycle, settings and the start-up outcome to the handle; Task 5.1 the audio assets module
+  assert.deepEqual(Object.keys(fw.win.alloy).sort(), ["assets", "autosave", "clipboard", "fields", "flush", "history", "lifecycle", "ops", "project", "restored", "settings"]);
+  // the fake window has no IndexedDB: nothing attached, import refused, nothing thrown
+  assert.equal(fw.win.alloy.assets.attached, false);
+  assert.equal(fw.win.alloy.assets.storeName, null);
   assert.equal(fw.win.alloy.fields.length, 1076);
   assert.equal(autosave.status.storage, null);
   const t = project.track("track-11");

@@ -87,7 +87,7 @@
       </div>
     </ScreenPanel>
 
-    <ScreenPanel title="Start" id="home-start-title" note="A new project under a new name, with nothing in it: Master only. Stems arrive with the audio engine." hook="start">
+    <ScreenPanel title="Start" id="home-start-title" note="A new project under a new name, with nothing in it: Master only. Import stems in Arrange." hook="start">
       <div class="start">
         <ActionKey label="Start empty" name="Start an empty project" hook="start-empty" onpress={startEmpty} />
       </div>

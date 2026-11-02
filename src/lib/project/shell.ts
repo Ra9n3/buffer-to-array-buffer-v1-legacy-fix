@@ -30,12 +30,20 @@
  *      for new project ids; then the newest recent project is reopened from
  *      its saved copy (owner, D4.1.1), the fixture session staying when
  *      nothing valid is stored.
+ *   7. AUDIO ASSETS (Task 5.1) — lib/project/assets.svelte.ts gets the
+ *      IndexedDB asset store (database `alloy`, owner D5.1.2) with the same
+ *      id source and clock, before the last project is restored, so its
+ *      imported tracks' waveforms are read back at once. Without IndexedDB
+ *      nothing is attached: import is refused with a message, and reopened
+ *      imported tracks print MISSING rather than a drawing.
  *
  * Everything decision-shaped is a pure function here (`shortcutAction`,
  * `isTextEntry`, `wantsDebugHandle`) so the tests cover it without a DOM.
  */
 
+import { indexedDbAssetStore, type AssetStore } from "../audio/asset-store";
 import { attachSettings, detachSettings, settings, type AppSettings } from "../settings.svelte";
+import { assets } from "./assets.svelte";
 import { lifecycle, type RestoreResult } from "./lifecycle";
 import { webStorageAdapter } from "./persistence";
 import { autosave, clipboard, fieldRegistry, history, ops, project } from "./store.svelte";
@@ -92,6 +100,8 @@ export const AUTOSAVE_DELAY_MS = 1000;
 export interface ShellOptions {
   /** Override the storage lookup (tests); default reads `win.localStorage` inside a try / catch. */
   readonly storage?: Pick<Storage, "getItem" | "setItem"> | null;
+  /** Override the audio asset store (tests); default opens IndexedDB `alloy` when `win.indexedDB` exists. */
+  readonly assetStore?: AssetStore | null;
 }
 
 export interface DebugHandle {
@@ -108,6 +118,8 @@ export interface DebugHandle {
   readonly settings: typeof settings;
   /** What happened at start (Task 4.1). */
   readonly restored: RestoreResult | null;
+  /** The audio assets module (Task 5.1): statuses, hydration, the attached store's name. */
+  readonly assets: typeof assets;
 }
 
 export function debugHandle(restored: RestoreResult | null = null): DebugHandle {
@@ -126,7 +138,18 @@ export function debugHandle(restored: RestoreResult | null = null): DebugHandle 
     lifecycle,
     settings,
     restored,
+    assets,
   };
+}
+
+function assetStoreOf(win: Window, options: ShellOptions): AssetStore | null {
+  if (options.assetStore !== undefined) return options.assetStore;
+  try {
+    const idb = win.indexedDB;
+    return idb ? indexedDbAssetStore(idb) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** The `<html data-motion>` value for a motion preference. */
@@ -139,6 +162,11 @@ export function newProjectId(win: { readonly crypto?: Crypto }): string {
   const c = win.crypto;
   if (c && typeof c.randomUUID === "function") return `project-${c.randomUUID()}`;
   return `project-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** The unique part of an asset id (Task 5.1; the import prefixes `asset-`): the same source as project ids. */
+export function newAssetId(win: { readonly crypto?: Crypto }): string {
+  return newProjectId(win).slice("project-".length);
 }
 
 function webStorageOf(win: Window, options: ShellOptions): Pick<Storage, "getItem" | "setItem"> | null {
@@ -175,10 +203,22 @@ export function installProjectShell(win: Window, options: ShellOptions = {}): ()
   applyMotion(settings);
   const unsubscribeSettings = settings.subscribe(applyMotion);
 
+  // 7. audio assets (Task 5.1) — before the restore, so a restored project's stems are read back
+  const now = (): string => new Date().toISOString();
+  const assetStore = assetStoreOf(win, options);
+  if (assetStore) {
+    assets.attach(assetStore, {
+      newId: () => newAssetId(win),
+      now,
+      // between slices of a stem's peak calculation: a macrotask, so the band's progress line paints
+      yieldBetween: () => new Promise((resolve) => win.setTimeout(resolve, 0)),
+    });
+  }
+
   // 6. lifecycle — storage, wall clock, ids; then the last project
   lifecycle.attach({
     storage: adapter,
-    now: () => new Date().toISOString(),
+    now,
     newId: () => newProjectId(win),
   });
   const restored = lifecycle.restoreLast();
@@ -199,6 +239,7 @@ export function installProjectShell(win: Window, options: ShellOptions = {}): ()
     win.removeEventListener("keydown", onKeydown);
     unsubscribeSettings();
     lifecycle.detach();
+    assets.detach();
     detachSettings();
     root?.removeAttribute("data-motion");
     autosave.detach();

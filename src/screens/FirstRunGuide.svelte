@@ -17,7 +17,7 @@
 
   const STEPS = [
     { word: "Start", text: "Reopen a recent project or start empty, here on Home. The project you open is the one every room shows." },
-    { word: "Import", text: "Bring your stems into Arrange and name, prioritise and route them. Import itself arrives with the audio engine (Phase 5)." },
+    { word: "Import", text: "Bring your stems into Arrange (48 kHz WAV, 24-bit or 32-bit float) and name, prioritise and route them." },
     { word: "Mix", text: "Press MIX in the Console: ALLOY sets levels, EQ, dynamics and sends for the whole session." },
     { word: "Inspect", text: "Open the Mixer to see what changed and turn anything you disagree with — what you touch becomes Manual and stays yours." },
   ] as const;

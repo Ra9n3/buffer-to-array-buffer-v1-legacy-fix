@@ -32,6 +32,13 @@
  * saved copy is valid; otherwise the store keeps the fixture session it
  * booted with. Either way the open project is recorded in the index.
  *
+ * IMPORTED TRACKS (Task 5.1): a manifest with a `tracks` block has stems
+ * the template cannot rebuild; they are appended (templates.ts
+ * `withImportedTracks`) before the saved values apply. Their audio copies
+ * live in the asset store and are read after the switch (assets.svelte.ts
+ * `hydrate`): a project opens with or without them, and a track whose copy
+ * is gone says so instead of drawing anything.
+ *
  * Pure with respect to the browser: storage, clock and id source are
  * injected by the shell (lib/project/shell.ts), exactly as autosave's are.
  * Reads are synchronous — the one adapter in this build (localStorage) is;
@@ -44,8 +51,9 @@ import type { Project, ProjectTemplateId } from "./model";
 import { buildManifest, parseManifest, serializeManifest, type ProjectManifest, type StorageAdapter } from "./persistence";
 import { validateGraph } from "./routing";
 import { SESSION_PROJECT_ID } from "./session";
+import { assets } from "./assets.svelte";
 import { autosave, fieldRegistry, loadProject, project } from "./store.svelte";
-import { EMPTY_PROJECT_NAME, createEmptyProject, createTemplateProject, isProjectTemplateId } from "./templates";
+import { EMPTY_PROJECT_NAME, createEmptyProject, createTemplateProject, isProjectTemplateId, withImportedTracks } from "./templates";
 
 /* =========================================================================
    THE INDEX
@@ -252,8 +260,12 @@ interface Rebuilt {
  */
 function rebuild(status: Extract<RecentStatus, { kind: "ready" }>): Rebuilt | { readonly reason: UnavailableReason; readonly detail: string } {
   const { manifest, template } = status;
-  const next = createTemplateProject(template, manifest.project.id, manifest.project.name);
-  if (!next) return { reason: "mismatch", detail: UNAVAILABLE_DETAIL.mismatch };
+  const built = createTemplateProject(template, manifest.project.id, manifest.project.name);
+  if (!built) return { reason: "mismatch", detail: UNAVAILABLE_DETAIL.mismatch };
+  // Task 5.1: the imported tracks the manifest carries, appended before the values apply (theirs are in `channels` too)
+  const withImports = manifest.tracks && manifest.tracks.length > 0 ? withImportedTracks(built, manifest.tracks) : built;
+  if ("ok" in withImports) return { reason: "damaged", detail: `${UNAVAILABLE_DETAIL.damaged}: ${withImports.detail}` };
+  const next = withImports;
   const skipped: string[] = [];
   let applied = 0;
   for (const f of projectFields(next)) {
@@ -305,6 +317,8 @@ function install(next: Project, storedText: string | null): void {
   loadProject(next);
   autosave.retarget(projectKey(next.id), storedText);
   touch(next);
+  // Task 5.1: the imported tracks' waveforms, from the asset store — asynchronous; the project is open already
+  void assets.hydrate();
 }
 
 function openStored(entry: RecentEntry): OpenResult {

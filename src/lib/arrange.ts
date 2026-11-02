@@ -199,7 +199,8 @@ export function sourceOptionsOf(family: FamilyId | null, catalog: readonly Sourc
 export type RoleId = "lead" | "rhythm" | "double" | "harmony";
 
 export interface Role {
-  readonly id: RoleId;
+  /** One of the four, or null for NO_ROLE (Task 5.1). */
+  readonly id: RoleId | null;
   /** The short print on the row. */
   readonly name: string;
   /** The plan's full wording, for the tooltip. */
@@ -214,7 +215,15 @@ export const ROLES: readonly Role[] = [
   { id: "harmony", name: "Harmony", long: "Background / harmony" },
 ];
 
-export function role(id: RoleId): Role {
+/**
+ * Task 5.1: a track nobody has classified (an imported stem) has no role
+ * yet; its print is a dash, not a guess. `id` is null so no consumer can
+ * mistake it for one of the four.
+ */
+export const NO_ROLE: Role = { id: null, name: "\u2014", long: "Not assigned yet" };
+
+export function role(id: RoleId | null): Role {
+  if (id === null) return NO_ROLE;
   return ROLES.find((r) => r.id === id) ?? ROLES[1];
 }
 
@@ -251,7 +260,8 @@ export interface ArrangeTrack {
   readonly familyId: FamilyId | null;
   /** A `SOURCE_TYPES` id within `familyId`, or null: Unspecified. */
   readonly sourceTypeId: string | null;
-  readonly role: RoleId;
+  /** The musical function, or null: not assigned yet (an imported stem, Task 5.1). */
+  readonly role: RoleId | null;
   readonly tier: ProminenceTier;
   /**
    * Plan §5a: a track whose classification was only suggested keeps the

@@ -3479,3 +3479,219 @@ the backward-compatible store additions (D4.1.8), the 24 new node tests
 (100 / 100) and the guard hand-overs (21 guards, 1 775 / 1 775). Committed
 to local `main` on top of `04d628f` (Task 3.3); **not pushed** — remote
 `main` stays at `04d628f` until the owner pushes. Phase 5 is not started.
+
+## Task 5.1 — Real audio import and validation (2026-11-02; uncommitted, awaiting review — the owner handles Git)
+
+Direction: Phase 5's first step on the approved Task 4.1 state — real
+file selection in the Arrange room's import workflow, the plan's format
+rules (§11, L497–515) applied file by file, every accepted stem copied
+into project-owned browser storage, fingerprinted and reduced to bounded
+waveform peaks, then appended to the open project as a track; a per-file
+report; persistence and reopening with the stored copies. **No analysis
+engine, no benchmark, no Web Audio, no EQ / compression / reverb / delay,
+no playback, no rendering, no invented analysis values or waveforms, no
+room redesign, no new dependency.** The owner's four decisions
+(`ask_user`, 2026-11-02) were taken before any code was written — D5.1.1
+/ D5.1.2 / D5.1.3 / D5.1.5. Report: `task-reports/5.1-report.md`; the
+model, the pipeline and the storage are described in `data-model.md`
+§12. **Not committed, not tagged, not pushed** (owner's instruction); the
+build stops here for review — Task 5.2 is not started.
+
+### D5.1.1 — Import into any project, fixture included; one slim band at the top of Arrange, in both of its states (owner, 2026-11-02)
+
+Over "empty projects only" and "a separate import screen", the owner chose
+that stems can be imported into any open project — the fixture session
+too — from **one slim band at the top of the Arrange room** that is there
+in the empty state as well (above the empty-project notice) and above the
+grid once there are tracks. Applied: `ArrangeImportBand.svelte` is the
+first child of `.arrange-room`; the fixture's twenty tracks stay as they
+are and an imported stem is appended as 21, 22, …; an empty project's
+stems start at 01. Home's Start note and the first-run guide's Import
+step say where import lives ("Import stems in Arrange."); the
+empty-project notice says it per room (`HOW[room]`).
+
+### D5.1.2 — Project-owned storage is the browser's IndexedDB: database `alloy`, stores `assets` + `peaks` (owner, 2026-11-02)
+
+Over the File System Access API (Chromium-only, permission prompts) and
+"keep only a handle to the original", the owner chose **IndexedDB**: the
+copy survives moving or deleting the original, works in every browser the
+shell runs in, and needs no dialog. One database `alloy`, version 1, two
+object stores keyed by `assetId`; both records of a stem are written in
+one transaction. IndexedDB is reached in `asset-store.ts` and handed over
+by the shell only (`const idb = win.indexedDB; return idb ?
+indexedDbAssetStore(idb) : null;`); the pipeline and the tests run against
+the same `AssetStore` interface with `memoryAssetStore()`. Without
+IndexedDB the key prints one line ("Import needs the browser's project
+storage (IndexedDB), which is not available here — nothing was imported")
+and nothing is added; a reopened project's imported tracks print MISSING.
+
+### D5.1.3 — The plan's formats exactly: WAV, 48 kHz, 24-bit PCM or 32-bit float, mono or stereo — nothing wider, no conversion (owner, 2026-11-02)
+
+Over "accept 16-bit and 44.1 kHz too" and "accept and convert", the owner
+confirmed the plan's list as the contract. Applied in `import-rules.ts` as
+constants (`ACCEPTED_SAMPLE_RATE 48000`, `ACCEPTED_FORMATS ["24-bit PCM",
+"32-bit float"]`, `MAX_CHANNELS 2`); a 16-bit / 8-bit / 32-bit-integer /
+64-bit-float / compressed WAV, any other rate, more than two channels, and
+any non-WAV (MP3, FLAC, AIFF, Ogg, text — named when the bytes say so) are
+**REFUSED** with the format that was found and the plan's advice
+("re-export the stem as a 48 kHz WAV, 24-bit or 32-bit float"). Nothing is
+resampled or re-quantised on the quiet. The format is judged before any
+sample is read.
+
+### D5.1.4 — Import is one structural change, not an undoable edit
+
+`appendTracks(tracks, arrangement)` adds the accepted stems' tracks,
+registers their 50 fields each and **rebinds the history** (as a project
+switch does, D3.3.x): an import cannot be undone with Ctrl-Z, and the
+history before it is gone. Reasoning: the Phase 3 history is a history of
+field values over a fixed structure (D3.3.1); a structural undo would need
+removing the copies from the store as well, which the plan does not ask
+for in 5.1. Removing an imported track is deferred (approval item).
+
+### D5.1.5 — 120 bpm 4/4 from bar 1; every stem at bar 1; bars = the longest stem rounded up (owner, 2026-11-02)
+
+An empty project has no tempo. Over "ask for a tempo at import" and "a
+seconds ruler", the owner chose a default of **120 bpm, 4/4** placed at
+bar 1 by the first import (`DEFAULT_TEMPO`), every stem starting at bar 1
+and `barCount = ceil(longest stem in bars)`; the fixture keeps its own
+markers and 56 bars. The ruler's numerals follow the project's bar count
+(`rulerLabels`); the header's sections come from the project (none for an
+imported project). No tempo UI was added (not in 5.1).
+
+### D5.1.6 — The validation vocabulary: four outcomes, four flags, four row stamps; mono / silent / short / mismatch are never fatal
+
+Outcomes `added | unsupported | corrupt | failed` print as **ADDED /
+REFUSED / UNREADABLE / FAILED** on the report's stamp; flags `mono |
+silent | short | padded` print on the accepted line ("played on both
+sides", "silent — kept, left out of analysis", "very short — processed as
+one buffer", "shorter than the longest stem — padded to 0:12.0") and the
+row stamps **MONO / SILENT / PADDED** carry them into the track list;
+**MISSING** is the fourth row stamp (the stored copy is gone or is not the
+file that was imported) and the only warning — the shell's red on the
+stamp's rule, never red text, as the refused lines in the report. Silence
+is a peak ≤ −80 dBFS (`SILENCE_PEAK_DBFS`), "very short" < 1 s
+(`SHORT_SECONDS`); a stem shorter than the longest by more than one sample
+is padded — at render only, nothing is written. A corrupt file's line
+carries the reader's sentence alone (no "unreadable:" prefix — the stamp
+says it); the mono flag no longer repeats the format's "mono".
+
+### D5.1.7 — The report belongs to the project it was made in; refusals first; CLEAR only with a report
+
+The band's report is cleared by a project switch (it describes a batch
+against one project) and by its own CLEAR key, which is only there while a
+report is up. A long batch's lines are capped at 7.5 rem and scroll inside
+the band; so the lines that need the owner's hand come first (REFUSED /
+UNREADABLE / FAILED in batch order), then the ADDED lines in batch order —
+the `ImportResult.lines` API keeps the batch order. The status readout is
+one line ("Importing 3 of 9 — pad.wav…" → "5 of 9 imported").
+
+### D5.1.8 — A file that fails is never partly there; the batch keeps what passed; a switch mid-import adds nothing
+
+Each file runs the whole pipeline (read → inspect → judge → peaks →
+fingerprint → store → track) before the next; a failure at any step gives
+the file its line and nothing else — no record, no track. Only after the
+batch are the accepted stems appended, in one change. If the project is
+switched while the files are being read, the copies already stored stay
+in the store under the old project's id and the lines say "the project
+changed during the import — stored, not added" (an orphaned copy is
+possible in this case; removing it is deferred with the rest of asset
+removal). The batch yields to the browser between files
+(`yieldBetween`, a macrotask injected by the shell) so the readout updates.
+
+### D5.1.9 — Peaks: Int8 min/max per 20 ms bucket, from the decoded samples, stored under the file's SHA-256
+
+The waveform shown for an imported stem is computed from the file's
+samples (24-bit / float reader, slices of 480 000 frames) as the signed
+min / max of each 960-frame bucket, scaled to 1/127 — 2 bytes per bucket
+per channel (a 5-minute stereo stem ≈ 60 kB, never the PCM). The peaks
+record carries the asset's `sha256`; `hydrate()` treats a record whose
+fingerprint is not the track's as missing, so a waveform never shows for a
+copy that is not the imported file. Fixture clips keep their
+`source: "fixture"` drawing and the SIMULATED print; a row with audio is
+`data-simulated="false"`.
+
+### D5.1.10 — Reopen = template + imported tracks + saved values, then hydration; the manifest's `tracks` block is optional
+
+The manifest (`alloy.project-manifest/1`) gains `tracks` only when the
+project has imported tracks — a fixture or empty manifest is unchanged
+(byte-for-byte what 4.1 wrote), so every stored 4.1 project reopens as
+before. The lifecycle rebuilds the template, appends the stored tracks
+(`withImportedTracks`, each `audio` validated field by field; a duplicate
+id / code or an invalid block makes the entry `damaged`), applies the
+saved values, and `install()` ends with `void assets.hydrate()`, which
+clears the status map and reads each track's peaks. Verified in the
+browser against real imported files: after a reload the project is
+restored, all five tracks are `ready`, their clips are `audio` and their
+waveforms identical; a deleted record makes its track MISSING and the
+project still opens.
+
+### D5.1.11 — An imported track's identity: no role, no family, no source type; Supporting; neutral chain
+
+An imported stem has nothing the fixture's authored identity had, so
+`Track.role` became `RoleId | null` (`NO_ROLE` prints "—" / "Not assigned
+yet" wherever a role prints), `familyId` and `sourceTypeId` are `null`,
+tier is Supporting (the default), `org` is `neutral`, the chain is
+`createChainState("")`, the output Master, the sends empty. The track's
+name is the file's stem ("vocal lead"); the Arrange selects let the owner
+assign source / family / role as for the fixture (not changed).
+
+### D5.1.12 — Component hand-overs in 5.1 (backward compatible)
+
+`ArrangeTrackRow` gains `audio` / `padded` / `audioStatus` (defaults
+`null` / `false` / `null`: the fixture rows render as before);
+`ArrangeTimelineHeader` gains `sections` (default `ARRANGE_SECTIONS`);
+`ArrangeTimelineLane` prints `data-clip-source` and a seconds tooltip for
+audio clips; `EmptyProjectNotice` prints a per-room "how" sentence instead
+of the Phase-5 placeholder. `ActionKey` and `EngravedLabel` are reused
+unchanged; no hardware component changed (pins hold). `role()` in
+`arrange.ts` returns `NO_ROLE` for `null`.
+
+### D5.1.13 — Home's template label says where a project began, never what it holds (owner, 5.1 review, 2026-11-02)
+
+Review item 4: after stems are imported into a project started empty, Home
+still printed the template label "Empty project" beside its name and in
+the recent list — the project was no longer empty. The owner: keep the
+template label only if it is explicitly identified as the starting
+template, not the current project state. Applied in `TEMPLATE_LABELS`
+(`templates.ts`, the one place Home reads it): `empty` → **"Started
+empty"**, `session-fixture` → **"Started as the development session"**;
+the card reads "Untitled project · STARTED EMPTY · 2 tracks · 0 Returns ·
+0 buses" and the list "STARTED EMPTY · OPENED NOV 2, 2026, 8:47 PM" —
+the label is the origin, the counts are the state. `HomeScreen.svelte` is
+unchanged; `templates.test.mjs` asserts the new strings; the home-settings
+guard checks the two phrases (104 checks) and is re-pinned to
+`templates.ts`. Measured: `evidence/import/5.1/home-label-5.1.json`,
+`home-label-after-import.png`, `home-card-after-import.png`.
+
+## Task 5.1 — review decisions (owner, 2026-11-02)
+
+The owner reviewed `task-reports/5.1-report.md` and decided the six
+approval items: **1 approved** — refusals first in the report (D5.1.7);
+**2 approved** — the status vocabulary ADDED / REFUSED / UNREADABLE /
+FAILED and MONO / SILENT / PADDED / MISSING (D5.1.6); **3 approved** —
+import not undoable, import history and the asset lifecycle (remove /
+prune) out of scope for now (D5.1.4, D5.1.8); **4 — a small fix
+requested and applied** (D5.1.13 above); **5 approved provisionally** —
+the −80 dBFS silence threshold (`SILENCE_PEAK_DBFS`) and the 1-second
+"very short" threshold (`SHORT_SECONDS`) stand as documented
+(`data-model.md` §12.2) and their warnings stay non-blocking — accepted
+stems with a flag, never a refusal; **6 approved** — the imported track's
+defaults (D5.1.11). Task 5.1 itself awaits the owner's word on the whole
+("approved" / "commit"); nothing is committed, tagged or pushed.
+
+## Task 5.1 — approved
+
+Owner, 2026-11-02: **"approved, commit and push"** (after the review
+decisions above). Task 5.1 is closed as built and reported in
+`task-reports/5.1-report.md`; D5.1.1–D5.1.13 stand. The approval covers
+the Arrange import band and its report (D5.1.1, D5.1.6, D5.1.7), the plan's
+format contract exactly (D5.1.3), the per-file validation with the batch
+kept (D5.1.8), the IndexedDB copy with its SHA-256 and the bounded peaks
+under it (D5.1.2, D5.1.9), the model / manifest / lifecycle additions and
+reopen verified against real files (D5.1.10), the imported track's defaults
+(D5.1.11), the component hand-overs (D5.1.12), Home's origin label
+(D5.1.13), the 26 new node tests (126 / 126), the new guard and the
+hand-overs (22 guards, 1 908 / 1 908), and the browser evidence under
+`evidence/import/5.1/`. Committed to local `main` on top of `c4dec67`
+(Task 4.1) and pushed with it to remote `main` (the owner's PAT, used
+inline for the push and not stored). Task 5.2 is not started.

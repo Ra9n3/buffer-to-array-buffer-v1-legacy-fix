@@ -366,8 +366,16 @@ export const WAVE_LAYOUT = {
 export interface ArrangeClip {
   readonly clipId: string;
   readonly trackCode: string;
-  readonly kind: WaveKind;
+  /**
+   * Where the drawing comes from (Task 5.1): `fixture` = generated from the
+   * fixture above, SIMULATED; `audio` = the peaks of an imported file
+   * (lib/arrange-audio.ts), real.
+   */
+  readonly source: "fixture" | "audio";
+  /** The fixture's drawing kind, or `audio` for a clip drawn from a file's peaks. */
+  readonly kind: WaveKind | "audio";
   readonly startBar: number;
+  /** Bars, fractional for an audio clip (a 6.5-bar stem is 6.5 bars wide). */
   readonly barCount: number;
   /** 1-based last bar, inclusive. */
   readonly endBar: number;
@@ -375,6 +383,8 @@ export interface ArrangeClip {
   readonly peakCount: number;
   /** One SVG path per channel (see `wavePath`). */
   readonly waves: readonly { readonly d: string; readonly centre: number }[];
+  /** Audio clips only: the file's length. */
+  readonly seconds?: number;
 }
 
 /** Builds the drawn clips of one fixture track. */
@@ -383,6 +393,7 @@ export function buildClips(fixture: TrackTimelineFixture): readonly ArrangeClip[
   return fixture.clips.map((clip, index) => ({
     clipId: `${fixture.trackCode}-${index + 1}`,
     trackCode: fixture.trackCode,
+    source: "fixture",
     kind: fixture.kind,
     startBar: clip.startBar,
     barCount: clip.barCount,

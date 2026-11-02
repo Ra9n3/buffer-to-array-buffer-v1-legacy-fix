@@ -28,6 +28,7 @@
    */
   import { SIMULATED, orgToken, type OrgSwatch } from "./channel-strip/track-strip-fixtures";
   import type { ArrangeClip } from "../lib/arrange-timeline";
+  import { printSeconds } from "../lib/audio/import-rules";
 
   let {
     laneId,
@@ -48,8 +49,18 @@
   /** A clip's tooltip: where it sits, in bars — the one place the position is spelled out. */
   function clipTitle(clip: ArrangeClip): string {
     const range = clip.barCount === 1 ? `bar ${clip.startBar}` : `bars ${clip.startBar}–${clip.endBar}`;
-    return `${name || `Track ${code}`} · ${range} · ${clip.channels === 2 ? "stereo" : "mono"}`;
+    const sides = clip.channels === 2 ? "stereo" : "mono";
+    // Task 5.1: an imported stem's clip says its length as well — it is a real file, drawn from its own peaks
+    if (clip.source === "audio" && clip.seconds !== undefined) return `${name || `Track ${code}`} · ${range} · ${printSeconds(clip.seconds)} · ${sides}`;
+    return `${name || `Track ${code}`} · ${range} · ${sides}`;
   }
+
+  /**
+   * Task 5.1: the SIMULATED stamp is the fixture drawings' — a lane whose
+   * clips are an imported file's peaks is not simulated. A lane with no
+   * clips at all carries no stamp either (nothing is drawn).
+   */
+  const simulated = $derived(clips.some((c) => c.source === "fixture") ? SIMULATED : false);
 </script>
 
 <div
@@ -58,7 +69,7 @@
   data-lane={laneId}
   data-track-code={code}
   data-clip-count={clips.length}
-  data-simulated={SIMULATED}
+  data-simulated={simulated}
   aria-hidden="true"
 >
   {#each clips as clip (clip.clipId)}
@@ -73,6 +84,7 @@
       data-clip-bars={clip.barCount}
       data-clip-channels={clip.channels}
       data-clip-kind={clip.kind}
+      data-clip-source={clip.source}
       title={clipTitle(clip)}
     >
       <svg class="clip__wave" viewBox={`0 0 ${clip.peakCount} 100`} preserveAspectRatio="none" focusable="false">

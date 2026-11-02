@@ -97,11 +97,13 @@ import {
   type OutputRef,
   type Project,
   type ProjectTemplateId,
+  type Arrangement,
   type ReturnBus,
   type ReturnBusId,
   type Track,
   type TrackId,
 } from "./model";
+import type { ArrangeClip } from "../arrange-timeline";
 import {
   destinationsFor,
   routeOf,
@@ -914,6 +916,41 @@ export function loadProject(next: Project): void {
   fieldRegistry.splice(0, fieldRegistry.length, ...projectFields(state));
   history.rebind(fieldRegistry);
   stopObserver = startObserver();
+}
+
+/* =========================================================================
+   IMPORTED AUDIO (Task 5.1) — tracks appended to the open project
+   ========================================================================= */
+
+/**
+ * Append imported tracks (templates.ts `createImportedTrack`) to the open
+ * project, with the arrangement grown for them. A structural change, not
+ * an edit: the registry is rebuilt over the longer track list and history
+ * is rebound (an import is not undoable — like a project switch, it leaves
+ * nothing to undo), which bumps the revision so autosave writes the
+ * manifest with its `tracks` block. The caller has already put the stems'
+ * copies in the asset store: nothing is appended that is not stored.
+ */
+export function appendTracks(tracks: readonly Track[], arrangement: Arrangement): void {
+  for (const t of tracks) {
+    if (state.tracks.some((x) => x.id === t.id || x.code === t.code)) throw new Error(`track already in the project: ${t.id}`);
+  }
+  stopObserver();
+  state.tracks.push(...tracks);
+  (state as LoadableProject).arrangement = arrangement;
+  fieldRegistry.splice(0, fieldRegistry.length, ...projectFields(state));
+  history.rebind(fieldRegistry);
+  stopObserver = startObserver();
+}
+
+/**
+ * The drawn clips of a track — for an imported one, built from its stored
+ * peaks once they are read (lib/project/assets.svelte.ts). Display data,
+ * like the fixture's clips: not a field, not in history or the manifest.
+ */
+export function setTrackClips(id: TrackId, clips: readonly ArrangeClip[]): void {
+  mustTrack(id);
+  (state.arrangement.clips as Partial<Record<TrackId, readonly ArrangeClip[]>>)[id] = clips;
 }
 
 export type { ChannelId };
