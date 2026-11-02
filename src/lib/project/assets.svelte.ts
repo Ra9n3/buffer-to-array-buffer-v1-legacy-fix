@@ -42,6 +42,8 @@ export interface AssetIds {
   readonly now: () => string;
   /** Awaited between slices of a peak calculation so the page can paint (the shell: a macrotask); tests omit it. */
   readonly yieldBetween?: () => Promise<void>;
+  /** Task 5.2: called with the ids of the tracks an import just appended (the shell queues their analysis). */
+  readonly afterImport?: (trackIds: readonly TrackId[]) => void;
 }
 
 let store: AssetStore | null = null;
@@ -143,6 +145,7 @@ export const assets = {
         setTrackClips(stem.track.id, [audioClip({ trackCode: stem.track.code, peaks: stem.peaks, tempoMarkers: arrangement.tempoMarkers })]);
         status[stem.track.id] = "ready";
       }
+      ids.afterImport?.(tracks.map((t) => t.id));
     }
     return result;
   },

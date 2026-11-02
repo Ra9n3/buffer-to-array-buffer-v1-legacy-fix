@@ -130,9 +130,12 @@ function formatName(tag: number): string {
  * ADPCM or µ-law file is reported as "unsupported encoding" by the rules
  * rather than as corrupt: the reader's job is description.
  */
-export function readWavHeader(input: ArrayBuffer | Uint8Array): { readonly ok: true; readonly raw: WavRawFormat; readonly dataOffset: number; readonly dataBytes: number } | { readonly ok: false; readonly problem: WavProblem } {
+export function readWavHeader(input: ArrayBuffer | Uint8Array, totalBytes?: number): { readonly ok: true; readonly raw: WavRawFormat; readonly dataOffset: number; readonly dataBytes: number } | { readonly ok: false; readonly problem: WavProblem } {
   const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  // Task 5.2: `input` may be the head of a larger file whose real length is `totalBytes` (the analysis
+  // engine reads a stored copy in slices); chunk sizes are then judged against the file, not the head
+  const fileBytes = totalBytes ?? bytes.length;
   if (bytes.length < 12 || ASCII(bytes, 0, 4) !== "RIFF" || ASCII(bytes, 8, 4) !== "WAVE") {
     const like = looksLike(bytes);
     return {
@@ -152,7 +155,7 @@ export function readWavHeader(input: ArrayBuffer | Uint8Array): { readonly ok: t
     const id = ASCII(bytes, at, 4);
     let size = view.getUint32(at + 4, true);
     const payload = at + 8;
-    const remaining = bytes.length - payload;
+    const remaining = fileBytes - payload;
     if (id === "data") {
       // 0xFFFFFFFF: a streaming writer that never patched the size — the data runs to the end of the file
       if (size === 0xffffffff) size = remaining;
@@ -194,8 +197,8 @@ export function readWavHeader(input: ArrayBuffer | Uint8Array): { readonly ok: t
  * file whose block alignment contradicts its sample size, or whose data is
  * not whole frames, is corrupt — not something the rules should judge.
  */
-export function inspectWav(input: ArrayBuffer | Uint8Array): WavInspection {
-  const head = readWavHeader(input);
+export function inspectWav(input: ArrayBuffer | Uint8Array, totalBytes?: number): WavInspection {
+  const head = readWavHeader(input, totalBytes);
   if (!head.ok) return head;
   const { raw } = head;
   if (raw.tag !== FORMAT_PCM && raw.tag !== FORMAT_FLOAT) {

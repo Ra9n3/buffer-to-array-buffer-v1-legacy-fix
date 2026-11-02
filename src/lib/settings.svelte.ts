@@ -46,9 +46,9 @@ export const SETTINGS_KEY = "alloy.settings";
 export type HardwareProfile = "auto" | "lite" | "standard" | "performance";
 export const HARDWARE_PROFILES: readonly HardwareProfile[] = ["auto", "lite", "standard", "performance"];
 
-/** Plan §11's words for each profile; "auto" is the benchmark's choice (Phase 5.2). */
+/** Plan §11's words for each profile; "auto" is the benchmark's choice (Task 5.2: measured on this device, lazily, before the first analysis). */
 export const HARDWARE_PROFILE_PRINT: Readonly<Record<HardwareProfile, { readonly name: string; readonly intent: string }>> = {
-  auto: { name: "Automatic", intent: "The profile the hardware benchmark selects (arrives with the audio engine)." },
+  auto: { name: "Automatic", intent: "The profile the hardware benchmark selects, measured on this computer before its first analysis." },
   lite: { name: "Lite", intent: "Lowest RAM use and conservative concurrency; a longer render time is acceptable." },
   standard: { name: "Standard", intent: "Balanced concurrency, buffering, memory use and render time." },
   performance: { name: "Performance", intent: "Higher concurrency and buffering for capable machines, to reduce render time." },

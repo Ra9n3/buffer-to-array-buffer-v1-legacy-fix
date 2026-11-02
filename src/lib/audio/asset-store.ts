@@ -9,11 +9,16 @@
  *            SHA-256 and the header facts the import read;
  *   peaks    the bounded waveform peaks of that copy (peaks.ts), keyed by the
  *            same asset id, carrying the same SHA-256 so a drawing can always
- *            be matched to the bytes it was made from.
+ *            be matched to the bytes it was made from;
+ *   analysis (Task 5.2, database version 2) the analysis engine's result for
+ *            that copy, keyed by the same asset id, carrying the SHA-256 and
+ *            the engine version so a stale result is re-measured, never shown.
  *
- * One `put` writes both in one transaction: a stem is in the project's
- * storage whole or not at all. The originals are never referenced again —
- * move or delete them and the project still has its copies.
+ * One `put` writes asset and peaks in one transaction: a stem is in the
+ * project's storage whole or not at all. The analysis record is written
+ * afterwards by the engine (`putAnalysis`), and `remove` deletes all three.
+ * The originals are never referenced again — move or delete them and the
+ * project still has its copies.
  *
  * The contract is an interface so the pipeline and the lifecycle are tested
  * in Node against `memoryAssetStore()`; `indexedDbAssetStore(indexedDB)` is
@@ -21,13 +26,16 @@
  * this file reaches `window`: the factory is injected.
  */
 
+import type { AnalysisResult } from "../analysis/analyser";
 import type { PeakData } from "./peaks";
 import type { WavEncoding } from "./wav";
 
 export const ASSET_DB_NAME = "alloy";
-export const ASSET_DB_VERSION = 1;
+/** 1 = Task 5.1 (assets, peaks); 2 = Task 5.2 adds `analysis` — the upgrade only creates the new store. */
+export const ASSET_DB_VERSION = 2;
 export const ASSETS_STORE = "assets";
 export const PEAKS_STORE = "peaks";
+export const ANALYSIS_STORE = "analysis";
 
 /** The header facts kept with the copy and in the project manifest (model.ts `TrackAudio` carries the same). */
 export interface AssetFormat {
@@ -60,6 +68,19 @@ export interface PeaksRecord {
   readonly peaks: PeakData;
 }
 
+/** Task 5.2 — the analysis engine's result for a copy (data-model.md §13). */
+export interface AnalysisRecord {
+  readonly assetId: string;
+  readonly projectId: string;
+  /** The SHA-256 of the bytes the result was measured from; a mismatch means re-analyse. */
+  readonly sha256: string;
+  readonly engineVersion: number;
+  readonly analysedAt: string;
+  /** Wall-clock milliseconds the run took — the measured basis of later estimates, never a promise. */
+  readonly elapsedMs: number;
+  readonly result: AnalysisResult;
+}
+
 export interface AssetSummary {
   readonly assetId: string;
   readonly projectId: string;
@@ -76,22 +97,34 @@ export interface AssetStore {
   getPeaks(assetId: string): Promise<PeaksRecord | null>;
   /** What a project owns, by id (metadata only). */
   list(projectId: string): Promise<AssetSummary[]>;
-  /** Removes both records (used by tests and by a later "forget project"; the app does not delete in 5.1). */
+  /** Removes every record of the asset (used by tests and by a later "forget project"; the app does not delete in 5.1). */
   remove(assetId: string): Promise<void>;
+  /** Task 5.2: the analysis result for a copy; overwrites. */
+  putAnalysis(record: AnalysisRecord): Promise<void>;
+  getAnalysis(assetId: string): Promise<AnalysisRecord | null>;
 }
 
 /* =========================================================================
    MEMORY (tests)
    ========================================================================= */
 
-export function memoryAssetStore(options: { readonly failPuts?: () => boolean } = {}): AssetStore & { readonly assets: Map<string, AssetRecord>; readonly peaks: Map<string, PeaksRecord>; puts: number } {
+export function memoryAssetStore(options: { readonly failPuts?: () => boolean; readonly failAnalysisPuts?: () => boolean } = {}): AssetStore & {
+  readonly assets: Map<string, AssetRecord>;
+  readonly peaks: Map<string, PeaksRecord>;
+  readonly analysis: Map<string, AnalysisRecord>;
+  puts: number;
+  analysisPuts: number;
+} {
   const assets = new Map<string, AssetRecord>();
   const peaks = new Map<string, PeaksRecord>();
+  const analysis = new Map<string, AnalysisRecord>();
   return {
     name: "memory",
     assets,
     peaks,
+    analysis,
     puts: 0,
+    analysisPuts: 0,
     async put(asset, p) {
       if (options.failPuts?.()) throw new Error("storage refused the write (simulated)");
       if (asset.assetId !== p.assetId) throw new Error("asset and peaks disagree on the id");
@@ -111,6 +144,15 @@ export function memoryAssetStore(options: { readonly failPuts?: () => boolean } 
     async remove(id) {
       assets.delete(id);
       peaks.delete(id);
+      analysis.delete(id);
+    },
+    async putAnalysis(record) {
+      if (options.failAnalysisPuts?.()) throw new Error("storage refused the write (simulated)");
+      analysis.set(record.assetId, record);
+      this.analysisPuts++;
+    },
+    async getAnalysis(id) {
+      return analysis.get(id) ?? null;
     },
   };
 }
@@ -153,6 +195,11 @@ export function indexedDbAssetStore(factory: IDBFactory, options: { readonly nam
         if (!d.objectStoreNames.contains(PEAKS_STORE)) {
           const peaks = d.createObjectStore(PEAKS_STORE, { keyPath: "assetId" });
           peaks.createIndex("projectId", "projectId", { unique: false });
+        }
+        if (!d.objectStoreNames.contains(ANALYSIS_STORE)) {
+          // Task 5.2 (version 2): the existing stores and their records are untouched by the upgrade
+          const analysis = d.createObjectStore(ANALYSIS_STORE, { keyPath: "assetId" });
+          analysis.createIndex("projectId", "projectId", { unique: false });
         }
       };
       req.onsuccess = () => {
@@ -198,10 +245,23 @@ export function indexedDbAssetStore(factory: IDBFactory, options: { readonly nam
     },
     async remove(id) {
       const d = await open();
-      const tx = d.transaction([ASSETS_STORE, PEAKS_STORE], "readwrite");
+      const tx = d.transaction([ASSETS_STORE, PEAKS_STORE, ANALYSIS_STORE], "readwrite");
       tx.objectStore(ASSETS_STORE).delete(id);
       tx.objectStore(PEAKS_STORE).delete(id);
+      tx.objectStore(ANALYSIS_STORE).delete(id);
       await done(tx);
+    },
+    async putAnalysis(record) {
+      const d = await open();
+      const tx = d.transaction(ANALYSIS_STORE, "readwrite");
+      tx.objectStore(ANALYSIS_STORE).put(record);
+      await done(tx);
+    },
+    async getAnalysis(id) {
+      const d = await open();
+      const tx = d.transaction(ANALYSIS_STORE, "readonly");
+      const value = await request(tx.objectStore(ANALYSIS_STORE).get(id) as IDBRequest<AnalysisRecord | undefined>);
+      return value ?? null;
     },
   };
 }

@@ -201,11 +201,19 @@ test("installProjectShell: ?debug exposes window.alloy; a disabled Web Storage l
   const fw = fakeWindow({ search: "?debug", localStorage: "throw" });
   const uninstall = installProjectShell(fw.win);
   assert.ok(fw.win.alloy);
-  // Task 4.1 added lifecycle, settings and the start-up outcome to the handle; Task 5.1 the audio assets module
-  assert.deepEqual(Object.keys(fw.win.alloy).sort(), ["assets", "autosave", "clipboard", "fields", "flush", "history", "lifecycle", "ops", "project", "restored", "settings"]);
+  // Task 4.1 added lifecycle, settings and the start-up outcome to the handle; Task 5.1 the audio assets module; Task 5.2 analysis + hardware
+  assert.deepEqual(Object.keys(fw.win.alloy).sort(), ["analysis", "assets", "autosave", "clipboard", "fields", "flush", "hardware", "history", "lifecycle", "ops", "project", "restored", "settings"]);
   // the fake window has no IndexedDB: nothing attached, import refused, nothing thrown
   assert.equal(fw.win.alloy.assets.attached, false);
   assert.equal(fw.win.alloy.assets.storeName, null);
+  // Task 5.2: no asset store → no analysis queue; the hardware profile is attached (no storage: no cached benchmark) and unmeasured
+  assert.equal(fw.win.alloy.analysis.attached, false);
+  assert.equal(fw.win.alloy.hardware.attached, true);
+  assert.equal(fw.win.alloy.hardware.benchmark, null);
+  assert.deepEqual(fw.win.alloy.hardware.profile.id, "standard");
+  assert.equal(fw.win.alloy.hardware.profile.source, "unmeasured");
+  assert.equal(fw.win.alloy.hardware.estimateSeconds(120), null, "no measurement, no estimate");
+  assert.equal(fw.win.alloy.analysis.estimate.seconds, null);
   assert.equal(fw.win.alloy.fields.length, 1076);
   assert.equal(autosave.status.storage, null);
   const t = project.track("track-11");

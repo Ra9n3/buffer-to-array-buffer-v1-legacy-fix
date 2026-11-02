@@ -171,7 +171,7 @@ for (const [key, text] of Object.entries(AUDIO_MODULES)) {
   check(`${key}: no network, no backend`, !/fetch\(|XMLHttpRequest|WebSocket/.test(body));
 }
 check("IndexedDB is reached in asset-store.ts and the shell only", walk("src").filter((rel) => /\.(ts|svelte)$/.test(rel) && rel !== FILES.assetStore && rel !== FILES.shell).every((rel) => !/indexedDB|IDBFactory|IDBDatabase/.test(stripComments(read(rel)))));
-check("shell: the asset store is the browser's IndexedDB, injected (ShellOptions.assetStore) and handed to `assets.attach`", /const idb = win\.indexedDB;\s*return idb \? indexedDbAssetStore\(idb\) : null;/.test(S.shell) && /assets\.attach\(assetStore, \{/.test(S.shell) && /yieldBetween: \(\) => new Promise\(\(resolve\) => win\.setTimeout\(resolve, 0\)\),/.test(S.shell));
+check("shell: the asset store is the browser's IndexedDB, injected (ShellOptions.assetStore) and handed to `assets.attach`", /const idb = win\.indexedDB;\s*return idb \? indexedDbAssetStore\(idb\) : null;/.test(S.shell) && /assets\.attach\(assetStore, \{/.test(S.shell) && /const yieldBetween = \(\): Promise<void> => new Promise\(\(resolve\) => win\.setTimeout\(resolve, 0\)\);/.test(S.shell) && /newId: \(\) => newAssetId\(win\),\s*now,\s*yieldBetween,/.test(S.shell));
 check("shell: unwire detaches the assets after the lifecycle", /lifecycle\.detach\(\);[\s\S]*?assets\.detach\(\);/.test(S.shell));
 check("shell: asset ids come from the platform's crypto, like project ids", /export function newAssetId\(win: \{ readonly crypto\?: Crypto \}\): string/.test(S.shell));
 check("shell: `window.alloy.assets` under ?debug", /assets,/.test(S.shell) || /assets:/.test(S.shell));
@@ -200,32 +200,33 @@ check("lane: every clip says where it came from (`data-clip-source`)", /data-cli
 check("lane: an imported clip's tooltip prints its real length", /printSeconds/.test(lane));
 check("header: the fixture's sections are a prop (an imported project has none)", /sections/.test(scriptOf(S.head)) && /sections=\{arrangement\.sections\}/.test(roomTpl));
 
-// --- 7. Nothing of Phase 5.2+. --------------------------------------------------------------------
-const phase5Negative = /AudioContext|OfflineAudioContext|AudioWorklet|createGain|BiquadFilter|DynamicsCompressor|ConvolverNode|DelayNode|decodeAudioData|LUFS/;
+// --- 7. Nothing of Phase 5.3+ (Task 5.2 added the analysis engine under src/lib/analysis — measurement only, no Web Audio, no processing). ----
+const phase5Negative = /AudioContext|OfflineAudioContext|AudioWorklet|createGain|BiquadFilterNode|DynamicsCompressor|ConvolverNode|DelayNode|decodeAudioData/;
 for (const rel of walk("src").filter((r) => /\.(ts|svelte)$/.test(r))) {
   const body = stripComments(read(rel));
-  if (phase5Negative.test(body)) check(`no analysis / Web Audio / DSP in ${rel}`, false, (body.match(phase5Negative) ?? [])[0]);
+  if (phase5Negative.test(body)) check(`no Web Audio / processing DSP in ${rel}`, false, (body.match(phase5Negative) ?? [])[0]);
 }
-check("no analysis / Web Audio / DSP anywhere under src/", !walk("src").filter((r) => /\.(ts|svelte)$/.test(r)).some((rel) => phase5Negative.test(stripComments(read(rel)))));
+check("no Web Audio / processing DSP anywhere under src/", !walk("src").filter((r) => /\.(ts|svelte)$/.test(r)).some((rel) => phase5Negative.test(stripComments(read(rel)))));
+check("loudness vocabulary (LUFS) lives in the analysis engine only, not in the import pipeline or any room", !walk("src").filter((r) => /\.(ts|svelte)$/.test(r) && !/^src\/lib\/analysis\//.test(r)).some((rel) => /LUFS/.test(stripComments(read(rel)))));
 check("no new runtime dependency", !/"dependencies"/.test(S.pkg) || /"dependencies":\s*\{\s*\}/.test(S.pkg));
 
 // --- 8. Tests, scripts, docs. ----------------------------------------------------------------------
 check("tests: the WAV fixtures are generated, not shipped binaries", /export function sine\(/.test(S.fixtures) && /export function silence\(/.test(S.fixtures) && /export function truncated\(/.test(S.fixtures) && /export const MP3ISH/.test(S.fixtures) && !walk("tests").some((r) => /\.(wav|mp3|flac|aif)$/i.test(r)));
 check("tests: wav / peaks / import suites cover formats, corrupt, mono, silent, mismatch, short, bounded peaks, storage, partial batch", /16-bit/.test(S.wavTest) && /truncated/.test(S.importTest) && /mono/.test(S.importTest) && /silent/.test(S.importTest) && /padded/.test(S.importTest) && /one buffer/.test(S.importTest) && /bucketCount/.test(S.peaksTest) && /failPuts/.test(S.importTest));
 check("tests: the shell test covers the asset store wiring and the debug handle", /assets/.test(S.shellTest));
-check("package.json: the suites run under `npm test`; `check:import` is this guard", /tests\/wav\.test\.mjs tests\/peaks\.test\.mjs tests\/import\.test\.mjs"/.test(S.pkg) && /"check:import": "node scripts\/check-audio-import-structure\.mjs"/.test(S.pkg));
+check("package.json: the suites run under `npm test`; `check:import` is this guard", /tests\/wav\.test\.mjs tests\/peaks\.test\.mjs tests\/import\.test\.mjs /.test(S.pkg) && /"check:import": "node scripts\/check-audio-import-structure\.mjs"/.test(S.pkg));
 check("docs: data-model.md carries §12 (import, assets, peaks)", /^## 12\. /m.test(S.dataModel) && /TrackAudio/.test(S.dataModel) && /peaks/.test(S.dataModel));
 check("docs: decisions-log.md carries Task 5.1", /^## Task 5\.1/m.test(S.decisions) && /D5\.1\.1/.test(S.decisions));
 
 // --- 9. Pins: the 5.1 modules as reviewed. ----------------------------------------------------------
 const pinned = {
-  "src/lib/audio/wav.ts": "c4b8183118e61f4679ba0f7ca1303aef437fa574c78b89bbfe170868a5a72a4b",
+  "src/lib/audio/wav.ts": "f5608528957db9eba1de9219c7f60b8852807379f62451a1cfa4c522e102f75f",
   "src/lib/audio/import-rules.ts": "194b85961406be10597b59405332999edde2dfd5602cf1c3bb73017526504679",
   "src/lib/audio/peaks.ts": "5901653f01067a408ce22a912d568cae6ca8fe24de459f5d094fdbc6d1b3f1d6",
-  "src/lib/audio/asset-store.ts": "b046e78ed6e622b67af8435b4abbc8be2cc726a5c0ac3124a73eb17d15c350a7",
+  "src/lib/audio/asset-store.ts": "c86008b8656f5b55ed4b9735ddb57a4cae95608eba6a58ee3172fc89e4318a5b",
   "src/lib/arrange-audio.ts": "47b9ba7c3455781a0181d2e64c858dfbd9bc34501332cd42bd3d69d19dc14ab0",
   "src/lib/project/import.ts": "338fbae109f473df660a8d481a21162471f16cb8e01183bb3fdb77403e3a107f",
-  "src/lib/project/assets.svelte.ts": "f84e2f0545ad890892a3e3b46ef53a9fe00f67be826b37a11416864ebb6dfb14",
+  "src/lib/project/assets.svelte.ts": "a86ef41994159e1f6ed0fdbb7ebd0bb0fb50fa20302350d2d5d0b868ac553695",
   "src/components/ArrangeImportBand.svelte": "bc45fef96941cda65d24ce26e89e0ef8374a8b8df7a8a4383be8156036e08ff9",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

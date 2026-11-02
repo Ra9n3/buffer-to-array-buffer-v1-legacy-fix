@@ -43,7 +43,9 @@
 
 import { indexedDbAssetStore, type AssetStore } from "../audio/asset-store";
 import { attachSettings, detachSettings, settings, type AppSettings } from "../settings.svelte";
+import { analysis } from "./analysis.svelte";
 import { assets } from "./assets.svelte";
+import { hardware } from "./hardware.svelte";
 import { lifecycle, type RestoreResult } from "./lifecycle";
 import { webStorageAdapter } from "./persistence";
 import { autosave, clipboard, fieldRegistry, history, ops, project } from "./store.svelte";
@@ -102,6 +104,8 @@ export interface ShellOptions {
   readonly storage?: Pick<Storage, "getItem" | "setItem"> | null;
   /** Override the audio asset store (tests); default opens IndexedDB `alloy` when `win.indexedDB` exists. */
   readonly assetStore?: AssetStore | null;
+  /** Task 5.2: override the device facts the benchmark records (tests); default reads `navigator`. */
+  readonly device?: { readonly cores: number | null; readonly memoryGb: number | null };
 }
 
 export interface DebugHandle {
@@ -120,6 +124,10 @@ export interface DebugHandle {
   readonly restored: RestoreResult | null;
   /** The audio assets module (Task 5.1): statuses, hydration, the attached store's name. */
   readonly assets: typeof assets;
+  /** The analysis queue (Task 5.2): statuses, results, the estimate. */
+  readonly analysis: typeof analysis;
+  /** The hardware profile in use and the benchmark behind it (Task 5.2). */
+  readonly hardware: typeof hardware;
 }
 
 export function debugHandle(restored: RestoreResult | null = null): DebugHandle {
@@ -139,7 +147,17 @@ export function debugHandle(restored: RestoreResult | null = null): DebugHandle 
     settings,
     restored,
     assets,
+    analysis,
+    hardware,
   };
+}
+
+/** `navigator.hardwareConcurrency` / `deviceMemory` where the browser reports them (plan §11: "where available"). */
+function deviceFactsOf(win: Window): { cores: number | null; memoryGb: number | null } {
+  const nav = (win as Window & { navigator?: Navigator & { deviceMemory?: number } }).navigator;
+  const cores = typeof nav?.hardwareConcurrency === "number" && nav.hardwareConcurrency > 0 ? nav.hardwareConcurrency : null;
+  const memoryGb = typeof nav?.deviceMemory === "number" && nav.deviceMemory > 0 ? nav.deviceMemory : null;
+  return { cores, memoryGb };
 }
 
 function assetStoreOf(win: Window, options: ShellOptions): AssetStore | null {
@@ -206,13 +224,29 @@ export function installProjectShell(win: Window, options: ShellOptions = {}): ()
   // 7. audio assets (Task 5.1) — before the restore, so a restored project's stems are read back
   const now = (): string => new Date().toISOString();
   const assetStore = assetStoreOf(win, options);
+  // between slices of a stem's peak calculation or analysis: a macrotask, so the page paints
+  const yieldBetween = (): Promise<void> => new Promise((resolve) => win.setTimeout(resolve, 0));
+  // Task 5.2: the hardware profile (benchmark cached in localStorage, lazy) and the analysis queue
+  const device = options.device ?? deviceFactsOf(win);
+  hardware.attach({
+    storage: adapter,
+    now,
+    nowMs: () => Date.now(),
+    clock: () => win.performance.now(),
+    cores: device.cores,
+    memoryGb: device.memoryGb,
+    yieldBetween,
+  });
   if (assetStore) {
     assets.attach(assetStore, {
       newId: () => newAssetId(win),
       now,
-      // between slices of a stem's peak calculation: a macrotask, so the band's progress line paints
-      yieldBetween: () => new Promise((resolve) => win.setTimeout(resolve, 0)),
+      yieldBetween,
+      afterImport: (ids) => {
+        analysis.enqueue(ids);
+      },
     });
+    analysis.attach(assetStore, { now, clock: () => win.performance.now(), yieldBetween });
   }
 
   // 6. lifecycle — storage, wall clock, ids; then the last project
@@ -239,7 +273,9 @@ export function installProjectShell(win: Window, options: ShellOptions = {}): ()
     win.removeEventListener("keydown", onKeydown);
     unsubscribeSettings();
     lifecycle.detach();
+    analysis.detach();
     assets.detach();
+    hardware.detach();
     detachSettings();
     root?.removeAttribute("data-motion");
     autosave.detach();

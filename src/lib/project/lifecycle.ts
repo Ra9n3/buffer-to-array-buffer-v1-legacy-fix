@@ -51,6 +51,7 @@ import type { Project, ProjectTemplateId } from "./model";
 import { buildManifest, parseManifest, serializeManifest, type ProjectManifest, type StorageAdapter } from "./persistence";
 import { validateGraph } from "./routing";
 import { SESSION_PROJECT_ID } from "./session";
+import { analysis } from "./analysis.svelte";
 import { assets } from "./assets.svelte";
 import { autosave, fieldRegistry, loadProject, project } from "./store.svelte";
 import { EMPTY_PROJECT_NAME, createEmptyProject, createTemplateProject, isProjectTemplateId, withImportedTracks } from "./templates";
@@ -319,6 +320,8 @@ function install(next: Project, storedText: string | null): void {
   touch(next);
   // Task 5.1: the imported tracks' waveforms, from the asset store — asynchronous; the project is open already
   void assets.hydrate();
+  // Task 5.2: their stored analysis results, and the queue for what is missing or stale — likewise asynchronous
+  void analysis.hydrate();
 }
 
 function openStored(entry: RecentEntry): OpenResult {

@@ -200,3 +200,26 @@ test("describeFormat, printSeconds and the provisional thresholds", () => {
   assert.equal(isVeryShort(1), false);
   assert.equal(inspectWav(silence(0.1)).ok, true);
 });
+
+// --- Task 5.2: reading a header from the head of a stored copy -------------------------------------
+
+test("Task 5.2: readWavHeader / inspectWav over the head of a file with the file's real length judge the data chunk against the file, not the head; a head too short to reach `data` says so; without the length a head is truncated as before", () => {
+  const whole = sine(2, { channels: 2 });
+  const head = whole.subarray(0, 1024);
+  const fromHead = inspectWav(head, whole.length);
+  assert.equal(fromHead.ok, true);
+  assert.equal(fromHead.format.frames, 96000);
+  assert.equal(fromHead.format.dataOffset, 44);
+  const asBefore = inspectWav(head);
+  assert.equal(asBefore.ok, false);
+  assert.match(asBefore.problem.detail, /truncated/);
+  const padded = sine(1, { channels: 1, extraChunks: [{ id: "JUNK", bytes: new Uint8Array(4000) }] });
+  const short = readWavHeader(padded.subarray(0, 2000), padded.length);
+  assert.equal(short.ok, false);
+  assert.match(short.problem.detail, /No data chunk/);
+  const enough = readWavHeader(padded.subarray(0, 4100), padded.length);
+  assert.equal(enough.ok, true);
+  assert.equal(enough.dataBytes, 48000 * 3);
+  // a head that claims more than the file has is still truncated
+  assert.equal(inspectWav(head, 2000).ok, false);
+});

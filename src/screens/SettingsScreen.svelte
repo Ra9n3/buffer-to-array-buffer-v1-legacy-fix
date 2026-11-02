@@ -25,8 +25,9 @@
    * Four compact panels of the approved controls over lib/settings.svelte.ts,
    * each saying plainly what its preference does in this build:
    *
-   *   Hardware profile   plan §11 — stored now, read by nothing yet (the
-   *                      engine and its benchmark are Phase 5).
+   *   Hardware profile   plan §11 — read by the analysis engine (Task 5.2):
+   *                      Automatic follows the benchmark measured on this
+   *                      computer; a chosen profile overrides it.
    *   Export             plan §12 — WAV only; the output types' default
    *                      selection, stored now, used by the export that
    *                      arrives with rendering.
@@ -59,7 +60,7 @@
 
 <ScreenShell screenId="settings" title="Settings" purpose="Application preferences. Each panel says whether its setting works in this build or is stored for the audio engine.">
   <div class="settings__grid">
-    <ScreenPanel title="Hardware profile" id="settings-profile-title" note="Stored, not yet operational: the benchmark that picks a profile and the engine that uses it arrive with Phase 5." hook="profile">
+    <ScreenPanel title="Hardware profile" id="settings-profile-title" note="Used by the analysis engine: Automatic follows the benchmark measured on this computer before its first analysis; choosing a profile overrides that measurement." hook="profile">
       <div class="field" data-settings-field="hardware-profile">
         <ScribbleSelect
           label="Hardware profile"

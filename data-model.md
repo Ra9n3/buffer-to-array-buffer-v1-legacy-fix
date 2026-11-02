@@ -754,7 +754,7 @@ last for the visit and Settings says so.
 
 | preference                 | stored | read by                                                                                                  | status                                                                                                        |
 | -------------------------- | ------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `hardwareProfile`          | yes    | nothing yet                                                                                              | **not yet operational** — the engine and its benchmark (plan §11, Phase 5.2) will read it; `auto` = "the profile the benchmark selects"; the Settings panel prints the plan's intents only, no invented numbers |
+| `hardwareProfile`          | yes    | `hardware.svelte.ts` → the analysis queue (Task 5.2, §13.5)                                               | **operational since Task 5.2** — `auto` = the profile the benchmark selects (Standard until a benchmark has run); `lite` / `standard` / `performance` override the measurement (`hardware.profile.source: "override"`) and size the engine's slices; the Settings panel prints the plan's intents only, no invented numbers |
 | `export.fullMix/stems/buses` | yes  | nothing yet                                                                                              | **not yet operational** — the default selection of the plan §12 output types for the export that arrives with rendering; format is **WAV only** (a fact printed, not a preference); the destination folder is chosen at export time (plan §12), not stored |
 | `motion`                   | yes    | the shell → `<html data-motion="system|reduced">` → `preferences.css`                                     | **operational now** — `reduced` sets every animation / transition to 0.01 ms, one iteration, no delay (`!important`), on top of the components' own `prefers-reduced-motion` handling; `system` leaves the media query to decide |
 | `onboarding`               | yes    | Home (shows the guide while `pending`), Settings ("Show again" → `pending`)                               | **operational now**                                                                                           |
@@ -850,7 +850,9 @@ One `AssetStore` interface (`name`, `put`, `getAsset`, `getPeaks`, `list`,
 and `indexedDbAssetStore(indexedDB)` for the browser — database **`alloy`**,
 version 1, object stores **`assets`** and **`peaks`**, both keyed by
 `assetId` (owner, 2026-11-02). `put(asset, peaks)` writes both records in
-one transaction.
+one transaction. *(Task 5.2 raised the database to version 2 by adding the
+`analysis` store, §13.4; `assets` and `peaks` and their records are
+untouched, and a version-1 database upgrades in place with its stems.)*
 
 ```ts
 interface AssetRecord { assetId; projectId; fileName; mimeType; size; sha256; format: AssetFormat; importedAt; bytes: Blob }
@@ -960,8 +962,303 @@ called empty. The `template` field itself is unchanged (§11.1).
 
 ### 12.8 Not in this build (by design)
 
-Playback, analysis, the hardware benchmark, EQ / compression / reverb /
+Playback, analysis, the hardware benchmark *(both arrived with Task 5.2,
+§13)*, EQ / compression / reverb /
 delay, rendering; drag-and-drop import; removing an imported track or its
 copy; renaming; import of projects; an undo of an import; any text other
 than the band's line and the row's stamp for a validation result. Listed
 as approval items in `task-reports/5.1-report.md`.
+
+## 13. The analysis engine, its results and the hardware profile (Task 5.2)
+
+Phase 5's second step on the approved Task 5.1 state: the measurements the
+plan's §7 lists for the analysis engine (L295–335 — level and loudness,
+energy by band, transient activity, stereo image, integrity, "time-based
+measurements, not only whole-song averages"), computed over the stems Task
+5.1 stored, kept with them, and the benchmark-based hardware profile and
+time-estimate logic of plan §11 (L463–481 — "measured, not promised").
+Owner decisions (`ask_user`, 2026-11-02, D5.2.1–D5.2.3): analysis runs
+**automatically in the background** — after an import and as a catch-up
+when a project opens, queued one stem at a time, yielding between slices;
+the benchmark is **lazy** — measured once before the first analysis of a
+session and cached in `localStorage` under **`alloy.benchmark`** for 30
+days, re-measured when the engine version changes; the Settings panel's
+note was corrected (it no longer says "not yet operational"). No room
+reads a result yet; the debug handle (`?debug`) exposes everything and the
+Console's status band / the rules of Phase 6 are the readers to come.
+
+Modules — the engine is pure TypeScript with no browser API in it
+(`src/lib/analysis/`): `fft.ts` (a radix-2 complex FFT, two real frames
+per transform), `filters.ts` (BS.1770 K-weighting biquads, the true-peak
+interpolator), `loudness.ts` (gates, windows, loudness range), `spectral.ts`
+(frames, bands, centroid), `transient.ts`, `stereo.ts`, `integrity.ts`,
+`decode.ts` (reading a stored copy by frame range), `analyser.ts` (the
+one-pass `Analyser` and the result record), `analyse.ts` (the sliced,
+yielding, abortable driver), `profiles.ts`, `benchmark.ts`. The project
+side: `src/lib/project/hardware.svelte.ts` (the benchmark cache and the
+profile in use), `src/lib/project/analysis.svelte.ts` (the queue), the
+`analysis` store in `src/lib/audio/asset-store.ts`, and three hand-overs
+(`assets.svelte.ts` → `afterImport`, `lifecycle.ts` → `analysis.hydrate()`,
+`shell.ts` → the wiring).
+
+### 13.1 One streaming pass, one common grid
+
+`Analyser` takes a stem's decoded channels in pushes of any length and at
+`finish()` returns `AnalysisResult`: every figure as a whole-stem scalar
+*and* as a series on one grid of **100 ms cells** (`CELL_SECONDS 0.1`,
+4 800 frames at 48 kHz; `cellCount = ceil(frames / 4800)`, the last cell
+may be partial). Every filter, window and block carries its state across
+pushes, so the slicing never changes a figure — `analyse-engine.test.mjs`
+holds a busy stereo stem and a mono one to byte-identical results under
+one pass, 100 ms slices and 0.7 s slices; that is what lets the hardware
+profile choose the slice length (§13.5) without touching the measurement.
+
+The driver `analyseSource(source, { sliceFrames, yieldBetween, signal,
+onProgress })` reads the stored copy through a `ByteSource` (`decode.ts`:
+the Blob's `.slice`, the header out of the first 64 kB with Task 5.1's
+`inspectWav(head, size)`, then samples by frame range — the file is never
+whole in memory), decodes 24-bit PCM / 32-bit float exactly as Task 5.1
+does (no resampling, no conversion, D5.1.3), yields between slices
+(`yieldBetween`, a macrotask in the browser so the page paints), reports
+`onProgress(fraction)` per slice and stops at `signal.aborted` with
+`AnalysisAborted`. `DEFAULT_SLICE_SECONDS 5`. A copy that is not a WAV, is
+truncated or has a bad header is an error with Task 5.1's reason, never a
+partial result. A mono stem's channel is measured as itself for the
+per-channel figures and counted on both sides for loudness (it plays
+duplicated on L/R, D5.1.3); its stereo image is "not applicable".
+
+**Conventions:** scalars are `number | null`, null meaning *not
+measurable* (no complete window, no energy, nothing on one side); series
+are `Float32Array`s of `cellCount` entries holding **−∞** where a cell has
+no energy and **NaN** where a figure is undefined (a correlation with one
+side silent, a crest with no RMS). Levels are dBFS re full scale
+(`dbfs(1) = 0`), loudness in LUFS / LU, times in seconds.
+
+### 13.2 The record — `alloy.analysis/1`
+
+```ts
+AnalysisResult = {
+  schema: "alloy.analysis/1", engineVersion: 1, cellSeconds: 0.1, cellCount,
+  format: { encoding, bitDepth, sampleRate, channels, frames, seconds },      // echoed from the copy's header
+  level: {
+    samplePeakDbfs, channelPeakDbfs[], truePeakDbtp, rmsDbfs, channelRmsDbfs[], crestFactorDb,
+    integratedLufs, momentaryMaxLufs, shortTermMaxLufs, loudnessRangeLu,
+    rmsDbfsCells, peakDbfsCells, momentaryLufs, shortTermLufs               // Float32Array per cell
+  },
+  spectral: {
+    bands: BandDef[6], bandDb: Float32Array[6] (per band, per cell), bandMeanDb[6],
+    centroidHz (per cell), centroidHzOverall, balance: { low, mid, high } | null
+  },
+  transient: { fluxDb, crestDb (per cell), onsetSeconds: Float32Array, onsetCount, onsetsPerSecond, meanFluxDb },
+  stereo: {
+    applicable, correlation, balanceDb, widthDb, monoLossDb, minCorrelation, fractionNegative,
+    correlationCells, balanceDbCells, widthDbCells                           // per cell; empty for mono
+  },
+  integrity: {
+    channels: [{ dcOffset, dcOffsetDbfs, fullScaleSamples, clippingRuns, longestClippingRun, nonFinite }],
+    clipped, truePeakOverCells, nonFinite, silent, nearSilent, silentCells, silentFraction,
+    leadingSilenceSeconds, trailingSilenceSeconds, activeSeconds, analysisTarget
+  }
+}
+```
+
+`ENGINE_VERSION` is bumped when a measurement's *definition* changes;
+stored results of an older engine are measured again (§13.4). The
+`analysis.svelte.ts` test holds a record through a store round-trip and the
+browser evidence holds the typed arrays through IndexedDB's structured
+clone (`Float32Array` in, `Float32Array` out).
+
+### 13.3 The measurements, category by category (plan §7)
+
+**Level and loudness** (`filters.ts`, `loudness.ts`). Sample peak per
+channel and overall; **true peak** by 4× oversampling (`TRUE_PEAK_OVERSAMPLING
+4`, a Blackman-windowed sinc split into four phases of 12 taps,
+`TRUE_PEAK_TAPS 12`, each normalised to unit DC gain) — the four phases sit
+between the samples (±1/8, ±3/8), so the detector also takes the sample
+itself: a true-peak reading is never below the sample peak (the Task 5.1
+click, a lone full-scale sample, read −0.24 dBTP in the first browser run
+and reads 0.00 now; the 12 kHz tone sampled at 45° still reads its ≈ 3 dB
+of inter-sample peak within 0.25 dB). RMS overall and per channel; crest
+factor = peak / RMS in dB. Loudness per **ITU-R BS.1770-4**: the published
+K-weighting (pre-filter + RLB biquads at 48 kHz; +0.69 dB at 1 kHz, which
+is the −0.691 offset's reason), momentary = 400 ms = `MOMENTARY_CELLS 4`,
+short-term = 3 s = `SHORT_TERM_CELLS 30` (sliding over the cell powers;
+cells before the first complete window are −∞), integrated with the −70
+LUFS absolute and −10 LU relative gates, loudness range per EBU Tech 3342
+(short-term blocks, −70 absolute / −20 LU relative gate, 10th–95th
+percentile spread). Calibration held by test: a 0 dBFS 997 Hz sine in one
+channel reads −3.01 LUFS, in both channels at −20 dBFS reads −20.0 LUFS; a
+mono stem reads +3 dB over the same signal in one channel of a stereo
+file (it plays on both sides).
+
+**Energy by band over time** (`fft.ts`, `spectral.ts`). 4 096-point Hann
+frames (`FFT_SIZE 4096`), hop 2 400 (`FRAME_HOP 2400`, two frames per cell),
+two real frames per complex transform, Parseval normalisation (band dB =
+dB of the band's RMS re full scale: a −20 dBFS tone reads −23 dB in its
+band). The spectrum is the **mid signal's** ((L+R)/2; a mono stem's own
+channel), so anti-phase content has none — said as such in the tests.
+Bands: Sub 20–60 · Low 60–250 · Low-mid 250–500 · Mid 500–2 000 · High-mid
+2 000–6 000 · High 6 000–20 000 Hz; `bandDb` per band per cell, `bandMeanDb`
+as the mean over the cells whose frames carry energy (so the silence
+between a sparse stem's hits does not dilute its balance; judged on the
+frames themselves, since a frame is attributed to the cell under its
+centre — the Task 5.1 click's one sample lands in a frame centred in the
+cell before it), the spectral centroid per cell and overall, and the
+three-way `balance` as energy fractions (low = Sub + Low, mid = Low-mid +
+Mid, high = High-mid + High), null for a stem with no energy. The Hann main
+lobe spans ±23 Hz, so a 40 Hz tone leaks a little (≈ −56 dB) into Low —
+measured, not hidden.
+
+**Transient activity and short-time energy change** (`transient.ts`). On
+the mid signal, 10 ms blocks (`BLOCK_SECONDS 0.01`, 480 frames): block
+energy in dB (floor `ENERGY_FLOOR_DB −120`) and the positive change from
+the previous block — the log-energy flux. A block is an **onset** when the
+flux reaches `ONSET_FLUX_DB 6`, the block is above `ONSET_FLOOR_DBFS −60`
+and `ONSET_SPACING_BLOCKS 5` (50 ms) have passed since the last. Per cell
+the largest flux (`fluxDb`) and the cell's crest (`crestDb`, peak over RMS);
+`onsetSeconds` as times, `onsetCount`, `onsetsPerSecond` over the active
+seconds, `meanFluxDb`. A steady tone that starts at t = 0 has one onset
+(its start) — the engine says what it measured. Thresholds are
+provisional, for Phase 6 to tune against real stems (D5.2.8).
+
+**Stereo image** (`stereo.ts`). Per cell the engine keeps Σ L·R, Σ L² and
+Σ R²; from them the Pearson **correlation** (the meter of D2.1.4), the
+left/right energy **balance** in dB, the **width** as side-to-mid energy in
+dB and the **mono loss** (the fold-down's level against the two channels'
+energy). Whole-stem figures from the sums, plus `minCorrelation` and
+`fractionNegative` over the cells with energy. Dual mono: +1 / 0 dB / no
+side energy (width null) / no loss; anti-phase: −1 and total cancellation;
+one side silent: correlation and balance null (the channel levels say so).
+A mono stem: `applicable: false`, every figure null, empty series — never a
+fictitious correlation of 1.
+
+**Integrity** (`integrity.ts` and the analyser). Per channel the DC offset
+(the mean; in dBFS with a floor of `DC_FLOOR_DBFS −144`, below which it is
+reported as none), runs of samples at or beyond `CLIP_LEVEL 0.9999` of the
+same sign (`CLIP_RUN_SAMPLES 3`: three or more consecutive full-scale
+samples is a flattened waveform, not a loud peak — a sine that touches
+0 dBFS is not clipped, a square wave is, a float stem over 1.0 is), the
+count of non-finite float samples (treated as zero and counted; Task 5.1
+refuses such files, so a count here is a stored copy that changed).
+`truePeakOverCells` counts the cells whose true peak passes 0 dBTP.
+Silence keeps Task 5.1's rule: a stem whose peak never rises above
+`SILENCE_PEAK_DBFS −80` is `silent` and **not an analysis target**
+(`analysisTarget false`, D5.1.4 — it is still measured, so the record
+exists and says so); `nearSilent` is a peak at or under `NEAR_SILENT_PEAK_DBFS
+−60` (a target, flagged); a cell is silent when its peak is at or under
+−80 dBFS, giving `silentCells`, `silentFraction`, the leading and trailing
+silence in seconds and `activeSeconds`. The copy's format is echoed.
+
+**Edge cases held by test:** digital silence (every figure null, −∞
+series, not a target); a mono float stem; a 0.3 s click (a peak and an
+RMS but no complete loudness window, so no LUFS — null, not a guess); a
+left-only stem; anti-phase; a copy that is missing, swapped, truncated or
+not a WAV.
+
+### 13.4 Storage — the `analysis` store, IndexedDB `alloy` version 2
+
+```ts
+interface AnalysisRecord { assetId; projectId; sha256; engineVersion; analysedAt; elapsedMs; result: AnalysisResult }
+```
+
+`ASSET_DB_VERSION 2`: `onupgradeneeded` adds the object store **`analysis`**
+(keyed by `assetId`, index `projectId`) and leaves `assets` and `peaks` as
+they are — a version-1 database upgrades in place with its stems
+(evidence: five assets and five peaks before, the same five plus five
+analysis records after). `AssetStore` gains `putAnalysis(record)` and
+`getAnalysis(assetId)`; `remove(assetId)` deletes the analysis with the
+copy and the peaks. One record per asset, overwritten on re-analysis. The
+record carries the stem's **SHA-256** and the **engine version**: a stored
+result is valid for a track only when `record.sha256 === track.audio.sha256`,
+`record.engineVersion === ENGINE_VERSION` and `result.schema ===
+"alloy.analysis/1"`; anything else is measured again. The manifest
+(`alloy.project-manifest/1`) is **unchanged** — no analysis figure is in
+`localStorage` (evidence: the saved project text mentions none).
+
+### 13.5 The hardware profile and the benchmark (`profiles.ts`, `benchmark.ts`, `hardware.svelte.ts`)
+
+Plan §11's Lite / Standard / Performance are intents, never promises. What
+a profile changes in this task is the **slice length** of the chunked pass:
+
+| profile       | `sliceSeconds` | chosen when (provisional, D5.2.5)                                                   |
+| ------------- | -------------- | ------------------------------------------------------------------------------------ |
+| `lite`        | 2              | measured throughput below 25× real time                                              |
+| `standard`    | 5              | otherwise — and **before any benchmark has run** (`UNMEASURED_PROFILE`)              |
+| `performance` | 10             | throughput ≥ 100× and, where the browser reports them, ≥ 4 cores and ≥ 4 GB memory  |
+
+The figures are identical under every profile (§13.1; the browser evidence
+re-measures the kick under Lite and compares the whole result). The
+**benchmark** runs the real engine over a deterministic synthetic stem —
+`BENCHMARK_WORKLOAD_SECONDS 4` of 24-bit PCM stereo with tones, noise and
+clicks, so the decode is measured too — and reports the throughput as
+seconds of audio per wall-clock second:
+
+```
+alloy.benchmark = { schema: "alloy.benchmark/1", engineVersion, measuredAt, workloadSeconds,
+                    elapsedMs, throughput, profile, cores, memoryGb }
+```
+
+`hardware.attach({ storage, now, nowMs, clock, cores, memoryGb, yieldBetween })`
+reads the cache once; `parseBenchmark` accepts a record only from this
+engine version, with this machine's core count, measured within
+`BENCHMARK_MAX_AGE_MS` (30 days) and not more than a minute in the future.
+`hardware.ensure()` returns the cached record or runs the workload once
+(concurrent callers share the run), writes the cache and counts `runs`;
+`hardware.invalidate()` forgets it. The benchmark is **lazy**: the queue
+calls `ensure()` before the first stem it actually analyses — after the
+copy is known to exist, so a missing stem never costs a measurement.
+`hardware.profile = { id, source: "override" | "benchmark" | "unmeasured",
+settings }`: a Settings choice other than Automatic overrides the
+measurement; Automatic follows the benchmark; before one, Standard.
+`cores` / `memoryGb` are `navigator.hardwareConcurrency` / `deviceMemory`
+read in the shell only, null where a browser does not report them.
+
+**The estimate:** `estimateSeconds(workSeconds, record) = ceil(workSeconds /
+throughput × ESTIMATE_MARGIN 1.25)`; **null without a measurement** — no
+number nobody measured (plan §11; the shell test "no measurement, no
+estimate"). `analysis.estimate = { workSeconds, seconds, profile, basis:
+"benchmark" | "unmeasured" }` sums the queue (the running stem's remainder
+by its progress).
+
+### 13.6 The queue (`analysis.svelte.ts`) and the lifecycle
+
+Statuses per imported track: `pending` (reading the store) · `queued` ·
+`analysing` (with `progress`) · `ready` (result in hand; `stored: false`
+with the reason when the write was refused) · `missing` (no copy, or not
+the manifest's copy) · `failed` (the engine or the copy was unreadable,
+with the reason). `analysis.attach(assetStore, { now, clock, yieldBetween })`
+— the clock is **injected** (no project module reads `performance.now` or
+`Date.now`; the editing guard holds that). `hydrate()` — called by
+`lifecycle.install()` after `assets.hydrate()` — reads every imported
+track's record, keeps the valid ones as `ready` without re-measuring and
+queues the rest; reads are awaited one at a time with the project id
+checked after each, so a switch mid-way stops cleanly. `enqueue(ids)`
+(called by `assets.svelte.ts` after an import through `afterImport`) skips
+what is ready, queued or running; `reanalyse(id)` forces a run; the
+worker runs **one stem at a time** (`current`, `queued`), yielding between
+slices. A project switch or `detach()` bumps the generation and aborts the
+run in flight: its result is dropped and never written under the next
+project. `statusOf / entryOf / resultOf / summary / estimate` are the
+readers. The debug handle (`?debug`) exposes `window.alloy.analysis` and
+`window.alloy.hardware`; `uninstall()` detaches `lifecycle → analysis →
+assets → hardware → settings`.
+
+Measured in the browser (`evidence/analysis/5.2/analysis-5.2.json`,
+headless Chromium, 2 cores / 2 GB reported): the five Task 5.1 stems
+(39.6 s of audio) analysed in ≈ 0.6 s after a 4 s-workload benchmark of
+≈ 70–110 ms (throughput 35–60×, profile Standard); the analysis sample
+peaks equal Task 5.1's `peakDbfs` for every stem; reload → all five
+`ready` from the store with no run; a stale record (engine version 99) is
+measured again and a deleted copy is `missing` without a benchmark run; a
+cache 31 days old is ignored at boot and renewed by the next analysis.
+
+### 13.7 Not in this build (by design)
+
+Reading a result in any room (the Console's PROCESSING band stays its
+fixture), the rules that act on measurements (Phase 6), any processing,
+playback or rendering; a worker thread (the pass yields on the main thread
+— D5.2.10); removing or pruning analysis records with an asset lifecycle
+(Task 5.1's open item); re-tuning the provisional thresholds (profiles,
+onsets, near-silence) against real devices and stems; the time estimate
+shown to the user (plan §11's "estimate before commit" is logic only until
+a room prints it).
