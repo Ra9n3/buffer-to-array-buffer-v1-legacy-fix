@@ -24,7 +24,8 @@
     "check:arrange-rows": "node scripts/check-arrange-rows-structure.mjs",
     "check:arrange-timeline": "node scripts/check-arrange-timeline-structure.mjs",
     "check:mixer-detail": "node scripts/check-mixer-detail-structure.mjs",
-    "check:mixer-chain-types": "node scripts/check-mixer-chain-types-structure.mjs"
+    "check:mixer-chain-types": "node scripts/check-mixer-chain-types-structure.mjs",
+    "check:project": "node scripts/check-project-store-structure.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",

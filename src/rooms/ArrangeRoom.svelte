@@ -4,8 +4,15 @@
   import ArrangeTrackRow from "../components/ArrangeTrackRow.svelte";
   import EngravedLabel from "../components/hardware/EngravedLabel.svelte";
   import RoomShell from "../components/RoomShell.svelte";
-  import { ARRANGE_BAR_COUNT, ARRANGE_TRACKS } from "../lib/arrange";
-  import { clipsOf } from "../lib/arrange-timeline";
+  import { arrangeTrackOf, project, trackMeta } from "../lib/project/store.svelte";
+
+  /* Task 3.1: the room reads the one project store — the same tracks the
+     Console and Mixer read, in the session's order — and binds each row's
+     family / source / tier to the store's view of its track. The
+     arrangement (bars, tempo, sections, waveform placeholders) is the
+     project's fixture-backed display data, read from the same store. */
+  const tracks = $derived(project.tracks);
+  const arrangement = $derived(project.arrangement);
 </script>
 
 <RoomShell
@@ -14,7 +21,7 @@
   purpose="Import and organize the session."
   hideHeader
 >
-  <div class="arrange-room" style:--arrange-bar-count={ARRANGE_BAR_COUNT} data-arrange-room>
+  <div class="arrange-room" style:--arrange-bar-count={arrangement.barCount} data-arrange-room>
     <!-- One scroller drives both axes. The grid inside it holds the track-list
          column and the timeline in shared grid rows, so a track row and its
          lane are the same grid row and cannot drift apart. -->
@@ -61,11 +68,11 @@
         <!-- The timeline's head: bar ruler, tempo track, structure markers
              (Task 0.4 order; Task 2.6 skin) — sticky at the top beside the
              corner, the same 2 px baseline. -->
-        <ArrangeTimelineHeader />
+        <ArrangeTimelineHeader barCount={arrangement.barCount} tempoMarkers={arrangement.tempoMarkers} />
 
-        {#each ARRANGE_TRACKS as track (track.code)}
-          <ArrangeTrackRow {track} laneId={`lane-${track.code}`} />
-          <ArrangeTimelineLane code={track.code} laneId={`lane-${track.code}`} name={track.name} org={track.org} clips={clipsOf(track.code)} />
+        {#each tracks as track (track.id)}
+          <ArrangeTrackRow track={arrangeTrackOf(track.id)} live={trackMeta(track.id)} laneId={`lane-${track.code}`} />
+          <ArrangeTimelineLane code={track.code} laneId={`lane-${track.code}`} name={track.name} org={track.org} clips={arrangement.clips[track.id] ?? []} />
         {/each}
       </div>
     </div>

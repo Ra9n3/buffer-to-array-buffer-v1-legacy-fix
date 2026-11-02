@@ -33,8 +33,11 @@
    * that keeps the fader and the footer on the tracks' lines by absorbing
    * the height (owner, D2.4.4).
    *
-   * Fixtures only (SIMULATED): the controls keep their approved local
-   * behaviour and change nothing but their own on-screen state.
+   * Fixtures only (SIMULATED): the controls keep their approved behaviour.
+   * Since Task 3.1 the fader, MUTE and SOLO are bindable, so the strip that
+   * owns the module can bind them to the project store's view of its
+   * channel (the knobs in the snippets already are); a caller that passes
+   * plain values gets the Task 2.4 local behaviour unchanged.
    *
    * `identity` (Task 2.7, optional, default none): the same optional section
    * under the head that the track strip has — a room's own content (the
@@ -58,9 +61,9 @@
     baySection = "bay",
     bayLabel = "",
     faderLabel,
-    faderValue,
-    mute,
-    solo,
+    faderValue = $bindable(0),
+    mute = $bindable(false),
+    solo = $bindable(false),
     peak,
     knobA,
     knobB,
@@ -86,9 +89,10 @@
     baySection?: string;
     bayLabel?: string;
     faderLabel: string;
-    faderValue: number;
-    mute: boolean;
-    solo: boolean;
+    /** Fader, MUTE and SOLO are bindable (Task 3.1): a caller that binds them owns them; a plain value still draws as before. */
+    faderValue?: number;
+    mute?: boolean;
+    solo?: boolean;
     peak: boolean;
     knobA: Snippet;
     knobB: Snippet;
@@ -149,13 +153,13 @@
 
     <!-- the approved fader, 1x, 160 px travel -->
     <div class="module__section module__section--fader" data-strip-section="fader">
-      <Fader label={faderLabel} value={faderValue} />
+      <Fader label={faderLabel} bind:value={faderValue} />
     </div>
 
     <!-- MUTE · SOLO · PEAK (the track strips' order, D2.2.3) -->
     <footer class="module__section module__section--switches" data-strip-section="switches">
-      <TactileSwitch variant="panel" label="Mute" lamp="red" engaged={mute} name={`Mute ${name}`} />
-      <TactileSwitch variant="panel" label="Solo" lamp="amber" engaged={solo} name={`Solo ${name}`} />
+      <TactileSwitch variant="panel" label="Mute" lamp="red" bind:engaged={mute} name={`Mute ${name}`} />
+      <TactileSwitch variant="panel" label="Solo" lamp="amber" bind:engaged={solo} name={`Solo ${name}`} />
       <div class="module__peak" data-strip-peak>
         <EngravedLabel text="Peak" size="xs" />
         <span class="module__peak-lamp">

@@ -1,5 +1,6 @@
 /**
- * ALLOY Mixer — the Return bus's effect-specific chain (plan §8a) — Task 2.9.
+ * ALLOY Mixer — the Return bus's effect-specific chain (plan §8a) — Task 2.9,
+ * made a part of the shared project model in Task 3.1.
  *
  * Plan §8a names a Return's processing controls: effect character /
  * algorithm (Room, Hall or Plate for a reverb; a delay-line character for a
@@ -9,16 +10,16 @@
  * being its incoming sends rather than a routed track output.
  *
  * ONE STATE PER RETURN, SHARED (owner, D2.9.1). The approved Return strip
- * already carries character, time, second control, tone, output level and
- * bypass; the Mixer's chain-detail panel shows the full effect module with
- * ownership and ghosts. Both must turn the same setting, so each Return's
- * chain state lives here — created from the fixture on first use, in
- * memory only, for the life of the app — and the Mixer's strip is BOUND to
- * it through `ReturnStrip`'s optional `live` (`returnLive`). The Console
- * passes nothing and keeps its approved, local behaviour. Nothing is
- * persisted, processed, routed or analysed; the output level stays on the
- * strip's fader (the Task 2.8 rule: strip-owned blocks are not duplicated
- * in the panel).
+ * carries character, time, second control, tone, output level and bypass;
+ * the Mixer's chain-detail panel shows the full effect module with
+ * ownership and ghosts. Both turn the same setting: since Task 3.1 that one
+ * state is `ReturnBus.chain` in the project store (project/store.svelte.ts),
+ * and BOTH rooms' Return strips are bound to it through `ReturnStrip`'s
+ * `live` (`returnLive` in the store). This file is the chain's shape, its
+ * parameter specs, its fixtures and its pure helpers — no state lives here.
+ * Nothing is persisted, processed, routed or analysed; the output level
+ * stays on the strip's fader (the Task 2.8 rule: strip-owned blocks are not
+ * duplicated in the panel).
  *
  * Ownership is the Task 2.8 rule: turning a knob — on the strip or in the
  * panel — makes only that parameter Manual; returning it to Auto changes
@@ -36,12 +37,10 @@ import {
   type ReturnParam,
   type ReturnStripFixture,
 } from "../components/channel-strip/bus-return-fixtures";
-import type { ReturnLive } from "../components/channel-strip/return-live";
-import { TRACK_STRIPS, type ReturnId } from "../components/channel-strip/track-strip-fixtures";
+import type { ReturnId } from "../components/channel-strip/track-strip-fixtures";
 import {
   chainParam,
   moduleMode,
-  setParamValue,
   type ChainParam,
   type CharacterParam,
   type ExplanationNote,
@@ -118,10 +117,12 @@ export const RETURN_SPECS = {
    STATE
    ========================================================================= */
 
+/**
+ * A Return's effect module. Since Task 3.1 it is a part of the Return
+ * entity (`ReturnBus.chain`, project/model.ts), so it carries no identity:
+ * the Return's id, code and name live on the Return.
+ */
 export interface ReturnChainState {
-  readonly returnId: ReturnId;
-  readonly code: string;
-  readonly name: string;
   readonly effect: ReturnEffect;
   readonly character: CharacterParam<ReturnCharacterId>;
   /** Decay (reverb) or delay time (delay). */
@@ -134,21 +135,16 @@ export interface ReturnChainState {
   readonly notes: readonly ExplanationNote[];
 }
 
-/** One track's send into a Return — the Return's input (plan §8a), read from the track fixtures. */
+/**
+ * One track's send into a Return — the Return's input (plan §8a). Since
+ * Task 3.1 the list is a SELECTOR over the project's tracks
+ * (`project.sendsInto` in the store), so it follows every send edit live.
+ */
 export interface SendInto {
   readonly code: string;
   readonly name: string;
   /** Send level, dB (post-fader, plan §8a). */
   readonly level: number;
-}
-
-export function sendsInto(returnId: ReturnId): SendInto[] {
-  const out: SendInto[] = [];
-  for (const strip of TRACK_STRIPS) {
-    const send = strip.sends.find((s) => s.to === returnId);
-    if (send) out.push({ code: strip.id, name: strip.name, level: send.level });
-  }
-  return out;
 }
 
 export function returnParams(chain: ReturnChainState): ChainParam[] {
@@ -172,9 +168,9 @@ export function setReturnCharacter(chain: ReturnChainState, id: ReturnCharacterI
    THE RETURN'S RAIL (plan §8a signal path: sends → the Return's chain → Master)
    ========================================================================= */
 
-export function returnRailBlocks(chain: ReturnChainState): RailBlock[] {
+/** The rail, from the chain and the number of track sends feeding the Return. */
+export function returnRailBlocks(chain: ReturnChainState, inputs: number): RailBlock[] {
   const effectLabel = chain.effect === "reverb" ? "Reverb" : "Delay";
-  const inputs = sendsInto(chain.returnId).length;
   return [
     {
       id: "sends-in",
@@ -231,7 +227,8 @@ const RETURN_FIXTURES: Readonly<Record<ReturnId, ReturnFixture>> = {
 
 const FALLBACK_FIXTURE: ReturnFixture = { notes: [] };
 
-function createReturnChainState(ret: ReturnStripFixture): ReturnChainState {
+/** A fresh chain state for a Return, from its strip fixture (the loaded values) and its chain fixture (ownership, notes). */
+export function createReturnChainState(ret: ReturnStripFixture): ReturnChainState {
   const fx = RETURN_FIXTURES[ret.returnId] ?? FALLBACK_FIXTURE;
   const manual = fx.manual ?? {};
   const specs = ret.effect === "reverb" ? { time: RETURN_SPECS.decay, second: RETURN_SPECS.predelay } : { time: RETURN_SPECS.time, second: RETURN_SPECS.feedback };
@@ -241,9 +238,6 @@ function createReturnChainState(ret: ReturnStripFixture): ReturnChainState {
       ? { value: loaded, original: manual.character, mode: "manual" }
       : { value: loaded, original: loaded, mode: "auto" };
   return {
-    returnId: ret.returnId,
-    code: ret.id,
-    name: ret.name,
     effect: ret.effect,
     character,
     time: chainParam(specs.time, ret.time, manual.time),
@@ -252,67 +246,4 @@ function createReturnChainState(ret: ReturnStripFixture): ReturnChainState {
     bypassed: ret.bypass,
     notes: fx.notes,
   };
-}
-
-/* =========================================================================
-   THE SHARED INSTANCES
-   ========================================================================= */
-
-const chains = new Map<ReturnId, ReturnChainState>();
-const lives = new Map<ReturnId, ReturnLive>();
-
-/** The one chain state of a Return, created from its fixture on first use. */
-export function returnChain(ret: ReturnStripFixture): ReturnChainState {
-  let chain = chains.get(ret.returnId);
-  if (!chain) {
-    const created = $state(createReturnChainState(ret));
-    chains.set(ret.returnId, created);
-    chain = created;
-  }
-  return chain;
-}
-
-/**
- * The strip-side view of that state: what `ReturnStrip`'s optional `live`
- * binds to. Reads go straight to the chain; writes go through the ownership
- * rule (a turned knob is Manual; a write of the same value is not a turn),
- * so a knob turned on the strip is a knob turned in the panel.
- */
-export function returnLive(ret: ReturnStripFixture): ReturnLive {
-  let live = lives.get(ret.returnId);
-  if (!live) {
-    const chain = returnChain(ret);
-    live = {
-      get time() {
-        return chain.time.value;
-      },
-      set time(v: number) {
-        if (v !== chain.time.value) setParamValue(chain.time, v);
-      },
-      get second() {
-        return chain.second.value;
-      },
-      set second(v: number) {
-        if (v !== chain.second.value) setParamValue(chain.second, v);
-      },
-      get tone() {
-        return chain.tone.value;
-      },
-      set tone(v: number) {
-        if (v !== chain.tone.value) setParamValue(chain.tone, v);
-      },
-      get bypass() {
-        return chain.bypassed;
-      },
-      set bypass(on: boolean) {
-        chain.bypassed = on;
-      },
-      get character() {
-        const c = returnCharacter(chain.effect, chain.character.value);
-        return { print: c.print, name: c.name };
-      },
-    };
-    lives.set(ret.returnId, live);
-  }
-  return live;
 }

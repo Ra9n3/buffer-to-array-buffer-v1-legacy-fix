@@ -2832,3 +2832,137 @@ prop, the Console unchanged), the three backward-compatible shared
 changes (`ReturnStrip` `live`, `ProcessingChain` `blocks`, additive
 `mixer-chain.ts` exports) and the guard hand-overs (D2.9.7). Committed
 only — not pushed (the owner said "commit").
+
+## Task 3.1 — Shared project model and stores (2026-11-02; uncommitted, awaiting review)
+
+Direction: the state foundation of Phase 3 — one typed project model, one
+authoritative store, the three rooms reading it instead of their own
+fixture copies (plan §5, §14, §16, §18). No routing behaviour, undo,
+autosave, persistence, new UI or dependency. The owner's four decisions
+(ask_user, 2026-11-02) were taken before any code was written and are
+recorded in D3.1.1. Report: `task-reports/3.1-report.md`; the model is
+described in `data-model.md` (new).
+
+### D3.1.1 — The owner's decisions, as applied (owner, 2026-11-02)
+
+1. **Tier and Priority:** the Priority (1–10, plan §5) is the stored
+   value; the Prominence Tier is derived from it in bands (Primary 8–10,
+   Supporting 4–7, Background 1–3); choosing a tier sets an anchor
+   priority (see D3.1.2).
+2. **Ids:** kind-prefixed — `track-01` … `track-20`, `return-room` /
+   `return-plate` / `return-delay1`, `bus-B1`. The printed codes (`01`,
+   `R1`, `B1`) stay display fields. Sends reference Return ids.
+3. **Scope of the write operations:** every editable control the approved
+   UI has writes to the store (Console strip controls, send slot and
+   level, Arrange family / source / tier, the Mixer's tier, the Return's
+   level / mute / solo / bypass and effect knobs, the bus strip).
+4. **Confirmation:** any tier choice — from Arrange or the Mixer —
+   confirms the track (clears "needs confirming").
+
+### D3.1.2 — Tier anchors 9 · 5 · 2; a tier choice moves the priority only when the tier changes (builder, 2026-11-02; changeable)
+
+The owner chose "priority stored, tier derived" without naming the
+anchors. Chosen: the middle of each band, biased to the band's centre of
+use — Primary **9**, Supporting **5**, Background **2** (`TIER_ANCHOR`).
+Re-choosing the tier a track already has does not move its priority (a
+future numeric override inside the band must survive a confirming click).
+The fixture session seeds each track with its fixture tier's anchor, so
+the Arrange rows and the Mixer identities print exactly what they printed
+before. The numbers are a convenience, not a semantic: changing them later
+changes nothing but the seeded values.
+
+### D3.1.3 — One `$state` tree in `store.svelte.ts`; reads, narrow writes, memoised views (builder, 2026-11-02)
+
+`const state: Project = $state(createSessionProject())` is the only
+project state in `src/`. `project` exposes reads and live selectors
+(`sendsInto`, `sendReturns`, `tierOf`, `outputLabel`); `ops` exposes one
+typed operation per editable control, each validating its id (unknown ids
+throw — a programming error, never a silent no-op), clamping to the
+control's approved range and skipping same-value writes (a Knob assigns on
+every pointer move; a same-value write must not count as a "turn" for the
+2.8 ownership rule). Views (`trackStrip`, `trackMeta`, `arrangeTrackOf`,
+`returnLive`, `returnStripOf`, `busStripOf`, `busLive`) are getter objects
+over the entity, memoised per id in `Map`s, so a strip in the Console and
+the same strip in the Mixer bind the very same object — derived display
+data, never a second mutable copy. The 2.8 chain helpers (`setParamValue`,
+`setMode`, …) stay the write path for chain parameters: they are already
+narrow and typed, and wrapping them would duplicate the ownership rules.
+
+### D3.1.4 — Typed routing references, data only (builder, 2026-11-02)
+
+`OutputRef = BusId | "master"` on tracks, Returns and buses; `SendSlot.to:
+ReturnBusId | null`. Seeded with the Task 2.4 reading (every track → the
+one bus master `bus-B1` → Master; Returns → Master). `ops.setSendTo`
+accepts only a Return the project has. No UI edits an output and nothing
+validates a graph — that is Task 3.2, which will add the rules on top of
+these references rather than change them.
+
+### D3.1.5 — The Return and bus chains move into the entities; the Console and the Mixer now share them (builder, 2026-11-02)
+
+Task 2.9 kept one chain per Return in a module-level `Map`
+(`return-chain.svelte.ts`) and the bus chains as panel-local `$state`,
+with the Console's Return strip deliberately *not* bound ("the Console
+passes nothing"). In 3.1 the chain is a pure value under `ReturnBus.chain`
+/ `Bus.chain`, `return-chain.ts` has no state, and the Console binds
+`live={returnLive(id)}` / `live={busLive(id)}` like the Mixer. This is
+the task's objective (one state source for all rooms); it supersedes that
+one 2.9 phrase and nothing else of 2.9. Visible consequence: a Return
+knob turned in the Mixer now reads the same in the Console (measured:
+R1 decay 1.9 s in both; B1 MUTE in both). The chain's identity fields
+(`returnId`, `name`, bus `output`) left the chain for the entity.
+
+### D3.1.6 — Optional bindings; strips keep a seeded fallback for unbound use (builder, 2026-11-02)
+
+`ReturnStrip`, `BusMasterStrip` and `ArrangeTrackRow` keep one `own`
+`$state` behind `model = live ?? own` so the `#/dev/components` playground
+and any future fixture use still work with plain objects (a plain fixture
+object is not reactive; without the fallback an unbound knob would not
+move). `TrackStrip` binds whatever `track` it is given (the rooms give it
+the store view) and holds no state. `StripModule` gained bindable
+`faderValue` / `mute` / `solo` with defaults so every approved call site
+is unchanged. `SendSlot` is id-agnostic (`SlotState { to: string | null;
+level }`) and lists whatever Returns it is handed (default: the fixture
+list). All backward-compatible; dimensions and styles untouched (0-diff
+regressions at every established width).
+
+### D3.1.7 — DOM hook values that named a Return or bus now carry its id (builder, 2026-11-02; documented equivalent)
+
+`data-send-to`, `data-send-option`, `data-detail-return`, `data-detail-bus`
+and `data-mixer-channel` carry kind-prefixed ids (`return-plate`,
+`bus-B1`, `track-01`) instead of the 2.x keys / codes. The prompt allows a
+documented equivalent where a model conversion requires one; the printed
+text is unchanged. The measurement scripts were updated accordingly.
+
+### D3.1.8 — Guards: `check:project` added (122); eight guards amended as hand-overs (builder, 2026-11-02)
+
+New `scripts/check-project-store-structure.mjs` (122 checks; four
+mutations caught: a second `$state` in the store, a send without Return
+validation, a bank keeping a `$state` copy, a room reading a fixture
+array). Amendments, each because the 3.1 change supersedes what the older
+check asserted (architecture statements rewritten to the 3.1 truth, intent
+kept — no store import in the Arrange row's children, no automatic
+classification, no Priority UI, no screws): `check:arrange`,
+`check:arrange-rows`, `check:arrange-timeline`, `check:bus-return`,
+`check:channel-strip`, `check:mixer`, `check:mixer-detail`,
+`check:mixer-chain-types` (+1 check; the 2.9 "Console passes nothing" →
+"Console passes no `identity`; both rooms bind `live`"), and re-pins in
+`check:console-transport`. Totals: 18 guards, 1513 / 1513; `npm run check`
+0 / 0; build `dist/index.html` `8cda56b0a62d4ff9` (498.69 kB, gzip
+131.07 kB).
+
+## Task 3.1 — approved
+
+Owner, 2026-11-02: **"approved, commit and push."** Task 3.1 is closed as
+built and reported in `task-reports/3.1-report.md`; D3.1.1–D3.1.8 stand,
+including the tier anchors 9 · 5 · 2 (D3.1.2) until the owner names
+others. The approval covers the typed project model (`model.ts`), the one
+authoritative store (`store.svelte.ts`: one `$state` tree, `project` reads,
+20 narrow `ops`, seven memoised views), the fixture session
+(`session.ts`), the three rooms reading the store through views with the
+approved UI measured pixel-identical, the backward-compatible component
+bindings (D3.1.6), the id-carrying DOM hooks (D3.1.7), the Console ↔ Mixer
+sharing of the Return / bus strip state (D3.1.5, superseding the 2.9
+"Console passes nothing"), the new `data-model.md` and the guard hand-overs
+(D3.1.8: 18 guards, 1513 / 1513). Committed on top of `55e0c5b` and pushed
+to `main` together with it on the owner's signal (PAT inline, not stored).
+Task 3.2 (routing) has not been started.

@@ -1,6 +1,8 @@
 <script lang="ts">
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
-  import { returnRailBlocks, sendsInto, type ReturnChainState } from "../../lib/return-chain.svelte";
+  import type { ReturnBus } from "../../lib/project/model";
+  import { project } from "../../lib/project/store.svelte";
+  import { returnRailBlocks } from "../../lib/return-chain";
   import EffectSection from "./EffectSection.svelte";
   import ProcessingChain from "./ProcessingChain.svelte";
   import SendsIn from "./SendsIn.svelte";
@@ -17,13 +19,17 @@
    * "what changed and why" card. No EQ, compressor, pan or sends bay: a
    * Return's chain is effect-specific (plan §3, §8a).
    */
-  let { chain }: { chain: ReturnChainState } = $props();
+  /* Task 3.1: the Return entity from the project store — its chain is the
+     state the strips of both rooms are bound to; the sends feeding it are a
+     live selector over the project's tracks. */
+  let { ret }: { ret: ReturnBus } = $props();
 
-  const blocks = $derived(returnRailBlocks(chain));
-  const sends = $derived(sendsInto(chain.returnId));
+  const chain = $derived(ret.chain);
+  const sends = $derived(project.sendsInto(ret.id));
+  const blocks = $derived(returnRailBlocks(chain, sends.length));
 </script>
 
-<div class="rd" data-detail-return={chain.returnId}>
+<div class="rd" data-detail-return={ret.id}>
   <div class="rd__chain" data-mixer-region="processing-chain">
     <EngravedLabel text="Processing chain" size="xs" tone="muted" />
     <ProcessingChain {blocks} />
@@ -31,15 +37,15 @@
 
   <div class="rd__bays">
     <div class="rd__bay rd__bay--sends" data-mixer-region="sends-in">
-      <SendsIn {sends} returnName={chain.name} />
+      <SendsIn {sends} returnName={ret.name} />
     </div>
     <div class="rd__bay rd__bay--effect" data-mixer-region="effect">
-      <EffectSection {chain} />
+      <EffectSection {chain} returnName={ret.name} />
     </div>
   </div>
 
   <div class="rd__changed" data-mixer-region="what-changed">
-    <WhatChanged notes={chain.notes} trackName={chain.name} />
+    <WhatChanged notes={chain.notes} trackName={ret.name} />
   </div>
 </div>
 

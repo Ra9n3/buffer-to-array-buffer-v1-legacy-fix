@@ -2,7 +2,7 @@
   import MixerDetailPanel from "../components/MixerDetailPanel.svelte";
   import MixerBank from "../components/mixer/MixerBank.svelte";
   import RoomShell from "../components/RoomShell.svelte";
-  import { DEFAULT_MIXER_SELECTION, findChannel } from "../lib/mixer";
+  import { project } from "../lib/project/store.svelte";
 
   /**
    * ALLOY Mixer room — Task 0.5 (placeholder), Task 2.7 (channel strips).
@@ -16,13 +16,15 @@
    * `.console-layout` rule); the page never scrolls and nothing scrolls
    * sideways but the tracks' rail.
    *
-   * Selection is local UI state: per-room $state, no store, no persistence,
-   * no cross-room synchronisation (a shared project model is a later task).
+   * Selection is local UI state: per-room $state, no persistence, not part
+   * of the project (Task 3.1 keeps transient UI state out of the project
+   * store). It is an id into the shared store; the selected channel is
+   * looked up there, so the panel shows the one entity every room edits.
    * The bank reports a SEL press; the detail panel receives the channel.
    */
-  let selectedId = $state(DEFAULT_MIXER_SELECTION);
+  let selectedId = $state<string>(project.channels[0]?.id ?? "");
 
-  const selectedChannel = $derived(findChannel(selectedId));
+  const selectedChannel = $derived(project.channel(selectedId));
 
   function selectChannel(id: string): void {
     selectedId = id;

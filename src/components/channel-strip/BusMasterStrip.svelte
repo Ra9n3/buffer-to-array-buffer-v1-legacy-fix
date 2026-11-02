@@ -9,6 +9,7 @@
     formatSignedDb,
     type BusMasterFixture,
   } from "./bus-return-fixtures";
+  import type { BusLive } from "./strip-live";
 
   /**
    * ALLOY Console bus-master strip — Task 2.4 (Phase 2 skin).
@@ -30,16 +31,31 @@
    *   MUTE · SOLO  the module's footer, as on every track strip.
    *   · PEAK
    *
-   * Fixtures only (`bus-return-fixtures.ts`, SIMULATED): no summing, no
-   * routing, no project state.
+   * A fixture session (`bus-return-fixtures.ts` seeds the store, SIMULATED):
+   * no summing, no routing. Since Task 3.1 the settings are the project
+   * store's (see `live` below).
    *
    * `identity` (Task 2.7, optional, default none) is handed straight to the
    * module's optional identity extension under the head; the Console passes
    * nothing and the strip renders exactly as approved.
    */
-  let { bus, identity = null }: { bus: BusMasterFixture; identity?: Snippet | null } = $props();
+  let {
+    bus,
+    identity = null,
+    live = null,
+  }: { bus: BusMasterFixture; identity?: Snippet | null; live?: BusLive | null } = $props();
 
   const trimFormat = (value: number) => formatSignedDb(value, 1);
+
+  /* `live` (Task 3.1, optional, default none): one object that OWNS the
+     strip's trim, balance, level, MUTE and SOLO — both rooms pass the
+     project store's view of the bus (`busLive`), so the Console's and the
+     Mixer's bus master turn one value. Without it the strip keeps those
+     settings itself, seeded from the fixture, exactly as approved (the
+     component playground passes nothing). */
+  // svelte-ignore state_referenced_locally
+  const own = $state<BusLive>({ trim: bus.trim, balance: bus.balance, level: bus.level, mute: bus.mute, solo: bus.solo });
+  const model = $derived(live ?? own);
 </script>
 
 <StripModule
@@ -54,9 +70,9 @@
   sectionB="balance"
   {identity}
   faderLabel="Master"
-  faderValue={bus.level}
-  mute={bus.mute}
-  solo={bus.solo}
+  bind:faderValue={() => model.level, (v) => (model.level = v)}
+  bind:mute={() => model.mute, (on) => (model.mute = on)}
+  bind:solo={() => model.solo, (on) => (model.solo = on)}
   peak={bus.peak}
 >
   {#snippet knobA()}
@@ -66,7 +82,7 @@
       min={BUS_TRIM_RANGE.min}
       max={BUS_TRIM_RANGE.max}
       step={BUS_TRIM_RANGE.step}
-      value={bus.trim}
+      bind:value={() => model.trim, (v) => (model.trim = v)}
       unit="dB"
       decimals={1}
       extremes={["−20", "+20"]}
@@ -81,7 +97,7 @@
       min={BALANCE_RANGE.min}
       max={BALANCE_RANGE.max}
       step={BALANCE_RANGE.step}
-      value={bus.balance}
+      bind:value={() => model.balance, (v) => (model.balance = v)}
       decimals={0}
       extremes={["L", "R"]}
       format={formatBalance}

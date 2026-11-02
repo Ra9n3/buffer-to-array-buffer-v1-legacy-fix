@@ -1,7 +1,7 @@
 <script lang="ts">
   import ReturnStrip from "../channel-strip/ReturnStrip.svelte";
-  import type { MixerReturnChannel } from "../../lib/mixer";
-  import { returnLive } from "../../lib/return-chain.svelte";
+  import type { ReturnBus } from "../../lib/project/model";
+  import { returnLive, returnStripOf } from "../../lib/project/store.svelte";
   import MixerIdentity from "./MixerIdentity.svelte";
 
   /**
@@ -22,21 +22,24 @@
     selected,
     onselect,
   }: {
-    channel: MixerReturnChannel;
+    channel: ReturnBus;
     selected: boolean;
     onselect: (id: string) => void;
   } = $props();
 
-  const effectName = $derived(channel.ret.effect === "reverb" ? "Reverb" : "Delay");
+  const effectName = $derived(channel.effect === "reverb" ? "Reverb" : "Delay");
 
   /* Task 2.9: the Mixer's Return strip is bound to the Return's one shared
-     chain state, the same the chain-detail panel edits (plan §8a). */
-  const live = $derived(returnLive(channel.ret));
+     chain state, the same the chain-detail panel edits (plan §8a). Task 3.1:
+     that state is the Return entity in the project store, and the Console's
+     Return strip is bound to it too. */
+  const live = $derived(returnLive(channel.id));
+  const ret = $derived(returnStripOf(channel.id));
 </script>
 
-<ReturnStrip ret={channel.ret} {live}>
+<ReturnStrip {ret} {live}>
   {#snippet identity()}
-    <div class="return-identity" data-mixer-channel={channel.id} data-mixer-channel-kind="return" data-return-id={channel.ret.returnId}>
+    <div class="return-identity" data-mixer-channel={channel.id} data-mixer-channel-kind="return" data-return-id={ret.returnId}>
       <MixerIdentity
         kindPrint="Return"
         kindTitle="Return bus"

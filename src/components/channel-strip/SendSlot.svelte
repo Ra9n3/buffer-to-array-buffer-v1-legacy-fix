@@ -3,14 +3,13 @@
 </script>
 <script lang="ts">
   import Knob from "../hardware/Knob.svelte";
+  import type { SendReturnOption } from "./strip-live";
   import {
     DEFAULT_SEND_LEVEL,
     EFFECT_RETURNS,
     SEND_RANGE,
     SEND_SLOT_COUNT,
-    effectReturn,
     formatSend,
-    type ReturnId,
   } from "./track-strip-fixtures";
 
   /**
@@ -24,12 +23,15 @@
    * that return's send level. Clicking the window again lets the user change
    * the assignment or remove it. One slot feeds exactly one return.
    *
-   * State lives in the strip (`SlotState`, bound in): UI state only — nothing
-   * is routed, mixed or persisted. The knob's own legend prints the slot's
-   * identity, "SEND 1" / "SEND 2" (owner, D2.2.9).
+   * State lives in the strip (`SlotState`, bound in): since Task 3.1 that
+   * is the project store's send slot (through the strip's live view), and
+   * the returns the menu lists are the session's Return buses (`returns`);
+   * nothing is routed, mixed or persisted. The knob's own legend prints the
+   * slot's identity, "SEND 1" / "SEND 2" (owner, D2.2.9).
    */
   export interface SlotState {
-    to: ReturnId | null;
+    /** The id of the Return this slot feeds, or null. */
+    to: string | null;
     level: number;
   }
 
@@ -39,8 +41,10 @@
     slot = $bindable(),
     /** The return the strip's other slot already feeds; offered greyed. */
     taken = null,
-    /** Fixture levels for this track, by return — used when a return is assigned in the UI. */
+    /** The levels this track loaded with, by return — what a slot takes back when that return is assigned in the UI. */
     fixtureLevels = {},
+    /** The returns the menu offers, in order (Task 3.1: the session's Return buses; the fixture list by default). */
+    returns = EFFECT_RETURNS,
     trackName,
   }: {
     /** 1-based position in the bay. */
@@ -48,8 +52,9 @@
     /** Slots in the bay: the menu spans them all so it never leaves the strip. */
     count?: number;
     slot: SlotState;
-    taken?: ReturnId | null;
-    fixtureLevels?: Partial<Record<ReturnId, number>>;
+    taken?: string | null;
+    fixtureLevels?: Readonly<Partial<Record<string, number>>>;
+    returns?: readonly SendReturnOption[];
     trackName: string;
   } = $props();
 
@@ -61,7 +66,7 @@
   const uid = `ss${++nextId}`;
   const legend = $derived(`Send ${index}`);
 
-  const assigned = $derived(slot.to ? effectReturn(slot.to) : null);
+  const assigned = $derived(slot.to ? (returns.find((r) => r.id === slot.to) ?? null) : null);
   const windowText = $derived(assigned ? assigned.short : "SEND");
   const windowName = $derived(
     assigned
@@ -95,7 +100,7 @@
     return menuEl ? Array.from(menuEl.querySelectorAll<HTMLButtonElement>("button:not([disabled])")) : [];
   }
 
-  function assign(returnId: ReturnId): void {
+  function assign(returnId: string): void {
     if (returnId === taken) return;
     if (slot.to !== returnId) {
       // A slot that was off takes the fixture's level for that return (or the
@@ -200,7 +205,7 @@
       onkeydown={onMenuKeydown}
       bind:this={menuEl}
     >
-      {#each EFFECT_RETURNS as ret (ret.id)}
+      {#each returns as ret (ret.id)}
         {@const current = slot.to === ret.id}
         {@const unavailable = ret.id === taken}
         <button

@@ -1,7 +1,7 @@
 <script lang="ts">
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import { formatSend } from "../channel-strip/track-strip-fixtures";
-  import type { SendInto } from "../../lib/return-chain.svelte";
+  import type { SendInto } from "../../lib/return-chain";
 
   /**
    * The Return's input — Task 2.9 (plan §8a: "The Return's input is the

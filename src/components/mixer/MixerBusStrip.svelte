@@ -1,6 +1,7 @@
 <script lang="ts">
   import BusMasterStrip from "../channel-strip/BusMasterStrip.svelte";
-  import type { MixerBusChannel } from "../../lib/mixer";
+  import type { Bus } from "../../lib/project/model";
+  import { busLive, busStripOf } from "../../lib/project/store.svelte";
   import MixerIdentity from "./MixerIdentity.svelte";
 
   /**
@@ -18,13 +19,18 @@
     selected,
     onselect,
   }: {
-    channel: MixerBusChannel;
+    channel: Bus;
     selected: boolean;
     onselect: (id: string) => void;
   } = $props();
+
+  /* Task 3.1: the Console's bus master bound to the project store's view of
+     this bus — one trim, balance, level, MUTE and SOLO in both rooms. */
+  const bus = $derived(busStripOf(channel.id));
+  const live = $derived(busLive(channel.id));
 </script>
 
-<BusMasterStrip bus={channel.bus}>
+<BusMasterStrip {bus} {live}>
   {#snippet identity()}
     <div class="bus-identity" data-mixer-channel={channel.id} data-mixer-channel-kind="bus">
       <MixerIdentity

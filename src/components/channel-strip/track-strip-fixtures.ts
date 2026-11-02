@@ -19,9 +19,11 @@
  * returns are a UI fixture — the list that a later task will populate from
  * the session's real Return buses (plan §8a) — not an effects system.
  *
- * Task 3.1 (shared typed project model) replaces this file; until then the
- * DOM carries `data-simulated` on every strip so the fixture cannot be
- * mistaken for a reading.
+ * Task 3.1 (shared typed project model): these fixtures are no longer read
+ * by the strips. They are the values the one project store is SEEDED with
+ * (lib/project/session.ts), so the approved session looks exactly as it
+ * did; the strips read and write the store. The DOM still carries
+ * `data-simulated` on every strip: it is a fixture session, not a reading.
  */
 
 export const SIMULATED = "simulated" as const;
@@ -104,6 +106,8 @@ export const TRIM_RANGE = { min: -20, max: 20, step: 0.5 } as const;
 export const PAN_RANGE = { min: -100, max: 100, step: 1 } as const;
 /** Sends: a post-fader send level in dB; the bottom of the range is "off" (an unassigned slot sits there). */
 export const SEND_RANGE = { min: -60, max: 6, step: 1 } as const;
+/** Channel, Return and bus faders: the approved fader's range (Fader.svelte defaults, Task 1.3), named for the store's clamps (Task 3.1). */
+export const FADER_RANGE = { min: -60, max: 10, step: 0.5 } as const;
 
 /** "+3.5 dB", "0.0 dB", "−6.0 dB" — a signed dB readout with a true minus sign. */
 export function formatSignedDb(value: number, decimals: number): string {

@@ -9,18 +9,16 @@
   import Knob from "../hardware/Knob.svelte";
   import Lamp from "../hardware/Lamp.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
-  import SendSlot, { type SlotState } from "./SendSlot.svelte";
+  import SendSlot from "./SendSlot.svelte";
+  import type { TrackStripLive } from "./strip-live";
   import {
     PAN_RANGE,
-    SEND_RANGE,
     SEND_SLOT_COUNT,
     SIMULATED,
     TRIM_RANGE,
     formatPan,
     formatSignedDb,
     orgToken,
-    type ReturnId,
-    type TrackStripFixture,
   } from "./track-strip-fixtures";
 
   /**
@@ -50,12 +48,15 @@
    *   · PEAK      own engaged lamps (owner's choice, D2.2.3), then the
    *               approved Lamp, red: a warning.
    *
-   * Everything is a fixture (`track-strip-fixtures.ts`, SIMULATED): the
-   * controls keep their approved local behaviour — drag, keyboard, numeric
-   * entry, press — and change only their own on-screen state. The send
-   * slots' assignments and levels are this strip's own UI state, seeded
-   * from the fixture. No audio, no routing, no mute/solo logic, no project
-   * state.
+   * The strip draws and turns ONE object, `track` (`TrackStripLive`,
+   * strip-live.ts): identity to print, and the settings its controls are
+   * BOUND to — trim, pan, level, MUTE, SOLO and the two send slots. Since
+   * Task 3.1 the rooms hand it the project store's view of the track
+   * (`trackStrip` in lib/project/store.svelte.ts), so the Console strip and
+   * the Mixer strip of one track turn one value, and every write goes
+   * through the store's typed operations. The controls keep their approved
+   * behaviour — drag, keyboard, numeric entry, press. Still a fixture
+   * session (SIMULATED): no audio, no routing, no mute/solo bus logic.
    *
    * The strip is a fixed-width physical module (owner's rule, D2.2.1): it
    * never shrinks to fit a viewport; the bank scrolls instead.
@@ -69,36 +70,25 @@
    * markup and CSS are exactly the approved Task 2.2 strip: the Console
    * passes nothing and renders byte-for-byte the same.
    */
-  let { track, identity }: { track: TrackStripFixture; identity?: Snippet } = $props();
+  let { track, identity }: { track: TrackStripLive; identity?: Snippet } = $props();
 
   const uid = `ts${++nextId}`;
 
   const trimFormat = (value: number) => formatSignedDb(value, 1);
 
-  /* --- send slots: UI state seeded from the fixture -------------------------
-     Fixed positions (SEND_SLOT_COUNT); the fixture's sends fill them in order,
-     the rest start unassigned at OFF. Assigning in the UI takes the fixture's
-     level for that return if it has one. */
-  const fixtureLevels: Partial<Record<ReturnId, number>> = $derived(
-    Object.fromEntries(track.sends.map((send) => [send.to, send.level])),
-  );
-  // Seeded once from the fixture (strips are keyed by track id, so a strip
-  // never changes track); from then on it is the strip's own UI state.
-  // svelte-ignore state_referenced_locally
-  let slots: SlotState[] = $state(
-    Array.from({ length: SEND_SLOT_COUNT }, (_, i) => {
-      const send = track.sends[i];
-      return send ? { to: send.to, level: send.level } : { to: null, level: SEND_RANGE.min };
-    }),
-  );
-  const takenBy = (i: number): ReturnId | null => slots.find((_, j) => j !== i)?.to ?? null;
+  /* --- send slots -----------------------------------------------------------
+     Fixed positions (SEND_SLOT_COUNT), the track's own (`track.sends`): the
+     slot component reads and writes them in place. A return the other slot
+     already feeds is offered greyed; a slot assigned in the UI takes the
+     level the track loaded with for that return, if it has one. */
+  const takenBy = (i: number): string | null => track.sends.find((_, j) => j !== i)?.to ?? null;
 </script>
 
 <li
   class="strip"
   role="group"
   aria-labelledby={`${uid}-name`}
-  data-track-strip={track.id}
+  data-track-strip={track.code}
   data-track-org={String(track.org)}
   data-simulated={SIMULATED}
 >
@@ -106,7 +96,7 @@
     <!-- HEAD: identity -->
     <header class="strip__head" data-strip-section="head">
       <div class="strip__ident">
-        <EngravedLabel text={track.id} size="sm" kind="value" tone="bright" title={`Channel ${track.id}`} />
+        <EngravedLabel text={track.code} size="sm" kind="value" tone="bright" title={`Channel ${track.code}`} />
         <EngravedLabel text={track.type} size="xs" tone="muted" title="Regular track" />
       </div>
       <div class="strip__name-row">
@@ -136,7 +126,7 @@
         min={TRIM_RANGE.min}
         max={TRIM_RANGE.max}
         step={TRIM_RANGE.step}
-        value={track.trim}
+        bind:value={() => track.trim, (v) => (track.trim = v)}
         unit="dB"
         decimals={1}
         extremes={["−20", "+20"]}
@@ -152,7 +142,7 @@
         min={PAN_RANGE.min}
         max={PAN_RANGE.max}
         step={PAN_RANGE.step}
-        value={track.pan}
+        bind:value={() => track.pan, (v) => (track.pan = v)}
         decimals={0}
         extremes={["L", "R"]}
         format={formatPan}
@@ -162,13 +152,14 @@
     <!-- SENDS: one recessed bay, two configurable slots -->
     <div class="strip__section strip__section--sends" data-strip-section="sends">
       <div class="strip__bay" role="group" aria-label={`Sends, ${track.name}`}>
-        {#each slots as _, i (i)}
+        {#each track.sends as slot, i (i)}
           <SendSlot
             index={i + 1}
             count={SEND_SLOT_COUNT}
-            bind:slot={slots[i]}
+            {slot}
             taken={takenBy(i)}
-            {fixtureLevels}
+            fixtureLevels={track.loadedSendLevels}
+            returns={track.returns}
             trackName={track.name}
           />
         {/each}
@@ -177,13 +168,13 @@
 
     <!-- LEVEL: the approved fader, 1x, 160 px travel -->
     <div class="strip__section strip__section--fader" data-strip-section="fader">
-      <Fader label="Level" value={track.level} />
+      <Fader label="Level" bind:value={() => track.level, (v) => (track.level = v)} />
     </div>
 
     <!-- MUTE · SOLO · PEAK (the owner's order, D2.2.3) -->
     <footer class="strip__section strip__section--switches" data-strip-section="switches">
-      <TactileSwitch variant="panel" label="Mute" lamp="red" engaged={track.mute} name={`Mute ${track.name}`} />
-      <TactileSwitch variant="panel" label="Solo" lamp="amber" engaged={track.solo} name={`Solo ${track.name}`} />
+      <TactileSwitch variant="panel" label="Mute" lamp="red" bind:engaged={() => track.mute, (on) => (track.mute = on)} name={`Mute ${track.name}`} />
+      <TactileSwitch variant="panel" label="Solo" lamp="amber" bind:engaged={() => track.solo, (on) => (track.solo = on)} name={`Solo ${track.name}`} />
       <div class="strip__peak" data-strip-peak>
         <EngravedLabel text="Peak" size="xs" />
         <span class="strip__peak-lamp">

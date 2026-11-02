@@ -216,11 +216,11 @@ const pinned = {
   // Task 2.4 re-pinned the bank: its pinned area now renders the Return and
   // bus-master strips (the deck above it is untouched; check-bus-return guards
   // the bank's new structure).
-  "src/components/ChannelBank.svelte": "d8079a833c0b8a4bdd111c741122b4810ffd2ba664876dc435a32002ecc9f1fa",
+  "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
-  "src/components/channel-strip/TrackStrip.svelte": "1e06056cd61e307e5e20d541e62309167b3c0cdde7a46085cfb436ac3f578cfa",
-  "src/components/channel-strip/SendSlot.svelte": "8009eaf5ba0335099deb62a315116e67450750c118370d974596ead37b468b31",
-  "src/components/channel-strip/track-strip-fixtures.ts": "c76e8c14b7c9794b14747a83a51926870a24c6a587405259f05ac6a415e151c5",
+  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
+  "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
+  "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",
   "src/components/MiniTransport.svelte": "00cc37bcfb214aa8374efa8f222b98f77d427685063c40fddc18d0f32dd8e36d",
 };

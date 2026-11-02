@@ -21,7 +21,6 @@
  * run would plausibly have left — nothing is summed, measured or limited.
  */
 
-import type { BusMasterFixture } from "../components/channel-strip/bus-return-fixtures";
 import {
   COMP_ATTACK,
   COMP_MAKEUP,
@@ -42,13 +41,8 @@ import {
 } from "./mixer-chain";
 
 export interface BusChainState {
-  readonly busId: string;
-  readonly code: string;
-  readonly name: string;
   readonly eq: EqState;
   readonly comp: CompState;
-  /** Where the bus goes. The fixture bus feeds Master. */
-  readonly output: string;
   /** The final output stage (plan §8): transparent peak protection only if needed — here a fixture status. */
   readonly peakProtection: { readonly engaged: boolean; readonly text: string };
   readonly notes: readonly ExplanationNote[];
@@ -63,7 +57,6 @@ interface BusFixture {
   readonly gainReductionDb: number;
   readonly eqBypassed?: boolean;
   readonly compBypassed?: boolean;
-  readonly output: string;
   readonly peakEngaged: boolean;
   readonly peakText: string;
   readonly notes: readonly ExplanationNote[];
@@ -77,7 +70,6 @@ const BUS_FIXTURES: Readonly<Record<string, BusFixture>> = {
     character: "varimu",
     comp: [-20, 1.5, 30, 300, 0.5],
     gainReductionDb: 1,
-    output: "Master",
     peakEngaged: false,
     peakText: "not engaged (the mix leaves headroom)",
     notes: [
@@ -94,15 +86,14 @@ const FALLBACK: BusFixture = {
   character: "vca",
   comp: [-20, 1.5, 30, 300, 0],
   gainReductionDb: 0,
-  output: "Master",
   peakEngaged: false,
   peakText: "not engaged",
   notes: [note("eq", "A new bus starts flat; it receives bus processing only when MIX is run.")],
 };
 
-/** A fresh, independent chain state for a bus, from its fixture. */
-export function createBusChainState(bus: BusMasterFixture): BusChainState {
-  const fx = BUS_FIXTURES[bus.id] ?? FALLBACK;
+/** A fresh, independent chain state for the bus with this printed code, from its fixture. */
+export function createBusChainState(code: string): BusChainState {
+  const fx = BUS_FIXTURES[code] ?? FALLBACK;
   const bands: EqBandState[] = EQ_BANDS.map((band) => {
     const [freq, gain, q] = fx.bands[band.id];
     return {
@@ -115,9 +106,6 @@ export function createBusChainState(bus: BusMasterFixture): BusChainState {
   });
   const [threshold, ratio, attack, release, makeup] = fx.comp;
   return {
-    busId: bus.id,
-    code: bus.id,
-    name: bus.name,
     eq: { bypassed: fx.eqBypassed === true, bands },
     comp: {
       bypassed: fx.compBypassed === true,
@@ -129,21 +117,20 @@ export function createBusChainState(bus: BusMasterFixture): BusChainState {
       makeup: chainParam(COMP_MAKEUP, makeup, undefined),
       gainReductionDb: fx.gainReductionDb,
     },
-    output: fx.output,
     peakProtection: { engaged: fx.peakEngaged, text: fx.peakText },
     notes: fx.notes,
   };
 }
 
-/** The bus's rail (plan §8): trim → EQ → compressor → balance → fader → output → the final output stage. */
-export function busRailBlocks(chain: BusChainState): RailBlock[] {
+/** The bus's rail (plan §8): trim → EQ → compressor → balance → fader → output (the printed name of the bus's destination) → the final output stage. */
+export function busRailBlocks(chain: BusChainState, output: string): RailBlock[] {
   return [
     { id: "trim", step: "01", label: "Bus trim", engaged: true, home: "strip" },
     { id: "eq", step: "02", label: "Static multiband EQ", engaged: !chain.eq.bypassed, home: "panel" },
     { id: "comp", step: "03", label: "Compressor", engaged: !chain.comp.bypassed, home: "panel" },
     { id: "balance", step: "04", label: "Balance", engaged: true, home: "strip" },
     { id: "fader", step: "05", label: "Bus fader", engaged: true, home: "strip" },
-    { id: "output", step: "06", label: `Output \u2192 ${chain.output}`, engaged: true, home: "fixture", status: `routed to ${chain.output}` },
+    { id: "output", step: "06", label: `Output \u2192 ${output}`, engaged: true, home: "fixture", status: `routed to ${output}` },
     {
       id: "peak",
       step: "07",

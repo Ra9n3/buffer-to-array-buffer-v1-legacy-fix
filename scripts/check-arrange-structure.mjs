@@ -92,8 +92,14 @@ check(
 );
 
 // --- 2. One loop drives both track rows and lanes.
-const tracksLoop = /{#each\s+ARRANGE_TRACKS\s+as\s+track[^}]*}/.exec(room);
-check("ArrangeRoom iterates the shared ARRANGE_TRACKS array", Boolean(tracksLoop));
+// Task 3.1: the room iterates the project store's tracks (`project.tracks`,
+// derived into `tracks`), not the ARRANGE_TRACKS fixture copy.
+const tracksLoop = /{#each\s+tracks\s+as\s+track[^}]*}/.exec(room);
+check("ArrangeRoom iterates the project store's tracks (Task 3.1)", Boolean(tracksLoop));
+check(
+  "the tracks are the store's, derived (project.tracks), not a fixture array",
+  /const tracks = \$derived\(project\.tracks\)/.test(room) && !/ARRANGE_TRACKS/.test(room),
+);
 
 const trackRowUsages = (room.match(/<ArrangeTrackRow\b/g) ?? []).length;
 const laneUsages = (room.match(/<ArrangeTimelineLane\b/g) ?? []).length;

@@ -1,7 +1,7 @@
 <script lang="ts">
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import { SIMULATED } from "../channel-strip/track-strip-fixtures";
-  import { MIXER_BUSES, MIXER_RETURNS, MIXER_TRACKS } from "../../lib/mixer";
+  import { project } from "../../lib/project/store.svelte";
   import MixerBusStrip from "./MixerBusStrip.svelte";
   import MixerReturnStrip from "./MixerReturnStrip.svelte";
   import MixerTrackStrip from "./MixerTrackStrip.svelte";
@@ -15,7 +15,8 @@
    * at the right — one `MixerReturnStrip` per fixture Return, then the
    * `MixerBusStrip` farthest right (plan §8a: the Returns pinned alongside
    * the bus master; the Console bank's order). The same session as the
-   * Console: the channels are derived from the shared fixtures (`lib/mixer`).
+   * Console: since Task 3.1 the channels are the entities of the one project
+   * store (`lib/project/store.svelte`), read in the session's order.
    *
    * The housing is the Console bank's — walnut end-cheeks, the charcoal deck
    * with its trim line, the recessed rails (D2.2.5) — copied value for
@@ -39,11 +40,18 @@
     onselect: (id: string) => void;
   } = $props();
 
-  const first = MIXER_TRACKS[0]?.code ?? "";
-  const last = MIXER_TRACKS[MIXER_TRACKS.length - 1]?.code ?? "";
-  const firstPinned = MIXER_RETURNS[0]?.code ?? MIXER_BUSES[0]?.code ?? "";
-  const lastPinned = MIXER_BUSES[MIXER_BUSES.length - 1]?.code ?? MIXER_RETURNS[MIXER_RETURNS.length - 1]?.code ?? "";
-  const pinnedCount = MIXER_RETURNS.length + MIXER_BUSES.length;
+  /* Task 3.1: the bank reads the one project store — the same tracks,
+     Returns and bus master the Console bank and the Arrange list read — in
+     the session's order. */
+  const tracks = $derived(project.tracks);
+  const returns = $derived(project.returns);
+  const buses = $derived(project.buses);
+
+  const first = $derived(tracks[0]?.code ?? "");
+  const last = $derived(tracks[tracks.length - 1]?.code ?? "");
+  const firstPinned = $derived(returns[0]?.code ?? buses[0]?.code ?? "");
+  const lastPinned = $derived(buses[buses.length - 1]?.code ?? returns[returns.length - 1]?.code ?? "");
+  const pinnedCount = $derived(returns.length + buses.length);
 </script>
 
 <div class="mbank" data-mixer-bank data-simulated={SIMULATED}>
@@ -75,7 +83,7 @@
       aria-label={`Track channels ${first} to ${last}, ${SIMULATED} settings; scrolls sideways`}
     >
       <ol class="mbank__rail" aria-label={`Tracks ${first} through ${last}`}>
-        {#each MIXER_TRACKS as channel (channel.id)}
+        {#each tracks as channel (channel.id)}
           <MixerTrackStrip {channel} selected={channel.id === selectedId} {onselect} />
         {/each}
       </ol>
@@ -91,10 +99,10 @@
       aria-label="Pinned bus and Return channels"
     >
       <ul class="mbank__pinned-row" aria-label="Return buses, then the bus master">
-        {#each MIXER_RETURNS as channel (channel.id)}
+        {#each returns as channel (channel.id)}
           <MixerReturnStrip {channel} selected={channel.id === selectedId} {onselect} />
         {/each}
-        {#each MIXER_BUSES as channel (channel.id)}
+        {#each buses as channel (channel.id)}
           <MixerBusStrip {channel} selected={channel.id === selectedId} {onselect} />
         {/each}
       </ul>

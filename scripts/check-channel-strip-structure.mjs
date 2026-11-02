@@ -76,6 +76,7 @@ const strip = read("src/components/channel-strip/TrackStrip.svelte");
 const sendSlot = read("src/components/channel-strip/SendSlot.svelte");
 const bank = read("src/components/ChannelBank.svelte");
 const fixtures = read("src/components/channel-strip/track-strip-fixtures.ts");
+const session = read("src/lib/project/session.ts"); // Task 3.1: seeds the project from the fixtures
 const consoleRoom = read("src/rooms/ConsoleRoom.svelte");
 const placeholder = read("src/components/ChannelStrip.svelte");
 const pkg = JSON.parse(read("package.json"));
@@ -90,8 +91,11 @@ const allStripSource = [strip, sendSlot, bank, fixtures].join("\n");
 
 // --- 1. One strip, twenty tracks, pinned placeholders untouched. -------------
 check("TrackStrip.svelte exists under components/channel-strip", exists("src/components/channel-strip/TrackStrip.svelte"));
-check("the bank imports the TrackStrip and the fixtures", /import TrackStrip from "\.\/channel-strip\/TrackStrip\.svelte"/.test(bank) && /TRACK_STRIPS/.test(bank));
-check("the bank renders one TrackStrip per fixture track, keyed by id", /\{#each TRACK_STRIPS as track \(track\.id\)\}\s*<TrackStrip \{track\} \/>/.test(bankTemplate));
+// Task 3.1: the bank reads the one project store (tracks, Returns, buses) and binds
+// each strip to the store's view of its entity; the fixture arrays seed the store
+// (lib/project/session.ts) and are no longer read by the bank.
+check("the bank imports the TrackStrip and the project store's views (Task 3.1)", /import TrackStrip from "\.\/channel-strip\/TrackStrip\.svelte"/.test(bank) && /import \{ busLive, busStripOf, project, returnLive, returnStripOf, trackStrip \} from "\.\.\/lib\/project\/store\.svelte"/.test(bank) && !/TRACK_STRIPS|RETURN_STRIPS|BUS_MASTERS/.test(bank));
+check("the bank renders one TrackStrip per project track, keyed by the track's stable id, bound to the store's strip view", /\{#each tracks as track \(track\.id\)\}\s*<TrackStrip track=\{trackStrip\(track\.id\)\} \/>/.test(bankTemplate) && /const tracks = \$derived\(project\.tracks\);/.test(bank));
 check("the TrackStrip is rendered exactly once in the bank's template", count(bankTemplate, /<TrackStrip\b/g) === 1);
 {
   const rows = fixtures.match(/^\s*\{ id: "\d\d", name: "[^"]+", type: "TRK"/gm) ?? [];
@@ -100,13 +104,13 @@ check("the TrackStrip is rendered exactly once in the bank's template", count(ba
   check("track ids are unique and sequential", ids.join(",") === Array.from({ length: 20 }, (_, i) => String(i + 1).padStart(2, "0")).join(","));
 }
 check("the strip is a list item that names itself by its track name (role=group, aria-labelledby)", /<li\s+class="strip"\s+role="group"\s+aria-labelledby=\{`\$\{uid\}-name`\}/.test(stripTemplate) && /id=\{`\$\{uid\}-name`\} text=\{track\.name\}/.test(stripTemplate));
-check("the strip carries its hooks: data-track-strip, data-track-org, data-simulated, data-strip-section", /data-track-strip=\{track\.id\}/.test(stripTemplate) && /data-track-org=/.test(stripTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate) && count(stripTemplate, /data-strip-section="/g) === 7);
+check("the strip carries its hooks: data-track-strip, data-track-org, data-simulated, data-strip-section", /data-track-strip=\{track\.code\}/.test(stripTemplate) && /data-track-org=/.test(stripTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate) && count(stripTemplate, /data-strip-section="/g) === 7);
 // Task 2.7: one OPTIONAL section, `identity`, sits between the head and TRIM —
 // rendered only when a room passes the `identity` snippet (the Mixer does, the
 // Console does not), so the Console strip is still the six approved sections.
 check("the six sections are head, trim, pan, sends, fader, switches — in that order, with the optional Task 2.7 identity section between head and trim", (stripTemplate.match(/data-strip-section="([a-z]+)"/g) ?? []).map((m) => m.slice(20, -1)).join(",") === "head,identity,trim,pan,sends,fader,switches");
-check("the identity section is optional: guarded by {#if identity}, rendering the snippet and nothing else; the Console bank passes none", /\{#if identity\}\s*(<!--[\s\S]*?-->\s*)?<div class="strip__section strip__section--identity" data-strip-section="identity">\s*\{@render identity\(\)\}\s*<\/div>\s*\{\/if\}/.test(stripTemplate) && /<TrackStrip \{track\} \/>/.test(bankTemplate) && !/identity/.test(bank));
-check("the pinned area renders the Task 2.4 strips: one ReturnStrip per fixture return, then the BusMasterStrip (the bus master farthest right, 0.3)", /<aside[\s\S]*\{#each RETURN_STRIPS as ret \(ret\.returnId\)\}\s*<ReturnStrip \{ret\} \/>\s*\{\/each\}\s*\{#each BUS_MASTERS as bus \(bus\.id\)\}\s*<BusMasterStrip \{bus\} \/>\s*\{\/each\}/.test(bankTemplate) && count(bankTemplate, /<ReturnStrip\b/g) === 1 && count(bankTemplate, /<BusMasterStrip\b/g) === 1);
+check("the identity section is optional: guarded by {#if identity}, rendering the snippet and nothing else; the Console bank passes none", /\{#if identity\}\s*(<!--[\s\S]*?-->\s*)?<div class="strip__section strip__section--identity" data-strip-section="identity">\s*\{@render identity\(\)\}\s*<\/div>\s*\{\/if\}/.test(stripTemplate) && /<TrackStrip track=\{trackStrip\(track\.id\)\} \/>/.test(bankTemplate) && !/identity/.test(bank));
+check("the pinned area renders the Task 2.4 strips: one ReturnStrip per fixture return, then the BusMasterStrip (the bus master farthest right, 0.3)", /<aside[\s\S]*\{#each returns as ret \(ret\.id\)\}\s*<ReturnStrip ret=\{returnStripOf\(ret\.id\)\} live=\{returnLive\(ret\.id\)\} \/>\s*\{\/each\}\s*\{#each buses as bus \(bus\.id\)\}\s*<BusMasterStrip bus=\{busStripOf\(bus\.id\)\} live=\{busLive\(bus\.id\)\} \/>\s*\{\/each\}/.test(bankTemplate) && count(bankTemplate, /<ReturnStrip\b/g) === 1 && count(bankTemplate, /<BusMasterStrip\b/g) === 1);
 check("the bank no longer renders or imports the Phase 0 ChannelStrip placeholder", !/ChannelStrip\b/.test(bank));
 check("ChannelStrip.svelte (the placeholder) is untouched: no tokens, no hardware imports, Phase 0 width", !/var\(--al-|hardware\//.test(placeholder) && /flex: 0 0 6rem/.test(placeholder));
 check("no TrackStrip is rendered in the pinned area (the <aside>)", !/<aside[\s\S]*<TrackStrip/.test(bankTemplate));
@@ -123,31 +127,34 @@ check("PAN is the blue-grey family (spec §5: pan and placement) with L / R extr
 check("the trim and pan knobs use the fixture ranges and formatters, not literals", /min=\{TRIM_RANGE\.min\}/.test(stripTemplate) && /min=\{PAN_RANGE\.min\}/.test(stripTemplate) && /format=\{formatPan\}/.test(stripTemplate) && /format=\{trimFormat\}/.test(stripTemplate));
 
 // --- 2b. Configurable send slots (D2.2.9). ------------------------------------
-check("SendSlot.svelte exists and the strip imports it with its SlotState type", exists("src/components/channel-strip/SendSlot.svelte") && /import SendSlot, \{ type SlotState \} from "\.\/SendSlot\.svelte"/.test(strip));
+check("SendSlot.svelte exists and the strip imports it; the strip's live type (strip-live.ts) carries the slots", exists("src/components/channel-strip/SendSlot.svelte") && /import SendSlot from "\.\/SendSlot\.svelte"/.test(strip) && /import type \{ TrackStripLive \} from "\.\/strip-live";/.test(strip) && /export interface SendSlotLive \{/.test(read("src/components/channel-strip/strip-live.ts")));
 check("the fixture fixes two slot positions per strip (owner: two, side by side)", /export const SEND_SLOT_COUNT = 2;/.test(fixtures));
-check("the strip seeds SEND_SLOT_COUNT slots from the fixture's sends, the rest unassigned at OFF", /Array\.from\(\{ length: SEND_SLOT_COUNT \}/.test(strip) && /send \? \{ to: send\.to, level: send\.level \} : \{ to: null, level: SEND_RANGE\.min \}/.test(strip));
-check("the slots are the strip's own UI state ($state), bound into each SendSlot", /let slots: SlotState\[\] = \$state\(/.test(strip) && /bind:slot=\{slots\[i\]\}/.test(stripTemplate) && /\{#each slots as _, i \(i\)\}\s*<SendSlot/.test(stripTemplate));
-check("the slots sit together in the one labelled bay and nowhere else", /<div class="strip__bay" role="group" aria-label=\{`Sends, \$\{track\.name\}`\}>\s*\{#each slots/.test(stripTemplate) && count(stripTemplate, /<SendSlot\b/g) === 1);
-check("each slot tells the other which return it feeds (no double assignment)", /taken=\{takenBy\(i\)\}/.test(stripTemplate) && /slots\.find\(\(_, j\) => j !== i\)\?\.to \?\? null/.test(strip));
+// Task 3.1: the slots are seeded once into the project (session.ts) from the fixture's
+// sends — SEND_SLOT_COUNT per track, the rest unassigned at OFF — and the strip renders
+// its model's slots (`track.sends`), each handed to a SendSlot that writes it.
+check("the session seeds SEND_SLOT_COUNT slots per track from the fixture's sends, the rest unassigned at OFF (Task 3.1)", /Array\.from\(\{ length: SEND_SLOT_COUNT \}/.test(session) && /send \? \{ to: returnBusId\(send\.to\), level: send\.level \} : \{ to: null, level: SEND_RANGE\.min \}/.test(session) && !/Array\.from\(\{ length: SEND_SLOT_COUNT \}/.test(strip));
+check("the slots are the strip's model's (`track.sends`), one SendSlot each, written in place — the strip holds no slot state of its own", /\{#each track\.sends as slot, i \(i\)\}\s*<SendSlot/.test(stripTemplate) && /\{slot\}/.test(stripTemplate) && !/let slots/.test(strip) && !/\$state/.test(strip));
+check("the slots sit together in the one labelled bay and nowhere else", /<div class="strip__bay" role="group" aria-label=\{`Sends, \$\{track\.name\}`\}>\s*\{#each track\.sends/.test(stripTemplate) && count(stripTemplate, /<SendSlot\b/g) === 1);
+check("each slot tells the other which return it feeds (no double assignment)", /taken=\{takenBy\(i\)\}/.test(stripTemplate) && /track\.sends\.find\(\(_, j\) => j !== i\)\?\.to \?\? null/.test(strip));
 check("the slot's knob is the approved Knob, green family, legend Send n, OFF / +6 extremes, fixture range", /import Knob from "\.\.\/hardware\/Knob\.svelte"/.test(sendSlot) && /<Knob\s+label=\{legend\}\s+family="green"/.test(slotTemplate) && /min=\{SEND_RANGE\.min\}/.test(slotTemplate) && /extremes=\{\["OFF", "\+6"\]\}/.test(slotTemplate) && /format=\{formatSend\}/.test(slotTemplate) && /const legend = \$derived\(`Send \$\{index\}`\)/.test(sendSlot));
 check("the knob is bound to the slot's level and disabled while the slot is unassigned", /bind:value=\{slot\.level\}/.test(slotTemplate) && /disabled=\{assigned === null\}/.test(slotTemplate));
 check("an unassigned slot prints SEND; an assigned one prints the return's short name", /assigned \? assigned\.short : "SEND"/.test(sendSlot));
 check("the send label is a menu button (aria-haspopup, aria-expanded, data-send-label)", /<button\s+type="button"\s+class="slot__window"[\s\S]*?aria-haspopup="menu"[\s\S]*?aria-expanded=\{open\}[\s\S]*?data-send-label/.test(slotTemplate));
-check("the menu lists every fixture return as a menuitemradio and offers Remove only when assigned", /\{#each EFFECT_RETURNS as ret \(ret\.id\)\}/.test(slotTemplate) && /role="menuitemradio"\s+aria-checked=\{current\}/.test(slotTemplate) && /\{#if assigned\}\s*<button[^>]*data-send-remove/.test(slotTemplate) && /role="menu"/.test(slotTemplate));
+check("the menu lists every Return it is given (the project's; the fixture list by default) as a menuitemradio and offers Remove only when assigned", /\{#each returns as ret \(ret\.id\)\}/.test(slotTemplate) && /returns = EFFECT_RETURNS,/.test(sendSlot) && /returns=\{track\.returns\}/.test(stripTemplate) && /role="menuitemradio"\s+aria-checked=\{current\}/.test(slotTemplate) && /\{#if assigned\}\s*<button[^>]*data-send-remove/.test(slotTemplate) && /role="menu"/.test(slotTemplate));
 check("a return already fed by the other slot is offered disabled", /disabled=\{unavailable\}/.test(slotTemplate) && /const unavailable = ret\.id === taken/.test(slotTemplate));
 check("assigning takes the fixture's level for that return or the default; removing returns the slot to OFF", /fixtureLevels\[returnId\] \?\? DEFAULT_SEND_LEVEL/.test(sendSlot) && /slot\.to = null;\s*slot\.level = SEND_RANGE\.min;/.test(sendSlot));
 check("the menu closes on Escape (focus back to the label), on Tab and on a press outside", /event\.key === "Escape"/.test(sendSlot) && /windowEl\?\.focus\(\)/.test(sendSlot) && /event\.key === "Tab"/.test(sendSlot) && /<svelte:document onpointerdown=\{onDocumentPointerDown\} \/>/.test(slotTemplate) && /!rootEl\.contains\(event\.target as Node\)/.test(sendSlot));
 check("the menu is absolutely positioned above later content and spans the bay (never outside the strip)", /\.slot__menu \{[^}]*position:\s*absolute/s.test(slotStyle) && /\.slot__menu \{[^}]*z-index:\s*[1-9]/s.test(slotStyle) && /style:left=\{menuLeft\}/.test(slotTemplate) && /style:width=\{menuWidth\}/.test(slotTemplate) && /\$\{count\} \* 100%/.test(sendSlot));
 check("the slot draws no control of its own (no svg, canvas or input)", !/<svg|<canvas|<input/.test(slotTemplate));
 check("the slot carries its hooks: data-send-slot, data-send-state, data-send-to, data-send-menu, data-send-option", /data-send-slot=\{index\}/.test(slotTemplate) && /data-send-state=\{slotState\}/.test(slotTemplate) && /data-send-to=\{slot\.to \?\? ""\}/.test(slotTemplate) && /data-send-menu/.test(slotTemplate) && /data-send-option=\{ret\.id\}/.test(slotTemplate));
-check("the slot's state type is two fields only: the return (or null) and a level", /export interface SlotState \{\s*to: ReturnId \| null;\s*level: number;\s*\}/.test(sendSlot));
+check("the slot's state type is two fields only: the Return's id (or null) and a level — id-agnostic since Task 3.1 (the project's kind-prefixed Return ids)", /export interface SlotState \{\s*(\/\*\*[^*]*\*\/\s*)?to: string \| null;\s*level: number;\s*\}/.test(sendSlot) && !/ReturnId/.test(sendSlot));
 check("the slot does not override the approved Knob's internals", !/:global|\.knob/.test(slotStyle));
 
-check("one fader, labelled Level, at its approved defaults (console taper, 160 travel, −60…+10 dB)", count(stripTemplate, /<Fader\b/g) === 1 && /<Fader label="Level" value=\{track\.level\} \/>/.test(stripTemplate));
-check("two panel-labelled switches: Mute (red lamp) and Solo (amber lamp), named per track", /<TactileSwitch variant="panel" label="Mute" lamp="red" engaged=\{track\.mute\} name=\{`Mute \$\{track\.name\}`\} \/>/.test(stripTemplate) && /<TactileSwitch variant="panel" label="Solo" lamp="amber" engaged=\{track\.solo\} name=\{`Solo \$\{track\.name\}`\} \/>/.test(stripTemplate) && count(stripTemplate, /<TactileSwitch\b/g) === 2);
+check("one fader, labelled Level, at its approved defaults (console taper, 160 travel, −60…+10 dB)", count(stripTemplate, /<Fader\b/g) === 1 && /<Fader label="Level" bind:value=\{\(\) => track\.level, \(v\) => \(track\.level = v\)\} \/>/.test(stripTemplate));
+check("two panel-labelled switches: Mute (red lamp) and Solo (amber lamp), named per track", /<TactileSwitch variant="panel" label="Mute" lamp="red" bind:engaged=\{\(\) => track\.mute, \(on\) => \(track\.mute = on\)\} name=\{`Mute \$\{track\.name\}`\} \/>/.test(stripTemplate) && /<TactileSwitch variant="panel" label="Solo" lamp="amber" bind:engaged=\{\(\) => track\.solo, \(on\) => \(track\.solo = on\)\} name=\{`Solo \$\{track\.name\}`\} \/>/.test(stripTemplate) && count(stripTemplate, /<TactileSwitch\b/g) === 2);
 check("one red peak lamp, named per track", count(stripTemplate, /<Lamp\b/g) === 1 && /<Lamp lit=\{track\.peak\} color="red" name=\{`Peak, \$\{track\.name\}`\} \/>/.test(stripTemplate));
 check("the footer order is mute, solo, peak", /label="Mute"[\s\S]*label="Solo"[\s\S]*data-strip-peak/.test(stripTemplate));
-check("every legend is an EngravedLabel: number, type, name, peak", count(stripTemplate, /<EngravedLabel\b/g) === 4 && /text=\{track\.id\}/.test(stripTemplate) && /text=\{track\.type\}/.test(stripTemplate) && /text="Peak"/.test(stripTemplate));
+check("every legend is an EngravedLabel: number, type, name, peak", count(stripTemplate, /<EngravedLabel\b/g) === 4 && /text=\{track\.code\}/.test(stripTemplate) && /text=\{track\.type\}/.test(stripTemplate) && /text="Peak"/.test(stripTemplate));
 check("the strip has no raw text print of its own (every word goes through EngravedLabel or a component label)", !/>\s*[A-Za-z][A-Za-z ]+\s*</.test(stripTemplate.replace(/<!--[\s\S]*?-->/g, "")));
 check("the track name is engraved (kind=value) and truncates rather than wraps", /text=\{track\.name\} size="sm" kind="value" truncate/.test(stripTemplate));
 
@@ -171,12 +178,12 @@ check("the bank does not override the approved components' internals either", !/
 check("the fixture file declares itself SIMULATED in its header", /SIMULATED fixture data/.test(fixtures.slice(0, 600)));
 check('the fixture file exports SIMULATED = "simulated"', /export const SIMULATED = "simulated" as const/.test(fixtures));
 check("bank and strip roots carry data-simulated", /data-channel-bank data-simulated=\{SIMULATED\}/.test(bankTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate));
-check("the strip's props are the fixture type and the optional identity snippet only (Task 2.7)", /let \{ track, identity \}: \{ track: TrackStripFixture; identity\?: Snippet \} = \$props\(\);/.test(strip));
+check("the strip's props are its live model (TrackStripLive — the store's view, or a plain seeded object) and the optional identity snippet only (Tasks 2.7, 3.1)", /let \{ track, identity \}: \{ track: TrackStripLive; identity\?: Snippet \} = \$props\(\);/.test(strip));
 check(
   "no audio, metering, timers, randomness, stores or shared state in any strip file (local UI state only)",
   !/AudioContext|Analyser|AudioBuffer|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now|lib\/mixer|lib\/arrange|lib\/rooms|localStorage|sessionStorage|fetch\(|svelte\/store|writable\(|readable\(|getContext|setContext|onToggle|\$effect/.test(allStripSource),
 );
-check("the only $state in the strip files is the slot list and the slot's own menu/element refs", count(strip, /\$state\(/g) === 1 && count(sendSlot, /\$state\(/g) === 4 && !/\$state/.test(fixtures + bank));
+check("the only $state in the strip files is the slot's own menu/element refs — the strip holds none (its model owns every value; Task 3.1)", count(strip, /\$state\(/g) === 0 && count(sendSlot, /\$state\(/g) === 4 && !/\$state/.test(fixtures + bank));
 check("the fixtures vary: tracks with no send, one send and two sends, to every return", count(fixtures, /sends: \[\]/g) >= 3 && count(fixtures, /sends: \[\{ to: "[a-z0-9]+", level: -\d+ \}\]/g) >= 3 && count(fixtures, /sends: \[\{ to: "[a-z0-9]+", level: -\d+ \}, \{ to: "[a-z0-9]+", level: -\d+ \}\]/g) >= 3 && /to: "room"/.test(fixtures) && /to: "plate"/.test(fixtures) && /to: "delay1"/.test(fixtures));
 check("no fixture track exceeds the slot count or names an unknown return", (fixtures.match(/sends: \[[^\]]*\]/g) ?? []).every((m) => count(m, /\{ to:/g) <= 2 && !/to: "(?!room|plate|delay1)/.test(m)));
 check("the effect returns are a typed fixture list: Room Reverb, Plate Reverb, Delay 1, with short prints", /export type ReturnId = "room" \| "plate" \| "delay1";/.test(fixtures) && /\{ id: "room", name: "Room Reverb", short: "ROOM" \}/.test(fixtures) && /\{ id: "plate", name: "Plate Reverb", short: "PLATE" \}/.test(fixtures) && /\{ id: "delay1", name: "Delay 1", short: "DELAY 1" \}/.test(fixtures));
@@ -224,7 +231,7 @@ check("no screw heads in any strip file (owner's standing rule, D2.1.9)", !/(cla
 check("no instrument combobox or Prominence Tier control in the Console (plan §3)", !/combobox|<select|Prominence|prominence|tier/i.test(allStripSource + consoleRoom));
 check("the strip and bank do not import the bridge or its fixtures", !/meter-bridge\//.test(strip + bank));
 check("the strip and slot do not import the Phase 0 placeholder or the mixer/arrange fixtures", !/ChannelStrip\.svelte|MixerChannelStrip|lib\/mixer|lib\/arrange/.test(strip + sendSlot));
-check("the bank imports the pinned strips and their fixtures from the channel-strip folder (Task 2.4)", /import BusMasterStrip from "\.\/channel-strip\/BusMasterStrip\.svelte"/.test(bank) && /import ReturnStrip from "\.\/channel-strip\/ReturnStrip\.svelte"/.test(bank) && /import \{ BUS_MASTERS, RETURN_STRIPS \} from "\.\/channel-strip\/bus-return-fixtures"/.test(bank));
+check("the bank imports the pinned strips from the channel-strip folder (Task 2.4) and reads their entities from the store (Task 3.1)", /import BusMasterStrip from "\.\/channel-strip\/BusMasterStrip\.svelte"/.test(bank) && /import ReturnStrip from "\.\/channel-strip\/ReturnStrip\.svelte"/.test(bank) && /const returns = \$derived\(project\.returns\);/.test(bank) && /const buses = \$derived\(project\.buses\);/.test(bank));
 check("no instrument combobox: the send menu is a menu, not a combobox or select", !/combobox|<select|<datalist/.test(sendSlot));
 check("ConsoleRoom keeps the bridge over the bank (Task 2.3 added its transport zone between them), and no Phase 0 bank frame", (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") === 'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"' && !/console-bank\b|console-zone__header/.test(consoleRoom));
 check("the approved bridge is byte-identical to Task 2.1's approved file", sha256(read("src/components/meter-bridge/ConsoleMeterBridge.svelte")) === "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002");

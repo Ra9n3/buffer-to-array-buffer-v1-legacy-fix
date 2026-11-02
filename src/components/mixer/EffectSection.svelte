@@ -11,7 +11,7 @@
     setReturnCharacter,
     type ReturnChainState,
     type ReturnCharacterId,
-  } from "../../lib/return-chain.svelte";
+  } from "../../lib/return-chain";
   import AutoManualControls from "./AutoManualControls.svelte";
   import ChainKnob from "./ChainKnob.svelte";
 
@@ -30,10 +30,10 @@
    * output level is its strip fader and is not duplicated here.
    *
    * These are the SAME values the Mixer's Return strip turns: one state per
-   * Return (`return-chain.svelte.ts`), so a knob turned on the strip moves
+   * Return (the project store since Task 3.1), so a knob turned on the strip moves
    * here, and a character chosen here prints in the strip's window.
    */
-  let { chain }: { chain: ReturnChainState } = $props();
+  let { chain, returnName }: { chain: ReturnChainState; returnName: string } = $props();
 
   const effectTitle = $derived(chain.effect === "reverb" ? "Reverb" : "Delay");
   const params = $derived(returnOwned(chain));
@@ -68,7 +68,7 @@
         label="Bypass"
         lamp="amber"
         bind:engaged={() => chain.bypassed, (on) => (chain.bypassed = on)}
-        name={`${effectTitle} bypass, ${chain.name}: ${chain.bypassed ? "bypassed" : "in circuit"}`}
+        name={`${effectTitle} bypass, ${returnName}: ${chain.bypassed ? "bypassed" : "in circuit"}`}
       />
     </div>
   </header>
@@ -84,7 +84,7 @@
       <EngravedLabel text="Character" size="xs" />
       <ScribbleSelect
         label="Character"
-        context={chain.name}
+        context={returnName}
         options={RETURN_CHARACTERS[chain.effect]}
         bind:value={() => chain.character.value, (id) => setReturnCharacter(chain, id as ReturnCharacterId)}
         size="sm"

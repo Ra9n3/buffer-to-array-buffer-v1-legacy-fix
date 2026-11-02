@@ -4,8 +4,9 @@
  * The data behind the Mixer's detail panel: the plan's channel chain (§8),
  * the Auto / Manual mode every parameter carries (§8, §16, glossary), the
  * EQ and compressor parameters with their knob tapers, the EQ response
- * evaluator the graph draws from, the per-track FIXTURE states, and the
- * edits the panel makes locally.
+ * evaluator the graph draws from, the per-track FIXTURE states the shared
+ * project store is seeded with (Task 3.1: `Track.chain`, one state per
+ * track, edited through the operations below), and those operations.
  *
  * Fixtures only. Nothing here listens, analyses, recommends or processes:
  *   - every value is authored below (`FIXTURES`), one chain per standard
@@ -22,16 +23,18 @@
  *     measurement of any signal;
  *   - the gain-reduction readings are fixed illustrative numbers.
  */
-import { PROCESSING_CHAIN_STEPS, type MixerChannelEntry, type MixerTrackChannel } from "./mixer";
+import { PROCESSING_CHAIN_STEPS } from "./mixer";
+import type { Channel, Track } from "./project/model";
 
 /* =========================================================================
    WHICH CHANNELS
    The standard-track chain is Task 2.8; a bus or a Return bus has a
    different chain (plan §3, §8a) and that branch is Task 2.9. The panel
-   branches on this and nowhere else.
+   branches on this and nowhere else. Since Task 3.1 the channels are the
+   shared project model's entities (project/model.ts).
    ========================================================================= */
 
-export function supportsChainDetail(channel: MixerChannelEntry | undefined): channel is MixerTrackChannel {
+export function supportsChainDetail(channel: Channel | undefined): channel is Track {
   return channel?.kind === "track";
 }
 
@@ -385,9 +388,13 @@ export const NOTE_MODULE_PRINT: Readonly<Record<NoteModule, string>> = {
   peak: "PEAK",
 };
 
+/**
+ * A track's processing chain. Since Task 3.1 it is a part of the track
+ * entity (`Track.chain`, project/model.ts) inside the one project store, so
+ * it carries no identity of its own: the track's id, code and name live on
+ * the track.
+ */
 export interface ChainState {
-  readonly trackId: string;
-  readonly code: string;
   /** Block 2 in circuit (fixture flag; its controls are not part of Task 2.8). */
   readonly cleanup: boolean;
   readonly eq: EqState;
@@ -921,9 +928,9 @@ function param(spec: ParamSpec, value: number, manualFrom: number | undefined): 
 /** The same constructor for the bus and Return chains (Task 2.9). */
 export const chainParam = param;
 
-/** A fresh, independent chain state for a track, from its fixture. */
-export function createChainState(track: MixerTrackChannel): ChainState {
-  const fx = chainFixtureFor(track.code);
+/** A fresh, independent chain state for the track with this printed code, from its fixture. */
+export function createChainState(code: string): ChainState {
+  const fx = chainFixtureFor(code);
   const manual = fx.manual ?? {};
   const num = (key: ManualKey): number | undefined => {
     const v = manual[key];
@@ -949,8 +956,6 @@ export function createChainState(track: MixerTrackChannel): ChainState {
       : { value: fx.character, original: fx.character, mode: "auto" };
 
   return {
-    trackId: track.id,
-    code: track.code,
     cleanup: fx.cleanup === true,
     eq: { bypassed: fx.eqBypassed === true, bands },
     comp: {

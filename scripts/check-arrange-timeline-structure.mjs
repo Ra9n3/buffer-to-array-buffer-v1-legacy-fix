@@ -78,12 +78,14 @@ const laneStyle = styleOf(lane);
 // --- 1. One bar width; the approved column and row geometry. -------------------------
 check("the room defines --arrange-bar-width once (2.75rem — 44 px, whole beats of 11 px; D2.6.2)", (roomStyle.match(/--arrange-bar-width\s*:/g) ?? []).length === 1 && /--arrange-bar-width:\s*2\.75rem;/.test(roomStyle));
 check("the timeline width is the bar count times the bar width, nothing hand-typed", /--arrange-timeline-width:\s*calc\(var\(--arrange-bar-count\) \* var\(--arrange-bar-width\)\);/.test(roomStyle) && !/--arrange-timeline-width:\s*\d/.test(roomStyle));
-check("the bar count reaches CSS from the one data constant (inline on the room root)", /style:--arrange-bar-count=\{ARRANGE_BAR_COUNT\}/.test(room) && /import \{[^}]*\bARRANGE_BAR_COUNT\b[^}]*\} from "\.\.\/lib\/arrange"/.test(room));
+// Task 3.1: the bar count is the project's arrangement (seeded from the one
+// ARRANGE_BAR_COUNT constant in lib/project/session.ts), read from the store.
+check("the bar count reaches CSS from the project's arrangement (inline on the room root; Task 3.1)", /style:--arrange-bar-count=\{arrangement\.barCount\}/.test(room) && /const arrangement = \$derived\(project\.arrangement\);/.test(room) && /barCount: ARRANGE_BAR_COUNT,/.test(read("src/lib/project/session.ts")));
 check("the room defines the head band heights (ruler/structure 1.375rem, tempo 2.25rem) — the head is 82 px with its 2 px baseline", /--arrange-band-height:\s*1\.375rem;/.test(roomStyle) && /--arrange-tempo-height:\s*2\.25rem;/.test(roomStyle));
 check("the list column recipe is untouched: clamp(12rem, 16vw, 15rem), 12rem under 40rem (D2.5.3)", /--arrange-track-list-width:\s*clamp\(12rem, 16vw, 15rem\);/.test(roomStyle) && /@media \(max-width: 40rem\) \{[\s\S]*--arrange-track-list-width:\s*12rem;/.test(roomStyle));
 check("the row height is untouched: 5rem (4.25rem under 40rem)", /--arrange-row-height:\s*5rem;/.test(roomStyle) && /@media \(max-width: 40rem\) \{[\s\S]*--arrange-row-height:\s*4\.25rem;/.test(roomStyle));
-check("the grid still lays out list column × timeline width, rows and lanes in one loop", /grid-template-columns:\s*var\(--arrange-track-list-width\)\s+var\(--arrange-timeline-width\)/.test(roomStyle) && (room.match(/\{#each ARRANGE_TRACKS as track/g) ?? []).length === 1);
-check("the room renders the head component once, after the corner, and gives each lane its track's name, org and fixture clips", (room.match(/<ArrangeTimelineHeader \/>/g) ?? []).length === 1 && room.indexOf('data-arrange-region="track-list-header"') < room.indexOf("<ArrangeTimelineHeader") && /<ArrangeTimelineLane code=\{track\.code\} laneId=\{`lane-\$\{track\.code\}`\} name=\{track\.name\} org=\{track\.org\} clips=\{clipsOf\(track\.code\)\} \/>/.test(room) && /import \{ clipsOf \} from "\.\.\/lib\/arrange-timeline"/.test(room));
+check("the grid still lays out list column × timeline width, rows and lanes in one loop", /grid-template-columns:\s*var\(--arrange-track-list-width\)\s+var\(--arrange-timeline-width\)/.test(roomStyle) && (room.match(/\{#each tracks as track \(track\.id\)\}/g) ?? []).length === 1);
+check("the room renders the head component once, after the corner, fed the project's bars and tempo, and gives each lane its track's name, org and the project's placeholder clips (Task 3.1)", (room.match(/<ArrangeTimelineHeader barCount=\{arrangement\.barCount\} tempoMarkers=\{arrangement\.tempoMarkers\} \/>/g) ?? []).length === 1 && room.indexOf('data-arrange-region="track-list-header"') < room.indexOf("<ArrangeTimelineHeader") && /<ArrangeTimelineLane code=\{track\.code\} laneId=\{`lane-\$\{track\.code\}`\} name=\{track\.name\} org=\{track\.org\} clips=\{arrangement\.clips\[track\.id\] \?\? \[\]\} \/>/.test(room) && /import \{ arrangeTrackOf, project, trackMeta \} from "\.\.\/lib\/project\/store\.svelte"/.test(room) && /clips\[track\.id\] = clipsOf\(track\.code\)/.test(read("src/lib/project/session.ts")));
 check("the scroller is the work surface in a 1 px dark frame with the dark scrollbar scheme; the Phase 0 placeholder frame and head styles are gone", /\.arrange-scroll \{[^}]*border:\s*1px solid var\(--al-bevel-shadow\);/s.test(roomStyle) && /\.arrange-scroll \{[^}]*color-scheme:\s*dark;/s.test(roomStyle) && /\.arrange-scroll \{[^}]*background-color:\s*var\(--al-material-surface\);/s.test(roomStyle) && !/#e4e4e4|dashed|\.arrange-timeline-head|\.arrange-band\b|isLabelledBar/.test(stripComments(room)));
 
 // Every horizontal position in the head and the lanes is a multiple of the one bar width.
@@ -164,16 +166,16 @@ check("nothing in the timeline is interactive: no handlers, buttons, inputs, dra
 check("no screw heads in the timeline files (D2.1.9)", !/screw/i.test(room + head + lane + lib + devFixture));
 check("no audio, playback, recording or persistence API anywhere in the timeline files", !/AudioContext|AudioBuffer|decodeAudioData|getUserMedia|MediaRecorder|HTMLAudioElement|<audio|localStorage|sessionStorage|indexedDB|requestAnimationFrame|setInterval/.test(room + head + lane + lib + devFixture));
 const pinned = {
-  "src/components/ArrangeTrackRow.svelte": "439d1889603ef90851917bcdfa735372b079c092e4a12148dbdebd3eda498c90",
+  "src/components/ArrangeTrackRow.svelte": "fecd6b7f94e833759d6ac4ebbb155995c771ec0bf75bbfe971913a9dab4e7fde",
   "src/dev/ArrangeRowFixture.svelte": "facc39b60df21345ee4671e5bbbaa8d961bb2fb94501ad4d6e265e1843b6c642",
   // (Task 2.7: ScribbleSelect gained the optional `onchoose` callback, TrackStrip the optional `identity` snippet, MixerRoom its strips, app.css two comments — re-pinned at that state.)
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
-  "src/components/channel-strip/TrackStrip.svelte": "1e06056cd61e307e5e20d541e62309167b3c0cdde7a46085cfb436ac3f578cfa",
-  "src/components/channel-strip/track-strip-fixtures.ts": "c76e8c14b7c9794b14747a83a51926870a24c6a587405259f05ac6a415e151c5",
+  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
+  "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
-  "src/rooms/MixerRoom.svelte": "20b70cfef7ede76c4ca78ef6099873abe938e6da47d6b1dcd1cc2cacc45e383f",
+  "src/rooms/MixerRoom.svelte": "fc56ecb09ef8b0177855425cb19b32a41e2b36b69df82dc5b308f7f121aa276b",
   "src/rooms/ConsoleRoom.svelte": "ab8450a981b9ef4a8fbf4382e225994340f7be2936dbdafb3ddd402b16af6645",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

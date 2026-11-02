@@ -20,6 +20,7 @@
     type ProminenceTier,
     type SourceType,
   } from "../lib/arrange";
+  import type { TrackMetaLive } from "./arrange-row-live";
 
   /**
    * ALLOY Arrange track-list row — Task 2.5 (Phase 2 skin of the Task 0.4 cell).
@@ -47,50 +48,73 @@
    *      (glossary): one is a print, the other a control, and the column
    *      header names them in order.
    *
-   * State: the family, source type and tier choices are this row's own UI state,
-   * seeded from the fixture and written nowhere — nothing is detected,
-   * persisted or routed (prompt). The org colour reaches only the tab.
+   * State: the family, source type and tier choices are the project's —
+   * since Task 3.1 the room binds the row to the shared store's view of the
+   * track (`live`), so a choice here is the one the Mixer prints; without
+   * `live` they are the row's own UI state, seeded from the fixture, as
+   * approved in Task 2.5. Nothing is detected, persisted or routed. The org
+   * colour reaches only the tab.
    */
   let {
     track,
     laneId,
     sources = SOURCE_TYPES,
+    live = null,
   }: {
     track: ArrangeTrack;
     laneId: string;
     /** The source catalog; the fixture catalog unless the playground stresses it. */
     sources?: readonly SourceType[];
+    /**
+     * Task 3.1 (optional, default none): one object that OWNS the row's
+     * family, source type and tier — the room passes the project store's
+     * view of the track (`trackMeta`). Without it the row keeps those
+     * settings itself, seeded from `track`, exactly as approved (the
+     * component playground passes nothing).
+     */
+    live?: TrackMetaLive | null;
   } = $props();
 
   const uid = `ar${++nextId}`;
 
-  // Local UI state only (prompt: controls may update local fixture / UI
-  // state), seeded once from the fixture — the same pattern as the Console
-  // strip's send slots (TrackStrip.svelte). Family and source type are two
-  // states with one invariant: a source is null (Unspecified) or belongs to
-  // the family shown. The name (`track.name`) is a prop, read only.
+  // The row's own settings when nothing is bound (the approved Task 2.5
+  // local interaction), seeded once from the fixture. Family and source type
+  // are two settings with one invariant: a source is null (Unspecified) or
+  // belongs to the family shown. The name (`track.name`) is read only.
   // svelte-ignore state_referenced_locally
-  let familyId = $state<FamilyId | null>(track.familyId);
-  // svelte-ignore state_referenced_locally
-  let sourceTypeId = $state<string | null>(track.sourceTypeId);
-  // svelte-ignore state_referenced_locally
-  let tier = $state<ProminenceTier>(track.tier);
+  const own = $state<TrackMetaLive>({
+    familyId: track.familyId,
+    sourceTypeId: track.sourceTypeId,
+    tier: track.tier,
+    tierConfirmed: track.tierConfirmed !== false,
+  });
+  const model = $derived(live ?? own);
 
-  const sourceOptions = $derived(sourceOptionsOf(familyId, sources));
+  const sourceOptions = $derived(sourceOptionsOf(model.familyId, sources));
   const theRole = $derived(role(track.role));
-  const tierName = $derived(PROMINENCE_TIERS.find((t) => t.id === tier)?.name ?? tier);
+  const tierName = $derived(PROMINENCE_TIERS.find((t) => t.id === model.tier)?.name ?? model.tier);
 
   /** A new family: keep the source only if it belongs there, else clear it to Unspecified. */
   function chooseFamily(id: string): void {
     const family = id as FamilyId;
-    if (family === familyId) return;
-    familyId = family;
-    if (!isValidSource(family, sourceTypeId, sources)) sourceTypeId = null;
+    if (family === model.familyId) return;
+    model.familyId = family;
+    // the invariant, for an owner that does not enforce it itself (the store does)
+    if (!isValidSource(family, model.sourceTypeId, sources)) model.sourceTypeId = null;
   }
 
   /** A source from the family's list; the Unspecified option clears it. */
   function chooseSource(id: string): void {
-    sourceTypeId = id === UNSPECIFIED_ID ? null : id;
+    model.sourceTypeId = id === UNSPECIFIED_ID ? null : id;
+  }
+
+  /**
+   * A tier from the three — `onchoose`, so choosing the tier already shown
+   * is a choice too: the user's choice of a tier confirms a suggested one
+   * (owner, Task 3.1), and the owner of the setting (the store) records that.
+   */
+  function chooseTier(id: string): void {
+    model.tier = id as ProminenceTier;
   }
 </script>
 
@@ -102,9 +126,9 @@
   data-track-code={track.code}
   data-lane={laneId}
   data-track-role={track.role}
-  data-track-family={familyId}
-  data-track-source-type={sourceTypeId}
-  data-track-tier={tier}
+  data-track-family={model.familyId}
+  data-track-source-type={model.sourceTypeId}
+  data-track-tier={model.tier}
   data-simulated={SIMULATED}
 >
   <!-- 1 · identity: tab, number, name -->
@@ -123,9 +147,9 @@
         label="Source type"
         context={track.name}
         options={sourceOptions}
-        value={sourceTypeId ?? UNSPECIFIED_ID}
+        value={model.sourceTypeId ?? UNSPECIFIED_ID}
         onchange={chooseSource}
-        disabled={familyId === null}
+        disabled={model.familyId === null}
         size="sm"
         align="start"
         hook="source"
@@ -136,7 +160,7 @@
         label="Family"
         context={track.name}
         options={FAMILY_OPTIONS}
-        value={familyId ?? ""}
+        value={model.familyId ?? ""}
         onchange={chooseFamily}
         size="sm"
         hook="family"
@@ -154,7 +178,8 @@
         label="Prominence tier"
         context={track.name}
         options={PROMINENCE_TIERS}
-        bind:value={tier}
+        value={model.tier}
+        onchoose={chooseTier}
         size="xs"
         hook="tier"
         title={`Prominence tier, ${track.name}: ${tierName} \u2014 how the track is treated in mix conflicts`}

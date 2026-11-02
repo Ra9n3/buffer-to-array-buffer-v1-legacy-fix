@@ -3,8 +3,8 @@
   import ReturnStrip from "./channel-strip/ReturnStrip.svelte";
   import TrackStrip from "./channel-strip/TrackStrip.svelte";
   import EngravedLabel from "./hardware/EngravedLabel.svelte";
-  import { BUS_MASTERS, RETURN_STRIPS } from "./channel-strip/bus-return-fixtures";
-  import { SIMULATED, TRACK_STRIPS } from "./channel-strip/track-strip-fixtures";
+  import { SIMULATED } from "./channel-strip/track-strip-fixtures";
+  import { busLive, busStripOf, project, returnLive, returnStripOf, trackStrip } from "../lib/project/store.svelte";
 
   /**
    * ALLOY Console channel bank — Task 2.2 (Phase 2 skin).
@@ -33,11 +33,19 @@
    * row and scrolls sideways on its own only if it must (owner, D2.4.2 —
    * Phase 0's column mode with its threshold raised).
    */
-  const first = TRACK_STRIPS[0]?.id ?? "";
-  const last = TRACK_STRIPS[TRACK_STRIPS.length - 1]?.id ?? "";
-  const firstPinned = RETURN_STRIPS[0]?.id ?? BUS_MASTERS[0]?.id ?? "";
-  const lastPinned = BUS_MASTERS[BUS_MASTERS.length - 1]?.id ?? RETURN_STRIPS[RETURN_STRIPS.length - 1]?.id ?? "";
-  const pinnedCount = RETURN_STRIPS.length + BUS_MASTERS.length;
+  /* Task 3.1: the bank reads the one project store — the same tracks,
+     Returns and bus master the Arrange and Mixer rooms read — and hands each
+     strip the store's view of its channel to bind to. The session's order
+     is the bank's order. */
+  const tracks = $derived(project.tracks);
+  const returns = $derived(project.returns);
+  const buses = $derived(project.buses);
+
+  const first = $derived(tracks[0]?.code ?? "");
+  const last = $derived(tracks[tracks.length - 1]?.code ?? "");
+  const firstPinned = $derived(returns[0]?.code ?? buses[0]?.code ?? "");
+  const lastPinned = $derived(buses[buses.length - 1]?.code ?? returns[returns.length - 1]?.code ?? "");
+  const pinnedCount = $derived(returns.length + buses.length);
 </script>
 
 <div class="bank" data-channel-bank data-simulated={SIMULATED}>
@@ -71,8 +79,8 @@
       aria-label={`Track channel strips ${first} to ${last}, ${SIMULATED} settings; scrolls sideways`}
     >
       <ol class="bank__rail" aria-label={`Tracks ${first} through ${last}`}>
-        {#each TRACK_STRIPS as track (track.id)}
-          <TrackStrip {track} />
+        {#each tracks as track (track.id)}
+          <TrackStrip track={trackStrip(track.id)} />
         {/each}
       </ol>
     </div>
@@ -87,11 +95,11 @@
       aria-label="Pinned bus and Return channels"
     >
       <ul class="bank__pinned-row" aria-label="Return buses, then the bus master">
-        {#each RETURN_STRIPS as ret (ret.returnId)}
-          <ReturnStrip {ret} />
+        {#each returns as ret (ret.id)}
+          <ReturnStrip ret={returnStripOf(ret.id)} live={returnLive(ret.id)} />
         {/each}
-        {#each BUS_MASTERS as bus (bus.id)}
-          <BusMasterStrip {bus} />
+        {#each buses as bus (bus.id)}
+          <BusMasterStrip bus={busStripOf(bus.id)} live={busLive(bus.id)} />
         {/each}
       </ul>
     </aside>

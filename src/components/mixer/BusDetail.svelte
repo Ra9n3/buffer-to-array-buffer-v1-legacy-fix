@@ -1,6 +1,8 @@
 <script lang="ts">
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
-  import { busRailBlocks, type BusChainState } from "../../lib/bus-chain";
+  import { busRailBlocks } from "../../lib/bus-chain";
+  import type { Bus } from "../../lib/project/model";
+  import { project } from "../../lib/project/store.svelte";
   import CompressorSection from "./CompressorSection.svelte";
   import EqSection from "./EqSection.svelte";
   import ProcessingChain from "./ProcessingChain.svelte";
@@ -19,12 +21,16 @@
    * track has — the bus's own gentle fixture values, no dynamic band, no
    * cleanup, no sends — and the authored "what changed and why" card.
    */
-  let { chain }: { chain: BusChainState } = $props();
+  /* Task 3.1: the bus entity from the project store — its chain is edited
+     here, its strip settings on the strips of both rooms; the output is a
+     reference the store names. */
+  let { bus }: { bus: Bus } = $props();
 
-  const blocks = $derived(busRailBlocks(chain));
+  const chain = $derived(bus.chain);
+  const blocks = $derived(busRailBlocks(chain, project.outputLabel(bus.output)));
 </script>
 
-<div class="bd" data-detail-bus={chain.busId}>
+<div class="bd" data-detail-bus={bus.id}>
   <div class="bd__chain" data-mixer-region="processing-chain">
     <EngravedLabel text="Processing chain" size="xs" tone="muted" />
     <ProcessingChain {blocks} />
@@ -32,15 +38,15 @@
 
   <div class="bd__bays">
     <div class="bd__bay bd__bay--eq" data-mixer-region="eq-graph">
-      <EqSection eq={chain.eq} trackName={chain.name} />
+      <EqSection eq={chain.eq} trackName={bus.name} />
     </div>
     <div class="bd__bay bd__bay--comp" data-mixer-region="compressor">
-      <CompressorSection comp={chain.comp} trackName={chain.name} />
+      <CompressorSection comp={chain.comp} trackName={bus.name} />
     </div>
   </div>
 
   <div class="bd__changed" data-mixer-region="what-changed">
-    <WhatChanged notes={chain.notes} trackName={chain.name} />
+    <WhatChanged notes={chain.notes} trackName={bus.name} />
   </div>
 </div>
 

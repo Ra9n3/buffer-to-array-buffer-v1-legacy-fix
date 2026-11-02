@@ -39,20 +39,22 @@
    * What makes it read as a Return without a new language: the type print
    * RET, green knobs where a track has cream and blue-grey, the character
    * window printed in the same green ink as an assigned send window, and
-   * the fader legended RETURN. Fixtures only (`bus-return-fixtures.ts`,
-   * SIMULATED): no effect processing, no routing, no project state.
+   * the fader legended RETURN. A fixture session (`bus-return-fixtures.ts`
+   * seeds the store, SIMULATED): no effect processing, no routing. Since
+   * Task 3.1 the settings are the project store's (see `live` below).
    *
    * `identity` (Task 2.7, optional, default none) is handed straight to the
    * module's optional identity extension under the head; the Console passes
    * nothing and the strip renders exactly as approved.
    *
-   * `live` (Task 2.9, optional, default none): one object that OWNS the
-   * strip's decay / time, pre-delay / feedback, tone, character and bypass.
-   * The Mixer passes the Return's shared chain state so its strip and its
-   * chain-detail panel turn the same settings (plan §8a: one Return,
-   * edited like any channel). Without it the strip keeps those settings
-   * itself, seeded from the fixture, exactly as approved — the Console
-   * passes nothing.
+   * `live` (Task 2.9, optional, default none; Task 3.1): one object that
+   * OWNS the strip's decay / time, pre-delay / feedback, tone, character,
+   * bypass and — since Task 3.1 — its level, MUTE and SOLO. Both rooms pass
+   * the project store's view of the Return (`returnLive`), so the Console
+   * strip, the Mixer strip and the Mixer's chain-detail panel turn the same
+   * settings (plan §8a: one Return, edited like any channel). Without it
+   * the strip keeps those settings itself, seeded from the fixture, exactly
+   * as approved (the component playground passes nothing).
    */
   let {
     ret,
@@ -71,6 +73,9 @@
     tone: ret.tone,
     bypass: ret.bypass,
     character: { print: ret.character.print, name: ret.character.name },
+    level: ret.level,
+    mute: ret.mute,
+    solo: ret.solo,
   });
   const model = $derived(live ?? own);
 </script>
@@ -89,9 +94,9 @@
   baySection="effect"
   bayLabel={`Effect, ${ret.name}`}
   faderLabel="Return"
-  faderValue={ret.level}
-  mute={ret.mute}
-  solo={ret.solo}
+  bind:faderValue={() => model.level, (v) => (model.level = v)}
+  bind:mute={() => model.mute, (on) => (model.mute = on)}
+  bind:solo={() => model.solo, (on) => (model.solo = on)}
   peak={ret.peak}
 >
   {#snippet knobA()}

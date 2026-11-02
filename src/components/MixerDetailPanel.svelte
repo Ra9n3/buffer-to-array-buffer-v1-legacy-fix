@@ -1,9 +1,10 @@
 <script lang="ts">
   import { PROMINENCE_TIERS, familyLabel, role, sourceType } from "../lib/arrange";
-  import { createBusChainState, type BusChainState } from "../lib/bus-chain";
-  import { MIXER_BUSES, MIXER_TRACKS, channelKindLabel, type MixerChannelEntry } from "../lib/mixer";
-  import { createChainState, supportsChainDetail, trackRailBlocks, type ChainState } from "../lib/mixer-chain";
-  import { returnChain, returnCharacter, sendsInto } from "../lib/return-chain.svelte";
+  import { channelKindLabel } from "../lib/mixer";
+  import { supportsChainDetail, trackRailBlocks } from "../lib/mixer-chain";
+  import type { Channel } from "../lib/project/model";
+  import { project } from "../lib/project/store.svelte";
+  import { returnCharacter } from "../lib/return-chain";
   import { orgToken } from "./channel-strip/track-strip-fixtures";
   import EngravedLabel from "./hardware/EngravedLabel.svelte";
   import BusDetail from "./mixer/BusDetail.svelte";
@@ -30,50 +31,46 @@
    *                        2.9; a standard-track chain is never shown for
    *                        them.
    *
-   * State: one chain per standard track, created from its fixture once and
-   * edited in place for the life of the room, so edits survive leaving and
-   * returning to a track and never leak between tracks. Nothing is stored,
-   * shared across rooms or persisted; nothing is processed.
+   * State: one chain per channel, part of the channel's entity in the one
+   * project store (Task 3.1; seeded from the fixtures once, when the session
+   * is created) and edited in place, so edits survive leaving and returning
+   * to a channel, never leak between channels, and are the same state the
+   * strips of both rooms are bound to. Nothing is persisted; nothing is
+   * processed.
    *
    * Housing: the Mixer bank's (walnut end-cheeks, the charcoal deck), copied
    * value for value, so the panel is the same desk furniture as the bank
    * above it.
    */
-  let { channel }: { channel: MixerChannelEntry | undefined } = $props();
+  let { channel }: { channel: Channel | undefined } = $props();
 
-  const chains = $state<Record<string, ChainState>>(
-    Object.fromEntries(MIXER_TRACKS.map((t) => [t.id, createChainState(t)])),
-  );
-
-  /* Task 2.9: the buses' chains, panel-local like the tracks'; the Returns'
-     chains are the shared per-Return state the Mixer's Return strips are
-     bound to (return-chain.svelte.ts), so strip and panel turn one value. */
-  const busChains = $state<Record<string, BusChainState>>(
-    Object.fromEntries(MIXER_BUSES.map((b) => [b.id, createBusChainState(b.bus)])),
-  );
-
+  /* Task 3.1: the panel edits the selected entity's chain IN the project
+     store (`Track.chain`, `ReturnBus.chain`, `Bus.chain`) — no panel-local
+     chain states any more. The Task 2.8 / 2.9 modules below write that
+     chain through the chain operations of mixer-chain.ts, and the strips
+     of both rooms are bound to the same entities, so a knob turned here is
+     the knob the Console shows. The identity facts (family, source, role,
+     tier) are the track's own fields, so an Arrange edit reads here at once. */
   const track = $derived(supportsChainDetail(channel) ? channel : undefined);
-  const chain = $derived(track ? chains[track.id] : undefined);
-  const theReturn = $derived(channel?.kind === "return" ? returnChain(channel.ret) : undefined);
-  const bus = $derived(channel?.kind === "bus" ? busChains[channel.id] : undefined);
+  const chain = $derived(track?.chain);
+  const theReturn = $derived(channel?.kind === "return" ? channel : undefined);
+  const bus = $derived(channel?.kind === "bus" ? channel : undefined);
   const supported = $derived(track !== undefined || theReturn !== undefined || bus !== undefined);
 
   const returnEffect = $derived(theReturn ? (theReturn.effect === "reverb" ? "Reverb" : "Delay") : null);
-  const returnCharacterName = $derived(theReturn ? returnCharacter(theReturn.effect, theReturn.character.value).name : null);
-  const returnSendCount = $derived(theReturn ? sendsInto(theReturn.returnId).length : 0);
+  const returnCharacterName = $derived(theReturn ? returnCharacter(theReturn.effect, theReturn.chain.character.value).name : null);
+  const returnSendCount = $derived(theReturn ? project.sendsInto(theReturn.id).length : 0);
+  const busOutput = $derived(bus ? project.outputLabel(bus.output) : null);
 
-  const family = $derived(track ? familyLabel(track.arrange.familyId) : null);
-  const source = $derived(track ? sourceType(track.arrange.sourceTypeId) : null);
-  const theRole = $derived(track ? role(track.arrange.role) : null);
-  const tierName = $derived(
-    track ? (PROMINENCE_TIERS.find((t) => t.id === track.arrange.tier)?.name ?? track.arrange.tier) : null,
-  );
+  const family = $derived(track ? familyLabel(track.familyId) : null);
+  const source = $derived(track ? sourceType(track.sourceTypeId) : null);
+  const theRole = $derived(track ? role(track.role) : null);
+  const tier = $derived(track ? project.tierOf(track) : null);
+  const tierName = $derived(tier ? (PROMINENCE_TIERS.find((t) => t.id === tier)?.name ?? tier) : null);
   const kindPrint = $derived(
     channel ? (channel.kind === "track" ? "Standard track" : channelKindLabel(channel.kind)) : "",
   );
-  const org = $derived(
-    channel ? (channel.kind === "track" ? channel.strip.org : channel.kind === "return" ? channel.ret.org : channel.bus.org) : null,
-  );
+  const org = $derived(channel?.org ?? null);
 </script>
 
 <section
@@ -107,7 +104,7 @@
               />
             </span>
           {:else if theReturn && returnEffect}
-            <span class="detail__meta" data-detail-return-effect={theReturn.effect} data-detail-return-character={theReturn.character.value}>
+            <span class="detail__meta" data-detail-return-effect={theReturn.effect} data-detail-return-character={theReturn.chain.character.value}>
               <EngravedLabel
                 text={`${returnEffect} \u00b7 ${returnCharacterName}`}
                 size="xs"
@@ -116,14 +113,14 @@
                 title={`Effect: ${returnEffect} \u00b7 Character: ${returnCharacterName} (chosen in the effect module below)`}
               />
             </span>
-          {:else if bus}
-            <span class="detail__meta" data-detail-bus-output={bus.output}>
+          {:else if bus && busOutput}
+            <span class="detail__meta" data-detail-bus-output={busOutput}>
               <EngravedLabel
-                text={`Output \u2192 ${bus.output}`}
+                text={`Output \u2192 ${busOutput}`}
                 size="xs"
                 tone="muted"
                 truncate
-                title={`Output: ${bus.output} \u2014 the bus every track and Return sums into (plan \u00a78)`}
+                title={`Output: ${busOutput} \u2014 the bus every track and Return sums into (plan \u00a78)`}
               />
             </span>
           {/if}
@@ -134,7 +131,7 @@
               <EngravedLabel text="Role" size="xs" tone="muted" />
               <EngravedLabel text={theRole.long} size="xs" kind="value" />
             </span>
-            <span class="detail__fact" title={`Prominence tier: ${tierName} (the session fixture's value)`}>
+            <span class="detail__fact" title={`Prominence tier: ${tierName} \u2014 as chosen in Arrange or on the Mixer strip`}>
               <EngravedLabel text="Tier" size="xs" tone="muted" />
               <EngravedLabel text={tierName} size="xs" kind="value" />
             </span>
@@ -143,14 +140,14 @@
               <EngravedLabel text="Input" size="xs" tone="muted" />
               <EngravedLabel text={`${returnSendCount} send${returnSendCount === 1 ? "" : "s"}`} size="xs" kind="value" />
             </span>
-            <span class="detail__fact" title={`${theReturn.bypassed ? "Bypassed" : "In circuit"} \u2014 the Return's BYPASS, on its strip and in the effect module`}>
+            <span class="detail__fact" title={`${theReturn.chain.bypassed ? "Bypassed" : "In circuit"} \u2014 the Return's BYPASS, on its strip and in the effect module`}>
               <EngravedLabel text="Chain" size="xs" tone="muted" />
-              <EngravedLabel text={theReturn.bypassed ? "Bypassed" : "In circuit"} size="xs" kind="value" />
+              <EngravedLabel text={theReturn.chain.bypassed ? "Bypassed" : "In circuit"} size="xs" kind="value" />
             </span>
           {:else if bus}
-            <span class="detail__fact" data-detail-bus-peak={bus.peakProtection.engaged} title={`Peak protection: ${bus.peakProtection.text} (plan \u00a78: transparent peak protection only if needed; no loudness maximisation, no mastering)`}>
+            <span class="detail__fact" data-detail-bus-peak={bus.chain.peakProtection.engaged} title={`Peak protection: ${bus.chain.peakProtection.text} (plan \u00a78: transparent peak protection only if needed; no loudness maximisation, no mastering)`}>
               <EngravedLabel text="Peak protection" size="xs" tone="muted" />
-              <EngravedLabel text={bus.peakProtection.engaged ? "Engaged" : "Not engaged"} size="xs" kind="value" />
+              <EngravedLabel text={bus.chain.peakProtection.engaged ? "Engaged" : "Not engaged"} size="xs" kind="value" />
             </span>
           {/if}
           <span class="detail__fact">
@@ -187,10 +184,10 @@
       </div>
     {:else if theReturn}
       <!-- A Return: its effect-specific chain (plan §3, §8a) — Task 2.9. -->
-      <ReturnDetail chain={theReturn} />
+      <ReturnDetail ret={theReturn} />
     {:else if bus}
       <!-- A regular bus: the bus path (plan §8) — Task 2.9. -->
-      <BusDetail chain={bus} />
+      <BusDetail {bus} />
     {:else if channel}
       <!-- A kind this build has no chain for: say so, never show another kind's controls. -->
       <div class="detail__empty" role="status" data-detail-empty>
