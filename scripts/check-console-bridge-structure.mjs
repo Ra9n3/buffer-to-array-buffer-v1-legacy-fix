@@ -97,14 +97,20 @@ check(
 // The channel-bank zone: Task 2.2 replaced its Phase 0 header and frame with
 // the ChannelBank's own housing (the bank renders the zone's h2 legend, as the
 // bridge does for its zone). The zone is a bare, labelled wrapper round it.
+// Task 4.1: an empty project (Master only) shows the explicit empty-project notice in the zone
+// instead of the bank; a project with channels renders the bank exactly as before.
 const CHANNEL_BANK_ZONE = `      <section
         class="console-zone console-zone--channels"
         data-console-zone="channel-bank"
         aria-labelledby="console-channels-title"
       >
-        <ChannelBank />
+        {#if project.isEmpty}
+          <EmptyProjectNotice headingId="console-channels-title" room="console" />
+        {:else}
+          <ChannelBank />
+        {/if}
       </section>`;
-check("the channel-bank zone is a bare labelled wrapper round the ChannelBank (Task 2.2)", consoleRoom.includes(CHANNEL_BANK_ZONE));
+check("the channel-bank zone is a bare labelled wrapper round the ChannelBank (Task 2.2), or the empty-project notice when the project has no channels (Task 4.1)", consoleRoom.includes(CHANNEL_BANK_ZONE));
 check("ConsoleRoom renders the ChannelBank once", (consoleRoom.match(/<ChannelBank \/>/g) ?? []).length === 1);
 check("the Phase 0 zone header, eyebrow, detail and bank frame are gone from ConsoleRoom", !/console-zone__header|console-zone__eyebrow|console-zone__detail|console-bank\b|Zone 02/.test(consoleRoom));
 check(

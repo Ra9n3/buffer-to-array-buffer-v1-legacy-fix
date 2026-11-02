@@ -45,6 +45,16 @@
  * pastes inside one history transaction. None of these hold project state;
  * the one `$state` tree below is still the only project state in `src/`.
  *
+ * Project lifecycle (Task 4.1): the tree is still the one project state,
+ * but it is no longer always the fixture session — `loadProject` replaces
+ * its contents with another project (reopened from a saved manifest, or
+ * started empty; lib/project/lifecycle.ts decides which and talks to
+ * storage), rebuilds the field registry in place, rebinds history to it
+ * and re-arms the observer over the new fields. The views are forgotten
+ * with the project they described; the clipboard is emptied (its payload
+ * was another project's). Identity (`id`, `name`, `template`) travels with
+ * the project, so a reopened project is the project that was saved.
+ *
  * What is NOT here, on purpose: transient UI state (selected room or
  * channel, scroll, open menus — those stay in the rooms and components),
  * the clipboard's reactivity or any Edit menu (no control exists yet),
@@ -86,6 +96,7 @@ import {
   type ChannelId,
   type OutputRef,
   type Project,
+  type ProjectTemplateId,
   type ReturnBus,
   type ReturnBusId,
   type Track,
@@ -117,7 +128,7 @@ const state: Project = $state(createSessionProject());
    EDITING (Task 3.3) — the registry, history, autosave, the observer
    ========================================================================= */
 
-/** Every editable leaf of the project, by stable path (fields.ts). Built once: channels are never added or removed in this build. */
+/** Every editable leaf of the project, by stable path (fields.ts). Channels are never added or removed within a project; `loadProject` rebuilds the list in place (same array) when the project changes. */
 export const fieldRegistry = projectFields(state);
 
 /** Undo / redo over the registry. The shell gives it a clock (coalescing); tests drive `observe()` directly. */
@@ -139,13 +150,22 @@ history.subscribe(() => autosave.notifyChange());
  * Reads only; `history` is read untracked so recording never re-triggers
  * it. Restores (undo / redo) run with observation suspended inside
  * `history`, so they are never recorded as new edits.
+ *
+ * It is created by a function because a project switch (`loadProject`)
+ * stops it and starts it again: an effect tracks the signals it read, and
+ * after a load those are another project's — only a fresh run reads (and
+ * from then on watches) the loaded fields.
  */
-$effect.root(() => {
-  $effect(() => {
-    for (const f of fieldRegistry) f.get();
-    untrack(() => history.observe());
+function startObserver(): () => void {
+  return $effect.root(() => {
+    $effect(() => {
+      for (const f of fieldRegistry) f.get();
+      untrack(() => history.observe());
+    });
   });
-});
+}
+
+let stopObserver = startObserver();
 
 /* --- lookups: an unknown id is a programming error, never a silent no-op --- */
 
@@ -189,6 +209,14 @@ export const project = {
   },
   get name(): string {
     return state.name;
+  },
+  /** The structure the project was built from (Task 4.1): the fixture session or the empty project. */
+  get template(): ProjectTemplateId {
+    return state.template;
+  },
+  /** No tracks, Returns or buses: every room shows its empty state (Task 4.1). */
+  get isEmpty(): boolean {
+    return state.tracks.length === 0 && state.returns.length === 0 && state.buses.length === 0;
   },
   /** Session order — the channel order of every room. */
   get tracks(): readonly Track[] {
@@ -848,6 +876,44 @@ export function busLive(id: BusId): BusLive {
   };
   busLives.set(id, view);
   return view;
+}
+
+/* =========================================================================
+   LIFECYCLE (Task 4.1) — another project into the one tree
+   ========================================================================= */
+
+type LoadableProject = { -readonly [K in keyof Project]: Project[K] };
+
+/**
+ * Replace the project with `next` (a plain, complete, valid project — the
+ * lifecycle validates before calling). Synchronous and whole: identity, the
+ * channel lists and the arrangement move together; the registry is rebuilt
+ * in place over the new entities; history is rebound (nothing to undo);
+ * the views and the clipboard are forgotten; the observer is re-armed. The
+ * caller (lib/project/lifecycle.ts) saves the outgoing project first and
+ * retargets autosave right after.
+ */
+export function loadProject(next: Project): void {
+  stopObserver();
+  const target = state as LoadableProject;
+  target.id = next.id;
+  target.name = next.name;
+  target.template = next.template;
+  target.tracks = next.tracks;
+  target.returns = next.returns;
+  target.buses = next.buses;
+  target.arrangement = next.arrangement;
+  trackStrips.clear();
+  trackMetas.clear();
+  arrangeTracks.clear();
+  returnLives.clear();
+  returnStrips.clear();
+  busLives.clear();
+  busStrips.clear();
+  held = null;
+  fieldRegistry.splice(0, fieldRegistry.length, ...projectFields(state));
+  history.rebind(fieldRegistry);
+  stopObserver = startObserver();
 }
 
 export type { ChannelId };

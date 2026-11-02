@@ -59,7 +59,8 @@ test("the manifest holds every field by channel and relative path, carries no ti
   const fields = projectFields(project);
   const m = buildManifest(project, fields);
   assert.equal(m.schema, MANIFEST_SCHEMA);
-  assert.deepEqual(m.project, { id: "session-fixture", name: "Fixture session" });
+  // Task 4.1: the identity names the template the values apply onto (additive; the schema is unchanged)
+  assert.deepEqual(m.project, { id: "session-fixture", name: "Fixture session", template: "session-fixture" });
   assert.equal(Object.keys(m.channels).length, 24, "20 tracks + 3 Returns + 1 bus");
   assert.equal(Object.values(m.channels).reduce((n, c) => n + Object.keys(c).length, 0), fields.length);
   assert.equal(manifestChannel(m, "track-03")["channel/level"], -12);
@@ -74,6 +75,11 @@ test("the manifest holds every field by channel and relative path, carries no ti
   assert.equal(parseManifest("{"), null);
   assert.equal(parseManifest(JSON.stringify({ schema: "other" })), null);
   assert.equal(parseManifest(JSON.stringify({ schema: MANIFEST_SCHEMA })), null);
+  // a Task 3.3 manifest (no template) still parses; the loader decides what it can rebuild
+  const legacy = parseManifest(JSON.stringify({ schema: MANIFEST_SCHEMA, project: { id: "session-fixture", name: "Fixture session" }, channels: {} }));
+  assert.ok(legacy);
+  assert.equal(legacy.project.template, undefined);
+  assert.equal(parseManifest(JSON.stringify({ schema: MANIFEST_SCHEMA, project: { id: "x", name: "n", template: 7 }, channels: {} })), null, "a template that is not a string is not a manifest");
 });
 
 test("a changed project becomes dirty and schedules one save; the save writes the manifest and marks the project saved", () => {

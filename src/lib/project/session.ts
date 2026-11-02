@@ -174,6 +174,7 @@ export function createSessionProject(): Project {
   return {
     id: SESSION_PROJECT_ID,
     name: SESSION_PROJECT_NAME,
+    template: "session-fixture",
     tracks,
     returns,
     buses,

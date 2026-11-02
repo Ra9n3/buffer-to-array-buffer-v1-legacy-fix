@@ -3297,3 +3297,185 @@ the three commits that were waiting for a token — `55e0c5b` (2.9), `6f99909`
 The token was used inline only and never stored; the owner is reminded to
 revoke it. **Phase 3 is complete; the build stops here for the full Phase 3
 review. Phase 4 has not been started.**
+
+## Task 4.1 — Home, onboarding, and Settings (2026-11-02; uncommitted, awaiting review — the owner handles Git)
+
+Direction: the Phase 4 foundation on the approved Phase 3 state — a Home
+screen that lists the projects this browser has actually stored, a way to
+start empty, a skippable first-run guide, and Settings for the preferences
+the plan names (hardware profile override, export output types,
+accessibility / reduced motion) — plan Phase 4 (L651–653), §11 (hardware
+profiles, autosave / recent projects), §12 (export: WAV-only, user-selected
+destination folder). No audio, import, DSP, playback or rendering; no
+cloud / accounts; no multi-project management beyond recent + start-empty;
+no new routing, undo / redo or clipboard behaviour; no room redesign; no
+new dependency. The owner's four decisions (ask_user, 2026-11-02) were
+taken before any code was written — D4.1.1 / D4.1.2 / D4.1.3 / D4.1.6.
+Report: `task-reports/4.1-report.md`; the lifecycle and settings are
+described in `data-model.md` §11. **Not committed, not tagged, not pushed**
+(owner's instruction); the build stops here for review — Phase 5 is not
+started.
+
+### D4.1.1 — Reopen = the template under the saved identity + the saved values; the last project is restored at start (owner, 2026-11-02)
+
+The Task 3.3 manifest holds identity and field values, not channel
+structure (D3.3.3). The owner chose, over "list only / reopen nothing" and
+"reopen only the fixture", that an entry **reopens as its template with
+its saved values applied**, and that the app **restores the last opened
+project at start** (falling back to the pristine fixture session when
+nothing valid is stored). Applied: `project.template` added to the identity
+(additive; the manifest schema is unchanged and a 3.3 manifest of the
+fixture's id still opens); `lifecycle.ts` rebuilds the template and applies
+the values through the registry's validated setters plus the project-level
+reference rules, then `validateGraph`; a value that fails keeps the
+template's and is reported as skipped; what cannot be rebuilt is reported
+with its reason and never offered as openable (statuses `missing ·
+damaged · mismatch · unknown-template · invalid · no-storage`). This
+reverses the 3.3 rule "autosave never restores on load" **by the owner's
+decision**; the 3.3 write side is unchanged. Boundary, documented rather
+than invented: a reopened project cannot carry channel structure — enough
+for the two templates that exist; imported projects (Phase 5) will need
+the manifest to carry their tracks.
+
+### D4.1.2 — The empty project is Master only, with explicit empty states in every room (owner, 2026-11-02)
+
+Over "the plan's two default Returns" and "Returns + the Mix Bus", the
+owner chose **no channels at all**: `tracks · returns · buses` empty, an
+empty arrangement, the Master output (not a channel) implied. The plan's
+default Returns are created with the audio engine; their parameter values
+are not invented. Every room renders `EmptyProjectNotice` instead of its
+channel UI (Console: the channel-bank zone — bridge and transport stay;
+Arrange: the room; Mixer: the layout), one line and a link back to Home,
+in the Mixer detail's empty-state housing. Name `Untitled project`
+(then `Untitled project 2`, …); the Home "Start" panel says "A new project
+under a new name, with nothing in it: Master only. Stems arrive with the
+audio engine."; the rooms' notice says "“<name>” has no tracks, Returns
+or buses yet — … Stem import arrives with the audio engine (Phase 5)."
+
+### D4.1.3 — Home at `#/`, Settings at `#/settings`; the wordmark is the way Home; neither is a room (owner, 2026-11-02)
+
+Over "Home as a fourth tab" and "Settings inside Home", the owner chose two
+screens outside the room navigation. The empty hash, `#`, `#/` and anything
+unrecognised land on Home (before Home existed the fallback was the
+Console); Settings has its own hash and a link in the header beside the
+tabs and on Home. The room tabs, their routes and their order are exactly
+as approved (`RoomNav` pinned, unchanged). `data-route` on the shell lets
+the stylesheet keep the rooms pinned to the viewport while Home and
+Settings scroll as a page (`app.css` unchanged — the rule lives in the
+screens). Builder's choices within this: **start-empty offers Arrange,
+reopen offers Console** — Home never navigates by itself; the status line
+says what happened and the card's three room links are the way in.
+
+### D4.1.4 — The first-run guide is one panel on Home, never a modal, remembered as `onboarding` (builder, 2026-11-02)
+
+Shown while `onboarding` is `pending` — on a fresh browser, and again
+after Settings "Show again" — as the first panel of Home: four lines of the
+essential workflow (Start · Import · Mix · Inspect) stated as this build
+has them (import, MIX and export arrive with the audio engine), with two
+momentary keys, **Skip** (→ `skipped`) and **Done** (→ `done`). Nothing is
+covered, nothing waits for it: no dialog, no `aria-modal`, no `inert`, no
+focus trap, no overlay, no timer; the header's tabs and every room are
+reachable with it on screen (guard: negative over the screens). Completion
+and dismissal are kept in the settings document, so a reload does not show
+it again; without storage it shows every visit and says nothing about it
+(it is a panel, not a nag).
+
+### D4.1.5 — Reduced motion is a stored preference mirrored onto `<html data-motion>`, on top of the system query (builder, 2026-11-02)
+
+The approved components already stop their breathe, drift and transitions
+under `prefers-reduced-motion` (D1.6.7 and the rest). The preference adds
+`motion: "system" | "reduced"`; the shell mirrors it onto `<html
+data-motion>` at install and on every change, and `preferences.css`
+reduces **every** animation and transition under `reduced` to 0.01 ms, one
+iteration, no delay, `!important` — near-zero rather than none so end
+states are reached and end events still fire. `system` leaves the media
+query to decide, as before. Measured in the browser: MIX lamp breathe 4 s ·
+infinite → 1e-05 s · 1; Console VU drift the same; fader transition
+1e-05 s; back to 4 s · infinite when the preference returns to `system`.
+No visual redesign: keyboard access, the visible focus ring and the
+semantic labels are the components' own.
+
+### D4.1.6 — Settings carry the plan's items only; export = WAV printed as a fact + the three output types; the folder is chosen at export time (owner + builder, 2026-11-02)
+
+The owner chose the minimal set: hardware profile, export output types,
+motion, and a way to bring the guide back — no theme, no shortcuts editor,
+no audio device, nothing the plan does not name. **Hardware profile:**
+`auto` (default — "the profile the hardware benchmark selects", Phase 5.2)
+and the plan §11 trio Lite · Standard · Performance printed with the plan's
+intents only (RAM, concurrency, buffering, render time) — **no benchmark
+numbers, cores or gigabytes are invented**; the panel says it is stored now
+and read by nothing yet. **Export:** the format is a printed fact, "WAV"
+(plan §12: the only format in v1), not a preference; the three output
+types are toggles (Full mix on by default — the beginner's flow; Stems and
+Buses off); a **destination folder is not a preference** — plan §12 says
+"user-selected destination folder", i.e. chosen at export time, and a
+stored folder would be a fabricated capability in a browser build (guard:
+negative over `showDirectoryPicker` / `webkitdirectory` / sample rate /
+bit depth / dither / other formats). Both are **stored for later** and
+labelled so; motion and the guide are operational now.
+
+### D4.1.7 — The lifecycle is pure of the browser and reads what is stored on every render; `ensureStored` gives an unedited project its first copy (builder, 2026-11-02)
+
+Storage, the wall clock and the id source are injected (the shell gives
+`localStorage`, `Date`, `crypto.randomUUID`; tests give maps and counters),
+exactly as autosave's are (D3.3.3). Home never trusts the index: each entry
+is judged against its own key every time the list renders, so an entry
+whose copy was cleared, overwritten by another project or written by a
+later build shows its reason at once. A project that was never edited has
+nothing for autosave to write, so switching away from it would have left
+an entry with "no saved copy" — `ensureStored()` flushes autosave and then
+writes the template's values under the identity when the key is empty,
+bypassing autosave's bookkeeping (its next comparison is against the same
+text). Order of a switch: flush / first copy of the outgoing project →
+`loadProject` → `autosave.retarget` → index `touch` (writing the incoming
+manifest first risked clobbering under a stale key). The index is capped
+at 12 and is a convenience: its write failure never loses a project.
+
+### D4.1.8 — Store and editing-layer additions are backward-compatible: `loadProject`, `history.rebind`, `autosave.retarget`, `project.isEmpty` (builder, 2026-11-02)
+
+The one tree stays the one project state (D3.1); `loadProject(next)`
+replaces its contents, forgets the per-channel views and the clipboard,
+rebuilds the field registry **in place** (same array), rebinds history
+(stacks emptied, loaded values as baseline, a `clear` event) and re-arms
+the single observer (D3.3.2) over the new fields. `autosave.retarget(key,
+savedText)` cancels a pending save and starts clean under the new key. No
+existing signature changed; the 3.3 tests pass unchanged except the
+template field in the manifest asserts. The settings store is the same
+shape as the project store's helpers: module-level `$state`, read-only
+`settings`, `settingsOps` setters that skip same-value writes, an injected
+adapter (`attachSettings` / `detachSettings`), never writing on attach.
+
+### D4.1.9 — Home and Settings are built from the approved parts; the rooms' grey band is mirrored for the screen header and the status readout (builder, 2026-11-02)
+
+No new control, no redesign: panels are the Mixer detail deck, selectors
+the `ScribbleSelect` scribble window (pinned, unchanged), toggles and
+momentary keys the panel-labelled `TactileSwitch`, print the engraved
+label. The Home / Settings header and the Home status line reuse the rooms'
+light band (`#a3a3a3 · #efefef · #454545` from `app.css`, pinned) — the
+one hex exception in `src/screens`, guarded as such; everything else is
+tokens. The status line is a readout band (warn tone = the warning red
+border) because engraved print on the light band was illegible. Compact:
+both screens stack without horizontal overflow at 768 px; Home's Tab order
+is wordmark → room tabs → Settings → guide keys → room links → Start →
+Open → transport. Deferred to approval items: forget / rename / delete an
+entry, a save-status indicator, a confirm before leaving an unsaved
+project (nothing is unsaved: the switch flushes first).
+
+## Task 4.1 — approved
+
+Owner, 2026-11-02: **"approved, commit"** (commit only — no tag, no push;
+the owner pushes). Task 4.1 is closed as built and reported in
+`task-reports/4.1-report.md`; D4.1.1–D4.1.9 stand, and the approval items
+listed there (forget / rename / delete deferred; no save-status indicator
+yet; start-empty → Arrange and reopen → Console as the offered rooms;
+`RECENT_LIMIT` 12, `Untitled project N`, Full mix as the only default
+output; no export-folder preference; the Home status readout band) stand
+as chosen unless the owner names others later. The approval covers the
+lifecycle (templates, index, statuses, reopen = template + saved values,
+start empty, restore at start — D4.1.1 / D4.1.2 / D4.1.7), the Home and
+Settings screens and routes (D4.1.3 / D4.1.9), the first-run guide
+(D4.1.4), the motion preference (D4.1.5), the settings vocabulary (D4.1.6),
+the backward-compatible store additions (D4.1.8), the 24 new node tests
+(100 / 100) and the guard hand-overs (21 guards, 1 775 / 1 775). Committed
+to local `main` on top of `04d628f` (Task 3.3); **not pushed** — remote
+`main` stays at `04d628f` until the owner pushes. Phase 5 is not started.

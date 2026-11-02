@@ -271,10 +271,10 @@ check("no screw heads in the new files (D2.1.9)", !/screw/i.test(newSource + roo
 // optional `identity` snippet, D2.7.2). MixerChannelStrip.svelte was deleted.
 const pinned = {
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
-  "src/rooms/MixerRoom.svelte": "fc56ecb09ef8b0177855425cb19b32a41e2b36b69df82dc5b308f7f121aa276b",
+  "src/rooms/MixerRoom.svelte": "3e3282f0af09b5cacd4e456558cdc17b3de60341e250f5e0645f45d6a4872e65",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
   "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
-  "src/rooms/ConsoleRoom.svelte": "ab8450a981b9ef4a8fbf4382e225994340f7be2936dbdafb3ddd402b16af6645",
+  "src/rooms/ConsoleRoom.svelte": "fd310619f4e631c260410373a56c183c361a04e6bcbfc10ed0e39430ff12dee4",
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
   "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
@@ -295,7 +295,7 @@ const pinned = {
   "src/components/meter-bridge/ConsoleMeterBridge.svelte": "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002",
   "src/components/console-transport/ConsoleTransport.svelte": "b5bd2efed4f4e19f3272b54ec7c3ea8b91fb52bfc744821c803852b1cd75addb",
   "src/components/MiniTransport.svelte": "00cc37bcfb214aa8374efa8f222b98f77d427685063c40fddc18d0f32dd8e36d",
-  "src/App.svelte": "ace71e758f611d42ec3d01dd22994cf6c2c792f4b7f06a82ba2b149aab4eab4e",
+  "src/App.svelte": "cb25f4501c516ebd86c960938c9e79778c5ed9b61d5a64603a9a4a7d037f4d84",
   "src/components/RoomShell.svelte": "815bcb79e940433591c632d7ae98c4a5e918394b14d97726ae33c6002d808a71",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

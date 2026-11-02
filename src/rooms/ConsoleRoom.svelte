@@ -1,8 +1,10 @@
 <script lang="ts">
   import ChannelBank from "../components/ChannelBank.svelte";
   import ConsoleTransport from "../components/console-transport/ConsoleTransport.svelte";
+  import EmptyProjectNotice from "../components/EmptyProjectNotice.svelte";
   import ConsoleMeterBridge from "../components/meter-bridge/ConsoleMeterBridge.svelte";
   import RoomShell from "../components/RoomShell.svelte";
+  import { project } from "../lib/project/store.svelte";
 
   /* The Console's own scroll-revealed transport placeholder was removed in
      Task 0.6: the persistent mini transport is now rendered once by the shell
@@ -31,7 +33,13 @@
      dominant MIX button, fixtures only. It renders the
      <h2 id="console-transport-title"> as its engraved legend. The shell's
      persistent mini transport (Task 0.6) is untouched and still the only
-     transport outside this room. */
+     transport outside this room.
+
+     Task 4.1: when the open project has no channels (an empty project,
+     owner D4.1.2) the channel-bank zone shows the explicit empty state in
+     place of the bank; the zone, its hook and its accessible name stay (the
+     notice renders the <h2 id="console-channels-title">). The bridge and the
+     transport are fixture surfaces and stay as approved. */
 </script>
 
 <RoomShell
@@ -62,7 +70,11 @@
         data-console-zone="channel-bank"
         aria-labelledby="console-channels-title"
       >
-        <ChannelBank />
+        {#if project.isEmpty}
+          <EmptyProjectNotice headingId="console-channels-title" room="console" />
+        {:else}
+          <ChannelBank />
+        {/if}
       </section>
     </div>
   </div>

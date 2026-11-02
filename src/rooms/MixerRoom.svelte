@@ -1,4 +1,5 @@
 <script lang="ts">
+  import EmptyProjectNotice from "../components/EmptyProjectNotice.svelte";
   import MixerDetailPanel from "../components/MixerDetailPanel.svelte";
   import MixerBank from "../components/mixer/MixerBank.svelte";
   import RoomShell from "../components/RoomShell.svelte";
@@ -21,6 +22,11 @@
    * store). It is an id into the shared store; the selected channel is
    * looked up there, so the panel shows the one entity every room edits.
    * The bank reports a SEL press; the detail panel receives the channel.
+   *
+   * Task 4.1: an empty project (no channels at all, owner D4.1.2) shows the
+   * explicit empty state in place of the bank and the detail panel — there
+   * is nothing to select and nothing to inspect. The zone keeps its hook
+   * and its accessible name (the notice renders the <h2 id="mixer-channels-title">).
    */
   let selectedId = $state<string>(project.channels[0]?.id ?? "");
 
@@ -38,19 +44,29 @@
 >
   <div class="mixer-room" data-mixer-room data-selected-channel={selectedId}>
     <div class="mixer-layout" data-mixer-layout>
-      <!-- Top: the channel strips — the desk. -->
-      <section
-        class="mixer-zone mixer-zone--channels"
-        data-mixer-region="channel-bank"
-        aria-labelledby="mixer-channels-title"
-      >
-        <MixerBank {selectedId} onselect={selectChannel} />
-      </section>
+      {#if project.isEmpty}
+        <section
+          class="mixer-zone mixer-zone--channels"
+          data-mixer-region="channel-bank"
+          aria-labelledby="mixer-channels-title"
+        >
+          <EmptyProjectNotice headingId="mixer-channels-title" room="mixer" />
+        </section>
+      {:else}
+        <!-- Top: the channel strips — the desk. -->
+        <section
+          class="mixer-zone mixer-zone--channels"
+          data-mixer-region="channel-bank"
+          aria-labelledby="mixer-channels-title"
+        >
+          <MixerBank {selectedId} onselect={selectChannel} />
+        </section>
 
-      <!-- Below: the selected channel's processing detail (Task 0.5 panel). -->
-      <div class="mixer-detail-host" data-mixer-region="detail">
-        <MixerDetailPanel channel={selectedChannel} />
-      </div>
+        <!-- Below: the selected channel's processing detail (Task 0.5 panel). -->
+        <div class="mixer-detail-host" data-mixer-region="detail">
+          <MixerDetailPanel channel={selectedChannel} />
+        </div>
+      {/if}
     </div>
   </div>
 </RoomShell>

@@ -16,6 +16,14 @@
  * arrangement, baselines and fixture facts are not in it because they are
  * not editable in this build; they arrive with import (Phase 5).
  *
+ * Task 4.1 adds the project's TEMPLATE to the identity (model.ts) and the
+ * loader that reads a manifest back: lifecycle.ts rebuilds the template and
+ * applies the saved values through the registry's validated setters. The
+ * schema is unchanged — the field is additive, and a Task 3.3 manifest
+ * (no template) of the fixture session's id still opens. Autosave follows a
+ * project switch through `retarget()`; the manifest still carries no
+ * timestamp (the recent-projects index does, lifecycle.ts).
+ *
  * THE LIFECYCLE. The store bumps `history.revision` on every project
  * change (record, merge, undo, redo) and tells autosave; autosave marks the
  * project DIRTY and schedules one save `delayMs` later (each change pushes
@@ -36,7 +44,7 @@
  */
 
 import type { FieldRef, FieldValue } from "./fields";
-import type { ChannelId, Project } from "./model";
+import type { ChannelId, Project, ProjectTemplateId } from "./model";
 
 /* =========================================================================
    THE MANIFEST
@@ -46,17 +54,23 @@ export const MANIFEST_SCHEMA = "alloy.project-manifest/1";
 
 export interface ProjectManifest {
   readonly schema: typeof MANIFEST_SCHEMA;
-  readonly project: { readonly id: string; readonly name: string };
+  /**
+   * Identity. `template` (Task 4.1) names the structure the values apply
+   * onto; it is optional on read because Task 3.3 manifests predate it —
+   * the loader (lifecycle.ts) treats a template-less manifest of the fixture
+   * session's id as the fixture session and anything else as unavailable.
+   */
+  readonly project: { readonly id: string; readonly name: string; readonly template?: ProjectTemplateId };
   /** channel id → relative field path → value, in registry order. */
   readonly channels: Readonly<Record<string, Readonly<Record<string, FieldValue>>>>;
 }
 
-export function buildManifest(project: Pick<Project, "id" | "name">, fields: readonly FieldRef[]): ProjectManifest {
+export function buildManifest(project: Pick<Project, "id" | "name" | "template">, fields: readonly FieldRef[]): ProjectManifest {
   const channels: Record<string, Record<string, FieldValue>> = {};
   for (const f of fields) {
     (channels[f.channel] ??= {})[f.rel] = f.get();
   }
-  return { schema: MANIFEST_SCHEMA, project: { id: project.id, name: project.name }, channels };
+  return { schema: MANIFEST_SCHEMA, project: { id: project.id, name: project.name, template: project.template }, channels };
 }
 
 export function serializeManifest(manifest: ProjectManifest): string {
@@ -70,6 +84,8 @@ export function parseManifest(text: string): ProjectManifest | null {
     if (!value || typeof value !== "object") return null;
     const m = value as Partial<ProjectManifest>;
     if (m.schema !== MANIFEST_SCHEMA || !m.project || typeof m.project.id !== "string" || !m.channels || typeof m.channels !== "object") return null;
+    if (typeof m.project.name !== "string") return null;
+    if (m.project.template !== undefined && typeof m.project.template !== "string") return null;
     return m as ProjectManifest;
   } catch {
     return null;
@@ -170,7 +186,7 @@ export interface AttachOptions {
 export const DEFAULT_AUTOSAVE_DELAY_MS = 1000;
 
 export class Autosave {
-  readonly key: string;
+  private _key: string;
   private readonly serialize: () => string;
   private readonly revisionOf: () => number;
   private readonly clock: (() => number) | null;
@@ -190,13 +206,18 @@ export class Autosave {
   private everChanged = false;
 
   constructor(options: AutosaveOptions) {
-    this.key = options.key;
+    this._key = options.key;
     this.serialize = options.serialize;
     this.revisionOf = options.revision;
     this.clock = options.clock ?? null;
   }
 
   /* --- reads --------------------------------------------------------- */
+
+  /** The storage key the project is written under (`alloy.project.<id>`). */
+  get key(): string {
+    return this._key;
+  }
 
   get dirty(): boolean {
     return this.revisionOf() !== this.savedRevision;
@@ -219,7 +240,7 @@ export class Autosave {
       skipped: this.skipped,
       pending: this.cancelPending !== null,
       storage: this.storage?.name ?? null,
-      key: this.key,
+      key: this._key,
     };
   }
 
@@ -238,6 +259,28 @@ export class Autosave {
     this.cancel();
     this.storage = null;
     this.schedule = null;
+  }
+
+  /**
+   * Follow a project switch (Task 4.1, lifecycle.ts): write under `key`
+   * from now on and start clean — the present revision counts as saved,
+   * `savedText` is what the storage already holds for it (the manifest the
+   * project was reopened from, or the copy written at creation; null when
+   * nothing is known to be stored, so the first save writes). A pending
+   * save of the previous project is cancelled: the lifecycle flushes it
+   * before switching. The adapter and the schedule stay attached.
+   */
+  retarget(key: string, savedText: string | null): void {
+    this.cancel();
+    this._key = key;
+    this.savedRevision = this.revisionOf();
+    this.lastSavedText = savedText;
+    this.lastAttempt = "none";
+    this.savedAt = null;
+    this.error = null;
+    this.writes = 0;
+    this.skipped = 0;
+    this.everChanged = false;
   }
 
   /** The store calls this on every history event: the project is dirty, a save is due in `delayMs`. */
@@ -266,7 +309,7 @@ export class Autosave {
     }
     this.lastAttempt = "saving";
     try {
-      const outcome = this.storage.write(this.key, text);
+      const outcome = this.storage.write(this._key, text);
       if (outcome && typeof (outcome as Promise<void>).then === "function") {
         return (outcome as Promise<void>).then(
           () => this.written(revision, text),

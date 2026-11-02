@@ -1,0 +1,31 @@
+/* ===========================================================================
+   ALLOY — accessibility preferences — Task 4.1 (D4.1.5)
+
+   Applied from the stored settings (lib/settings.svelte.ts) by the shell,
+   which mirrors them onto <html> as data attributes. Nothing here restyles
+   anything: it only switches motion off.
+
+   data-motion="reduced"  the user's "Reduced" motion preference. The
+                          approved components already stop their breathe,
+                          drift and transitions under the system's
+                          prefers-reduced-motion (Knob, Fader, Lamp,
+                          TactileSwitch, VUMeter, LedLadder, the chevrons);
+                          this attribute asks for the same whatever the
+                          system says, and reaches anything that is added
+                          later. Durations are near-zero rather than none so
+                          end states are still reached and any end event
+                          still fires; one iteration stops an infinite
+                          animation after that instant.
+   data-motion="system"   nothing: the media query decides, as before.
+   =========================================================================== */
+
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  animation-delay: 0ms !important;
+  transition-duration: 0.01ms !important;
+  transition-delay: 0ms !important;
+  scroll-behavior: auto !important;
+}

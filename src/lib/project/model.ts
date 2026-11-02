@@ -278,9 +278,19 @@ export interface Arrangement {
    THE PROJECT
    ========================================================================= */
 
+/**
+ * The structure a saved project is rebuilt from (Task 4.1). The manifest
+ * (persistence.ts) holds identity and field values, not channels, so a
+ * reopened project is its template — the approved fixture session, or the
+ * empty project (Master only) — with the saved values applied onto it.
+ * Imported projects (Phase 5) will need the manifest to carry their tracks.
+ */
+export type ProjectTemplateId = "session-fixture" | "empty";
+
 export interface Project {
   readonly id: string;
   name: string;
+  readonly template: ProjectTemplateId;
   /** Session order = channel order in every room. */
   readonly tracks: Track[];
   readonly returns: ReturnBus[];

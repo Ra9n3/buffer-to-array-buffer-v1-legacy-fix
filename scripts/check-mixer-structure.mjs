@@ -214,10 +214,10 @@ check("check:mixer is wired into package.json", pkg.scripts?.["check:mixer"] ===
 // their Task 2.7 state by this and the other guards.
 const pinned = {
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
-  "src/rooms/ConsoleRoom.svelte": "ab8450a981b9ef4a8fbf4382e225994340f7be2936dbdafb3ddd402b16af6645",
+  "src/rooms/ConsoleRoom.svelte": "fd310619f4e631c260410373a56c183c361a04e6bcbfc10ed0e39430ff12dee4",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/ArrangeTrackRow.svelte": "fecd6b7f94e833759d6ac4ebbb155995c771ec0bf75bbfe971913a9dab4e7fde",
-  "src/rooms/ArrangeRoom.svelte": "0cb5ef123eac14d9124f3d26aa0bb33f7d2f01d923fa0888a437e31d93f8a2df",
+  "src/rooms/ArrangeRoom.svelte": "ad4262dbbdef68f5a2660ccd37b196b036b1607df4d7c4366551a36b475d0336",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/channel-strip/bus-return-fixtures.ts": "551fa3fc978362f3f7e48cb1a81110fa2b2ba09d4a3886630a02dc3594df1b1e",

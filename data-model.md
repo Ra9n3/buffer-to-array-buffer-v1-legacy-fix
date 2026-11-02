@@ -562,3 +562,213 @@ restore, or a paste is visible in every room at once; the Mixer's selection
 is its own `$state` (an id) and is not a field, so undo / redo never move it
 (browser evidence: `evidence/mixer/3.3/editing.json`, step C: strip 03
 undone from −13.5 to −12 dB while the detail stays on 05 Overhead L).
+
+## 11. The project lifecycle and the settings (Task 4.1)
+
+Phase 4's foundation over the Phase 3 state: Home lists the projects this
+browser has actually stored, a project can be started empty or reopened,
+the last one opened is restored at start, and a small settings document
+keeps the preferences the plan names. Nothing here is audio; nothing here
+changes the editing layer's rules (§10). Files: `src/lib/project/
+templates.ts`, `src/lib/project/lifecycle.ts`, `src/lib/settings.svelte.ts`,
+`src/lib/preferences.css`; the store's `loadProject` (§11.4); the shell
+(§10.5) wires them to the browser. Decisions: `decisions-log.md` D4.1.1–D4.1.9.
+
+### 11.1 Identity: `template`
+
+`Project` gains `template: ProjectTemplateId` (`"session-fixture" |
+"empty"`), the structure the project was built from. It travels with
+`id` and `name` in the manifest's `project` block (§10.3) — **additive**:
+the manifest schema is still `alloy.project-manifest/1`; a Task 3.3 manifest without
+`template` still parses, and the loader treats a template-less manifest of
+the fixture session's id (`session-fixture`) as the fixture session and any
+other template-less manifest as unavailable (`unknown-template`). The
+`session-fixture` project carries `template: "session-fixture"`; a project
+started empty carries `"empty"`.
+
+### 11.2 Templates (`templates.ts`)
+
+A template is a function from an identity to a complete, valid `Project`:
+
+| template          | built by                                   | contents                                                                              |
+| ----------------- | ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `session-fixture` | `createSessionProject()` under the saved id / name | the approved 20-track · 3-Return · 1-bus fixture session (§5)                  |
+| `empty`           | `createEmptyProject(id, name)`             | **Master only** (owner, D4.1.2): `tracks: []`, `returns: []`, `buses: []`, an empty arrangement (0 bars, no sections, no tempo markers, no clips; the `4/4` label); name `Untitled project` (then `Untitled project 2`, …) |
+
+`createTemplateProject(template, id, name)` returns `null` for an identity
+the template cannot carry (the fixture session has one id,
+`session-fixture`); `isEmptyProject(p)` ⇔ no tracks, Returns or buses — the
+store exposes it as `project.isEmpty` and every room shows its explicit
+empty state for it (§11.5). The plan's default Returns and the bus of the
+fixture are **not** invented for an empty project; they arrive with the
+import that creates tracks (Phase 5).
+
+### 11.3 Storage keys and the recent index (`lifecycle.ts`)
+
+| key                   | schema              | holds                                                                 | written by                                        |
+| --------------------- | ------------------- | --------------------------------------------------------------------- | ------------------------------------------------- |
+| `alloy.project.<id>`  | `alloy.project-manifest/1` | the project's manifest (§10.3; now with `template`)                   | autosave (§10.3); `ensureStored` for a first copy |
+| `alloy.projects`      | `alloy.projects/1`  | `{ schema, entries: [{ id, name, template, openedAt }] }`, newest first, at most **12** | `touch()` on every open / start / restore |
+| `alloy.settings`      | `alloy.settings/1`  | the settings document (§11.6)                                         | the settings store on every change                |
+
+`projectKey(id)` is the one place the project key is spelled.
+`parseRecentIndex(text)` accepts only a document of that schema whose
+entries have a non-empty string `id`, a string `name`, a string `openedAt`
+and (if present) a string `template`; anything else in the list is dropped
+entry by entry, a document that is not an index at all yields `null` (the
+list is then empty — never a crash, never an invented entry). The index is
+a convenience: a write failure there (`lifecycle.indexError`) never loses a
+project, whose own key is written separately.
+
+The lifecycle is pure with respect to the browser: `attach({ storage, now,
+newId })` injects the `StorageAdapter` (§10.3; `null` when the browser has
+none), an ISO-8601 clock and an id source; the shell gives it
+`localStorage`, `Date` and `crypto.randomUUID` (ids `project-<uuid>`; the
+fixture keeps `session-fixture`). Reads are synchronous — the only adapter
+in this build is; an asynchronous adapter is reported as `no-storage`, not
+awaited.
+
+### 11.4 Statuses, reopening, start-empty, restore
+
+Every listed entry is **judged against what is actually stored** each time
+Home renders (`lifecycle.recent()` → `RecentView[] = { entry, status }`):
+
+| `status.kind`  | `reason`           | meaning / what Home prints                                                        |
+| -------------- | ------------------ | --------------------------------------------------------------------------------- |
+| `current`      | —                  | the open project ("Open now")                                                     |
+| `ready`        | —                  | a readable, matching manifest of a known template: the **Open** key is offered    |
+| `unavailable`  | `no-storage`       | no storage in this browser (or an asynchronous adapter)                           |
+|                | `missing`          | "No saved copy in this browser"                                                   |
+|                | `damaged`          | "The saved copy is not a readable project" (not a manifest)                       |
+|                | `mismatch`         | "The saved copy belongs to a different project" (manifest id ≠ entry id; or an identity the template refuses) |
+|                | `unknown-template` | "The saved copy's structure is not one this build can rebuild" (no / unknown `template`, see §11.1) |
+|                | `invalid`          | the rebuilt project fails the routing rules (§7) — with the rule's message        |
+
+An unavailable entry has no Open key and is never presented as reopenable;
+its reason is printed. Nothing is ever fabricated for it.
+
+**Reopening** (owner, D4.1.1) = the entry's template rebuilt under the saved
+identity + the saved values applied through the field registry's validated
+setters: `isValidValue` per field type (§10.1) plus the two rules only the
+project knows (an `output` must be `master` or one of its buses; a send
+`to` must be `null` or one of its Returns; a `sourceTypeId` must belong to
+the track's family), then `validateGraph` over the whole result. A value
+that fails keeps the template's value and is reported in `skipped` (by
+field path); the next save writes the corrected manifest. Only then does
+the store take it (`loadProject`). `lifecycle.open(id)` returns `{ ok:
+true, id, applied, skipped }` or `{ ok: false, reason, detail }` (`reason`
+also `current` — the open project is never reopened over itself — or
+`unknown` — not in the index); the current project is untouched by a
+refusal.
+
+What a reopened project **cannot** carry: channel structure. The manifest
+holds identity and field values only (§10.3), so a reopened project is its
+template with values — exactly enough for the two templates that exist
+(the fixture session and the empty project). Imported projects (Phase 5)
+will need the manifest to carry their tracks; the `template` field is where
+that generalises. This is a documented boundary, not a loader for arbitrary
+projects.
+
+**The switch** (`install`): `loadProject(next)` → `autosave.retarget(key,
+storedText)` → `touch(next)`. Before it, `ensureStored()` flushes whatever
+autosave holds for the outgoing project and — for a project that was never
+edited, which autosave has nothing to say about — writes its first copy
+(the template's values under its identity) so that the entry Home lists
+for it is one that can be reopened. Autosave's bookkeeping is not touched
+by that write: its next comparison is against the same text.
+
+`loadProject(next)` in the store replaces the one tree's contents (identity,
+the three channel lists, the arrangement), forgets the per-channel views
+and the clipboard (its payload was another project's), rebuilds the field
+registry **in place** (same array, new entries — every importer keeps its
+reference), rebinds history (`history.rebind(fields)`: stacks emptied, the
+loaded values are the baseline, reported as a `clear` event — a reopened
+project starts with nothing to undo) and re-arms the observer over the new
+fields. `autosave.retarget(key, savedText)` cancels any pending save,
+writes under the new key from now on and counts the present revision as
+saved; `savedText` is what storage already holds (the manifest reopened
+from, the copy written at creation, or `null` when nothing is known to be
+stored so the first save writes). Both additions are backward-compatible:
+no existing signature changed.
+
+**Start empty** (`lifecycle.startEmpty()`): a fresh id from the shell
+(re-drawn until it is unused), `createEmptyProject`, the manifest written
+**at once** under its key, then the switch. Returns `{ ok: true, id, name,
+stored, error }` — `stored: false` with the reason when storage refused or
+is absent (the project is still open; Home says it could not be saved). No
+edit of the previous project carries over: the previous project was flushed
+and is listed as `ready`; the new one has 0 fields.
+
+**Restore at start** (owner, D4.1.1; `lifecycle.restoreLast()`, called by
+the shell before the app mounts): the newest index entry is reopened when
+its saved copy is valid → `{ outcome: "restored", id, skipped }`; otherwise
+the store keeps the fixture session it booted with → `{ outcome:
+"fixture", id, because }` with `because` ∈ `no-storage | no-entries |
+<UnavailableReason>`. Either way the open project is recorded in the index
+(and given its first copy), so a fresh browser lists exactly one entry: the
+fixture session, `current`. The dev fixture workflow is therefore unchanged
+for a fresh visit, and always one click away from Home afterwards.
+
+### 11.5 Empty states and routes
+
+`project.isEmpty` (no tracks, Returns or buses) makes each room render
+`EmptyProjectNotice` (`[data-empty-project=<room>]`, one line, a link back
+to Home) **instead of** its channel UI — Console: the channel-bank zone
+(the meter bridge and transport stay, see the limitation in the report);
+Arrange: the whole room (its header is per-track); Mixer: the layout. No
+room is redesigned: the notice is the Mixer detail's empty-state housing.
+
+Routes (owner, D4.1.3): Home `#/` (also the empty hash, `#`, and anything
+unrecognised — before Home existed the fallback was the Console), Settings
+`#/settings`, rooms unchanged (`#/arrange`, `#/console`, `#/mixer`), the
+playground `#/dev/components`. Neither Home nor Settings is a room: both are
+absent from `ROOMS` and the room tabs; the wordmark is the way Home, the
+header carries a Settings link beside the tabs. The shell element carries
+`data-route=home|settings|room|dev-components`. Home and Settings scroll as
+a page (the rooms stay pinned to the viewport).
+
+### 11.6 The settings document (`settings.svelte.ts`, `preferences.css`)
+
+```
+alloy.settings = {
+  schema: "alloy.settings/1",
+  hardwareProfile: "auto" | "lite" | "standard" | "performance",   // default "auto"
+  export: { fullMix: boolean, stems: boolean, buses: boolean },    // default { true, false, false }
+  motion: "system" | "reduced",                                    // default "system"
+  onboarding: "pending" | "skipped" | "done"                       // default "pending"
+}
+```
+
+`parseSettings(text)` is field by field: anything missing, malformed or
+outside the vocabulary becomes its default; a text that is not a settings
+document at all yields `null` (then everything is default). The document
+is written on every change (`settingsOps.setHardwareProfile / 
+setExportOutput / setMotion / skipGuide / finishGuide / showGuideAgain /
+resetAll`), never on attach — `alloy.settings` does not exist until the
+first change. `attachSettings(adapter)` reads once and reports
+`settings.storage = { attached, storage, loaded, error, writes }`;
+`detachSettings()` stops all writes (tests). Without storage the settings
+last for the visit and Settings says so.
+
+**What is operational in this build and what is stored for later:**
+
+| preference                 | stored | read by                                                                                                  | status                                                                                                        |
+| -------------------------- | ------ | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `hardwareProfile`          | yes    | nothing yet                                                                                              | **not yet operational** — the engine and its benchmark (plan §11, Phase 5.2) will read it; `auto` = "the profile the benchmark selects"; the Settings panel prints the plan's intents only, no invented numbers |
+| `export.fullMix/stems/buses` | yes  | nothing yet                                                                                              | **not yet operational** — the default selection of the plan §12 output types for the export that arrives with rendering; format is **WAV only** (a fact printed, not a preference); the destination folder is chosen at export time (plan §12), not stored |
+| `motion`                   | yes    | the shell → `<html data-motion="system|reduced">` → `preferences.css`                                     | **operational now** — `reduced` sets every animation / transition to 0.01 ms, one iteration, no delay (`!important`), on top of the components' own `prefers-reduced-motion` handling; `system` leaves the media query to decide |
+| `onboarding`               | yes    | Home (shows the guide while `pending`), Settings ("Show again" → `pending`)                               | **operational now**                                                                                           |
+
+The motion attribute is mirrored at install and on every change and removed
+at uninstall; it is a `data-` attribute, not a class, so no stylesheet other
+than `preferences.css` has to know about it. Keyboard access, the visible
+focus ring and the semantic labels are the approved components' own; the
+preference changes none of them.
+
+### 11.7 Not in this build (by design)
+
+Forgetting, renaming or deleting an entry; a save-status indicator;
+project-level undo of a switch; more than one project open; import of
+projects with their own channel structure (Phase 5); any reading of the
+hardware profile or export preferences (Phase 5). Listed as approval items
+in `task-reports/4.1-report.md`.

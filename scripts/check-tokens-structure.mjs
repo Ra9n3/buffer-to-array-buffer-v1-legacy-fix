@@ -235,9 +235,11 @@ check(
   !/dev-components/.test(rooms.slice(rooms.indexOf("export const ROOMS"), rooms.indexOf("DEFAULT_ROOM"))),
 );
 check("the shell renders the dev page", /<DevComponentsPage \/>/.test(app));
+// Task 4.1: Home (#/) and Settings (#/settings) are screens, not rooms; like the dev page they
+// carry their own data-active-room value, which no room rule in app.css matches.
 check(
-  "the shell does not flag the dev page as a room",
-  /data-active-room=\{activeRoom\}/.test(app) && /room \?\? "dev"/.test(app),
+  "the shell does not flag the dev page (or Home / Settings, Task 4.1) as a room",
+  /data-active-room=\{activeRoom\}/.test(app) && /room \?\? \(route\.kind === "dev-components" \? "dev" : route\.kind\)/.test(app),
 );
 check("tokens.css is loaded by the app", /import "\.\/lib\/tokens\.css"/.test(main));
 

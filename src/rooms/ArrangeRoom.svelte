@@ -2,6 +2,7 @@
   import ArrangeTimelineHeader from "../components/ArrangeTimelineHeader.svelte";
   import ArrangeTimelineLane from "../components/ArrangeTimelineLane.svelte";
   import ArrangeTrackRow from "../components/ArrangeTrackRow.svelte";
+  import EmptyProjectNotice from "../components/EmptyProjectNotice.svelte";
   import EngravedLabel from "../components/hardware/EngravedLabel.svelte";
   import RoomShell from "../components/RoomShell.svelte";
   import { arrangeTrackOf, project, trackMeta } from "../lib/project/store.svelte";
@@ -10,7 +11,11 @@
      Console and Mixer read, in the session's order — and binds each row's
      family / source / tier to the store's view of its track. The
      arrangement (bars, tempo, sections, waveform placeholders) is the
-     project's fixture-backed display data, read from the same store. */
+     project's fixture-backed display data, read from the same store.
+
+     Task 4.1: an empty project (no channels at all, owner D4.1.2) has no
+     arrangement to show — no tracks, no bars, no markers — so the room shows
+     the explicit empty state in place of the scroller and grid. */
   const tracks = $derived(project.tracks);
   const arrangement = $derived(project.arrangement);
 </script>
@@ -22,6 +27,11 @@
   hideHeader
 >
   <div class="arrange-room" style:--arrange-bar-count={arrangement.barCount} data-arrange-room>
+    {#if project.isEmpty}
+      <div class="arrange-empty">
+        <EmptyProjectNotice headingId="arrange-empty-title" room="arrange" />
+      </div>
+    {:else}
     <!-- One scroller drives both axes. The grid inside it holds the track-list
          column and the timeline in shared grid rows, so a track row and its
          lane are the same grid row and cannot drift apart. -->
@@ -76,11 +86,19 @@
         {/each}
       </div>
     </div>
+    {/if}
 
   </div>
 </RoomShell>
 
 <style>
+  /* Task 4.1: the empty project's notice sits where the scroller would, at
+     the room's own padding; the room keeps its height so nothing shifts. */
+  .arrange-empty {
+    display: flex;
+    padding: 0.75rem;
+  }
+
   .arrange-room {
     display: flex;
     flex: 1 1 auto;

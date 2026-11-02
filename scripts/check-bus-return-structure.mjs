@@ -245,7 +245,7 @@ const pinned = {
   "src/components/console-transport/LampDisplay.svelte": "19634fdde214a7d571ed2a28271064c0d34604a7acf7910cf8f97f3a960dea9d",
   "src/components/console-transport/MixButton.svelte": "5b08e6e8f505c478f5cea5f03465b82c4db3d09b076f0ada032075c71ba163cd",
   "src/components/console-transport/transport-fixtures.ts": "0333ddc273f3cd1eb6576126dc74aa917741f7f15cd35ab18ecd729a6aba9806",
-  "src/rooms/ConsoleRoom.svelte": "ab8450a981b9ef4a8fbf4382e225994340f7be2936dbdafb3ddd402b16af6645",
+  "src/rooms/ConsoleRoom.svelte": "fd310619f4e631c260410373a56c183c361a04e6bcbfc10ed0e39430ff12dee4",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

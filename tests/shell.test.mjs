@@ -10,6 +10,10 @@ import {
   wantsDebugHandle,
 } from "../src/lib/project/shell.ts";
 import { autosave, history, ops, project } from "../src/lib/project/store.svelte.ts";
+import { lifecycle, projectKey, RECENT_KEY } from "../src/lib/project/lifecycle.ts";
+import { SESSION_PROJECT_ID } from "../src/lib/project/session.ts";
+import { SETTINGS_KEY, settings, settingsOps } from "../src/lib/settings.svelte.ts";
+import { motionAttribute, newProjectId } from "../src/lib/project/shell.ts";
 
 const key = (k, mods = {}, target = { tagName: "BUTTON" }) => ({
   key: k,
@@ -66,13 +70,23 @@ test("wantsDebugHandle: only a ?debug flag in the URL search", () => {
   assert.equal(wantsDebugHandle("?nodebug"), false);
 });
 
-function fakeWindow({ search = "", localStorage } = {}) {
+function fakeWindow({ search = "", localStorage, crypto } = {}) {
   const listeners = new Map();
   const timers = [];
   let now = 0;
+  const attrs = new Map();
   const win = {
     location: { search },
     performance: { now: () => now },
+    // Task 4.1: <html> for the motion attribute, crypto for project ids (optional, as in a browser)
+    document: {
+      documentElement: {
+        setAttribute: (k, v) => attrs.set(k, String(v)),
+        removeAttribute: (k) => attrs.delete(k),
+        getAttribute: (k) => attrs.get(k) ?? null,
+      },
+    },
+    crypto,
     setTimeout(fn, ms) {
       const t = { fn, ms, cancelled: false };
       timers.push(t);
@@ -96,6 +110,7 @@ function fakeWindow({ search = "", localStorage } = {}) {
     win,
     listeners,
     timers,
+    attrs,
     tick: (ms) => (now += ms),
     fire: (type, e) => listeners.get(type)?.(e),
     runTimers: () => timers.splice(0).filter((t) => !t.cancelled).forEach((t) => t.fn()),
@@ -186,7 +201,8 @@ test("installProjectShell: ?debug exposes window.alloy; a disabled Web Storage l
   const fw = fakeWindow({ search: "?debug", localStorage: "throw" });
   const uninstall = installProjectShell(fw.win);
   assert.ok(fw.win.alloy);
-  assert.deepEqual(Object.keys(fw.win.alloy).sort(), ["autosave", "clipboard", "fields", "flush", "history", "ops", "project"]);
+  // Task 4.1 added lifecycle, settings and the start-up outcome to the handle
+  assert.deepEqual(Object.keys(fw.win.alloy).sort(), ["autosave", "clipboard", "fields", "flush", "history", "lifecycle", "ops", "project", "restored", "settings"]);
   assert.equal(fw.win.alloy.fields.length, 1076);
   assert.equal(autosave.status.storage, null);
   const t = project.track("track-11");
@@ -201,4 +217,106 @@ test("installProjectShell: ?debug exposes window.alloy; a disabled Web Storage l
   uninstall();
   assert.equal(fw.win.alloy, undefined);
   history.clear();
+});
+
+// --- Task 4.1: settings onto <html>, the lifecycle wired, the last project back at start ----------
+
+test("installProjectShell: settings read from Web Storage, data-motion mirrored onto <html> now and on change, removed at uninstall", () => {
+  history.clear();
+  const storage = storageStub();
+  storage.data.set(SETTINGS_KEY, JSON.stringify({ schema: "alloy.settings/1", motion: "reduced", onboarding: "skipped" }));
+  const fw = fakeWindow({ localStorage: storage });
+  const uninstall = installProjectShell(fw.win);
+  assert.equal(settings.motion, "reduced");
+  assert.equal(settings.onboarding, "skipped");
+  assert.equal(settings.storage.storage, "localStorage");
+  assert.equal(fw.attrs.get("data-motion"), "reduced", "the stored preference is on <html> before the first paint");
+  settingsOps.setMotion("system");
+  assert.equal(fw.attrs.get("data-motion"), "system", "a change is mirrored at once");
+  assert.equal(JSON.parse(storage.data.get(SETTINGS_KEY)).motion, "system", "and written");
+  assert.equal(motionAttribute({ motion: "reduced" }), "reduced");
+  assert.equal(motionAttribute({ motion: "system" }), "system");
+  uninstall();
+  assert.equal(fw.attrs.has("data-motion"), false);
+  assert.equal(settings.storage.attached, false);
+  settingsOps.setMotion("reduced");
+  assert.equal(fw.attrs.has("data-motion"), false, "uninstalled: no mirror");
+  settingsOps.resetAll();
+  history.clear();
+});
+
+test("installProjectShell: no Web Storage → settings at their defaults, data-motion still set from them; the guide is due", () => {
+  history.clear();
+  const fw = fakeWindow({ localStorage: "throw" });
+  const uninstall = installProjectShell(fw.win);
+  assert.equal(settings.storage.attached, false);
+  assert.equal(settings.motion, "system");
+  assert.equal(settings.showGuide, true);
+  assert.equal(fw.attrs.get("data-motion"), "system");
+  assert.equal(lifecycle.storage, null);
+  assert.deepEqual(lifecycle.recent(), []);
+  uninstall();
+  history.clear();
+});
+
+test("installProjectShell: the lifecycle gets storage, a wall clock and ids; the first start records the fixture; the next start restores the last project", () => {
+  history.clear();
+  const storage = storageStub();
+  let fw = fakeWindow({ localStorage: storage, search: "?debug", crypto: { randomUUID: () => "11111111-2222-4333-8444-555555555555" } });
+  let uninstall = installProjectShell(fw.win);
+  assert.equal(lifecycle.storage, "localStorage");
+  assert.deepEqual(fw.win.alloy.restored, { outcome: "fixture", id: SESSION_PROJECT_ID, because: "no-entries" });
+  const index = JSON.parse(storage.data.get(RECENT_KEY));
+  assert.equal(index.schema, "alloy.projects/1");
+  assert.equal(index.entries.length, 1);
+  assert.equal(index.entries[0].id, SESSION_PROJECT_ID);
+  assert.match(index.entries[0].openedAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, "ISO 8601 from the wall clock");
+  assert.ok(storage.data.has(projectKey(SESSION_PROJECT_ID)), "the pristine fixture's copy is stored at the first start");
+
+  // start empty through the handle's lifecycle: the id comes from crypto.randomUUID
+  const started = fw.win.alloy.lifecycle.startEmpty();
+  assert.equal(started.id, "project-11111111-2222-4333-8444-555555555555");
+  assert.equal(project.isEmpty, true);
+  assert.equal(fw.win.alloy.fields.length, 0, "the handle's registry follows the project");
+  uninstall();
+
+  // "a reload": the empty project is what comes back
+  history.clear();
+  fw = fakeWindow({ localStorage: storage, search: "?debug" });
+  uninstall = installProjectShell(fw.win);
+  assert.deepEqual(fw.win.alloy.restored, { outcome: "restored", id: started.id, skipped: [] });
+  assert.equal(project.id, started.id);
+  assert.equal(project.isEmpty, true);
+  assert.equal(autosave.status.key, projectKey(started.id));
+  // reopen the fixture from the list, edit, let autosave write, reload: the edit is back
+  assert.equal(fw.win.alloy.lifecycle.open(SESSION_PROJECT_ID).ok, true);
+  assert.equal(project.id, SESSION_PROJECT_ID);
+  ops.setTrackLevel("track-12", -11);
+  history.observe();
+  fw.runTimers();
+  assert.equal(autosave.status.state, "saved");
+  uninstall();
+  history.clear();
+  fw = fakeWindow({ localStorage: storage, search: "?debug" });
+  uninstall = installProjectShell(fw.win);
+  assert.equal(fw.win.alloy.restored.outcome, "restored");
+  assert.equal(project.id, SESSION_PROJECT_ID);
+  assert.equal(project.track("track-12").channel.level, -11);
+  assert.equal(history.canUndo, false, "restoring is not an edit");
+  uninstall();
+
+  // put the pristine fixture back for whatever runs next
+  fw = fakeWindow({ localStorage: storageStub() });
+  uninstall = installProjectShell(fw.win);
+  uninstall();
+  history.clear();
+});
+
+test("newProjectId: crypto.randomUUID when the window has it, a time + random fallback otherwise; always project-<...>", () => {
+  assert.equal(newProjectId({ crypto: { randomUUID: () => "abc" } }), "project-abc");
+  const a = newProjectId({});
+  const b = newProjectId({});
+  assert.match(a, /^project-[0-9a-z]+-[0-9a-z]{8}$/);
+  assert.notEqual(a, b);
+  assert.match(newProjectId({ crypto: {} }), /^project-[0-9a-z]+-[0-9a-z]{8}$/, "a crypto without randomUUID falls back too");
 });

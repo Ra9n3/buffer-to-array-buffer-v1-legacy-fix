@@ -81,13 +81,13 @@ export const DEFAULT_COALESCE_MS = 1000;
 export const DEFAULT_HISTORY_LIMIT = 200;
 
 export class History {
-  readonly fields: readonly FieldRef[];
   readonly coalesceMs: number;
   readonly limit: number;
   clock: (() => number) | null;
 
+  private _fields: readonly FieldRef[];
   private readonly byPath = new Map<string, number>();
-  private readonly baseline: FieldValue[];
+  private baseline: FieldValue[];
   private readonly undoStack: HistoryEntry[] = [];
   private readonly redoStack: HistoryEntry[] = [];
   private readonly listeners = new Set<(event: HistoryEvent) => void>();
@@ -96,15 +96,20 @@ export class History {
   private _revision = 0;
 
   constructor(options: HistoryOptions) {
-    this.fields = options.fields;
+    this._fields = options.fields;
     this.clock = options.clock ?? null;
     this.coalesceMs = options.coalesceMs ?? DEFAULT_COALESCE_MS;
     this.limit = options.limit ?? DEFAULT_HISTORY_LIMIT;
-    this.baseline = this.fields.map((f) => f.get());
-    this.fields.forEach((f, i) => this.byPath.set(f.path, i));
+    this.baseline = this._fields.map((f) => f.get());
+    this._fields.forEach((f, i) => this.byPath.set(f.path, i));
   }
 
   /* --- reads --------------------------------------------------------- */
+
+  /** The registry under observation. */
+  get fields(): readonly FieldRef[] {
+    return this._fields;
+  }
 
   get revision(): number {
     return this._revision;
@@ -227,6 +232,24 @@ export class History {
   /** Forget everything (a future "new project"); the present state becomes the baseline. */
   clear(): void {
     this.observe();
+    this.undoStack.length = 0;
+    this.redoStack.length = 0;
+    this.bump("clear", null);
+  }
+
+  /**
+   * A project switch (Task 4.1, the store's `loadProject`): observe a
+   * different registry from now on. Nothing of the previous project is kept
+   * — its entries could not be applied to another project's fields — and
+   * the loaded values become the baseline, so a reopened project starts
+   * with nothing to undo. Reported as a "clear" event (autosave is
+   * retargeted by the lifecycle right after).
+   */
+  rebind(fields: readonly FieldRef[]): void {
+    this._fields = fields;
+    this.byPath.clear();
+    this.baseline = fields.map((f) => f.get());
+    fields.forEach((f, i) => this.byPath.set(f.path, i));
     this.undoStack.length = 0;
     this.redoStack.length = 0;
     this.bump("clear", null);
