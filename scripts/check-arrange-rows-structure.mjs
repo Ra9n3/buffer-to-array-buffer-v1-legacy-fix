@@ -264,7 +264,7 @@ check("no screw heads in the new files (D2.1.9)", !/screw/i.test(newSource + roo
 // (two comments), TrackStrip / StripModule / ReturnStrip / BusMasterStrip (the
 // optional `identity` snippet, D2.7.2). MixerChannelStrip.svelte was deleted.
 const pinned = {
-  "src/components/MixerDetailPanel.svelte": "0e596aba090663fe9846d00e7e814f83f02b60712cc221cef24e6d0c2a1008aa",
+  "src/components/MixerDetailPanel.svelte": "8fefa889f4b753a7062960184f72d2c55e2499011517aa3ed8ed26092a918aaa",
   "src/rooms/MixerRoom.svelte": "20b70cfef7ede76c4ca78ef6099873abe938e6da47d6b1dcd1cc2cacc45e383f",
   "src/lib/mixer.ts": "f0721db5dc50e2231bca58d379918ec562de301e49eb0b8a20a7c8b54dcbab51",
   "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
@@ -274,7 +274,7 @@ const pinned = {
   "src/components/channel-strip/SendSlot.svelte": "8009eaf5ba0335099deb62a315116e67450750c118370d974596ead37b468b31",
   "src/components/channel-strip/track-strip-fixtures.ts": "c76e8c14b7c9794b14747a83a51926870a24c6a587405259f05ac6a415e151c5",
   "src/components/channel-strip/StripModule.svelte": "07c4b872de43f7120672ea81ed7830140e5732cd9280ac17a486120e1d1aa453",
-  "src/components/channel-strip/ReturnStrip.svelte": "40fa6988990c42267ed75d2ae68547e9e4b743e8b40e6a99d4f3a5a28b5b69d9",
+  "src/components/channel-strip/ReturnStrip.svelte": "39945f793f6c2c4dbe000c11bf1a3a398183ce2ebcc9a42074132033fae3e088",
   "src/components/channel-strip/BusMasterStrip.svelte": "58cf7fac0d685dc891454aab5595066a286b66a33354598562e6a959998a35b2",
   "src/components/channel-strip/bus-return-fixtures.ts": "551fa3fc978362f3f7e48cb1a81110fa2b2ba09d4a3886630a02dc3594df1b1e",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",

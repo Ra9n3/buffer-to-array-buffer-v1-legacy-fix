@@ -1,6 +1,7 @@
 <script lang="ts">
   import ReturnStrip from "../channel-strip/ReturnStrip.svelte";
   import type { MixerReturnChannel } from "../../lib/mixer";
+  import { returnLive } from "../../lib/return-chain.svelte";
   import MixerIdentity from "./MixerIdentity.svelte";
 
   /**
@@ -27,16 +28,20 @@
   } = $props();
 
   const effectName = $derived(channel.ret.effect === "reverb" ? "Reverb" : "Delay");
+
+  /* Task 2.9: the Mixer's Return strip is bound to the Return's one shared
+     chain state, the same the chain-detail panel edits (plan §8a). */
+  const live = $derived(returnLive(channel.ret));
 </script>
 
-<ReturnStrip ret={channel.ret}>
+<ReturnStrip ret={channel.ret} {live}>
   {#snippet identity()}
     <div class="return-identity" data-mixer-channel={channel.id} data-mixer-channel-kind="return" data-return-id={channel.ret.returnId}>
       <MixerIdentity
         kindPrint="Return"
         kindTitle="Return bus"
         sourcePrint={effectName}
-        sourceTitle={`Effect: ${effectName} \u00b7 ${channel.ret.character.name}`}
+        sourceTitle={`Effect: ${effectName} \u00b7 ${live.character.name}`}
         channelName={channel.name}
         {selected}
         onselect={() => onselect(channel.id)}

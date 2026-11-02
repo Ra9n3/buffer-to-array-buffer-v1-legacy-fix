@@ -8,9 +8,10 @@
  *
  *   1. The panel: the room hands over the selected channel exactly as before
  *      (MixerRoom.svelte untouched); the panel branches ONCE, on the existing
- *      channel kind, between a standard track's chain and an EXPLICIT empty
- *      state for Return / bus (Task 2.9) — never a Return or bus chain, never
- *      a blank bay; the identity header is read from the shared session
+ *      channel kind, between a standard track's chain, the Return chain and
+ *      the bus chain (Task 2.9, checked in check:mixer-chain-types) and an
+ *      EXPLICIT empty state for anything else — never a blank bay, never one
+ *      universal layout; the identity header is read from the shared session
  *      (Arrange role / tier / family / source, the strip's org tab); the
  *      housing is the Mixer bank's, value for value.
  *   2. State: one chain per standard track, seeded from its fixture and
@@ -116,9 +117,9 @@ check("the room is untouched: it still renders the panel once, after the bank, w
 check("the panel receives the room's selected channel (the existing MixerChannelEntry) and nothing else", /let \{ channel \}: \{ channel: MixerChannelEntry \| undefined \} = \$props\(\);/.test(J.panel));
 check("the panel branches once, on the existing channel kind: supportsChainDetail = kind === \"track\"", /export function supportsChainDetail\(channel: MixerChannelEntry \| undefined\): channel is MixerTrackChannel \{\s*return channel\?\.kind === "track";/.test(model) && /const track = \$derived\(supportsChainDetail\(channel\) \? channel : undefined\);/.test(J.panel));
 check("a standard track gets the chain: the rail, the EQ bay, the compressor bay and What changed, each rendered once", ["ProcessingChain", "EqSection", "CompressorSection", "WhatChanged"].every((c) => count(T.panel, new RegExp(`<${c}\\b`, "g")) === 1) && /\{#if track && chain\}/.test(T.panel));
-check("a Return or a bus gets an EXPLICIT empty state (role=status) naming the channel kind — never a blank bay, never a standard-track chain", /\{:else if channel\}\s*(?:<!--[\s\S]*?-->\s*)?<div class="detail__empty" role="status" data-detail-empty>/.test(T.panel) && /Processing detail for \$\{channelKindLabel\(channel\.kind\)\.toLowerCase\(\)\} channels is not available in this build/.test(T.panel) && !/ReturnStrip|BusMasterStrip|return-chain|bus-chain/.test(panel));
+check("a Return gets the Return chain and a bus the bus chain (Task 2.9); any other kind gets an EXPLICIT empty state (role=status) naming it — never a blank bay, never a standard-track chain", /\{:else if theReturn\}\s*(?:<!--[\s\S]*?-->\s*)?<ReturnDetail chain=\{theReturn\} \/>/.test(T.panel) && /\{:else if bus\}\s*(?:<!--[\s\S]*?-->\s*)?<BusDetail chain=\{bus\} \/>/.test(T.panel) && /\{:else if channel\}\s*(?:<!--[\s\S]*?-->\s*)?<div class="detail__empty" role="status" data-detail-empty>/.test(T.panel) && /Processing detail for \$\{channelKindLabel\(channel\.kind\)\.toLowerCase\(\)\} channels is not available in this build/.test(T.panel) && !/ReturnStrip|BusMasterStrip/.test(panel));
 check("no selection gets its own empty state", /\{:else\}\s*<div class="detail__empty" role="status" data-detail-empty>/.test(T.panel) && /Select a channel in the bank to inspect it/.test(T.panel));
-check("the panel's hooks tell the measurement which channel, kind and support state it shows", /data-detail-channel=\{channel\?\.id \?\? ""\}/.test(T.panel) && /data-detail-kind=\{channel\?\.kind \?\? ""\}/.test(T.panel) && /data-detail-supported=\{track !== undefined\}/.test(T.panel));
+check("the panel's hooks tell the measurement which channel, kind and support state it shows", /data-detail-channel=\{channel\?\.id \?\? ""\}/.test(T.panel) && /data-detail-kind=\{channel\?\.kind \?\? ""\}/.test(T.panel) && /data-detail-supported=\{supported\}/.test(T.panel) && /const supported = \$derived\(track !== undefined \|\| theReturn !== undefined \|\| bus !== undefined\);/.test(panel));
 check("the detail regions are tagged: detail-panel, selection, processing-chain, eq-graph, compressor, what-changed", ["detail-panel", "selection", "processing-chain", "eq-graph", "compressor", "what-changed"].every((r) => T.panel.includes(`data-mixer-region="${r}"`)));
 check("the identity header is read from the shared session: code and name from the channel; role, tier, family and source from the Arrange data; the org tab from the strip", /import \{ PROMINENCE_TIERS, familyLabel, role, sourceType \} from "\.\.\/lib\/arrange";/.test(J.panel) && /familyLabel\(track\.arrange\.familyId\)/.test(J.panel) && /sourceType\(track\.arrange\.sourceTypeId\)/.test(J.panel) && /role\(track\.arrange\.role\)/.test(J.panel) && /PROMINENCE_TIERS\.find\(\(t\) => t\.id === track\.arrange\.tier\)/.test(J.panel) && /<EngravedLabel text=\{channel\.code\}/.test(T.panel) && /<EngravedLabel text=\{channel\.name\}[^>]*id="mixer-detail-title"/.test(T.panel));
 check("the org tab is the flat tab of D2.2.13: background-color: var(--org) only, from orgToken", /import \{ orgToken \} from "\.\/channel-strip\/track-strip-fixtures";/.test(J.panel) && /style:--org=\{orgToken\(org\)\} data-org-tab/.test(T.panel) && /\.detail__tab \{[^}]*background-color: var\(--org\);/.test(S.panel) && !/\.detail__tab \{[^}]*(?:background-image|box-shadow|border:|border-color|outline)/.test(S.panel));
@@ -148,8 +149,8 @@ check("returning to Auto changes ownership only: setMode touches the mode and no
 check("ALL AUTO / ALL MANUAL set every mode in the module, values untouched", /export function setAllModes\(params: readonly \(ChainParam \| CharacterParam\)\[\], mode: Mode\): void \{\s*for \(const p of params\) p\.mode = mode;\s*\}/.test(model));
 check("choosing a character sets the selection Manual and never touches the knobs", /export function setCharacter\(comp: CompState, id: CharacterId\): void \{\s*comp\.character\.value = id;\s*comp\.character\.mode = "manual";\s*\}/.test(model));
 check("bypass is a separate state per module (EQ, compressor), independent of ownership", /readonly bypassed: boolean;|bypassed: boolean;/.test(model) && /bind:engaged=\{\(\) => eq\.bypassed, \(on\) => \(eq\.bypassed = on\)\}/.test(T.eq) && /bind:engaged=\{\(\) => comp\.bypassed, \(on\) => \(comp\.bypassed = on\)\}/.test(T.comp));
-check("the rail's lamps follow the fixture chain state only: in circuit or bypassed, nothing routed or reordered", /export function blockEngaged\(chain: ChainState, id: BlockId\): boolean/.test(model) && /\{@const engaged = blockEngaged\(chain, block\.id\)\}/.test(T.rail) && !/<button|draggable|onpointer|onkeydown|ondrag/.test(T.rail));
-check("the rail is an ordered list of the eight blocks, each with an amber Lamp and engraved step and label", /<ol class="chain" aria-label="Processing chain" data-chain-rail>/.test(T.rail) && /\{#each CHAIN_BLOCKS as block/.test(T.rail) && /<Lamp lit=\{engaged\} color="amber"/.test(T.rail) && count(T.rail, /<EngravedLabel\b/g) === 2);
+check("the rail's lamps follow the fixture chain state only: in circuit or bypassed, nothing routed or reordered", /export function blockEngaged\(chain: ChainState, id: BlockId\): boolean/.test(model) && /export function trackRailBlocks\(chain: ChainState\): RailBlock\[\] \{\s*return CHAIN_BLOCKS\.map\(\(block\) => \(\{ \.\.\.block, engaged: blockEngaged\(chain, block\.id\) \}\)\);\s*\}/.test(model) && /\{@const engaged = block\.engaged\}/.test(T.rail) && /<ProcessingChain blocks=\{trackRailBlocks\(chain\)\} \/>/.test(T.panel) && !/<button|draggable|onpointer|onkeydown|ondrag/.test(T.rail));
+check("the rail is an ordered list of the eight blocks, each with an amber Lamp and engraved step and label", /<ol class="chain" aria-label="Processing chain" data-chain-rail>/.test(T.rail) && /\{#each blocks as block \(block\.id\)\}/.test(T.rail) && /CHAIN_BLOCKS: readonly ChainBlock\[\] = PROCESSING_CHAIN_STEPS\.map/.test(model) && /<Lamp lit=\{engaged\} color="amber"/.test(T.rail) && count(T.rail, /<EngravedLabel\b/g) === 2);
 check("the parameter specs are the controls the plan names and nothing more: EQ frequency / gain / Q; compressor threshold / ratio / attack / release / make-up", ["EQ_FREQ", "EQ_GAIN", "EQ_Q", "COMP_THRESHOLD", "COMP_RATIO", "COMP_ATTACK", "COMP_RELEASE", "COMP_MAKEUP"].every((n) => new RegExp(`export const ${n}: ParamSpec = spec\\(`).test(model)) && count(model, /: ParamSpec = spec\(/g) === 8);
 check("the four compressor characters are the plan's: VCA, Opto, FET, Vari-Mu — a fixture selection, nothing emulated", /export type CharacterId = "vca" \| "opto" \| "fet" \| "varimu";/.test(model) && /\{ id: "vca", name: "VCA" \},\s*\{ id: "opto", name: "Opto" \},\s*\{ id: "fet", name: "FET" \},\s*\{ id: "varimu", name: "Vari-Mu" \}/.test(model.replace(/\s+/g, " ")) && !/emulat|model(?:led|s) the|circuit model/i.test(stripComments(comp + model)));
 check("the fixtures cover every standard track in the bank (20 codes) with a fallback for any new one", count(model.slice(model.indexOf("export const FIXTURES")), /^\s{2}"\d\d": \{/gm) === 20 && /export function chainFixtureFor\(code: string\): ChainFixture/.test(model));
@@ -222,7 +223,7 @@ const pinned = {
   "src/components/mixer/MixerBank.svelte": "cf220c4e4a92a6f450c3475e3ae5af036b308418e55f13809b5bed238e1f53ea",
   "src/components/mixer/MixerIdentity.svelte": "d6165febdfb805db7b067f6dc01bb89f34195a2035fa916984dec401e5a9b781",
   "src/components/mixer/MixerTrackStrip.svelte": "ee4caa157ef1dbffa3127f0ff985d8714c776b3a309c3b2eef461ae5d5163bcd",
-  "src/components/mixer/MixerReturnStrip.svelte": "c131f60b71904578f8686470e01327ddce2847b7fb6157959b927d980d5ec5b0",
+  "src/components/mixer/MixerReturnStrip.svelte": "557c4a33b24714f004a9d408152e67fac2e366f06977f6960b941985fcb6bc99",
   "src/components/mixer/MixerBusStrip.svelte": "523718675e6d34ba8484537ccd689904107969374b3a9b2ea94ede8470bdb91f",
   "src/components/hardware/Knob.svelte": "df6c51572f28d00ca07b98551914f8f11837df147d557c9113e94cd29732fdf6",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
@@ -231,7 +232,7 @@ const pinned = {
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
   "src/components/hardware/Fader.svelte": "b46e55ec95f4ddbe544175f7e0a340e7378a8cff3af674e431aad2a08d5be372",
   "src/components/hardware/VUMeter.svelte": "c3d850c80d9d53c70ed31c603fe23c011402f813e56bce963494086466347394",
-  "src/components/MixerDetailPanel.svelte": "0e596aba090663fe9846d00e7e814f83f02b60712cc221cef24e6d0c2a1008aa",
+  "src/components/MixerDetailPanel.svelte": "8fefa889f4b753a7062960184f72d2c55e2499011517aa3ed8ed26092a918aaa",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

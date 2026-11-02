@@ -1,0 +1,236 @@
+#!/usr/bin/env node
+/**
+ * Mixer chain-type-aware detail structural contract check — Task 2.9.
+ *
+ * Dependency-free guard (Node built-ins only). It does NOT test geometry —
+ * that was measured in a real browser (see task-reports/2.9-report.md and
+ * evidence/mixer/2.9/) — it tests the source-level contract:
+ *
+ *   1. The panel branches by channel kind (plan §3: the detail "renders
+ *      differently depending on whether the selected channel is a track, a
+ *      regular bus, or a Return bus — never one universal layout"): the
+ *      Task 2.8 track chain, a Return chain (ReturnDetail), a bus chain
+ *      (BusDetail), and an explicit empty state for no selection. No strip
+ *      is rendered in the panel; the 2.8 track branch is intact.
+ *   2. The Return (plan §8a): ONE chain state per Return, shared between the
+ *      Mixer's Return strip and the panel through `ReturnStrip`'s optional
+ *      `live` binding (the Console passes nothing); the controls are the
+ *      plan's — character / algorithm (Room · Hall · Plate; Tape · Analogue
+ *      · Digital, fixture selections), decay or delay time, pre-delay or
+ *      feedback, tone / damping, bypass — on green chain knobs with the
+ *      Task 2.8 ownership rules; the Return's output level stays on the
+ *      strip fader; the Return's input is a read-only list of the tracks
+ *      sending to it, from the track fixtures.
+ *   3. The bus (plan §8 bus and master path): the same EQ and compressor
+ *      modules as a track (reused components, gentle bus fixtures, no
+ *      dynamic band, no cleanup, no sends) and a final output stage shown as
+ *      a status only — transparent peak protection, not engaged — with no
+ *      limiter, loudness or mastering control anywhere.
+ *   4. The rail is generalised to blocks each chain model provides, in
+ *      signal order, lamps from state only; nothing reorders or routes.
+ *   5. Scope: fixtures only — no DSP, audio, analysis, persistence,
+ *      timers, randomness or dependency change; no screws; Task 2.8 files
+ *      and the approved hardware untouched (pins).
+ *
+ * Run: npm run check:mixer-chain-types
+ */
+
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const read = (rel) => readFileSync(resolve(root, rel), "utf8");
+const exists = (rel) => existsSync(resolve(root, rel));
+const sha256 = (text) => createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
+
+const failures = [];
+const passes = [];
+
+function check(name, condition, detail = "") {
+  if (condition) passes.push(name);
+  else failures.push(detail ? `${name} — ${detail}` : name);
+}
+
+const count = (text, re) => (text.match(re) ?? []).length;
+const templateOf = (svelte) => svelte.replace(/<script[\s\S]*?<\/script>/g, "").replace(/<style>[\s\S]*<\/style>/, "");
+const styleOf = (svelte) => svelte.match(/<style>([\s\S]*)<\/style>/)?.[1] ?? "";
+const scriptOf = (svelte) => (svelte.match(/<script lang="ts">([\s\S]*?)<\/script>/) ?? [])[1] ?? "";
+const stripComments = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/^\s*\/\/.*$/gm, "");
+
+const FILES = {
+  panel: "src/components/MixerDetailPanel.svelte",
+  rail: "src/components/mixer/ProcessingChain.svelte",
+  returnDetail: "src/components/mixer/ReturnDetail.svelte",
+  busDetail: "src/components/mixer/BusDetail.svelte",
+  effect: "src/components/mixer/EffectSection.svelte",
+  sendsIn: "src/components/mixer/SendsIn.svelte",
+  returnCh: "src/components/mixer/MixerReturnStrip.svelte",
+  returnStrip: "src/components/channel-strip/ReturnStrip.svelte",
+  live: "src/components/channel-strip/return-live.ts",
+  returnChain: "src/lib/return-chain.svelte.ts",
+  busChain: "src/lib/bus-chain.ts",
+  model: "src/lib/mixer-chain.ts",
+  knob: "src/components/mixer/ChainKnob.svelte",
+};
+for (const rel of Object.values(FILES)) check(`file exists: ${rel}`, exists(rel));
+if (failures.length) {
+  for (const f of failures) console.error(`  FAIL  ${f}`);
+  process.exit(1);
+}
+
+const S = Object.fromEntries(Object.entries(FILES).map(([k, rel]) => [k, read(rel)]));
+const T = Object.fromEntries(Object.entries(S).map(([k, src]) => [k, rel(k) ? templateOf(src) : src]));
+function rel(k) {
+  return FILES[k].endsWith(".svelte");
+}
+const code = Object.fromEntries(Object.entries(S).map(([k, src]) => [k, stripComments(rel(k) ? scriptOf(src) : src)]));
+const newFiles = [S.returnDetail, S.busDetail, S.effect, S.sendsIn, S.live, S.returnChain, S.busChain].join("\n");
+const newCode = [code.returnDetail, code.busDetail, code.effect, code.sendsIn, code.live, code.returnChain, code.busChain].join("\n");
+const everything = newFiles + "\n" + S.panel + "\n" + S.rail + "\n" + S.returnCh + "\n" + S.returnStrip + "\n" + S.model;
+const everythingCode = newCode + "\n" + [code.panel, code.rail, code.returnCh, code.returnStrip, code.model].join("\n") + "\n" + [T.panel, T.rail, T.returnDetail, T.busDetail, T.effect, T.sendsIn, T.returnCh, T.returnStrip].map(stripComments).join("\n");
+
+// --- 1. The panel branches by channel kind (plan §3). -------------------------------
+check("the panel keeps the 2.8 track branch: per-track chains, EQ + compressor bays, what-changed", /\{#if track && chain\}/.test(T.panel) && /<EqSection eq=\{chain\.eq\} trackName=\{track\.name\} \/>/.test(T.panel) && /<CompressorSection comp=\{chain\.comp\} trackName=\{track\.name\} \/>/.test(T.panel) && /<WhatChanged notes=\{chain\.notes\} trackName=\{track\.name\} \/>/.test(T.panel));
+check("a Return renders ReturnDetail with the Return's SHARED chain (return-chain.svelte.ts), a bus renders BusDetail with a panel-local bus chain", /import \{ returnChain, returnCharacter, sendsInto \} from "\.\.\/lib\/return-chain\.svelte";/.test(S.panel) && /const theReturn = \$derived\(channel\?\.kind === "return" \? returnChain\(channel\.ret\) : undefined\);/.test(S.panel) && /const bus = \$derived\(channel\?\.kind === "bus" \? busChains\[channel\.id\] : undefined\);/.test(S.panel) && /\{:else if theReturn\}\s*(?:<!--[\s\S]*?-->\s*)?<ReturnDetail chain=\{theReturn\} \/>/.test(T.panel) && /\{:else if bus\}\s*(?:<!--[\s\S]*?-->\s*)?<BusDetail chain=\{bus\} \/>/.test(T.panel));
+check("bus chains are created once per fixture bus, like the track chains (room-lifetime state, nothing persisted)", /const busChains = \$state<Record<string, BusChainState>>\(\s*Object\.fromEntries\(MIXER_BUSES\.map\(\(b\) => \[b\.id, createBusChainState\(b\.bus\)\]\)\),\s*\);/.test(S.panel));
+check("the empty state remains for no selection, and for any kind without a chain — never a blank bay", /\{:else if channel\}\s*(?:<!--[\s\S]*?-->\s*)?<div class="detail__empty" role="status" data-detail-empty>/.test(T.panel) && /\{:else\}\s*<div class="detail__empty" role="status" data-detail-empty>/.test(T.panel) && /Select a channel in the bank to inspect it/.test(T.panel));
+check("the panel's support hook covers all three kinds", /data-detail-supported=\{supported\}/.test(T.panel) && /const supported = \$derived\(track !== undefined \|\| theReturn !== undefined \|\| bus !== undefined\);/.test(S.panel));
+check("the shared identity header carries kind-specific facts: Return = effect · live character, input send count, chain state; bus = output and peak-protection status", /data-detail-return-effect=\{theReturn\.effect\} data-detail-return-character=\{theReturn\.character\.value\}/.test(T.panel) && /text=\{`\$\{returnEffect\} \\u00b7 \$\{returnCharacterName\}`\}/.test(T.panel) && /data-detail-return-sends=\{returnSendCount\}/.test(T.panel) && /text=\{theReturn\.bypassed \? "Bypassed" : "In circuit"\}/.test(T.panel) && /data-detail-bus-output=\{bus\.output\}/.test(T.panel) && /text=\{`Output \\u2192 \$\{bus\.output\}`\}/.test(T.panel) && /data-detail-bus-peak=\{bus\.peakProtection\.engaged\}/.test(T.panel) && /text=\{bus\.peakProtection\.engaged \? "Engaged" : "Not engaged"\}/.test(T.panel));
+check("the panel renders no channel strip and no track-only control for a Return or a bus", !/ReturnStrip|BusMasterStrip|TrackStrip|SendSlot/.test(S.panel) && count(T.panel, /<EqSection\b/g) === 1 && count(T.panel, /<CompressorSection\b/g) === 1 && !/<ReturnDetail[^>]*eq=|<BusDetail[^>]*effect=/.test(T.panel));
+check("the panel's housing, header hooks and 2.8 regions are unchanged", /data-mixer-region="detail-panel"/.test(T.panel) && /data-mixer-region="selection"/.test(T.panel) && /id="mixer-detail-title"/.test(T.panel) && /data-mixer-region="eq-graph"/.test(T.panel) && /data-mixer-region="compressor"/.test(T.panel) && /data-mixer-region="what-changed"/.test(T.panel) && /--dt-cheek: 0\.875rem;/.test(styleOf(S.panel)) && /align-self: flex-start;/.test(styleOf(S.panel)));
+check("MixerRoom is untouched: the panel still takes the room's selected channel entry", /let \{ channel \}: \{ channel: MixerChannelEntry \| undefined \} = \$props\(\);/.test(S.panel) && exists("src/rooms/MixerRoom.svelte"));
+
+// --- 2. The Return (plan §8a). --------------------------------------------------------
+const R = code.returnChain;
+check("one chain state per Return, created from its fixture on first use and kept for the life of the app (a Map keyed by returnId, `$state` in a .svelte.ts module)", /const chains = new Map<ReturnId, ReturnChainState>\(\);/.test(R) && /export function returnChain\(ret: ReturnStripFixture\): ReturnChainState \{\s*let chain = chains\.get\(ret\.returnId\);\s*if \(!chain\) \{\s*const created = \$state\(createReturnChainState\(ret\)\);\s*chains\.set\(ret\.returnId, created\);\s*chain = created;\s*\}\s*return chain;\s*\}/.test(R) && FILES.returnChain.endsWith(".svelte.ts"));
+check("the strip-side view (`returnLive`) reads the chain and writes through the ownership rule — a turned knob is Manual, a same-value write is not a turn, bypass is plain state", /export function returnLive\(ret: ReturnStripFixture\): ReturnLive/.test(R) && /get time\(\) \{\s*return chain\.time\.value;\s*\}/.test(R) && /set time\(v: number\) \{\s*if \(v !== chain\.time\.value\) setParamValue\(chain\.time, v\);\s*\}/.test(R) && /set second\(v: number\) \{\s*if \(v !== chain\.second\.value\) setParamValue\(chain\.second, v\);\s*\}/.test(R) && /set tone\(v: number\) \{\s*if \(v !== chain\.tone\.value\) setParamValue\(chain\.tone, v\);\s*\}/.test(R) && /get bypass\(\) \{\s*return chain\.bypassed;\s*\},\s*set bypass\(on: boolean\) \{\s*chain\.bypassed = on;\s*\},/.test(R) && /get character\(\) \{\s*const c = returnCharacter\(chain\.effect, chain\.character\.value\);\s*return \{ print: c\.print, name: c\.name \};\s*\}/.test(R));
+check("the live view is memoised per Return so the strip's prop identity is stable", /const lives = new Map<ReturnId, ReturnLive>\(\);/.test(R) && /let live = lives\.get\(ret\.returnId\);/.test(R) && /lives\.set\(ret\.returnId, live\);/.test(R));
+check("the Return's parameter specs are the strip's own ranges (bus-return-fixtures.ts), so strip and panel knobs agree step for step", /import \{\s*DECAY_PARAM,\s*DELAY_TIME_PARAM,\s*FEEDBACK_PARAM,\s*PREDELAY_PARAM,\s*TONE_PARAM,/.test(R) && /function specOf\(p: ReturnParam, name: string\): ParamSpec \{\s*return \{\s*id: p\.id,\s*label: p\.legend,\s*name,\s*taper: "linear",\s*min: p\.min,\s*max: p\.max,\s*step: p\.step,\s*detents: 0,\s*values: \[\],\s*extremes: p\.extremes,\s*format: p\.format,\s*\};\s*\}/.test(R) && /decay: specOf\(DECAY_PARAM, "Decay"\),\s*predelay: specOf\(PREDELAY_PARAM, "Pre-delay"\),\s*time: specOf\(DELAY_TIME_PARAM, "Delay time"\),\s*feedback: specOf\(FEEDBACK_PARAM, "Feedback"\),\s*tone: specOf\(TONE_PARAM, "Tone \/ damping"\),/.test(R));
+check("characters are the owner's lists — Reverb: Room · Hall · Plate; Delay: Tape · Analogue · Digital — fixture selections, no algorithm claimed", /reverb: \[\s*\{ id: "room", name: "Room", print: "ROOM" \},\s*\{ id: "hall", name: "Hall", print: "HALL" \},\s*\{ id: "plate", name: "Plate", print: "PLATE" \},\s*\],/.test(R) && /delay: \[\s*\{ id: "tape", name: "Tape echo", print: "TAPE" \},\s*\{ id: "analog", name: "Analogue", print: "ANALOG" \},\s*\{ id: "digital", name: "Digital", print: "DIGITAL" \},\s*\],/.test(R) && !/convolution|impulse|algorithm model|emulat/i.test(R));
+check("choosing a character makes the character Manual and touches nothing else", /export function setReturnCharacter\(chain: ReturnChainState, id: ReturnCharacterId\): void \{\s*chain\.character\.value = id;\s*chain\.character\.mode = "manual";\s*\}/.test(R));
+check("the Return's ownership is the 2.8 model: character + three ChainParams, module mode via moduleMode", /export function returnOwned\(chain: ReturnChainState\): \(ChainParam \| CharacterParam\)\[\] \{\s*return \[chain\.character, \.\.\.returnParams\(chain\)\];\s*\}/.test(R) && /export function returnMode\(chain: ReturnChainState\): ModuleMode \{\s*return moduleMode\(returnOwned\(chain\)\.map\(\(p\) => p\.mode\)\);\s*\}/.test(R) && /return \[chain\.time, chain\.second, chain\.tone\];/.test(R));
+check("the Return's input is read from the track fixtures' send slots (plan §8a: incoming sends), nothing else", /export function sendsInto\(returnId: ReturnId\): SendInto\[\] \{\s*const out: SendInto\[\] = \[\];\s*for \(const strip of TRACK_STRIPS\) \{\s*const send = strip\.sends\.find\(\(s\) => s\.to === returnId\);\s*if \(send\) out\.push\(\{ code: strip\.id, name: strip\.name, level: send\.level \}\);\s*\}\s*return out;\s*\}/.test(R));
+check("the Return rail: sends in → reverb / delay → tone / damping → Return level (strip) → output → Master; effect and tone dark while bypassed", /id: "sends-in",\s*step: "01",\s*label: "Sends in",/.test(R) && /\{ id: "effect", step: "02", label: effectLabel, engaged: !chain\.bypassed, home: "panel" \},\s*\{ id: "tone", step: "03", label: "Tone \/ damping", engaged: !chain\.bypassed, home: "panel" \},\s*\{ id: "level", step: "04", label: "Return level", engaged: true, home: "strip" \},\s*\{ id: "output", step: "05", label: "Output \\u2192 Master", engaged: true, home: "fixture", status: "routed to Master" \},/.test(R));
+check("Return fixtures: R1 all Auto; R2 tone Manual (loaded +2); R3 time Manual (loaded 350 ms); authored notes for each; bypass from the strip fixture", /room: \{\s*notes: \[/.test(R) && /plate: \{\s*manual: \{ tone: 2 \},/.test(R) && /delay1: \{\s*manual: \{ time: 350 \},/.test(R) && count(R, /note\("effect",/g) === 3 && count(R, /note\("tone",/g) === 3 && count(R, /note\("output",/g) === 3 && /bypassed: ret\.bypass,/.test(R));
+check("the loaded character comes from the strip fixture's print; time / second / tone from the fixture values through the 2.8 constructor", /const loaded = RETURN_CHARACTERS\[ret\.effect\]\.find\(\(c\) => c\.print === ret\.character\.print\)\?\.id \?\? RETURN_CHARACTERS\[ret\.effect\]\[0\]\.id;/.test(R) && /time: chainParam\(specs\.time, ret\.time, manual\.time\),\s*second: chainParam\(specs\.second, ret\.second, manual\.second\),\s*tone: chainParam\(RETURN_SPECS\.tone, ret\.tone, manual\.tone\),/.test(R));
+
+// ReturnStrip's optional binding and the Mixer's use of it.
+check("ReturnStrip gains ONE optional prop, `live` (default null), typed by the shape in return-live.ts; the approved template binds its knobs, window and BYPASS to `model = live ?? own`", /live = null,/.test(S.returnStrip) && /live\?: ReturnLive \| null/.test(S.returnStrip) && /const model = \$derived\(live \?\? own\);/.test(S.returnStrip) && count(T.returnStrip, /bind:value=\{\(\) => model\.(time|second|tone), \(v\) => \(model\.\1 = v\)\}/g) === 3 && /bind:engaged=\{\(\) => model\.bypass, \(on\) => \(model\.bypass = on\)\}/.test(T.returnStrip) && /data-return-character=\{model\.character\.print\}/.test(T.returnStrip));
+check("without `live` the strip's settings are its own, seeded once from the fixture — the Console passes nothing and behaves as approved", /const own = \$state<ReturnLive>\(\{\s*time: ret\.time,\s*second: ret\.second,\s*tone: ret\.tone,\s*bypass: ret\.bypass,\s*character: \{ print: ret\.character\.print, name: ret\.character\.name \},\s*\}\);/.test(S.returnStrip) && !/live=/.test(read("src/components/ChannelBank.svelte")) && !/live=/.test(read("src/rooms/ConsoleRoom.svelte")));
+check("return-live.ts is a shape only (time, second, tone, bypass, character) — no state, no fixture, no model", /export interface ReturnLive \{\s*time: number;\s*second: number;\s*tone: number;\s*bypass: boolean;\s*readonly character: \{ readonly print: string; readonly name: string \};\s*\}/.test(stripComments(S.live).replace(/\n\s*\n/g, "\n")) && !/import|function|\$state/.test(code.live));
+check("the Mixer's Return channel binds its strip to the Return's shared state and speaks the live character in its identity", /import \{ returnLive \} from "\.\.\/\.\.\/lib\/return-chain\.svelte";/.test(S.returnCh) && /const live = \$derived\(returnLive\(channel\.ret\)\);/.test(S.returnCh) && /<ReturnStrip ret=\{channel\.ret\} \{live\}>/.test(T.returnCh) && /sourceTitle=\{`Effect: \$\{effectName\} \\u00b7 \$\{live\.character\.name\}`\}/.test(T.returnCh));
+check("the Mixer's Return channel is otherwise the approved 2.7 wrapper (identity snippet, SEL, one ReturnStrip)", count(T.returnCh, /<ReturnStrip\b/g) === 1 && /\{#snippet identity\(\)\}/.test(T.returnCh) && /kindPrint="Return"/.test(T.returnCh) && /onselect=\{\(\) => onselect\(channel\.id\)\}/.test(T.returnCh));
+
+// The effect module.
+const E = T.effect;
+check("EffectSection is a chain module with the 2.8 hooks: data-chain-module=effect, bypassed and mode state, the effect kind", /<section\s+class="fx"\s+data-chain-module="effect"\s+data-return-effect=\{chain\.effect\}\s+data-module-bypassed=\{chain\.bypassed\}\s+data-module-mode=\{mode\}\s+aria-labelledby="mixer-effect-title"\s*>/.test(E));
+check("the module's header: Reverb / Delay title, Auto / Manual status with ALL switches over the owned set, and BYPASS bound to the shared state", /<EngravedLabel text=\{effectTitle\} size="md" tone="bright" as="h3" id="mixer-effect-title" \/>/.test(E) && /<AutoManualControls \{params\} module=\{effectTitle\} \{mode\} \/>/.test(E) && /const params = \$derived\(returnOwned\(chain\)\);/.test(S.effect) && /const mode = \$derived\(returnMode\(chain\)\);/.test(S.effect) && /<div class="fx__bypass" data-module-bypass>\s*<TactileSwitch\s+variant="panel"\s+label="Bypass"\s+lamp="amber"\s+bind:engaged=\{\(\) => chain\.bypassed, \(on\) => \(chain\.bypassed = on\)\}/.test(E));
+check("CHARACTER is the approved ScribbleSelect over the effect's own list, choosing through setReturnCharacter, with MODE and a \"was …\" ghost", /<ScribbleSelect\s+label="Character"\s+context=\{chain\.name\}\s+options=\{RETURN_CHARACTERS\[chain\.effect\]\}\s+bind:value=\{\(\) => chain\.character\.value, \(id\) => setReturnCharacter\(chain, id as ReturnCharacterId\)\}\s+size="sm"\s+hook="character"/.test(E) && /data-effect-character=\{chain\.character\.value\}/.test(E) && /data-chain-ghost-text=\{charChanged \? name\(chain\.character\.original\) : null\}/.test(E) && /text=\{`was \$\{name\(chain\.character\.original\)\}`\}/.test(E) && /bind:engaged=\{\(\) => charManual, \(on\) => setMode\(chain\.character, on \? "manual" : "auto"\)\}/.test(E));
+check("the Return's three parameters are green chain knobs (spec §5: sends, auxiliary paths, reverb / delay) — decay or time, pre-delay or feedback, tone — and nothing more", /<ChainKnob param=\{chain\.time\} family="green" context=\{effectTitle\} \/>\s*<ChainKnob param=\{chain\.second\} family="green" context=\{effectTitle\} \/>\s*<ChainKnob param=\{chain\.tone\} family="green" context=\{effectTitle\} \/>/.test(E) && count(E, /<ChainKnob\b/g) === 3 && count(E, /<Knob\b/g) === 0);
+check("the Return's output level is NOT duplicated in the panel (it is the strip's fader) and no track-only control appears in the module", !/Fader|level|EqGraph|EqSection|CompressorSection|VUMeter|SendSlot/.test(code.effect + stripComments(T.effect)));
+check("the character tooltip says it is a fixture selection with no algorithm modelled", /\(a fixture selection; no algorithm is modelled\)/.test(S.effect));
+check("the module's plate layout is the compressor bay's (header, character column, knob tray)", /\.fx__character \{[^}]*width: 6\.5rem;/s.test(styleOf(S.effect)) && /\.fx__knobs \{[^}]*display: flex;/s.test(styleOf(S.effect)) && /\.fx__body \{[^}]*flex-wrap: wrap;/s.test(styleOf(S.effect)));
+
+// The Return's input.
+const SI = T.sendsIn;
+check("SendsIn is a read-only readout: an ordered list of tracks sending to the Return, code · name · level, no control of any kind", /<section class="si" data-sends-in data-send-count=\{sends\.length\} aria-labelledby="mixer-sends-in-title">/.test(SI) && /<ol class="si__list" aria-label=\{`Tracks sending to \$\{returnName\}`\}>/.test(SI) && /\{#each sends as s \(s\.code\)\}/.test(SI) && /<li class="si__row" data-send-from=\{s\.code\}/.test(SI) && /<span class="si__level">\{formatSend\(s\.level\)\}<\/span>/.test(SI) && !/<button|<input|<select|bind:|Knob|SendSlot|onclick|onpointer|onkeydown/.test(code.sendsIn + stripComments(T.sendsIn)));
+check("the send levels print with the strips' own send formatter (OFF at the bottom, signed whole dB) in the green send ink, mono, in a recess — nothing glows", /import \{ formatSend \} from "\.\.\/channel-strip\/track-strip-fixtures";/.test(S.sendsIn) && /\.si__level \{[^}]*color: var\(--al-function-green-hi\);/s.test(styleOf(S.sendsIn)) && /\.si__level \{[^}]*font-family: var\(--al-font-mono\);/s.test(styleOf(S.sendsIn)) && /\.si__level \{[^}]*background: var\(--al-material-recess\);/s.test(styleOf(S.sendsIn)) && !/text-shadow|filter:\s*drop-shadow|glow/.test(stripComments(styleOf(S.sendsIn))));
+check("the list says where a send is edited (the track strip) and has an explicit empty row", /set on the track strip/.test(SI) && /No track sends to this Return\./.test(SI));
+
+// ReturnDetail composition.
+const RD = T.returnDetail;
+check("ReturnDetail = rail (returnRailBlocks) + Sends in plate + Effect plate + What changed; no EQ / compressor / pan / sends bay", /<ProcessingChain \{blocks\} \/>/.test(RD) && /const blocks = \$derived\(returnRailBlocks\(chain\)\);/.test(S.returnDetail) && /data-mixer-region="processing-chain"/.test(RD) && /data-mixer-region="sends-in"/.test(RD) && /data-mixer-region="effect"/.test(RD) && /data-mixer-region="what-changed"/.test(RD) && /<SendsIn \{sends\} returnName=\{chain\.name\} \/>/.test(RD) && /<EffectSection \{chain\} \/>/.test(RD) && /<WhatChanged notes=\{chain\.notes\} trackName=\{chain\.name\} \/>/.test(RD) && !/EqSection|CompressorSection|eq-graph|compressor/.test(code.returnDetail + stripComments(T.returnDetail)));
+check("ReturnDetail's plates are the panel's bays value for value (plate recipe, flex-wrap, flex-start), each its content's width", /\.rd__bays \{[^}]*flex-wrap: wrap;[^}]*align-items: flex-start;/s.test(styleOf(S.returnDetail)) && /\.rd__bay \{[^}]*background-color: color-mix\(in srgb, var\(--al-material-surface-raised\) 60%, var\(--al-material-panel\)\);/s.test(styleOf(S.returnDetail)) && /\.rd__bay--sends \{\s*flex: 0 1 17rem;\s*\}/.test(styleOf(S.returnDetail)) && /\.rd__bay--effect \{\s*flex: 0 1 auto;\s*\}/.test(styleOf(S.returnDetail)));
+
+// --- 3. The bus (plan §8). ------------------------------------------------------------
+const BC = code.busChain;
+check("the bus chain reuses the 2.8 EQ and compressor state (EqState / CompState, the same specs, the same constructor) — no new parameter kinds", /import \{\s*COMP_ATTACK,\s*COMP_MAKEUP,\s*COMP_RATIO,\s*COMP_RELEASE,\s*COMP_THRESHOLD,\s*EQ_BANDS,\s*EQ_FREQ,\s*EQ_GAIN,\s*EQ_Q,\s*chainParam,/.test(BC) && /readonly eq: EqState;\s*readonly comp: CompState;/.test(BC) && /freq: chainParam\(EQ_FREQ, freq, undefined\),\s*gain: chainParam\(EQ_GAIN, gain, undefined\),\s*q: band\.kind === "bell" \? chainParam\(EQ_Q, q \?\? 1, undefined\) : null,/.test(BC));
+check("no dynamic band, no cleanup, no sends on a bus (none is in the plan for a bus)", /dynamicDepthDb: null,/.test(BC) && !/dynamicDepthDb: [^n]/.test(BC) && !/cleanup|sends|SendSlot/.test(BC));
+check("the bus rail (plan §8): bus trim (strip) → static multiband EQ → compressor → balance (strip) → bus fader (strip) → output → peak protection, in that order", /\{ id: "trim", step: "01", label: "Bus trim", engaged: true, home: "strip" \},\s*\{ id: "eq", step: "02", label: "Static multiband EQ", engaged: !chain\.eq\.bypassed, home: "panel" \},\s*\{ id: "comp", step: "03", label: "Compressor", engaged: !chain\.comp\.bypassed, home: "panel" \},\s*\{ id: "balance", step: "04", label: "Balance", engaged: true, home: "strip" \},\s*\{ id: "fader", step: "05", label: "Bus fader", engaged: true, home: "strip" \},\s*\{ id: "output", step: "06", label: `Output \\u2192 \$\{chain\.output\}`, engaged: true, home: "fixture", status: `routed to \$\{chain\.output\}` \},/.test(BC) && /id: "peak",\s*step: "07",\s*label: "Peak protection",\s*engaged: chain\.peakProtection\.engaged,\s*home: "fixture",\s*status: chain\.peakProtection\.text,/.test(BC));
+check("the final output stage is a STATUS only — transparent peak protection, not engaged in the fixture — with no control, no limiter, no loudness target, no mastering", /readonly peakProtection: \{ readonly engaged: boolean; readonly text: string \};/.test(BC) && /peakEngaged: false,/.test(BC) && /peakText: "not engaged \(the mix leaves headroom\)",/.test(BC) && !/limiter|ceiling|LUFS|loudness(?!\s+maximi)|maximizer|maximiser|masteringChain|threshold: -1\b/i.test(everythingCode.replace(/no loudness maximisation|loudness maximization|nothing is maximised/gi, "")));
+check("B1 Mix Bus: gentle glue fixtures — LF 80 Hz +0.5, LMF 300 Hz −1 Q 1, HMF 3 kHz 0, HF 12 kHz +1; Vari-Mu 1.5:1, −20 dB, 30 ms, 300 ms, +0.5 make-up, 1 dB GR; output Master; all Auto", /B1: \{\s*bands: \{ lf: \[80, 0\.5\], lmf: \[300, -1, 1\], hmf: \[3000, 0, 1\], hf: \[12000, 1\] \},\s*character: "varimu",\s*comp: \[-20, 1\.5, 30, 300, 0\.5\],\s*gainReductionDb: 1,\s*output: "Master",/.test(BC) && /character: \{ value: fx\.character, original: fx\.character, mode: "auto" \},/.test(BC));
+check("the bus notes are authored fixture text, including the peak-protection / no-mastering note; an unknown bus starts flat (plan §5)", count(BC, /note\("eq",/g) === 3 && count(BC, /note\("comp",/g) === 1 && count(BC, /note\("peak",/g) === 1 && /A new bus starts flat; it receives bus processing only when MIX is run\./.test(BC));
+
+const BD = T.busDetail;
+check("BusDetail = rail (busRailBlocks) + the reused EqSection and CompressorSection + What changed; no Return module, no sends", /<ProcessingChain \{blocks\} \/>/.test(BD) && /const blocks = \$derived\(busRailBlocks\(chain\)\);/.test(S.busDetail) && /<EqSection eq=\{chain\.eq\} trackName=\{chain\.name\} \/>/.test(BD) && /<CompressorSection comp=\{chain\.comp\} trackName=\{chain\.name\} \/>/.test(BD) && /<WhatChanged notes=\{chain\.notes\} trackName=\{chain\.name\} \/>/.test(BD) && /data-mixer-region="eq-graph"/.test(BD) && /data-mixer-region="compressor"/.test(BD) && !/EffectSection|SendsIn|sends-in/.test(S.busDetail));
+check("BusDetail's bays are the track panel's, value for value (EQ grows from 36rem, the compressor is its content's width)", /\.bd__bay--eq \{\s*flex: 1 1 36rem;\s*\}/.test(styleOf(S.busDetail)) && /\.bd__bay--comp \{\s*flex: 0 1 auto;\s*\}/.test(styleOf(S.busDetail)) && /\.bd__bays \{[^}]*flex-wrap: wrap;[^}]*align-items: flex-start;/s.test(styleOf(S.busDetail)));
+
+// --- 4. The rail, generalised. ----------------------------------------------------------
+check("ProcessingChain takes the blocks its chain model provides (RailBlock: id, step, label, engaged, home, status?) — lamps from state only", /let \{ blocks \}: \{ blocks: readonly RailBlock\[\] \} = \$props\(\);/.test(S.rail) && /export interface RailBlock \{\s*readonly id: string;\s*readonly step: string;\s*readonly label: string;\s*readonly engaged: boolean;\s*readonly home: BlockHome;\s*readonly status\?: string;\s*\}/.test(S.model) && /\{#each blocks as block \(block\.id\)\}\s*\{@const engaged = block\.engaged\}/.test(T.rail) && /<Lamp lit=\{engaged\} color="amber" name=\{`\$\{block\.label\}: \$\{stateText\(block\)\}`\} \/>/.test(T.rail));
+check("a status block speaks its status instead of in circuit / bypassed; the home text is unchanged", /function stateText\(block: RailBlock\): string \{\s*return block\.status \?\? \(block\.engaged \? "in circuit" : "bypassed"\);\s*\}/.test(S.rail) && /data-chain-status=\{block\.status \? "" : undefined\}/.test(T.rail) && /strip: "controls on the channel strip",\s*panel: "controls in this panel",\s*fixture: "no controls in this build",/.test(S.rail));
+check("the track rail is the plan §8 blocks through the same adapter (2.8 behaviour intact)", /export function trackRailBlocks\(chain: ChainState\): RailBlock\[\] \{\s*return CHAIN_BLOCKS\.map\(\(block\) => \(\{ \.\.\.block, engaged: blockEngaged\(chain, block\.id\) \}\)\);\s*\}/.test(S.model) && /<ProcessingChain blocks=\{trackRailBlocks\(chain\)\} \/>/.test(T.panel));
+check("nothing in the rail reorders or routes", !/<button|draggable|onpointer|onkeydown|ondrag|ondrop/.test(T.rail));
+
+// The shared model's small, backward-compatible extensions.
+check("CharacterParam is generic over its id set (default string) so the compressor and the Return share one ownership shape; CompState keeps CharacterId", /export interface CharacterParam<Id extends string = string> \{\s*value: Id;\s*readonly original: Id;\s*mode: Mode;\s*\}/.test(S.model) && /readonly character: CharacterParam<CharacterId>;/.test(S.model) && /const character: CharacterParam<CharacterId> =/.test(S.model));
+check("setMode / setAllModes / setParamValue / setCharacter are unchanged", /export function setMode\(param: ChainParam \| CharacterParam, mode: Mode\): void \{\s*param\.mode = mode;\s*\}/.test(S.model) && /export function setAllModes\(params: readonly \(ChainParam \| CharacterParam\)\[\], mode: Mode\): void/.test(S.model) && /export function setCharacter\(comp: CompState, id: CharacterId\): void \{\s*comp\.character\.value = id;\s*comp\.character\.mode = "manual";\s*\}/.test(S.model));
+check("the explanation card's module tags grow by the Return's and the bus output stage's (EFFECT, TONE, OUTPUT, PEAK); the 2.8 tags are unchanged", /export type NoteModule = "eq" \| "dyn" \| "comp" \| "cleanup" \| "effect" \| "tone" \| "output" \| "peak";/.test(S.model) && /eq: "EQ",\s*dyn: "DYN EQ",\s*comp: "COMP",\s*cleanup: "CLEANUP",\s*effect: "EFFECT",\s*tone: "TONE",\s*output: "OUTPUT",\s*peak: "PEAK",/.test(S.model));
+check("the 2.8 parameter constructor is exported for the other chains, unchanged", /function param\(spec: ParamSpec, value: number, manualFrom: number \| undefined\): ChainParam \{\s*return manualFrom === undefined\s*\? \{ spec, value, original: value, mode: "auto" \}\s*: \{ spec, value, original: manualFrom, mode: "manual" \};\s*\}\s*(?:\/\*\*[^*]*\*\/\s*)?export const chainParam = param;/.test(S.model));
+check("ChainKnob's green cap takes the dark-cap ghost ink (green is not in the light-cap list) — the component itself is unchanged", /class:ck--light=\{family === "amber" \|\| family === "cream" \|\| family === "orange"\}/.test(S.knob));
+
+// --- 5. Scope. ---------------------------------------------------------------------------
+check("no audio, DSP, analysis, playback, persistence, timers or randomness anywhere in the new or touched code", !/AudioContext|AudioWorklet|Analyser|AudioBuffer|createMediaStream|WebAudio|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now|localStorage|sessionStorage|indexedDB|fetch\(|XMLHttpRequest|WebSocket|svelte\/store|writable\(|readable\(|onMount|\$effect/.test(everythingCode));
+check("no routing or reordering controls: nothing draggable, no send or bus editing in the panel", !/draggable|ondrop|ondragstart|SendSlot|routeTo|assignBus/.test(everythingCode));
+check("no screws, ever", !/screw/i.test(everything));
+check("no spectrum, no analysis claim, no engine claim in the new files", !/spectrum|analys|FFT|measured from audio|engine has run and/i.test(newCode + [T.returnDetail, T.busDetail, T.effect, T.sendsIn].join("\n")));
+check("no `\\uXXXX` escapes in Svelte attribute literals (they are not interpreted) — Unicode goes through JS template strings", ![T.panel, T.rail, T.returnDetail, T.busDetail, T.effect, T.sendsIn, T.returnCh, T.returnStrip].some((t) => /="[^"{]*\\u[0-9a-fA-F]{4}/.test(t)));
+check("colours and sizes are tokens / rem only in the new components (no hex, no px except hairlines)", ![styleOf(S.returnDetail), styleOf(S.busDetail), styleOf(S.effect), styleOf(S.sendsIn)].some((css) => /#[0-9a-fA-F]{3,8}\b/.test(stripComments(css)) || /\b(?!1px|2px|3px)\d+px\b/.test(stripComments(css).replace(/rgba?\([^)]*\)/g, ""))));
+check("no dependency change", (() => { const pkg = JSON.parse(read("package.json")); return Object.keys(pkg.dependencies ?? {}).length === 0 && Object.keys(pkg.devDependencies).sort().join(",") === "@sveltejs/vite-plugin-svelte,@types/node,svelte,svelte-check,typescript,vite,vite-plugin-singlefile"; })());
+check("npm exposes the check", /"check:mixer-chain-types": "node scripts\/check-mixer-chain-types-structure\.mjs"/.test(read("package.json")));
+
+// --- Pins: the Task 2.8 modules and approved hardware this task composes but must not change;
+//     the files this task touched or added, as reviewed.
+const pinned = {
+  "src/components/hardware/Knob.svelte": "df6c51572f28d00ca07b98551914f8f11837df147d557c9113e94cd29732fdf6",
+  "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
+  "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
+  "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
+  "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
+  "src/components/hardware/Fader.svelte": "b46e55ec95f4ddbe544175f7e0a340e7378a8cff3af674e431aad2a08d5be372",
+  "src/components/hardware/VUMeter.svelte": "c3d850c80d9d53c70ed31c603fe23c011402f813e56bce963494086466347394",
+  "src/components/mixer/ChainKnob.svelte": "251284ad9c971058d317ce1fb24a51c15572abd971e341faea1edbeea07f7085",
+  "src/components/mixer/AutoManualControls.svelte": "a66b99885b9a4594836ac509b23b335919f865b11a5fa4d7ffae0b5619a8b6e4",
+  "src/components/mixer/EqGraph.svelte": "66f5a008df82bd276158a5141288a4d82ee2ecacea7ce94ee482edb42de81888",
+  "src/components/mixer/EqSection.svelte": "1618e2fcf2f2f32a4385bf2836b46b6f7c1edec36d9f8e60a4fe00f053a03162",
+  "src/components/mixer/CompressorSection.svelte": "00d46e4e9990e6e1eff93e9f3d06a30a4def499e07a5491278c2e0b7227769cc",
+  "src/components/mixer/WhatChanged.svelte": "07ae383c56611fdf69080a0878e38b02c20afe0b2f8860a78aba883148b1eda7",
+  "src/components/mixer/MixerBank.svelte": "cf220c4e4a92a6f450c3475e3ae5af036b308418e55f13809b5bed238e1f53ea",
+  "src/components/mixer/MixerIdentity.svelte": "d6165febdfb805db7b067f6dc01bb89f34195a2035fa916984dec401e5a9b781",
+  "src/components/mixer/MixerTrackStrip.svelte": "ee4caa157ef1dbffa3127f0ff985d8714c776b3a309c3b2eef461ae5d5163bcd",
+  "src/components/mixer/MixerBusStrip.svelte": "523718675e6d34ba8484537ccd689904107969374b3a9b2ea94ede8470bdb91f",
+  "src/components/channel-strip/bus-return-fixtures.ts": "551fa3fc978362f3f7e48cb1a81110fa2b2ba09d4a3886630a02dc3594df1b1e",
+  "src/components/channel-strip/BusMasterStrip.svelte": "58cf7fac0d685dc891454aab5595066a286b66a33354598562e6a959998a35b2",
+  "src/components/channel-strip/StripModule.svelte": "07c4b872de43f7120672ea81ed7830140e5732cd9280ac17a486120e1d1aa453",
+  "src/lib/mixer.ts": "f0721db5dc50e2231bca58d379918ec562de301e49eb0b8a20a7c8b54dcbab51",
+  "src/rooms/MixerRoom.svelte": "20b70cfef7ede76c4ca78ef6099873abe938e6da47d6b1dcd1cc2cacc45e383f",
+  // touched / added in Task 2.9, as reviewed
+  "src/components/MixerDetailPanel.svelte": "8fefa889f4b753a7062960184f72d2c55e2499011517aa3ed8ed26092a918aaa",
+  "src/components/mixer/ProcessingChain.svelte": "ac74ed271a024c5f8f0ba3fae3460f346cdfa484696b1197fe4d44ea39a9f559",
+  "src/components/mixer/MixerReturnStrip.svelte": "557c4a33b24714f004a9d408152e67fac2e366f06977f6960b941985fcb6bc99",
+  "src/components/channel-strip/ReturnStrip.svelte": "39945f793f6c2c4dbe000c11bf1a3a398183ce2ebcc9a42074132033fae3e088",
+  "src/components/channel-strip/return-live.ts": "0dbaf684bfd788d823d6ed08b0b611ba3421ce148fc46a4082b1dd724814d9bf",
+  "src/components/mixer/ReturnDetail.svelte": "f817c2e62adaf872ca9ea466590de41f3746d69c5a3c7857224c8c90345c0c99",
+  "src/components/mixer/BusDetail.svelte": "eb70885c5a9f6cfdc8135520fdfb751aab4f6694557457137013d8ee7fe38225",
+  "src/components/mixer/EffectSection.svelte": "eb38da793d43ced7441321033f5caf3ac7bc32722f8b401d8473e1ae2c4d99dc",
+  "src/components/mixer/SendsIn.svelte": "63bc046eb00a2a124b9bc375502f8d133f78e0ef183206912b401fec5ce1e8fa",
+  "src/lib/return-chain.svelte.ts": "30c6e6dd0f88ce17da3fc463216def19a35527af303d7865eefdf71eee4e43d2",
+  "src/lib/bus-chain.ts": "8894e0ca0a23eb611d8c169183c20f134cf2e9763ffcdddd881a0193e86ac29b",
+  "src/lib/mixer-chain.ts": "fbf4c1764221bc0593fdfb91faa24dd8968d2e202836c65dd7152862c88efe54",
+};
+for (const [rel, hash] of Object.entries(pinned)) {
+  check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
+}
+
+// --- Report. ------------------------------------------------------------------------
+for (const name of passes) console.log(`  PASS  ${name}`);
+
+if (failures.length > 0) {
+  console.error("");
+  for (const failure of failures) console.error(`  FAIL  ${failure}`);
+  console.error("");
+  console.error(`Mixer chain-type-aware detail structural contract check — ${passes.length}/${passes.length + failures.length} passed`);
+  process.exit(1);
+}
+console.log(`Mixer chain-type-aware detail structural contract check — ${passes.length}/${passes.length} passed`);

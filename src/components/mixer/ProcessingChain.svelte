@@ -1,23 +1,31 @@
 <script lang="ts">
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import Lamp from "../hardware/Lamp.svelte";
-  import { CHAIN_BLOCKS, blockEngaged, type BlockHome, type ChainState } from "../../lib/mixer-chain";
+  import type { BlockHome, RailBlock } from "../../lib/mixer-chain";
 
   /**
-   * The track's processing chain — Task 2.8.
+   * The selected channel's processing chain — Task 2.8, generalised in 2.9.
    *
    * Plan §3: "selecting a track exposes its complete processing chain";
-   * plan §8: the eight blocks in signal order, each bypassable. This is the
-   * chain as a readout, from the shared step list the Task 0.5 panel already
-   * printed: the block's number and the plan's label, and an amber lamp lit
-   * while the block is in circuit for this track — the fixture's state
-   * (cleanup, a dynamic band) and the EQ / COMP bypass switches below.
+   * plan §8: the blocks in signal order, each bypassable. This is the chain
+   * as a readout: the block's number and the plan's label, and an amber
+   * lamp lit while the block is in circuit — the fixture's state (cleanup,
+   * a dynamic band, a routed output) and the bypass switches below.
    *
-   * The EQ and compressor controls are in this panel; trim, pan, fader and
-   * sends are on the channel strip (Tasks 2.2 / 2.7) and are not duplicated
+   * The blocks come from the channel's own chain model, so a track (plan §8,
+   * `trackRailBlocks`), a Return (plan §8a, `returnRailBlocks`) and a bus
+   * (plan §8 bus path, `busRailBlocks`) each read as their own path, never
+   * one universal layout (plan §3). A block with a `status` is a state
+   * rather than a module (an output; the final output stage's peak
+   * protection) and speaks that status in place of "in circuit" /
+   * "bypassed". Controls that live on the channel strip are not duplicated
    * here. Nothing reorders or routes.
    */
-  let { chain }: { chain: ChainState } = $props();
+  let { blocks }: { blocks: readonly RailBlock[] } = $props();
+
+  function stateText(block: RailBlock): string {
+    return block.status ?? (block.engaged ? "in circuit" : "bypassed");
+  }
 
   const HOME_TEXT: Readonly<Record<BlockHome, string>> = {
     strip: "controls on the channel strip",
@@ -27,16 +35,17 @@
 </script>
 
 <ol class="chain" aria-label="Processing chain" data-chain-rail>
-  {#each CHAIN_BLOCKS as block (block.id)}
-    {@const engaged = blockEngaged(chain, block.id)}
+  {#each blocks as block (block.id)}
+    {@const engaged = block.engaged}
     <li
       class="chain__block"
       data-chain-block={block.id}
       data-chain-engaged={engaged}
-      title={`${block.step} \u00b7 ${block.label} \u2014 ${engaged ? "in circuit" : "bypassed"}; ${HOME_TEXT[block.home]}`}
+      data-chain-status={block.status ? "" : undefined}
+      title={`${block.step} \u00b7 ${block.label} \u2014 ${stateText(block)}; ${HOME_TEXT[block.home]}`}
     >
       <span class="chain__lamp">
-        <Lamp lit={engaged} color="amber" name={`${block.label}: ${engaged ? "in circuit" : "bypassed"}`} />
+        <Lamp lit={engaged} color="amber" name={`${block.label}: ${stateText(block)}`} />
       </span>
       <EngravedLabel text={block.step} size="xs" kind="value" tone="muted" />
       <EngravedLabel text={block.label} size="xs" tone={engaged ? "normal" : "muted"} truncate />

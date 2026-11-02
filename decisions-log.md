@@ -2686,3 +2686,149 @@ the report. Approved hashes: `MixerDetailPanel.svelte`
 stored; to be revoked after the push). Open, carried forward: Task 2.9
 (Return / bus detail), Task 3.1 (shared tier / selection state), the
 numeric Priority override, a Knob `parse` prop, PAT revocation.
+
+## Task 2.9 — Mixer chain-type-aware detail for bus and Return channels (2026-11-02; uncommitted, awaiting review)
+
+Direction: the Task 2.8 panel extended to the other two channel kinds as
+plan §3 (L151) requires — "the detail panel must render differently
+depending on whether the selected channel is a track, a regular bus, or a
+Return bus. Never a universal layout." The owner's four decisions
+(ask_user, 2026-11-02) were taken before any code was written and are
+recorded in D2.9.1. Report: `task-reports/2.9-report.md`.
+
+### D2.9.1 — The owner's decisions, as applied (owner, 2026-11-02)
+
+(1) **Return detail = the full effect module in the panel, sharing ONE
+state per Return with the Mixer's Return strip.** Character, decay /
+time, pre-delay / feedback, tone, Auto / Manual and bypass live once per
+Return (`src/lib/return-chain.svelte.ts`); the Mixer's strip is bound to
+that state through a new OPTIONAL `ReturnStrip` prop, `live`, default
+null; the Console passes nothing and behaves exactly as approved
+(measured: Console fingerprint identical; the Console's R1 strip keeps
+ROOM · 1.4 s · 12 ms after the Mixer's R1 was changed to Hall · 1.6 s ·
+15 ms). (2) **Bus B1 "Mix Bus" = the 2.8 EQ and compressor bays reused**
+(gentle bus fixtures, no dynamic band, no cleanup, no sends) **plus a
+status-only "Peak protection" rail block** — plan §8's final output stage
+("only transparent peak protection if needed … must not perform loudness
+maximization or mastering") shown as a dark lamp with the text "not
+engaged (the mix leaves headroom)"; no limiter, ceiling, loudness or
+mastering control exists anywhere. (3) **Return input = a read-only list
+of the tracks sending to the selected Return** (code · name · send level
+in the green send print), read from the track fixtures' send slots;
+sends are still edited only on the track strips. (4) **CHARACTER lists:
+Reverb Room · Hall · Plate; Delay Tape · Analogue · Digital** — fixture
+selections with no algorithm claim; choosing one makes the character
+Manual and never touches another value.
+
+### D2.9.2 — The panel branches three ways on the existing kind; the room and the strips' identity are untouched (builder, 2026-11-02)
+
+`MixerDetailPanel.svelte` keeps its 2.8 track branch unchanged and adds
+`{:else if theReturn}` → `ReturnDetail` and `{:else if bus}` →
+`BusDetail`; the explicit empty state remains for no selection (and,
+defensively, for any kind without a chain). `data-detail-supported` is
+true for all three kinds. The shared identity header gains kind-specific
+facts only: a Return prints "Reverb · <live character>", "Input: n
+sends" and "Chain: In circuit / Bypassed"; a bus prints "Output → Master"
+and "Peak protection: Not engaged". `MixerRoom.svelte`, `lib/mixer.ts`,
+`MixerBank`, `MixerIdentity`, `MixerTrackStrip`, `MixerBusStrip` and
+every hardware component are unchanged (pinned). Bus chains are
+panel-local `$state` like the track chains; Return chains are the shared
+module's, so strip and panel are one state by construction rather than
+by synchronisation.
+
+### D2.9.3 — `ReturnStrip` gains one optional prop, backward-compatibly; the Mixer's Return channel binds it (builder, 2026-11-02)
+
+The approved 2.4 strip drew its two knobs, TONE and BYPASS one-way from
+the fixture, each control keeping its own interaction state. It now
+holds those four settings itself (`own`, a `$state` seeded once from the
+fixture — the same values, the same local behaviour) unless a caller
+hands it `live`; the template binds to `model = live ?? own` with
+function bindings on the approved Knob and TactileSwitch (no
+geometry, artwork or API change to either). The pitfall avoided: a
+getter-only `live` with a no-op setter would make the Knob snap back.
+`MixerReturnStrip.svelte` (2.7) passes `live={returnLive(channel.ret)}`
+and its identity tooltip follows the live character. Writes through
+`returnLive` go through `setParamValue` (a turned knob is Manual) and
+ignore same-value writes (a click without movement is not a turn).
+Impact: Console unchanged (measured); `check:bus-return` amended
+(D2.9.7).
+
+### D2.9.4 — The Return's module: plan §8a's controls, green, with the 2.8 ownership rules (builder, 2026-11-02)
+
+`EffectSection.svelte` is the compressor bay's layout with the Return's
+controls: CHARACTER on the approved ScribbleSelect (the effect's own
+list) with MODE and "was …"; DECAY + PRE-DELAY (reverb) or TIME +
+FEEDBACK (delay) and TONE on green `ChainKnob`s (spec §5: sends,
+auxiliary paths, reverb / delay) with MODE and the loaded-value ghost;
+module status AUTO / MIXED / MANUAL with ALL AUTO · ALL MANUAL; BYPASS.
+The knobs' ranges are the strip's own (`RETURN_SPECS` built from
+`bus-return-fixtures.ts`), so strip and panel agree step for step. The
+Return's output level is not duplicated: it is the strip's fader (the
+2.8 rule), and the rail says so ("04 Return level — controls on the
+channel strip"). Fixture ownership: R1 all Auto; R2 TONE Manual, loaded
++2; R3 TIME Manual, loaded 350 ms, bypassed. Three authored notes per
+Return (EFFECT / TONE / OUTPUT tags) on the 2.8 card.
+
+### D2.9.5 — The bus's chain: the track modules reused, the output stage a status (builder, 2026-11-02)
+
+`src/lib/bus-chain.ts` builds `EqState` / `CompState` with the 2.8 specs
+and constructor (`chainParam`, exported for the purpose); `BusDetail`
+renders `EqSection` and `CompressorSection` unchanged. B1 fixtures: LF
+80 Hz +0.5, LMF 300 Hz −1 (Q 1), HMF 3 kHz 0, HF 12 kHz +1; Vari-Mu
+1.5:1, −20 dB, 30 ms, 300 ms, +0.5 make-up, 1 dB reduction; all Auto;
+four notes (EQ ×2, COMP, PEAK). Rail: 01 Bus trim (strip) · 02 Static
+multiband EQ · 03 Compressor · 04 Balance (strip) · 05 Bus fader (strip)
+· 06 Output → Master · 07 Peak protection (status). An unknown bus falls
+back to flat (plan §5: a new bus starts untouched until MIX).
+
+### D2.9.6 — The rail takes blocks from each chain model (builder, 2026-11-02)
+
+`ProcessingChain.svelte` now takes `blocks: RailBlock[]` ({id, step,
+label, engaged, home, status?}); the track panel passes
+`trackRailBlocks(chain)` (the plan §8 blocks through `blockEngaged`, as
+before), the Return `returnRailBlocks` (01 Sends in · 02 Reverb/Delay ·
+03 Tone / damping · 04 Return level · 05 Output → Master; 02 and 03 dark
+while bypassed), the bus `busRailBlocks`. A block with a `status` speaks
+it instead of "in circuit / bypassed" ("routed to Master"; "not engaged
+(the mix leaves headroom)"). Lamps from state only; nothing reorders or
+routes. `mixer-chain.ts` extensions are additive: `CharacterParam<Id
+extends string = string>` (the compressor keeps `CharacterId`),
+`NoteModule` + EFFECT / TONE / OUTPUT / PEAK, `RailBlock`,
+`trackRailBlocks`, `chainParam`; every 2.8 signature is unchanged.
+
+### D2.9.7 — Guards: `check:mixer-chain-types` added (109); four guards amended as hand-overs (builder, 2026-11-02)
+
+New `scripts/check-mixer-chain-types-structure.mjs` (109 checks; six
+mutations caught). Amendments, each because the 2.9 change supersedes
+what the older check asserted: `check:mixer` — "branches only to an
+explicit empty state, no Return / bus chain (Task 2.9)" → "branches to
+the track chain, ReturnDetail, BusDetail and an empty state for no
+selection"; the Return channel check accepts `<ReturnStrip
+ret={channel.ret} {live}>`; the props check accepts the optional `live`;
+`MixerDetailPanel` re-pinned. `check:mixer-detail` — the Return / bus
+empty-state check → the 2.9 branches; `data-detail-supported` →
+`supported`; the rail checks → `blocks` / `trackRailBlocks`; header
+comment updated; `MixerReturnStrip` and `MixerDetailPanel` re-pinned.
+`check:bus-return` — the Return strip's one-way `value={ret.*}` /
+`engaged={ret.bypass}` shapes → the `model` bindings; the props check →
+the three props; "no `$state` / `bind:` in any new file" split into "no
+audio / timers / stores anywhere" + "only the Return strip's own seeded
+state, bound to its approved controls"; three 2.9 checks added (106).
+`check:arrange-rows` — `MixerDetailPanel` and `ReturnStrip` re-pinned.
+Totals: 17 guards, 1389 / 1389; `npm run check` 0 / 0; build
+`dist/index.html` `4146ee2de87530bd` (489.30 kB, gzip 128.90 kB).
+
+## Task 2.9 — approved
+
+Owner, 2026-11-02: **"approved, commit."** Task 2.9 is closed as built
+and reported in `task-reports/2.9-report.md`; D2.9.1–D2.9.7 stand. The
+approval covers the chain-type-aware detail panel (track / Return / bus
+branches on the existing kind; the Return's effect module on green knobs
+with the 2.8 ownership rules, its read-only sends-in list and five-block
+rail; the bus's reused EQ + compressor with the status-only peak-
+protection block and seven-block rail; the shared per-Return state bound
+to the Mixer's Return strip through `ReturnStrip`'s optional `live`
+prop, the Console unchanged), the three backward-compatible shared
+changes (`ReturnStrip` `live`, `ProcessingChain` `blocks`, additive
+`mixer-chain.ts` exports) and the guard hand-overs (D2.9.7). Committed
+only — not pushed (the owner said "commit").

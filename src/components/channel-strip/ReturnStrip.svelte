@@ -4,6 +4,7 @@
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
   import StripModule from "./StripModule.svelte";
   import { RETURN_PARAMS, TONE_PARAM, type ReturnStripFixture } from "./bus-return-fixtures";
+  import type { ReturnLive } from "./return-live";
 
   /**
    * ALLOY Console effect Return-bus strip — Task 2.4 (Phase 2 skin).
@@ -44,10 +45,34 @@
    * `identity` (Task 2.7, optional, default none) is handed straight to the
    * module's optional identity extension under the head; the Console passes
    * nothing and the strip renders exactly as approved.
+   *
+   * `live` (Task 2.9, optional, default none): one object that OWNS the
+   * strip's decay / time, pre-delay / feedback, tone, character and bypass.
+   * The Mixer passes the Return's shared chain state so its strip and its
+   * chain-detail panel turn the same settings (plan §8a: one Return,
+   * edited like any channel). Without it the strip keeps those settings
+   * itself, seeded from the fixture, exactly as approved — the Console
+   * passes nothing.
    */
-  let { ret, identity = null }: { ret: ReturnStripFixture; identity?: Snippet | null } = $props();
+  let {
+    ret,
+    identity = null,
+    live = null,
+  }: { ret: ReturnStripFixture; identity?: Snippet | null; live?: ReturnLive | null } = $props();
 
   const params = $derived(RETURN_PARAMS[ret.effect]);
+
+  /* The strip's own settings when nothing is bound (the approved, local
+     interaction): seeded from the fixture once. */
+  // svelte-ignore state_referenced_locally
+  const own = $state<ReturnLive>({
+    time: ret.time,
+    second: ret.second,
+    tone: ret.tone,
+    bypass: ret.bypass,
+    character: { print: ret.character.print, name: ret.character.name },
+  });
+  const model = $derived(live ?? own);
 </script>
 
 <StripModule
@@ -76,7 +101,7 @@
       min={params.time.min}
       max={params.time.max}
       step={params.time.step}
-      value={ret.time}
+      bind:value={() => model.time, (v) => (model.time = v)}
       decimals={params.time.decimals}
       extremes={params.time.extremes}
       format={params.time.format}
@@ -90,7 +115,7 @@
       min={params.second.min}
       max={params.second.max}
       step={params.second.step}
-      value={ret.second}
+      bind:value={() => model.second, (v) => (model.second = v)}
       decimals={params.second.decimals}
       extremes={params.second.extremes}
       format={params.second.format}
@@ -102,11 +127,11 @@
     <div class="effect" data-return-effect={ret.effect}>
       <span
         class="effect__window"
-        data-return-character={ret.character.print}
-        title={`Character: ${ret.character.name}`}
-        aria-label={`Character, ${ret.character.name}`}
+        data-return-character={model.character.print}
+        title={`Character: ${model.character.name}`}
+        aria-label={`Character, ${model.character.name}`}
       >
-        {ret.character.print}
+        {model.character.print}
       </span>
       <Knob
         label={TONE_PARAM.legend}
@@ -114,7 +139,7 @@
         min={TONE_PARAM.min}
         max={TONE_PARAM.max}
         step={TONE_PARAM.step}
-        value={ret.tone}
+        bind:value={() => model.tone, (v) => (model.tone = v)}
         decimals={TONE_PARAM.decimals}
         extremes={TONE_PARAM.extremes}
         format={TONE_PARAM.format}
@@ -123,7 +148,13 @@
 
     <!-- BYPASS: the approved panel switch, its lamp lit while bypassed -->
     <div class="bypass" data-return-bypass>
-      <TactileSwitch variant="panel" label="Bypass" lamp="amber" engaged={ret.bypass} name={`Bypass ${ret.name}`} />
+      <TactileSwitch
+        variant="panel"
+        label="Bypass"
+        lamp="amber"
+        bind:engaged={() => model.bypass, (on) => (model.bypass = on)}
+        name={`Bypass ${ret.name}`}
+      />
     </div>
   {/snippet}
 </StripModule>

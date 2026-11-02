@@ -1,12 +1,16 @@
 <script lang="ts">
   import { PROMINENCE_TIERS, familyLabel, role, sourceType } from "../lib/arrange";
-  import { MIXER_TRACKS, channelKindLabel, type MixerChannelEntry } from "../lib/mixer";
-  import { createChainState, supportsChainDetail, type ChainState } from "../lib/mixer-chain";
+  import { createBusChainState, type BusChainState } from "../lib/bus-chain";
+  import { MIXER_BUSES, MIXER_TRACKS, channelKindLabel, type MixerChannelEntry } from "../lib/mixer";
+  import { createChainState, supportsChainDetail, trackRailBlocks, type ChainState } from "../lib/mixer-chain";
+  import { returnChain, returnCharacter, sendsInto } from "../lib/return-chain.svelte";
   import { orgToken } from "./channel-strip/track-strip-fixtures";
   import EngravedLabel from "./hardware/EngravedLabel.svelte";
+  import BusDetail from "./mixer/BusDetail.svelte";
   import CompressorSection from "./mixer/CompressorSection.svelte";
   import EqSection from "./mixer/EqSection.svelte";
   import ProcessingChain from "./mixer/ProcessingChain.svelte";
+  import ReturnDetail from "./mixer/ReturnDetail.svelte";
   import WhatChanged from "./mixer/WhatChanged.svelte";
 
   /**
@@ -41,8 +45,22 @@
     Object.fromEntries(MIXER_TRACKS.map((t) => [t.id, createChainState(t)])),
   );
 
+  /* Task 2.9: the buses' chains, panel-local like the tracks'; the Returns'
+     chains are the shared per-Return state the Mixer's Return strips are
+     bound to (return-chain.svelte.ts), so strip and panel turn one value. */
+  const busChains = $state<Record<string, BusChainState>>(
+    Object.fromEntries(MIXER_BUSES.map((b) => [b.id, createBusChainState(b.bus)])),
+  );
+
   const track = $derived(supportsChainDetail(channel) ? channel : undefined);
   const chain = $derived(track ? chains[track.id] : undefined);
+  const theReturn = $derived(channel?.kind === "return" ? returnChain(channel.ret) : undefined);
+  const bus = $derived(channel?.kind === "bus" ? busChains[channel.id] : undefined);
+  const supported = $derived(track !== undefined || theReturn !== undefined || bus !== undefined);
+
+  const returnEffect = $derived(theReturn ? (theReturn.effect === "reverb" ? "Reverb" : "Delay") : null);
+  const returnCharacterName = $derived(theReturn ? returnCharacter(theReturn.effect, theReturn.character.value).name : null);
+  const returnSendCount = $derived(theReturn ? sendsInto(theReturn.returnId).length : 0);
 
   const family = $derived(track ? familyLabel(track.arrange.familyId) : null);
   const source = $derived(track ? sourceType(track.arrange.sourceTypeId) : null);
@@ -63,7 +81,7 @@
   data-mixer-region="detail-panel"
   data-detail-channel={channel?.id ?? ""}
   data-detail-kind={channel?.kind ?? ""}
-  data-detail-supported={track !== undefined}
+  data-detail-supported={supported}
   aria-labelledby="mixer-detail-title"
 >
   <div class="detail__cheek detail__cheek--left" aria-hidden="true"></div>
@@ -88,6 +106,26 @@
                 title={`Family: ${family ?? "none"} \u00b7 Source type: ${source?.label ?? "Unspecified"} \u2014 edit in Arrange`}
               />
             </span>
+          {:else if theReturn && returnEffect}
+            <span class="detail__meta" data-detail-return-effect={theReturn.effect} data-detail-return-character={theReturn.character.value}>
+              <EngravedLabel
+                text={`${returnEffect} \u00b7 ${returnCharacterName}`}
+                size="xs"
+                tone="muted"
+                truncate
+                title={`Effect: ${returnEffect} \u00b7 Character: ${returnCharacterName} (chosen in the effect module below)`}
+              />
+            </span>
+          {:else if bus}
+            <span class="detail__meta" data-detail-bus-output={bus.output}>
+              <EngravedLabel
+                text={`Output \u2192 ${bus.output}`}
+                size="xs"
+                tone="muted"
+                truncate
+                title={`Output: ${bus.output} \u2014 the bus every track and Return sums into (plan \u00a78)`}
+              />
+            </span>
           {/if}
         </div>
         <div class="detail__facts">
@@ -99,6 +137,20 @@
             <span class="detail__fact" title={`Prominence tier: ${tierName} (the session fixture's value)`}>
               <EngravedLabel text="Tier" size="xs" tone="muted" />
               <EngravedLabel text={tierName} size="xs" kind="value" />
+            </span>
+          {:else if theReturn}
+            <span class="detail__fact" data-detail-return-sends={returnSendCount} title={`${returnSendCount} track send${returnSendCount === 1 ? "" : "s"} feed this Return (plan \u00a78a: the Return's input is its incoming sends)`}>
+              <EngravedLabel text="Input" size="xs" tone="muted" />
+              <EngravedLabel text={`${returnSendCount} send${returnSendCount === 1 ? "" : "s"}`} size="xs" kind="value" />
+            </span>
+            <span class="detail__fact" title={`${theReturn.bypassed ? "Bypassed" : "In circuit"} \u2014 the Return's BYPASS, on its strip and in the effect module`}>
+              <EngravedLabel text="Chain" size="xs" tone="muted" />
+              <EngravedLabel text={theReturn.bypassed ? "Bypassed" : "In circuit"} size="xs" kind="value" />
+            </span>
+          {:else if bus}
+            <span class="detail__fact" data-detail-bus-peak={bus.peakProtection.engaged} title={`Peak protection: ${bus.peakProtection.text} (plan \u00a78: transparent peak protection only if needed; no loudness maximisation, no mastering)`}>
+              <EngravedLabel text="Peak protection" size="xs" tone="muted" />
+              <EngravedLabel text={bus.peakProtection.engaged ? "Engaged" : "Not engaged"} size="xs" kind="value" />
             </span>
           {/if}
           <span class="detail__fact">
@@ -116,7 +168,7 @@
       <!-- ---- the chain ------------------------------------------------- -->
       <div class="detail__chain" data-mixer-region="processing-chain">
         <EngravedLabel text="Processing chain" size="xs" tone="muted" />
-        <ProcessingChain {chain} />
+        <ProcessingChain blocks={trackRailBlocks(chain)} />
       </div>
 
       <!-- ---- the two bays ---------------------------------------------- -->
@@ -133,8 +185,14 @@
       <div class="detail__changed" data-mixer-region="what-changed">
         <WhatChanged notes={chain.notes} trackName={track.name} />
       </div>
+    {:else if theReturn}
+      <!-- A Return: its effect-specific chain (plan §3, §8a) — Task 2.9. -->
+      <ReturnDetail chain={theReturn} />
+    {:else if bus}
+      <!-- A regular bus: the bus path (plan §8) — Task 2.9. -->
+      <BusDetail chain={bus} />
     {:else if channel}
-      <!-- A Return or a bus: a different chain (plan §3, §8a) — Task 2.9. -->
+      <!-- A kind this build has no chain for: say so, never show another kind's controls. -->
       <div class="detail__empty" role="status" data-detail-empty>
         <EngravedLabel
           text={`Processing detail for ${channelKindLabel(channel.kind).toLowerCase()} channels is not available in this build`}
@@ -344,7 +402,7 @@
     min-width: 0;
   }
 
-  /* --- the empty state (Return / bus — Task 2.9; or nothing selected) ---- */
+  /* --- the empty state (nothing selected; or a kind with no chain) ------- */
   .detail__empty {
     display: flex;
     flex: 1 1 auto;

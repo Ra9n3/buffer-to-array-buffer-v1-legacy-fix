@@ -327,9 +327,15 @@ export interface ChainParam {
   mode: Mode;
 }
 
-export interface CharacterParam {
-  value: CharacterId;
-  readonly original: CharacterId;
+/**
+ * A character / algorithm selection with ownership. Generic over the id set
+ * so the compressor's VCA / Opto / FET / Vari-Mu and a Return's Room / Hall /
+ * Plate or Tape / Analogue / Digital (Task 2.9) share one shape and the one
+ * ownership rule.
+ */
+export interface CharacterParam<Id extends string = string> {
+  value: Id;
+  readonly original: Id;
   mode: Mode;
 }
 
@@ -350,7 +356,7 @@ export interface EqState {
 
 export interface CompState {
   bypassed: boolean;
-  readonly character: CharacterParam;
+  readonly character: CharacterParam<CharacterId>;
   readonly threshold: ChainParam;
   readonly ratio: ChainParam;
   readonly attack: ChainParam;
@@ -360,7 +366,8 @@ export interface CompState {
   readonly gainReductionDb: number;
 }
 
-export type NoteModule = "eq" | "dyn" | "comp" | "cleanup";
+/** The module a note is about: the track modules, plus a Return's (effect, tone, output) and the bus output stage (peak) — Task 2.9. */
+export type NoteModule = "eq" | "dyn" | "comp" | "cleanup" | "effect" | "tone" | "output" | "peak";
 
 export interface ExplanationNote {
   readonly module: NoteModule;
@@ -372,6 +379,10 @@ export const NOTE_MODULE_PRINT: Readonly<Record<NoteModule, string>> = {
   dyn: "DYN EQ",
   comp: "COMP",
   cleanup: "CLEANUP",
+  effect: "EFFECT",
+  tone: "TONE",
+  output: "OUTPUT",
+  peak: "PEAK",
 };
 
 export interface ChainState {
@@ -479,6 +490,27 @@ export const CHAIN_BLOCKS: readonly ChainBlock[] = PROCESSING_CHAIN_STEPS.map((s
   label: step.label,
   home: BLOCK_HOME[BLOCK_IDS[i]],
 }));
+
+/**
+ * One lamp of the processing-chain readout, for any channel kind (Task 2.9):
+ * a step, a label, whether it is in circuit, where its controls live, and —
+ * for blocks that are a state rather than a module (an output, the final
+ * output stage) — the status text spoken in place of "in circuit" /
+ * "bypassed".
+ */
+export interface RailBlock {
+  readonly id: string;
+  readonly step: string;
+  readonly label: string;
+  readonly engaged: boolean;
+  readonly home: BlockHome;
+  readonly status?: string;
+}
+
+/** The standard track's rail: the plan §8 blocks with their live state. */
+export function trackRailBlocks(chain: ChainState): RailBlock[] {
+  return CHAIN_BLOCKS.map((block) => ({ ...block, engaged: blockEngaged(chain, block.id) }));
+}
 
 /** Is the block in circuit for this chain (fixture state + the bypass switches)? */
 export function blockEngaged(chain: ChainState, id: BlockId): boolean {
@@ -886,6 +918,9 @@ function param(spec: ParamSpec, value: number, manualFrom: number | undefined): 
     : { spec, value, original: manualFrom, mode: "manual" };
 }
 
+/** The same constructor for the bus and Return chains (Task 2.9). */
+export const chainParam = param;
+
 /** A fresh, independent chain state for a track, from its fixture. */
 export function createChainState(track: MixerTrackChannel): ChainState {
   const fx = chainFixtureFor(track.code);
@@ -908,7 +943,7 @@ export function createChainState(track: MixerTrackChannel): ChainState {
 
   const [threshold, ratio, attack, release, makeup] = fx.comp;
   const characterFrom = manual["comp.character"];
-  const character: CharacterParam =
+  const character: CharacterParam<CharacterId> =
     typeof characterFrom === "string"
       ? { value: fx.character, original: characterFrom, mode: "manual" }
       : { value: fx.character, original: fx.character, mode: "auto" };
