@@ -73,11 +73,15 @@ function arrangeOf(strip: TrackStripFixture): ArrangeTrack {
   );
 }
 
-/** The fixed send slots (D2.2.9): the loaded sends fill them in order, the rest start unassigned at OFF. */
+/**
+ * The fixed send slots (D2.2.9): the loaded sends fill them in order, the
+ * rest start unassigned at OFF. Every slot starts Auto — the loaded level is
+ * the engine's / the session's value, nothing the user has owned yet (Task 3.2).
+ */
 function sendSlotsOf(strip: TrackStripFixture): SendSlot[] {
   return Array.from({ length: SEND_SLOT_COUNT }, (_, i) => {
     const send = strip.sends[i];
-    return send ? { to: returnBusId(send.to), level: send.level } : { to: null, level: SEND_RANGE.min };
+    return send ? { to: returnBusId(send.to), level: send.level, mode: "auto" } : { to: null, level: SEND_RANGE.min, mode: "auto" };
   });
 }
 

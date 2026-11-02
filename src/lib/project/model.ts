@@ -26,11 +26,11 @@
  *   - the arrangement the Arrange room draws: bars, sections, tempo markers,
  *     waveform placeholder clips (fixture-backed display data, read-only).
  *
- * What it deliberately does NOT contain: a routing graph or its validation
- * (Task 3.2), undo / redo or persistence (Task 3.3), audio, analysis,
- * measured readings, DSP values presented as final (plan §17), Auto /
- * Manual modes for sends (plan §5 names them; no UI shows them yet — Task
- * 3.2 "Auto/Manual state plumbing").
+ * What it deliberately does NOT contain: undo / redo or persistence (Task
+ * 3.3), audio, analysis, measured readings, DSP values presented as final
+ * (plan §17), sidechain relationships (plan §8, Phase 7). The routing
+ * RULES (which references are valid, loop rejection) are pure functions in
+ * `routing.ts` (Task 3.2); the model only holds the references.
  *
  * IDENTITY. Every entity has a stable, opaque `id` and a printed `code`.
  * References between entities (a send's destination, an output) are ids,
@@ -44,7 +44,7 @@ import type { OrgSwatch } from "../../components/channel-strip/track-strip-fixtu
 import type { ReturnEffect } from "../../components/channel-strip/bus-return-fixtures";
 import type { FamilyId, ProminenceTier, RoleId } from "../arrange";
 import type { ArrangeClip, ArrangeSection, TempoMarker } from "../arrange-timeline";
-import type { ChainState } from "../mixer-chain";
+import type { ChainState, Mode } from "../mixer-chain";
 import type { ReturnChainState } from "../return-chain";
 import type { BusChainState } from "../bus-chain";
 
@@ -125,12 +125,17 @@ export function clampPriority(priority: number): number {
 /**
  * One of a track's fixed send slots (D2.2.9): unassigned (`to` null, level
  * at the bottom of the range) or feeding one Return bus at a level in dB.
- * Post-fader (plan §16). The slot's Auto / Manual mode (plan §5) is not
- * modelled until a UI shows it (Task 3.2).
+ * Post-fader (plan §16). `mode` is the send's own Auto / Manual ownership
+ * (plan §5: "an independent Auto/Manual mode for each send"; §8a: "Auto
+ * values may be recalculated on a MIX rerun, while Manual values are
+ * preserved") — Task 3.2 plumbing, no control shows it yet. The send's
+ * "original" is the level the session loaded with for that Return
+ * (`Track.loadedSendLevels`), not a second stored value.
  */
 export interface SendSlot {
   to: ReturnBusId | null;
   level: number;
+  mode: Mode;
 }
 
 /** The Console strip's channel settings (plan §5 "channel-strip state"). */
@@ -175,7 +180,7 @@ export interface Track {
   priority: number;
   /** False while a suggested tier awaits the user's confirmation (plan §5a). */
   tierConfirmed: boolean;
-  /** Routing destination — a reference (plan §5); the graph is Task 3.2. */
+  /** Routing destination — a reference (plan §5): a bus or Master, validated by `routing.ts` before it changes. */
   output: OutputRef;
   readonly channel: TrackChannel;
   /**
@@ -214,7 +219,7 @@ export interface ReturnBus {
   readonly channel: ReturnChannel;
   /** The effect module (Task 2.9): character, time, second control, tone, bypass, ownership, notes. */
   readonly chain: ReturnChainState;
-  /** A Return feeds the Master output (plan §8a) — a reference. */
+  /** A Return feeds the Master output (plan §8a) — a reference the routing rules keep at Master (owner, Task 3.2). */
   output: OutputRef;
   readonly display: ChannelDisplay;
 }
@@ -245,7 +250,7 @@ export interface Bus {
   readonly channel: BusChannel;
   /** The bus chain (Task 2.9): EQ, compressor, peak-protection status, notes. */
   readonly chain: BusChainState;
-  /** Where the bus sums to: another bus (bus-to-bus chaining, plan §5) or Master — a reference. */
+  /** Where the bus sums to: another bus (bus-to-bus chaining, plan §5) or Master — a reference; loops are rejected by `routing.ts`. */
   output: OutputRef;
   readonly display: ChannelDisplay;
 }

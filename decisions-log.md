@@ -2966,3 +2966,159 @@ sharing of the Return / bus strip state (D3.1.5, superseding the 2.9
 (D3.1.8: 18 guards, 1513 / 1513). Committed on top of `55e0c5b` and pushed
 to `main` together with it on the owner's signal (PAT inline, not stored).
 Task 3.2 (routing) has not been started.
+
+## Task 3.2 — Routing graph and Auto / Manual state plumbing (2026-11-02; uncommitted, awaiting review)
+
+Direction: the second Phase 3 state task — the track–bus–Return
+relationships become a validated routing graph with cycle detection, and
+the Auto / Manual ownership the approved UI already shows is plumbed through
+the one store so a Manual value survives rooms and unrelated edits (plan §5,
+§8, §8a, §16, §14 roadmap "3.2"). No routing UI, no undo / autosave /
+persistence, no audio, no sidechain, no new dependency, no visual change.
+The owner's four decisions (ask_user, 2026-11-02) were taken before any code
+was written and are recorded in D3.2.1. Report:
+`task-reports/3.2-report.md`; the graph and the ownership rules are
+described in `data-model.md` §7–§8.
+
+**Correction to the "Task 3.1 — approved" entry above (builder,
+2026-11-02):** Task 3.1 was committed as `6f99909` on top of `55e0c5b`, but
+**neither has been pushed** — the push needs the owner's PAT, which was not
+supplied in that session. The entry's "pushed to `main` together with it" is
+wrong; remote `main` is still `5daada5` (Task 2.8). The push stays open
+until the owner provides a token (inline, never stored; revoke afterwards).
+
+### D3.2.1 — The owner's decisions, as applied (owner, 2026-11-02)
+
+1. **No routing UI control in this build** — the store, the validation and
+   the tests only; the existing prints (the Mixer's bus detail "Output →
+   Master", the Return's incoming-send list) follow the store. A later task
+   adds the field.
+2. **Rejection feedback is an API, both forms:** `destinationsFor(id)`
+   returns every candidate destination with the verdict routing there would
+   get (filter on `ok` to offer only valid destinations) and every rejected
+   verdict carries a plain-language `message` for the field to print.
+3. **Return-to-Auto stays D2.8 ownership-only** — the prompt's "restore the
+   baseline" bullet is overridden by the owner; the value stays, `original`
+   still records the baseline.
+4. **A Return's output is fixed at Master** — the validator rejects any
+   other destination, a Return is never a destination, and there is no
+   Return output op or control. Returns keep their id, kind, incoming sends
+   and chain untouched by routing edits.
+
+### D3.2.2 — The routing graph is a pure module over a structural project (builder, 2026-11-02)
+
+`src/lib/project/routing.ts` has no Svelte, no state, no DOM and **no
+writes**: `validateRoute`, `validateGraph`, `destinationsFor`, `routeOf`,
+`routingEdges`, `isRoutable`, `routingName` take a `RoutingProject` —
+`{ tracks, returns, buses }` with `id`, `name`, `output` (and
+`channel.sends[].to` on tracks) — which the real `Project` satisfies
+structurally and so does a three-line test fixture. Nodes are the channels
+plus Master; edges are every channel's one *output* edge and the tracks'
+*send* edges into Returns (`RoutingEdgeKind = "output" | "send"`). Rules, in
+the order reported: source exists → destination is Master or an existing bus
+(a track or Return id is "not a bus", a missing bus id is dangling) →
+no self-route → a Return routes to Master only → the destination's output
+chain reaches Master without meeting the source (direct and indirect
+cycles; a graph that already loops elsewhere is reported as "already loops",
+never walked forever). Verdicts are values: `{ ok, reason, message, path }`
+with six reason codes (`unknown-source`, `unknown-destination`,
+`destination-not-a-bus`, `self-route`, `return-output-fixed`, `cycle`) and
+messages such as "Routed: Kick → Master", "Unchanged: Mix Bus → Master",
+"Rejected: Bus B2 → Bus B1 → Bus B2 would loop". Sidechains (plan §8, Phase
+7) are a documented future third edge kind validated by the same walk —
+reserved in the shape, not modelled.
+
+### D3.2.3 — The store validates first and writes second; routing ops return the verdict (builder, 2026-11-02)
+
+`ops.setTrackOutput(id, to)` and `ops.setBusOutput(id, to)` call
+`validateRoute(state, id, to)` on the untouched project, write `output` only
+when the verdict is `ok` **and** the reference changes, and return the
+verdict in every case — so a rejected route leaves the project exactly as
+it was (tested by JSON snapshot), with no trial mutation and no rollback.
+An unknown *source* throws, like every other op (a programming error); an
+unknown *destination* is a verdict, because it is a thing a user could
+pick. There is no `setReturnOutput` (D3.2.1 §4). The reads
+`project.routeOf`, `project.destinationsFor`, `project.validateRouting`
+delegate to the module over the live state. These are the only two writes
+of an output reference in `src/`; no component imports the routing module
+(guarded).
+
+### D3.2.4 — Each send keeps its own Auto / Manual ownership (builder, 2026-11-02; plan §5)
+
+`SendSlot` gains `mode: Mode` (the Task 2.8 type), seeded `"auto"` for
+every slot by the session — a loaded send level is the engine's value until
+a hand moves it. `ops.setSendLevel` on an **assigned** slot makes that send
+Manual (a same-value write is not a turn; an unassigned slot has no send to
+own); `ops.setSendMode` writes the mode only (D2.8). `ops.setSendTo`
+assigns and decides ownership from the level already in the slot — Auto
+when it equals the baseline for that Return (`loadedSendLevels[to]`, else
+`DEFAULT_SEND_LEVEL`), Manual when a hand had already moved it — because
+the approved `SendSlot.svelte` (D2.2.9–12, unchanged) writes the level
+first and the destination second; clearing a slot is OFF and Auto. **No
+print of the send's mode exists** — the approved strips have no lamp for
+it and 3.2 adds no UI — so the rule is proven by tests and is ready for the
+day the strips show it. No change to the chain rules of 2.8 (`setParamValue`
+→ that parameter Manual; `setMode` / `setAllModes` write modes only).
+
+### D3.2.5 — A node test harness with no new dependency (builder, 2026-11-02)
+
+`npm test` = `node --import ./tests/register.mjs --test
+tests/routing.test.mjs tests/store.test.mjs`. `tests/loader.mjs` is a
+`module.register` hook that transpiles the project's TypeScript with the
+`typescript` already in devDependencies and compiles `.svelte.ts` modules
+(the store's runes) with `svelte/compiler`'s `compileModule` — so the
+**real** store module is exercised in Node, not a copy. Thirty-three tests,
+every title a required behaviour of the prompt (the routing guard checks
+the titles are present). Alternatives rejected: vitest (a new dependency,
+out of scope), testing a hand-rolled store double (would not prove the
+store).
+
+### D3.2.6 — The fixture has one bus, so bus chains and cycles are proven in Node, not in the browser (builder, 2026-11-02)
+
+The approved session has a single bus (B1 "Mix Bus"), and 3.2 may neither
+change fixtures nor add a routing control. Bus → Bus → Master and the
+direct / indirect cycle rejections therefore run on small test projects in
+`tests/routing.test.mjs`; the browser evidence is limited to what the store
+prints today (bus output, Return sends) plus the Auto / Manual persistence
+walk (`tools/measure/manual-persist-3.2.js`). A browser-level routing
+demonstration arrives with the control.
+
+### D3.2.7 — Guards: `check:routing` added (90); `check:project` and `check:channel-strip` amended; 19 guards 1603 / 1603 (builder, 2026-11-02)
+
+`scripts/check-routing-structure.mjs` (90 checks; five mutations caught:
+a write inside the routing module, a store write before validation, a
+`sidechain` edge kind, a component importing the routing module, a
+return-to-Auto that resets the value) pins the routing module, the tests,
+the harness, the store / model / session and the unchanged prints.
+`check:project` amended to the 3.2 truth (23 ops incl. `setSendMode`,
+`setTrackOutput`, `setBusOutput`; `SendSlot.mode`; `validateRoute` import
+required; the old "no graph / cycle words in the store" negative dropped
+because the store now legitimately imports the validator — the routing
+words still may not appear in `model.ts`); `check:channel-strip`'s
+session-seeding check now accepts `mode: "auto"`. Re-pinned (content
+changed by 3.2): `model.ts`, `session.ts`, `store.svelte.ts`. Totals: 19
+guards, 1603 / 1603; `npm run check` 0 / 0; `npm test` 33 / 33; build
+`dist/index.html` `d9f9aee32f4335f1` (502.47 kB, gzip 132.46 kB; 240
+modules — +1, the routing module).
+
+### D3.2.8 — `data-model.md` correction: two send slots, not four (builder, 2026-11-02)
+
+The 3.1 text said "Four fixed slots per track (D2.2.9)"; D2.2.9 and the
+code (`SEND_SLOT_COUNT = 2`) say two. Corrected in the 3.2 revision of the
+document, as its own status line requires ("say so in the next task
+report").
+
+## Task 3.2 — approved
+
+Owner, 2026-11-02: **"approve, commit."** Task 3.2 is closed as built and
+reported in `task-reports/3.2-report.md`; D3.2.1–D3.2.8 stand. The approval
+covers the pure routing module (`routing.ts`: graph, rule order, verdicts
+with reason codes and plain-language messages, `destinationsFor` as the
+feedback API, `validateGraph`), the validate-first routing ops that return
+the verdict (D3.2.3), the per-send Auto / Manual ownership (D3.2.4), the
+node test harness and its 33 tests (D3.2.5), the guard hand-overs (D3.2.7:
+19 guards, 1603 / 1603) and the `data-model.md` revision (§7–§8, D3.2.8
+correction). Committed on top of `6f99909`; **not pushed** — the signal was
+"commit" only, and the push of the three local commits (`55e0c5b`,
+`6f99909`, this one) still needs the owner's PAT (inline, never stored;
+revoke afterwards). Task 3.3 has not been started.

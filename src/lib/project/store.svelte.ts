@@ -26,10 +26,18 @@
  *               whose getters read the project and whose setters call the
  *               ops — the Task 2.9 `returnLive` pattern, generalised.
  *
+ * Routing (Task 3.2): `ops.setTrackOutput` / `ops.setBusOutput` ask the
+ * pure rules in lib/project/routing.ts FIRST and write the reference only
+ * for an accepted verdict — a rejected route leaves the project exactly as
+ * it was, and the verdict's message is returned for whatever control binds
+ * it later (owner, Task 3.2: no output field in this build). A Return's
+ * output is fixed at Master (no op exists for it). `project.routeOf`,
+ * `project.destinationsFor` and `project.validateRouting` are the reads.
+ *
  * What is NOT here, on purpose: transient UI state (selected room or
  * channel, scroll, open menus — those stay in the rooms and components),
- * routing behaviour (Task 3.2), undo / redo, autosave, persistence (Task
- * 3.3), audio, analysis.
+ * undo / redo, autosave, persistence (Task 3.3), audio, analysis, sidechain
+ * relationships (Phase 7).
  */
 
 import {
@@ -41,6 +49,7 @@ import {
 import type { ReturnLive } from "../../components/channel-strip/return-live";
 import type { BusLive, SendReturnOption, TrackStripLive } from "../../components/channel-strip/strip-live";
 import {
+  DEFAULT_SEND_LEVEL,
   FADER_RANGE,
   PAN_RANGE,
   SEND_RANGE,
@@ -49,7 +58,7 @@ import {
 } from "../../components/channel-strip/track-strip-fixtures";
 import type { TrackMetaLive } from "../../components/arrange-row-live";
 import { isValidSource, type ArrangeTrack, type FamilyId, type ProminenceTier } from "../arrange";
-import { setParamValue } from "../mixer-chain";
+import { setParamValue, type Mode } from "../mixer-chain";
 import { returnCharacter, type SendInto } from "../return-chain";
 import type { ReturnId } from "../../components/channel-strip/track-strip-fixtures";
 import {
@@ -71,6 +80,15 @@ import {
   type Track,
   type TrackId,
 } from "./model";
+import {
+  destinationsFor,
+  routeOf,
+  validateGraph,
+  validateRoute,
+  type RoutingDestination,
+  type RoutingNodeId,
+  type RoutingVerdict,
+} from "./routing";
 import { createSessionProject } from "./session";
 
 /* =========================================================================
@@ -181,6 +199,21 @@ export const project = {
   outputLabel(ref: OutputRef): string {
     return outputLabel(ref, state.buses);
   },
+
+  /* --- routing (Task 3.2) — pure reads over the references */
+
+  /** The chain a channel takes to Master, itself first: `["track-01", "bus-B1", "master"]`. */
+  routeOf(id: ChannelId): RoutingNodeId[] {
+    return routeOf(state, id);
+  },
+  /** Master and every bus, each with the verdict `id` would get routing to it (valid ones to offer, the rest explained). */
+  destinationsFor(id: ChannelId): RoutingDestination[] {
+    return destinationsFor(state, id);
+  },
+  /** Is the whole graph valid right now? (It always is: every write is validated first.) */
+  validateRouting(): RoutingVerdict {
+    return validateGraph(state);
+  },
 } as const;
 
 /* =========================================================================
@@ -213,18 +246,42 @@ export const ops = {
     const t = mustTrack(id);
     if (t.channel.solo !== on) t.channel.solo = on;
   },
-  /** Point a send slot at a Return (a known one), or clear it (`null`). The level is the slot's own, set separately. */
+  /**
+   * Point a send slot at a Return (a known one), or clear it (`null`). The
+   * level is the slot's own, set separately (the strip writes it first —
+   * Task 2.2 behaviour). Ownership follows the level the slot now carries
+   * for that Return: at the Return's loaded level the send is Auto (the
+   * session's value), at any other level it is Manual (the user carried a
+   * level over); a cleared slot is Auto.
+   */
   setSendTo(id: TrackId, slot: number, to: ReturnBusId | null): void {
     const t = mustTrack(id);
     const s = t.channel.sends[mustSlot(t, slot)];
     if (to !== null) mustReturn(to);
-    if (s.to !== to) s.to = to;
+    if (s.to === to) return;
+    s.to = to;
+    const loaded = to === null ? SEND_RANGE.min : (t.loadedSendLevels[to] ?? DEFAULT_SEND_LEVEL);
+    const mode: Mode = to === null || s.level === loaded ? "auto" : "manual";
+    if (s.mode !== mode) s.mode = mode;
   },
+  /**
+   * The send knob moved: the level moves and — on an assigned slot — the
+   * send becomes Manual (the Task 2.8 rule applied to sends, plan §8a). A
+   * same-value write is not a turn; an unassigned slot has no send to own.
+   */
   setSendLevel(id: TrackId, slot: number, value: number): void {
     const t = mustTrack(id);
     const s = t.channel.sends[mustSlot(t, slot)];
     const next = clamp(value, SEND_RANGE);
-    if (next !== s.level) s.level = next;
+    if (next === s.level) return;
+    s.level = next;
+    if (s.to !== null && s.mode !== "manual") s.mode = "manual";
+  },
+  /** The send's Auto / Manual ownership, mode only — the level stays where it is (D2.8, kept by the owner for Task 3.2). */
+  setSendMode(id: TrackId, slot: number, mode: Mode): void {
+    const t = mustTrack(id);
+    const s = t.channel.sends[mustSlot(t, slot)];
+    if (s.mode !== mode) s.mode = mode;
   },
 
   /* --- track classification (Arrange rows, Mixer identity — Task 2.5 / 2.7) */
@@ -307,6 +364,25 @@ export const ops = {
   setBusSolo(id: BusId, on: boolean): void {
     const b = mustBus(id);
     if (b.channel.solo !== on) b.channel.solo = on;
+  },
+
+  /* --- routing (Task 3.2): validate first, write only an accepted route.
+         No control binds these yet (owner): the verdict is returned so the
+         future output field can print its message as it is. */
+
+  /** Route a track to a bus or Master. The project is unchanged unless the verdict is `ok`. */
+  setTrackOutput(id: TrackId, to: OutputRef): RoutingVerdict {
+    const t = mustTrack(id);
+    const verdict = validateRoute(state, id, to);
+    if (verdict.ok && t.output !== to) t.output = to;
+    return verdict;
+  },
+  /** Route a bus to another bus or Master (bus-to-bus chaining, plan §5). Loops, self-routes and dangling references are rejected unchanged. */
+  setBusOutput(id: BusId, to: OutputRef): RoutingVerdict {
+    const b = mustBus(id);
+    const verdict = validateRoute(state, id, to);
+    if (verdict.ok && b.output !== to) b.output = to;
+    return verdict;
   },
 } as const;
 
