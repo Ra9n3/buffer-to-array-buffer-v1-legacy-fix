@@ -1,19 +1,25 @@
 # Alloy — data model
 
-**Status: Task 3.2 (state foundation 3.1 + routing graph and Auto / Manual
-plumbing 3.2). Describes what is in the code, not what is planned.** Source
-of truth: `src/lib/project/model.ts` (shapes), `src/lib/project/session.ts`
-(the approved fixture session as a project), `src/lib/project/store.svelte.ts`
-(the one authoritative store), `src/lib/project/routing.ts` (the routing
-graph and its validation — pure functions, §7). Where this
-document and the code disagree, the code is right and this document is
-stale — say so in the next task report.
+**Status: Task 3.3 (state foundation 3.1 + routing graph and Auto / Manual
+plumbing 3.2 + the editing layer 3.3: undo / redo, autosave foundations,
+channel-settings copy / paste). Describes what is in the code, not what is
+planned.** Source of truth: `src/lib/project/model.ts` (shapes),
+`src/lib/project/session.ts` (the approved fixture session as a project),
+`src/lib/project/store.svelte.ts` (the one authoritative store),
+`src/lib/project/routing.ts` (the routing graph and its validation — pure
+functions, §7), and since 3.3 `src/lib/project/fields.ts` (the field
+registry), `history.ts` (undo / redo), `persistence.ts` (the manifest and
+the save lifecycle), `clipboard.ts` (channel-settings copy / paste) and
+`shell.ts` (the browser wiring) — §10. Where this document and the code
+disagree, the code is right and this document is stale — say so in the next
+task report.
 
 Everything here is **project data as the approved UI edits it**, plus the
-routing graph the references form and the rules that keep it valid (3.2).
-There is no audio, no DSP, no persistence, no undo. Those arrive with their
-own tasks (plan §14, Phase 3: undo / autosave 3.3; the engine later) and will
-extend these shapes rather than replace them.
+routing graph the references form and the rules that keep it valid (3.2),
+plus the editing layer over that data (3.3). There is no audio and no DSP.
+Persistence is **write-only** in this build (the manifest is saved; nothing
+is loaded — owner, 3.3). The engine arrives with its own tasks (plan §14)
+and will extend these shapes rather than replace them.
 
 ---
 
@@ -318,7 +324,241 @@ control and BALANCE / TONE semantics are still open (§9).
 |-------|------|
 | A routing control (output field with `destinationsFor` filter + verdict text), and bus creation | later task (owner, 3.2: no routing UI in this build) |
 | Sidechain relationships as a third routing edge kind | Phase 7 |
-| Undo / redo, autosave, copy / paste | 3.3 |
-| Project folder + JSON manifest (plan §11) | with persistence |
+| Loading a saved manifest (restore on open, "open project", multi-project) | a load task — 3.3 writes the manifest only (owner) |
+| A visible undo / redo control, an Edit menu, a copy / paste control, autosave status UI | later task (owner, 3.3: shortcuts only, store / API only) |
+| Project folder + JSON manifest on disk (plan §11) | with the load task; the in-memory manifest shape is §10.3 |
 | Engine-written values (Auto parameters updating), meters, peak detection | engine tasks |
 | Numeric Priority UI, BALANCE / TONE semantics (2.4 open item) | owner decision |
+
+---
+
+## 10. The editing layer (Task 3.3)
+
+Three foundations over the store, all in `src/lib/project/`: a **field
+registry** (the one boundary everything else is defined against), **history**
+(undo / redo), **persistence** (the manifest + autosave) and the **clipboard**
+(channel settings between channels), wired to the browser by one **shell**.
+No UI changed: undo / redo are keyboard shortcuts, autosave is silent,
+copy / paste is a store API (owner decisions, D3.3.1).
+
+### 10.1 The field registry (`fields.ts`)
+
+Every editable leaf of the project, enumerated once from the live `$state`
+tree when the store loads (channels are never added or removed in this
+build): **1 076 fields** in the session — 50 per track (×20), 12 per Return
+(×3), 40 on the bus.
+
+```ts
+interface FieldRef {
+  path: string;        // stable, id-based: "<channelId>/<rel>", e.g. "track-03/chain/eq/lf/gain/mode"
+  channel: ChannelId;
+  rel: string;         // the path within the channel
+  group: "identity" | "channel" | "send" | "routing" | "chain";
+  copyable: boolean;   // in the copy / paste boundary (10.4)
+  type: FieldType;     // {kind:"number",min,max} | {kind:"boolean"} | {kind:"enum",values,nullable} | {kind:"ref",nullable} | {kind:"text",nullable}
+  label: string;       // "03 Snare Bottom · EQ LF gain"
+  get(): FieldValue;   // number | boolean | string | null
+  set(value: FieldValue): void;
+}
+```
+
+| Channel | `rel` paths (registry order: identity, routing, channel, sends, chain) | copyable |
+|---------|------------------------------------------------------------------------|----------|
+| Track | `familyId`, `sourceTypeId`, `priority`, `tierConfirmed` | no |
+| Track | `output` | no |
+| Track | `channel/trim`, `channel/pan`, `channel/level` | **yes** |
+| Track | `channel/mute`, `channel/solo` | no |
+| Track | `sends/<i>/to`, `sends/<i>/level`, `sends/<i>/mode` (two slots) | no |
+| Track, Bus | `chain/eq/bypassed`, `chain/eq/<lf,lmf,hmf,hf>/<freq,gain[,q]>/<value,mode>`, `chain/comp/bypassed`, `chain/comp/character/<value,mode>`, `chain/comp/<threshold,ratio,attack,release,makeup>/<value,mode>` | **yes** |
+| Return | `channel/level` | **yes** |
+| Return | `channel/mute`, `channel/solo` | no |
+| Return | `chain/bypassed`, `chain/character/<value,mode>`, `chain/<time,second,tone>/<value,mode>` | **yes** |
+| Bus | `output` | no |
+| Bus | `channel/trim`, `channel/balance`, `channel/level` | **yes** |
+| Bus | `channel/mute`, `channel/solo` | no |
+
+**Not fields (never in history, never saved, never pasted):** `id`, `code`,
+`kind`, `type`, `name`, `org`, `role`, `effect`, `short`, `display`
+(identity and fixture facts), every `original` (the loaded baseline a Manual
+parameter ghosts against — D2.8), `loadedSendLevels`, a Return's `output`
+(fixed to Master, 3.2), the arrangement (fixture), and every piece of
+room-local UI state (the Mixer's selection, scroll, open menus). The field
+setters write the same properties the `ops` write — through them the
+registry *is* the store's write surface, read generically.
+
+`isValidValue(type, value)` is the gate for values entering from outside
+(a paste, a future load): number within range and finite, boolean, enum
+member (or null when nullable), string ref / text. `sameValue` is the
+equality history and the clipboard use (`Object.is`).
+
+### 10.2 History (`history.ts`) — boundaries, grouping, limits
+
+**Model.** A diff log over the registry, not snapshots: history keeps one
+baseline value per field (1 076 values); `observe()` compares every field
+with its baseline and records what moved as patches `{path, before,
+after}`. Nothing in the write paths changed — ops, the Task 2.8 helpers
+(`setParamValue`, `setMode`, `setAllModes`, `setCharacter`), the components'
+direct bypass toggles and the clipboard all write the state as before; the
+**observer** in the store (its one `$effect`, inside `$effect.root`) reads
+every field, so any write re-runs it after the writing block and it calls
+`history.observe()` untracked.
+
+**Boundary — what is in history:** every registered field (10.1), and
+nothing else. Room-local selection, scroll, fixture text, the arrangement,
+`original` values, the clipboard's held payload and autosave status are not
+fields, so they can never enter an entry. A restore (undo / redo) writes
+through the same setters with observation suspended (`applying`), so a
+restore is never recorded as an edit.
+
+**Grouping — what one undo step is:**
+
+| Situation | Entry |
+|-----------|-------|
+| one synchronous block writes one field (`ops.setTrackLevel`) | one entry, one patch, label `"03 Snare Bottom · level"` |
+| one block writes several fields (`setParamValue`: value + mode → Manual; `setTrackFamily` clearing the source; `setAllModes`) | **one entry** with all patches, label `"03 Snare Bottom · 2 settings"` (or `"N settings on M channels"`) |
+| a continuous adjustment: more writes to the **same fields** (a subset of the open entry's paths) within **1 000 ms** of the entry's last change, with a clock installed | **merged** into the open entry (its `before` stays, `after` moves) — a fader drag or a knob turn is one step; a merge that lands back on the start value drops the entry |
+| `history.transaction(label, fn)` (the store's paste) | one closed, labelled entry; closes the previous entry first |
+| undo / redo | close the entry; move it between the stacks; no new entry |
+| a same-value write, a rejected routing write, a rejected / unchanged paste, an unknown-id throw | no entry (nothing moved) |
+
+Without a clock (Node tests) nothing coalesces — every `observe()` is its own
+entry; the shell installs `performance.now`. Coalescing is deliberately
+narrow (same fields, one second, open entry) so that two different controls
+touched in quick succession stay two steps.
+
+**Limits.** 200 entries (`DEFAULT_HISTORY_LIMIT`); the oldest fall off.
+Rationale: an entry is a handful of patches (a paste is at most 37), so 200
+entries are well under 100 kB; deeper undo than that has no UI to navigate
+it yet. The baseline array costs one slot per field. A new entry or a merge
+clears the redo stack (the usual linear model; branching history is not
+planned).
+
+**API.** `createHistory({fields, clock?, coalesceMs?, limit?})` →
+`observe(label?, {closed?})`, `transaction(label, fn)`, `undo()`, `redo()`,
+`clear()`, `canUndo`, `canRedo`, `undoLabel`, `redoLabel`, `entries`,
+`redoEntries`, `revision` (bumps on record / merge / undo / redo / clear —
+what autosave watches), `subscribe(listener)`, public `clock`.
+
+### 10.3 Persistence (`persistence.ts`) — the manifest and autosave
+
+**The manifest** is the registry serialised, nothing more:
+
+```json
+{ "schema": "alloy.project-manifest/1",
+  "project": { "id": "session-fixture", "name": "…" },
+  "channels": { "track-01": { "familyId": "drums", "channel/trim": 3.5, "chain/eq/hmf/gain/mode": "manual", … }, … } }
+```
+
+Every field of 10.1 by channel id and `rel` (identity and routing included —
+the saved document must reproduce the project). No timestamp inside, so two
+saves of the same project produce byte-identical text (that is how
+"unchanged" is detected). 29 646 bytes for the session. `buildManifest`,
+`serializeManifest` (stable `JSON.stringify`), `parseManifest` (schema check;
+null when not a manifest), `manifestChannel` exist; **nothing applies a
+manifest to the project** — loading is a later task (owner).
+
+**Autosave lifecycle** (`createAutosave({key, serialize, revision, clock?})`;
+the store creates it with `key = "alloy.project.<project id>"` and
+`revision = () => history.revision`, and forwards every history event to
+`notifyChange()`):
+
+| `status.state` | meaning |
+|----------------|---------|
+| `clean` | nothing has changed since the project opened (nothing ever written) |
+| `dirty` | the project's revision is ahead of the last saved revision; a save is `pending` after the debounce |
+| `saving` | an adapter write is in flight (asynchronous adapters only) |
+| `saved` | the stored text equals the project at the saved revision |
+| `failed` | the last write threw; `error` carries the message; the project stays dirty |
+
+`dirty = revision !== savedRevision` is the in-memory / last-saved
+distinction. `save()` outcomes: `no-storage` (nothing attached — never
+"saved"), `clean`, `unchanged` (the serialised text equals the last saved
+text — e.g. an edit and its undo — so no write happens, the revision counts
+as saved and `skipped` increments), `written`, `failed`. `savedRevision`,
+`savedAt` and `lastSavedText` move **only** after a successful write (or an
+`unchanged` match); a failure keeps the previous saved point and the error
+until a write succeeds or the project returns to the stored content. Edits
+that land during an asynchronous write leave the project dirty and re-arm
+the timer.
+
+**Mechanism.** Storage and scheduling are injected (`attach(adapter,
+{schedule, delayMs})`): tests use `memoryStorage()` (with a `failWrites`
+hook) and a manual scheduler; the shell attaches `webStorageAdapter(window.
+localStorage)` with `setTimeout`, **1 000 ms** debounce from the last history
+event. Writes are synchronous and tiny (≈30 kB), so autosave never contends
+with editing or the rooms' sync; it only ever reads the state through the
+registry. If `localStorage` is unavailable (privacy mode, disabled storage —
+the lookup throws) nothing is attached: `status.storage` is `null` and the
+state can be `dirty` but never `saved`. **Write-only:** the app opens the
+approved fixture session on every load; the saved manifest is not read back
+(owner, 3.3).
+
+### 10.4 The clipboard (`clipboard.ts`) — the copyable boundary and compatibility
+
+`copyChannelSettings(project, fields, id)` reads the **copyable** fields of
+a channel (10.1: `channel/trim`, `channel/pan` | `channel/balance`,
+`channel/level`, every `chain/*` field — bypass flags, every parameter's
+value **and** mode, the character's value and mode) into
+
+```json
+{ "schema": "alloy.channel-settings/1", "kind": "track", "effect": null,
+  "from": { "id": "track-01", "code": "01", "name": "Kick" },
+  "settings": { "channel/trim": 3.5, "channel/pan": 0, "channel/level": -2, "chain/eq/bypassed": false, … } }
+```
+
+37 settings for a track, 10 for a Return, 37 for the bus. **Never copied:**
+identity and classification (family, source type, priority, tier
+confirmation), `output`, the send slots (destination, level, mode), mute,
+solo — so a paste preserves the destination's identity, kind, routing and
+send assignments, a Return's identity and fixed Master output, and the
+chain's structure (fields are matched by `rel`; nothing is added or removed).
+
+`pasteVerdict(project, fields, payload, destination)` decides **before
+anything is written**, in this order, and the plan is applied only when the
+whole payload passed:
+
+| reason | when | message shape |
+|--------|------|---------------|
+| `malformed` | not a channel-settings payload (schema, kind, from, settings) | `Rejected: that is not a channel-settings payload` |
+| `unknown-destination` | no channel with that id | `Rejected: no channel with id …` |
+| `kind-mismatch` | track → Return, bus → track, … | `Rejected: 01 Kick is a track and R1 Room Reverb is a Return — settings paste between channels of the same kind` |
+| `effect-mismatch` | reverb Return → delay Return | `Rejected: R3 Delay 1 is a delay Return and R2 Plate Reverb is a reverb Return — their chains differ` |
+| `shape-mismatch` | a payload key the destination has no copyable field for | `Rejected: 03 Snare Bottom has no setting "…"` |
+| `invalid-value` | a value outside the field's type / range | `Rejected: "channel/level" cannot take 99 on 04 Hi-hat` |
+| ok, `changes: 0` | every setting already equal | `Unchanged: 03 Snare Bottom already has these 37 settings` |
+| ok | | `Pasted 37 settings from 01 Kick onto 03 Snare Bottom (18 changed)` |
+
+The plan holds only the fields whose value differs, sorted in registry
+order; `applyPaste(plan)` writes them. The store's `clipboard.paste(id,
+payload = held)` runs it inside `history.transaction("Paste settings → 03
+Snare Bottom")` — **one undo step** — and returns the verdict unchanged, so a
+future Edit action can print the message as it is; a rejected or unchanged
+paste writes nothing and records nothing. `clipboard.held` is a plain module
+variable: not project data, not in history, not saved. Pasted parameters take
+the source's value **and** mode (owner, 3.3); a Manual parameter pasted onto
+an Auto one becomes Manual with that value, and `original` on the destination
+is untouched (D2.8 — return-to-Auto still only changes ownership).
+
+### 10.5 The shell (`shell.ts`) — the browser wiring
+
+`main.ts` calls `installProjectShell(window)` once after mount. It (1) gives
+history `performance.now` as its clock; (2) attaches autosave to
+`localStorage` (try / catch; 1 000 ms `setTimeout`); (3) listens for
+`keydown`: **Ctrl / Cmd + Z = undo, Ctrl / Cmd + Shift + Z = redo, Ctrl + Y =
+redo**, ignored with Alt, when another handler already prevented the event,
+or when the target is a text-like input / textarea / contenteditable (the
+browser's own text undo belongs to the field being typed in); the handler
+`preventDefault`s so the browser's navigation undo never fires; (4) only when
+the URL has `?debug`: `window.alloy = { project, ops, history, clipboard,
+autosave, fields, flush }` for the console and browser evidence. The
+decisions are pure functions (`shortcutAction`, `isTextEntry`,
+`wantsDebugHandle`) covered without a DOM; `installProjectShell` returns an
+uninstall function.
+
+### 10.6 Cross-room behaviour
+
+The rooms bind the same store objects (§6), so an edit from any room, a
+restore, or a paste is visible in every room at once; the Mixer's selection
+is its own `$state` (an id) and is not a field, so undo / redo never move it
+(browser evidence: `evidence/mixer/3.3/editing.json`, step C: strip 03
+undone from −13.5 to −12 dB while the detail stays on 05 Overhead L).

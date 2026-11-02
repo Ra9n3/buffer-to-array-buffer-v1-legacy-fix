@@ -18,8 +18,9 @@ async function isFile(url) {
 }
 
 export async function resolve(specifier, context, nextResolve) {
-  // Extensionless relative imports inside the project's TS sources.
-  if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL && !/\.[a-z]+$/i.test(specifier)) {
+  // Extensionless relative imports inside the project's TS sources (`./store.svelte` means
+  // `./store.svelte.ts` — a runes module, Task 3.3 — so only real file extensions are final).
+  if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL && !/\.(m?[jt]s|json|css)$/i.test(specifier)) {
     for (const ext of TS_EXTS) {
       const candidate = new URL(specifier + ext, context.parentURL);
       if (await isFile(candidate)) return { url: candidate.href, shortCircuit: true };

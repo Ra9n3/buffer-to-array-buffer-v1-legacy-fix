@@ -149,7 +149,7 @@ check("the strips bind nothing new: SendSlotLive stays { to, level }; the send s
 
 // --- 5. Tests, wired without a new dependency. ------------------------------------------------
 check("the test hooks use only what is already installed: typescript's transpileModule and svelte/compiler's compileModule, registered through node:module", /import ts from "typescript";/.test(S.loader) && /import \{ compileModule \} from "svelte\/compiler";/.test(S.loader) && /ts\.transpileModule\(source,/.test(S.loader) && /compileModule\(outputText, \{ filename: [^}]*generate: "client" \}\)/.test(S.loader) && /import \{ register \} from "node:module";\s*register\("\.\/loader\.mjs", import\.meta\.url\);/.test(S.register) && !/vitest|jest|mocha|tsx|ts-node|esbuild/.test(S.loader + S.register + S.routingTests + S.storeTests));
-check("npm test runs both files with node:test; the tests import the real routing module and the real store", pkg.scripts.test === "node --import ./tests/register.mjs --test tests/routing.test.mjs tests/store.test.mjs" && /import \{ test \} from "node:test";/.test(S.routingTests) && /await import\("\.\.\/src\/lib\/project\/routing\.ts"\)/.test(S.routingTests) && /await import\("\.\.\/src\/lib\/project\/store\.svelte\.ts"\)/.test(S.storeTests));
+check("npm test runs both files with node:test; the tests import the real routing module and the real store", /^node --import \.\/tests\/register\.mjs --test tests\/routing\.test\.mjs tests\/store\.test\.mjs( tests\/[a-z-]+\.test\.mjs)*$/.test(pkg.scripts.test) && /import \{ test \} from "node:test";/.test(S.routingTests) && /await import\("\.\.\/src\/lib\/project\/routing\.ts"\)/.test(S.routingTests) && /await import\("\.\.\/src\/lib\/project\/store\.svelte\.ts"\)/.test(S.storeTests));
 const required = [
   ["valid Track → Bus → Master", S.routingTests],
   ["valid Bus → Bus → Master", S.routingTests],
@@ -173,8 +173,8 @@ for (const [title, src] of required) check(`a test exists: ${title}`, src.includ
 check("the tests assert, they do not log: every test has at least one assertion and no console output", count(S.routingTests + S.storeTests, /\btest\(/g) >= 30 && !/console\.log/.test(S.routingTests + S.storeTests));
 
 // --- Scope. -------------------------------------------------------------------------------------
-const everythingCode = [R, ST, M, C.session, S.loader, S.register].join("\n");
-check("no undo / redo, autosave, persistence, copy-paste, sidechain or audio anywhere in the 3.2 code", !/undo|redo|autosave|localStorage|sessionStorage|indexedDB|clipboard|copyTo|paste|AudioContext|AudioWorklet|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now/i.test(everythingCode) && !/sidechain/i.test(R + ST + M + C.session));
+const routingCode = [R, M, C.session, S.loader, S.register].join("\n");
+check("no undo / redo, autosave, persistence, copy-paste, sidechain or audio anywhere in the 3.2 routing code; the store names history and the clipboard only by delegation to the Task 3.3 modules (check:editing) and touches no storage, timers or clocks itself", !/undo|redo|autosave|localStorage|sessionStorage|indexedDB|clipboard|copyTo|paste|AudioContext|AudioWorklet|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now/i.test(routingCode) && !/localStorage|sessionStorage|indexedDB|AudioContext|AudioWorklet|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now/i.test(ST) && !/sidechain/i.test(R + ST + M + C.session));
 check("no screws, ever", !/screw/i.test(S.routing + S.routingTests + S.storeTests + S.loader));
 check("no dependency change", Object.keys(pkg.dependencies ?? {}).length === 0 && Object.keys(pkg.devDependencies).sort().join(",") === "@sveltejs/vite-plugin-svelte,@types/node,svelte,svelte-check,typescript,vite,vite-plugin-singlefile");
 check("npm exposes the check", pkg.scripts["check:routing"] === "node scripts/check-routing-structure.mjs");
@@ -200,8 +200,8 @@ const pinned = {
   "src/lib/project/routing.ts": "f5479a9e7013514fdfbc09ba1914cc88f78fdfa6f146c3773d1d5eb7a0740588",
   "src/lib/project/model.ts": "e22940a550d6c8b6093b0a44a929a4b97f543855b42baab91a45a1d488d0b0bb",
   "src/lib/project/session.ts": "62e4130e2d2213ab1b8e89fd03956f7329bf0b192e6632f01b0921287c8d305b",
-  "src/lib/project/store.svelte.ts": "cd0b96f9f73b357f10d5a8455e8b4be87532e45ce28bbd925e14eb7a13f1f7ad",
-  "tests/loader.mjs": "d266114886f914666b340d07a89b71ff5c080a88d89caa6dd80f439eed2046ff",
+  "src/lib/project/store.svelte.ts": "3d0a854168f61370f35ca2e93b83a38932684acece93b5cebfd3614fd2c5284f",
+  "tests/loader.mjs": "51a401d95b0f35584ca7bce2dd564346ba6c1c2c066eeffa51ebd1ad5da15451",
   "tests/register.mjs": "80ef952e463fa5bf7eb9bf1b0a11dcbe5fe32e3a86391c2d596f6f41a8de7b56",
   "tests/routing.test.mjs": "bc389e8869b20fb0dc98ffa77e88d67c7c4c959622669fc7db7b7be96b37676d",
   "tests/store.test.mjs": "fa8e95472b1bdd2af0d7094093cf4ed970a032d07c6d68ea971824bb65b61103",

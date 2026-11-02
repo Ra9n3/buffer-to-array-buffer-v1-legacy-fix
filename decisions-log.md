@@ -3122,3 +3122,178 @@ correction). Committed on top of `6f99909`; **not pushed** — the signal was
 "commit" only, and the push of the three local commits (`55e0c5b`,
 `6f99909`, this one) still needs the owner's PAT (inline, never stored;
 revoke afterwards). Task 3.3 has not been started.
+
+## Task 3.3 — Undo / redo, autosave foundations, channel-settings copy / paste (2026-11-02; uncommitted, awaiting review — the owner handles Git)
+
+Direction: the last Phase 3 state task — a history over the one store
+(undo / redo across rooms), the project manifest and a save lifecycle
+(autosave foundations), and channel settings copied between compatible
+channels as one undoable edit (plan §4 "undo / redo", "copy / paste",
+"keyboard shortcuts"; §11 autosave and the manifest; L565 a separate
+persistence module; §14 roadmap "3.3 — then stop for the Phase 3 review").
+No UI redesign, no new control, no new dependency, no backend, no load /
+multi-project / cloud, no routing UI, no audio; D2.8 return-to-Auto and the
+3.2 routing / Return rules unchanged. The owner's four decisions (ask_user,
+2026-11-02) were taken before any code was written — D3.3.1. Report:
+`task-reports/3.3-report.md`; the editing layer is described in
+`data-model.md` §10. **Not committed, not tagged, not pushed** (owner's
+instruction); the build stops here for the full Phase 3 review.
+
+### D3.3.1 — The owner's decisions, as applied (owner, 2026-11-02)
+
+1. **Undo / redo are keyboard shortcuts only** — Ctrl / Cmd + Z, Ctrl / Cmd +
+   Shift + Z, Ctrl + Y; no visible control in any room (the approved UI is
+   untouched). A later task may add an Edit menu over the same `history`.
+2. **Autosave writes to `localStorage` and never restores on load** — the
+   app opens the approved fixture session every time; the saved manifest
+   (`alloy.project.<id>`) waits for a load task. Nothing else is persisted.
+3. **A pasted parameter takes the source's value AND its Auto / Manual
+   mode** — the chain's ownership travels with its settings; `original` on
+   the destination is untouched, so return-to-Auto stays D2.8.
+4. **`window.alloy` exists only when the URL has `?debug`** — `{project,
+   ops, history, clipboard, autosave, fields, flush}` for browser evidence
+   and the console; inert otherwise. It is also the only way to copy / paste
+   in this build (no UI, by the prompt).
+
+### D3.3.2 — One field registry; history is a diff over it, recorded by one observer (builder, 2026-11-02)
+
+**Alternative rejected:** snapshotting the project on every edit
+(`JSON.stringify` of the state: 344 kB and 36 ms per snapshot in the
+experiment — too heavy for a fader drag, and it would also capture things
+that must never be undone). **Chosen:** `fields.ts` enumerates every
+editable leaf once (1 076 `FieldRef`s with stable id-based paths, typed
+values, a copyable flag and a get / set pair writing the same properties the
+ops write); `history.ts` keeps one baseline per field and `observe()`
+records what moved as `{path, before, after}` patches. The store's single
+`$effect` (inside `$effect.root`) reads every field and calls `observe()`
+untracked, so **no write path changed**: the 23 ops, the Task 2.8 helpers,
+the components' direct bypass toggles and the clipboard all land in history
+without knowing it exists. Boundaries follow from the registry: room-local
+selection, fixture / presentation state, `original` values, the arrangement
+and the clipboard are not fields, so they cannot enter an entry; restores
+run with observation suspended, so undo / redo never record. Grouping: one
+synchronous block = one entry (a knob turn is value + mode in one step);
+coalescing only with a clock, into an open entry, within 1 000 ms, for the
+same fields (a drag is one step; two controls stay two steps); the store's
+paste is a labelled `transaction`. Limit 200 entries (patches are small; no
+UI navigates deeper yet). The pure module has no Svelte, DOM, storage or
+clock of its own; the shell injects `performance.now`. The cost: the observer
+reads 1 076 getters after each writing block — measured in Node (2 000
+iterations over the real store): `observe()` 0.12 ms with nothing changed,
+0.16 ms after a level write, `undo()` 0.21 ms — against the rejected
+snapshot's 36 ms.
+
+### D3.3.3 — The manifest is the registry; autosave is a lifecycle over injected storage and never lies (builder, 2026-11-02)
+
+`persistence.ts` serialises the registry (schema `alloy.project-manifest/1`,
+project id + name, `channels[id][rel] = value`; no timestamp, so unchanged
+content is byte-identical — 29 646 bytes for the session) and owns one save
+lifecycle: `clean | dirty | saving | saved | failed`, `dirty = revision ≠
+savedRevision`. Rules that make "saved" trustworthy: the saved revision and
+text move only after a successful write (or when the text already equals the
+last saved text — then the write is skipped and counted); a failing write
+keeps the previous saved point, reports `failed` with the error, and the
+project stays dirty until a later write succeeds or the content returns to
+the stored copy; edits during an asynchronous write re-arm the timer;
+without an adapter nothing is ever "saved" (`storage: null`). Storage and
+scheduling are injected (memory + manual scheduler in tests; `localStorage` +
+`setTimeout`, 1 000 ms, in the shell behind a try / catch), so the module
+has no browser dependency and the store no persistence code. The store
+forwards every history event to `autosave.notifyChange()` — one mechanism,
+shared by every room, that only reads the state. Write-only by the owner's
+decision: `parseManifest` exists for tests and the future load task; nothing
+applies a manifest.
+
+### D3.3.4 — The clipboard validates the whole payload first, writes in registry order, and the store makes it one entry (builder, 2026-11-02)
+
+`clipboard.ts` is the application's own clipboard (no `navigator.clipboard`,
+no DOM): `copyChannelSettings` takes the copyable fields of a channel — the
+documented boundary: `channel/trim`, `channel/pan` | `balance`,
+`channel/level`, every `chain/*` field (bypass flags, parameter value and
+mode, character value and mode); never identity / classification, `output`,
+sends, mute, solo — into a schema'd payload (`alloy.channel-settings/1`,
+kind, Return effect, source id / code / name, `settings` by `rel`).
+`pasteVerdict` decides in order — `malformed`, `unknown-destination`,
+`kind-mismatch`, `effect-mismatch` (reverb ≠ delay Return), `shape-mismatch`
+(a key the destination has no copyable field for), `invalid-value` — and only
+a fully valid payload yields a plan (differing fields only, registry order);
+a rejected paste writes nothing, an unchanged one is `ok` with 0 changes and
+writes nothing. The store's `clipboard.paste` wraps `applyPaste` in
+`history.transaction("Paste settings → 03 Snare Bottom")` so a paste of up
+to 37 settings is one undo step, visible in every room through the same
+bound objects; the verdict's plain-language `message` is returned as the API
+for a future Edit action (same pattern as the 3.2 routing verdicts). `held`
+is a module variable, not project state.
+
+### D3.3.5 — The shell is the one place the browser meets the foundations (builder, 2026-11-02)
+
+`shell.ts` + one call in `main.ts` after mount: the history clock, the
+autosave attachment, the `keydown` handler and the `?debug` handle. The
+decisions are pure (`shortcutAction`, `isTextEntry`, `wantsDebugHandle`):
+shortcuts are ignored with Alt, when another handler already prevented the
+event, and when the target is a text-like input / textarea / contenteditable
+(the browser's own text undo belongs to a field being typed in — the Knob's
+numeric entry is such a field); the handler `preventDefault`s so the
+browser's navigation undo never fires. No component or room imports the
+shell or any editing module (guarded).
+
+### D3.3.6 — Tests: 43 new node tests (76 total); the loader learned `./store.svelte` (builder, 2026-11-02)
+
+`tests/history.test.mjs` (13), `persistence.test.mjs` (9),
+`clipboard.test.mjs` (8, pure project — the registry over a session, the
+copyable list pinned by name, every rejection reason), `editing.test.mjs`
+(8, the REAL store: the observer through `await tick()`, every op / helper /
+direct write path → exactly one entry each and a byte-identical project
+after undoing all 33, no-ops and rejections record nothing, cross-room views
+under undo / redo, routing validity preserved, paste as one entry, autosave
+wired) and `shell.test.mjs` (5, a fake window: clock, debounce, shortcuts,
+text-entry exemption, uninstall, `?debug`, disabled storage). `npm test`
+runs all seven files (33 + 43 = 76). `tests/loader.mjs` (3.2) treated
+`./store.svelte` as a file with an extension and could not resolve the
+shell's import; the extensionless rule now stops only at real file
+extensions (`.ts / .js / .mjs / .json / .css`) — backward compatible, 3.2
+tests unchanged and green.
+
+### D3.3.7 — Guards: `check:editing` added (69); `check:project` and `check:routing` re-scoped; 20 guards 1672 / 1672 (builder, 2026-11-02)
+
+`scripts/check-editing-structure.mjs` (69 checks; ten mutations caught: a
+send destination or a mute made copyable, restores recorded as edits, the
+limit changed without the document, `written()` not moving the saved
+revision, a shortcut without `preventDefault`, the debug handle without
+`?debug`, a paste outside the transaction, an undo button in a strip, a paste
+skipping value validation) pins the five modules, the store, `main.ts` and
+`App.svelte`, requires `data-model.md` §10 and the seven-file test script,
+and forbids any undo / redo / clipboard / paste / autosave text or control
+in the UI. `check:project`: the ops-body slice now ends at the ops object's
+own `} as const;` (the clipboard object follows it), the store negative
+drops `undo|redo|history` (delegation to the 3.3 modules is required
+instead) and the scope negatives exclude the store, which must still touch
+no storage; the "no `$effect`" negative becomes "exactly the observer".
+`check:routing`: the 3.2-code negative no longer covers the store (which now
+names history / clipboard by delegation but still may not touch storage,
+timers or clocks); the test-script check accepts appended test files.
+Re-pinned (content changed by 3.3): `store.svelte.ts` (all three guards),
+`tests/loader.mjs`. Totals: 20 guards, 1672 / 1672; `npm run check` 0 / 0;
+`npm test` 76 / 76; build `dist/index.html` `d6c83402668f4cd3` (517.36 kB,
+gzip 137.17 kB; 245 modules — +5, the five editing modules; +14.89 kB /
++4.71 kB gzip over 3.2).
+
+## Task 3.3 — approved
+
+Owner, 2026-11-02: **"approved, commit, and push"** (PAT supplied inline).
+Task 3.3 is closed as built and reported in `task-reports/3.3-report.md`;
+D3.3.1–D3.3.7 stand (the coalescing window of 1 000 ms, the limit of 200,
+identity classification in history, the manifest carrying identity and
+routing, the label / rejection wording and Ctrl + Y as redo stand as chosen
+unless the owner names others later). The approval covers the field
+registry and its copyable boundary (D3.3.2, D3.3.4), the diff history with
+the store's single observer (D3.3.2), the manifest and the autosave
+lifecycle (D3.3.3), the clipboard with its verdict API and one-transaction
+paste (D3.3.4), the shell (D3.3.5), the 43 new node tests (D3.3.6) and the
+guard hand-overs (D3.3.7: 20 guards, 1672 / 1672). Committed to local `main`
+on top of `d9ee17a` (Task 3.2) and **pushed to remote `main`** together with
+the three commits that were waiting for a token — `55e0c5b` (2.9), `6f99909`
+(3.1), `d9ee17a` (3.2); remote `main` moves from `5daada5` to this commit.
+The token was used inline only and never stored; the owner is reminded to
+revoke it. **Phase 3 is complete; the build stops here for the full Phase 3
+review. Phase 4 has not been started.**

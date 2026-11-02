@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "node --import ./tests/register.mjs --test tests/routing.test.mjs tests/store.test.mjs",
+    "test": "node --import ./tests/register.mjs --test tests/routing.test.mjs tests/store.test.mjs tests/history.test.mjs tests/persistence.test.mjs tests/clipboard.test.mjs tests/editing.test.mjs tests/shell.test.mjs",
     "check:arrange": "node scripts/check-arrange-structure.mjs",
     "check:mixer": "node scripts/check-mixer-structure.mjs",
     "check:transport": "node scripts/check-transport-structure.mjs",
@@ -27,7 +27,8 @@
     "check:mixer-detail": "node scripts/check-mixer-detail-structure.mjs",
     "check:mixer-chain-types": "node scripts/check-mixer-chain-types-structure.mjs",
     "check:project": "node scripts/check-project-store-structure.mjs",
-    "check:routing": "node scripts/check-routing-structure.mjs"
+    "check:routing": "node scripts/check-routing-structure.mjs",
+    "check:editing": "node scripts/check-editing-structure.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",

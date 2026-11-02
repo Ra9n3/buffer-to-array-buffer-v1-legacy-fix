@@ -34,10 +34,21 @@
  * output is fixed at Master (no op exists for it). `project.routeOf`,
  * `project.destinationsFor` and `project.validateRouting` are the reads.
  *
+ * Editing (Task 3.3): the field registry (lib/project/fields.ts) lists
+ * every leaf of this project an approved control or an op can write; ONE
+ * reactive observer below reads those fields after every write and hands
+ * the changes to `history` (lib/project/history.ts — undo / redo, pure),
+ * which tells `autosave` (lib/project/persistence.ts — the manifest and
+ * the save lifecycle, pure; storage and timing are attached by the app
+ * shell, lib/project/shell.ts). `clipboard` copies the registry's copyable
+ * subset between channels of the same kind (lib/project/clipboard.ts) and
+ * pastes inside one history transaction. None of these hold project state;
+ * the one `$state` tree below is still the only project state in `src/`.
+ *
  * What is NOT here, on purpose: transient UI state (selected room or
  * channel, scroll, open menus — those stay in the rooms and components),
- * undo / redo, autosave, persistence (Task 3.3), audio, analysis, sidechain
- * relationships (Phase 7).
+ * the clipboard's reactivity or any Edit menu (no control exists yet),
+ * audio, analysis, sidechain relationships (Phase 7).
  */
 
 import {
@@ -90,12 +101,51 @@ import {
   type RoutingVerdict,
 } from "./routing";
 import { createSessionProject } from "./session";
+import { untrack } from "svelte";
+import { applyPaste, copyChannelSettings, pasteVerdict, type ChannelSettings, type PasteVerdict } from "./clipboard";
+import { projectFields } from "./fields";
+import { createHistory } from "./history";
+import { buildManifest, createAutosave, serializeManifest } from "./persistence";
 
 /* =========================================================================
    THE STATE
    ========================================================================= */
 
 const state: Project = $state(createSessionProject());
+
+/* =========================================================================
+   EDITING (Task 3.3) — the registry, history, autosave, the observer
+   ========================================================================= */
+
+/** Every editable leaf of the project, by stable path (fields.ts). Built once: channels are never added or removed in this build. */
+export const fieldRegistry = projectFields(state);
+
+/** Undo / redo over the registry. The shell gives it a clock (coalescing); tests drive `observe()` directly. */
+export const history = createHistory({ fields: fieldRegistry });
+
+/** The save lifecycle over the manifest of the registry. The shell attaches storage + scheduling; until then nothing is ever reported saved. */
+export const autosave = createAutosave({
+  key: `alloy.project.${state.id}`,
+  serialize: () => serializeManifest(buildManifest(state, fieldRegistry)),
+  revision: () => history.revision,
+});
+history.subscribe(() => autosave.notifyChange());
+
+/*
+ * THE OBSERVER — the one effect in the store. It reads every registered
+ * field, so any write to any of them (an op, a Task 2.8 helper, a
+ * component's bypass toggle, a paste, a restore) re-runs it after the
+ * writing block, and `history.observe()` records what moved as one entry.
+ * Reads only; `history` is read untracked so recording never re-triggers
+ * it. Restores (undo / redo) run with observation suspended inside
+ * `history`, so they are never recorded as new edits.
+ */
+$effect.root(() => {
+  $effect(() => {
+    for (const f of fieldRegistry) f.get();
+    untrack(() => history.observe());
+  });
+});
 
 /* --- lookups: an unknown id is a programming error, never a silent no-op --- */
 
@@ -382,6 +432,44 @@ export const ops = {
     const b = mustBus(id);
     const verdict = validateRoute(state, id, to);
     if (verdict.ok && b.output !== to) b.output = to;
+    return verdict;
+  },
+} as const;
+
+/* =========================================================================
+   CLIPBOARD (Task 3.3) — channel settings between channels of one kind.
+   `held` is the application clipboard: not project data, not in history,
+   not persisted. No control binds this yet (owner): the verdict is
+   returned so a future Edit action can print its message as it is.
+   ========================================================================= */
+
+let held: ChannelSettings | null = null;
+
+export const clipboard = {
+  /** Read the copyable settings of a channel into the clipboard (and return them). Unknown id throws. */
+  copy(id: ChannelId): ChannelSettings {
+    held = copyChannelSettings(state, fieldRegistry, id);
+    return held;
+  },
+  get held(): ChannelSettings | null {
+    return held;
+  },
+  clear(): void {
+    held = null;
+  },
+  /** Would this payload paste onto that channel? Nothing is written. */
+  canPaste(id: ChannelId, payload: unknown = held): PasteVerdict {
+    return pasteVerdict(state, fieldRegistry, payload, id);
+  },
+  /**
+   * Paste onto a channel as ONE history entry. The verdict decides first; a
+   * rejected or unchanged paste writes nothing.
+   */
+  paste(id: ChannelId, payload: unknown = held): PasteVerdict {
+    const verdict = pasteVerdict(state, fieldRegistry, payload, id);
+    if (!verdict.ok || verdict.changes === 0) return verdict;
+    const target = project.channel(id);
+    history.transaction(`Paste settings → ${target ? `${target.code} ${target.name}` : id}`, () => applyPaste(verdict.plan));
     return verdict;
   },
 } as const;
