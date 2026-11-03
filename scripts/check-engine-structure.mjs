@@ -51,13 +51,15 @@ const FILES = [
   "src/lib/engine/audibility.ts",
   "src/lib/engine/chains.ts",
   "src/lib/engine/mix-engine.ts",
+  // Task 7.2 added the detector-signal path as its own engine module.
+  "src/lib/engine/sidechain.ts",
 ];
 for (const rel of FILES) {
   check(`exists: ${rel}`, exists(rel));
 }
 const engineFiles = walk("src/lib/engine");
 const engineCode = Object.fromEntries(engineFiles.map((rel) => [rel, stripComments(read(rel))]));
-check("the engine layer is exactly these five files", engineFiles.length === FILES.length, `${engineFiles.length} files`);
+check("the engine layer is exactly these files", engineFiles.length === FILES.length, `${engineFiles.length} files`);
 
 const forbidden = /svelte|localStorage|sessionStorage|document\.|window\.|requestAnimationFrame|setTimeout|setInterval|fetch\(/;
 for (const [rel, code] of Object.entries(engineCode)) {
@@ -212,8 +214,9 @@ const pinned = {
   "src/lib/engine/pan.ts": "c03ac7e1f0786125080081d3af6b18fe8f41082947b548fc323f25b0bc6e0505",
   "src/lib/engine/constants.ts": "6a0fb2fba1457ba4dfeaa955e7cb1020931e3bc5187f0703cac7b9579124710e",
   "src/lib/engine/audibility.ts": "d161c11ac94a4b188490ca8655b163380bbfda97b06f504e131a224706f0d8b5",
-  "src/lib/engine/chains.ts": "a615b3eafac971158af9e9c51c92c9f9f1591e3d58857c80fbcfbc3fdd652ce8",
-  "src/lib/engine/mix-engine.ts": "1f069b240147d4e6efc1b70fdc664ac290a91754ba22ae366acb89a6c269d9e0",
+  "src/lib/engine/chains.ts": "41232cad82d35978f086726e63fa85f730d541ebd46a848bc8ee6c5b7acad186",
+  "src/lib/engine/mix-engine.ts": "1450c7168b3bcde57694d3ccd17cf5f71e06971311f39077dda6f89cb0343f81",
+  "src/lib/engine/sidechain.ts": "5ef6f3c2853ce37f4a1f75ee92242f68ffbd8e728a736ed9f8de040326641881",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`reviewed file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

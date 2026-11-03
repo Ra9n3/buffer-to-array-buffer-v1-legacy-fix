@@ -42,9 +42,10 @@ import { SafetyLimiter } from "../dsp/limiter";
 import { defaultCount, requireBuffers } from "../dsp/buffers";
 import { DSP_SAMPLE_RATE, requireSampleRate } from "../dsp/params";
 import { validateGraph } from "../project/routing";
-import type { Bus, BusId, Project, ReturnBusId, Track, TrackId } from "../project/model";
+import type { Bus, BusId, ChannelId, Project, ReturnBusId, SidechainEdge, Track, TrackId } from "../project/model";
 import { computeAudibility, busProcessingOrder, type Audibility } from "./audibility";
-import { BusChain, ReturnChain, TrackChain } from "./chains";
+import { BusChain, ReturnChain, TrackChain, type DetectorKeys } from "./chains";
+import { validateSidechains, type SidechainVerdict } from "./sidechain";
 import { MASTER_LIMITER } from "./constants";
 
 /** One stereo block: two channels of the project's Float32 format. */
@@ -108,6 +109,14 @@ export class MixEngine {
   private readonly masterBuffer: [Float32Array, Float32Array];
   private readonly limiter: SafetyLimiter;
 
+  /** The detector edges this engine runs from — validated separately from the graph. */
+  private currentSidechains: SidechainVerdict;
+  /**
+   * One key buffer per (destination, processor), sized in the constructor. The same
+   * bundle object is reused every block, so the block loop allocates nothing.
+   */
+  private keyBundles: ReadonlyMap<ChannelId, DetectorKeys>;
+
   constructor(project: Project, options: MixEngineOptions = {}) {
     const verdict = validateGraph(project);
     if (!verdict.ok) {
@@ -149,6 +158,27 @@ export class MixEngine {
 
     this.limiter = new SafetyLimiter({ ...MASTER_LIMITER }, dspOptions);
     this.latencyFrames = this.limiter.latencyFrames;
+
+    this.currentSidechains = validateSidechains(project);
+    this.keyBundles = this.buildKeyBundles(this.currentSidechains, maxFrames);
+  }
+
+  /**
+   * Allocate the key buffers a plan needs. Called from the constructor and from
+   * `refreshSidechains` — never from `process`, which must not allocate.
+   */
+  private buildKeyBundles(verdict: SidechainVerdict, frames: number): ReadonlyMap<ChannelId, DetectorKeys> {
+    const bundles = new Map<ChannelId, DetectorKeys>();
+    for (const [destination, processors] of verdict.plan) {
+      const bundle: { compressor?: readonly Float32Array[]; dynamicEq?: readonly Float32Array[] } = {};
+      for (const processor of processors.keys()) {
+        const buffer = zeroPair(frames);
+        if (processor === "compressor") bundle.compressor = buffer;
+        else bundle.dynamicEq = buffer;
+      }
+      bundles.set(destination, bundle);
+    }
+    return bundles;
   }
 
   /** The longest tail any Return may still produce, seconds — Task 7.4's number. */
@@ -181,6 +211,72 @@ export class MixEngine {
     return this.limiter.gainReductionDb;
   }
 
+  private fillKeys(trackInputs: TrackInputs, frames: number): void {
+    for (const [destination, bundle] of this.keyBundles) {
+      const sources = this.currentSidechains.plan.get(destination);
+      if (bundle.compressor !== undefined) {
+        this.fillKey(bundle.compressor, sources?.get("compressor"), trackInputs, frames);
+      }
+      if (bundle.dynamicEq !== undefined) {
+        this.fillKey(bundle.dynamicEq, sources?.get("dynamic-eq"), trackInputs, frames);
+      }
+    }
+  }
+
+  /**
+   * One key buffer = the source's pre-fader, post-trim input for this block.
+   *
+   * A source that is muted or solo-excluded delivers silence, which is the Task 7.1
+   * audibility rule applied to the detector path: no signal in, no reduction out. A
+   * source with no audio this block is silence for the same reason. Nothing is
+   * allocated here.
+   */
+  private fillKey(
+    key: readonly Float32Array[],
+    sourceId: TrackId | undefined,
+    trackInputs: TrackInputs,
+    frames: number,
+  ): void {
+    if (sourceId === undefined) {
+      this.silenceKey(key, frames);
+      return;
+    }
+    const input = trackInputs.get(sourceId);
+    const chain = this.trackChains.get(sourceId);
+    if (input === undefined || chain === undefined || !this.currentAudibility.outputPasses(sourceId)) {
+      this.silenceKey(key, frames);
+      return;
+    }
+    const trim = chain.trimGain;
+    for (let c = 0; c < CHANNELS; c++) {
+      const from = input[c];
+      const to = key[c];
+      for (let i = 0; i < frames; i++) to[i] = from[i] * trim;
+    }
+  }
+
+  private silenceKey(key: readonly Float32Array[], frames: number): void {
+    for (let c = 0; c < CHANNELS; c++) key[c].fill(0, 0, frames);
+  }
+
+  /** The detector edges this engine is running from, including any rejected ones. */
+  get sidechainVerdict(): SidechainVerdict {
+    return this.currentSidechains;
+  }
+
+  /**
+   * Re-read the detector edges after a controller changes one (Task 7.2). Only the key
+   * plan is rebuilt — the chains, their state, the audibility rules and the audible
+   * graph are untouched. Buffers are allocated here, which is why this must not be
+   * called from inside `process`.
+   */
+  refreshSidechains(edges?: readonly SidechainEdge[]): SidechainVerdict {
+    const project = edges === undefined ? this.project : { ...this.project, sidechains: edges };
+    this.currentSidechains = validateSidechains(project);
+    this.keyBundles = this.buildKeyBundles(this.currentSidechains, this.maxFramesPerBlock);
+    return this.currentSidechains;
+  }
+
   /**
    * Process one block. `master` receives the limited sum; the inputs map may omit a
    * track (it then contributes silence). Taps, when given, receive what each bus or
@@ -206,6 +302,10 @@ export class MixEngine {
 
     const scratch = this.scratch;
 
+    // 0. Sidechain keys, from THIS block and before any chain runs: a key is always
+    //    sample-aligned with the audio it drives and can never be a previous block's.
+    this.fillKeys(trackInputs, blockFrames);
+
     // 1. Tracks, in project order.
     for (const track of this.trackOrder) {
       const sends = track.channel.sends;
@@ -219,7 +319,7 @@ export class MixEngine {
 
       copyInto(scratch, trackInputs.get(track.id) ?? null, blockFrames);
       const chain = this.trackChains.get(track.id) as TrackChain;
-      chain.process(scratch, blockFrames);
+      chain.process(scratch, blockFrames, this.keyBundles.get(track.id));
 
       // Post-fader sends (plan §8a): the same post-pan signal into each Return.
       for (const send of sends) {
@@ -242,7 +342,7 @@ export class MixEngine {
       const buffer = this.busBuffers.get(bus.id) as StereoBlock;
       if (!this.audibility.outputPasses(bus.id)) continue;
       const chain = this.busChains.get(bus.id) as BusChain;
-      chain.process(buffer, blockFrames);
+      chain.process(buffer, blockFrames, this.keyBundles.get(bus.id));
       const tap = taps?.buses?.get(bus.id);
       if (tap) copyInto(tap, buffer, blockFrames);
       const destination = bus.output === "master" ? this.masterBuffer : this.busBuffers.get(bus.output);

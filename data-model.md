@@ -2091,3 +2091,120 @@ which is a new `MixEngine`.
 The console's UI and store wiring for any of this; sidechain routing (7.2); masking
 resolution (7.3); chunked rendering, tail scheduling and latency compensation (7.4);
 transport, playback and export; and any change to the approved DSP algorithms.
+
+## 18. Sidechain routing — the detector-signal path (Task 7.2)
+
+An external key lets one track drive another channel's **detector** without touching
+the audio either of them carries. It is a third kind of edge, but a *detector* edge:
+it is validated separately from the audible graph and it never carries audio.
+
+### 18.1 The model
+
+`model.ts` gains two types and one optional field (owner, 2026-11-03):
+
+```ts
+export type SidechainProcessor = "compressor" | "dynamic-eq";
+
+export interface SidechainEdge {
+  readonly source: TrackId;        // the key: a track's pre-fader signal
+  readonly destination: ChannelId; // a track or a bus
+  readonly processor: SidechainProcessor;
+}
+
+interface Project { …; readonly sidechains?: readonly SidechainEdge[]; }
+```
+
+The field is **optional** so a project stored before 7.2 loads unchanged; absent means
+"no sidechain", never "unknown". Wiring the field to the store, the UI or persistence
+is not part of this task (§18.6).
+
+### 18.2 The signal path
+
+| Property | Contract |
+| --- | --- |
+| Tap point | **pre-fader, post-trim** (owner, 2026-11-03): the source track's input block × its TRIM |
+| Destination | a track's compressor / dynamic EQ, or a bus's compressor |
+| Source | a track only |
+| What it drives | the detector, and only the detector |
+| What it processes | the destination's own audio, unchanged |
+| Audible effect of the edge | none — no audio is added, duplicated or re-routed |
+
+Because the tap is the source's **input**, a key is computed from the same block's raw
+audio before any chain runs. That single decision gives the task's timing guarantees for
+free: the key is sample-aligned with the audio it drives, it never depends on another
+chain's output, it is never a previous block's data, and it cannot add latency or create
+a processing cycle.
+
+### 18.3 How the keys reach the detectors
+
+`engine/sidechain.ts` validates the declared edges and builds a plan
+(`destination → processor → source track`). `MixEngine` allocates one key buffer per
+planned detector in the constructor, fills every buffer at the top of each block, and
+hands the bundle to the chain:
+
+```ts
+trackChain.process(scratch, frames, keys);   // keys = { compressor?, dynamicEq? }
+```
+
+Inside the chains, an absent key is self-detection exactly as before:
+
+```ts
+if (this.dynamicEq) this.dynamicEq.process(buffer, buffer, frames, keys?.dynamicEq);
+this.compressor.process(buffer, buffer, frames, keys?.compressor);
+```
+
+`Compressor.process` gained the optional fourth parameter this task needed, on the
+Dynamic EQ's exact contract (owner, 2026-11-03): `key` present → the detector reads the
+key; `key` absent → it reads the module's input. Nothing else in the compressor changed;
+the audio path, the characters, the knee, the progressive ratio and the release laws are
+untouched, and with no key the output is bit-identical to 6.2.
+
+### 18.4 Validation — separate from the audible graph
+
+`validateSidechains(project)` never throws and never repairs. Unlike `validateGraph`,
+a broken detector edge must not stop a project from playing; it must stop that one
+detector from being keyed. Every rejection is returned with a reason and a message:
+
+| Reason | When |
+| --- | --- |
+| `malformed` | the edge is not a `{source, destination, processor}` shape |
+| `unknown-source` | the source is not a track in the project |
+| `unknown-destination` | the destination is not a channel in the project |
+| `source-not-a-track` | reserved: sources are tracks only |
+| `unsupported-destination` | the destination is a Return, which has no compressor or dynamic EQ |
+| `self-sidechain` | source and destination are the same channel |
+| `duplicate-assignment` | a second edge for the same destination and processor (the first wins) |
+
+A rejected edge is dropped, so the processor falls back to its own input — the audio is
+never silently connected, because nothing is connected at all.
+
+**Cycles need no rule here.** With a pre-fader tap, a key never depends on processing, so
+two tracks may key each other with no feedback path and no ordering ambiguity. The only
+degenerate case — a channel keying itself — is rejected above.
+
+### 18.5 Availability, mute and solo
+
+The key follows the Task 7.1 audibility rules (owner, 2026-11-03):
+
+- a source that is **muted** or **solo-excluded** delivers silence, so the destination's
+  detector sees no signal and applies no reduction;
+- a source with **no audio in the block** is silence for the same reason;
+- an **unavailable or invalid** source means self-detection plus a reported problem.
+
+Availability is the source track's own output predicate. A key therefore passes while
+the source is audible in the session, even if the bus it feeds is turned down — the key
+follows the source, not the source's monitoring path.
+
+### 18.6 Lifecycle and scope
+
+- Buffers are sized once, in the constructor; `process()` allocates nothing (asserted by
+  a test and by the guard).
+- `refreshSidechains(edges?)` re-validates and rebuilds the plan after a controller
+  changes an assignment. Chains, their state and the audible graph are untouched;
+  allocation happens here, never in the block loop.
+- `engine.latencyFrames` is unchanged by sidechains — the detector tap is not in the
+  audible path.
+- **Not in this build (by design):** UI controls, store fields, persistence and clipboard
+  support for `Project.sidechains`; Return destinations and non-track sources; key
+  filtering, weighting, lookahead or a key-level control; masking (7.3); rendering and
+  tail handling (7.4).

@@ -41,6 +41,7 @@ import { CLEANUP_EXPANDER, DYNAMIC_BAND_GATE } from "./constants";
 import { balanceGains, panGains, type PanGains } from "./pan";
 
 const CHANNELS = 2;
+
 const SEND_FLOOR_DB = -60;
 
 /** A dB value as a linear gain. */
@@ -130,6 +131,16 @@ function compressorOf(comp: CompState, options: DspOptions): Compressor {
  * One track's chain — the plan's eight blocks, less the last (sends and routing),
  * which is the engine's work because it touches other channels.
  */
+/**
+ * The detector keys a chain may be handed for one block (Task 7.2). Both modules keep
+ * their own detectors: a key replaces the *signal they listen to*, never the audio
+ * they process, and an absent key is self-detection exactly as before.
+ */
+export interface DetectorKeys {
+  readonly compressor?: readonly Float32Array[];
+  readonly dynamicEq?: readonly Float32Array[];
+}
+
 export class TrackChain {
   readonly trimGain: number;
   readonly faderGain: number;
@@ -175,7 +186,7 @@ export class TrackChain {
    * Block 1–7 of the plan's chain, in order, in place. Pan and fader are the last
    * two: after them the signal belongs to the summing stage.
    */
-  process(buffer: readonly Float32Array[], frames: number): void {
+  process(buffer: readonly Float32Array[], frames: number, keys?: DetectorKeys): void {
     const trim = this.trimGain;
     for (let c = 0; c < CHANNELS; c++) {
       const data = buffer[c];
@@ -183,8 +194,8 @@ export class TrackChain {
     }
     if (this.expander) this.expander.process(buffer, buffer, frames);
     this.eq.process(buffer, buffer, frames);
-    if (this.dynamicEq) this.dynamicEq.process(buffer, buffer, frames);
-    this.compressor.process(buffer, buffer, frames);
+    if (this.dynamicEq) this.dynamicEq.process(buffer, buffer, frames, keys?.dynamicEq);
+    this.compressor.process(buffer, buffer, frames, keys?.compressor);
 
     const left = this.pan.left * this.faderGain;
     const right = this.pan.right * this.faderGain;
@@ -238,14 +249,14 @@ export class BusChain {
   }
 
   /** No expander, no dynamic band and no sends: none of them is in the plan for a bus. */
-  process(buffer: readonly Float32Array[], frames: number): void {
+  process(buffer: readonly Float32Array[], frames: number, keys?: DetectorKeys): void {
     const trim = this.trimGain;
     for (let c = 0; c < CHANNELS; c++) {
       const data = buffer[c];
       for (let i = 0; i < frames; i++) data[i] *= trim;
     }
     this.eq.process(buffer, buffer, frames);
-    this.compressor.process(buffer, buffer, frames);
+    this.compressor.process(buffer, buffer, frames, keys?.compressor);
     const left = this.balance.left * this.faderGain;
     const right = this.balance.right * this.faderGain;
     const targetL = buffer[0];

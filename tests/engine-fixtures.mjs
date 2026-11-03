@@ -145,8 +145,8 @@ export function returnFixture(options) {
   };
 }
 
-export function projectFixture({ tracks = [], buses = [], returns = [] } = {}) {
-  return {
+export function projectFixture({ tracks = [], buses = [], returns = [], sidechains } = {}) {
+  const project = {
     id: "engine-fixture",
     name: "Engine fixture",
     template: "session-fixture",
@@ -155,6 +155,9 @@ export function projectFixture({ tracks = [], buses = [], returns = [] } = {}) {
     buses,
     arrangement: { barCount: 1, timeSignature: "4/4", sections: [], tempoMarkers: [], clips: {} },
   };
+  // Task 7.2: the field is optional in the model, so the fixture only carries it when a
+  // test declares edges — which also exercises the "absent means no sidechain" path.
+  return sidechains === undefined ? project : { ...project, sidechains };
 }
 
 /* --- signal helpers ---------------------------------------------------------------------- */

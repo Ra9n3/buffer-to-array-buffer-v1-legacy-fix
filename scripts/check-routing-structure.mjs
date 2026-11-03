@@ -174,7 +174,7 @@ check("the tests assert, they do not log: every test has at least one assertion 
 
 // --- Scope. -------------------------------------------------------------------------------------
 const routingCode = [R, M, C.session, S.loader, S.register].join("\n");
-check("no undo / redo, autosave, persistence, copy-paste, sidechain or audio anywhere in the 3.2 routing code; the store names history and the clipboard only by delegation to the Task 3.3 modules (check:editing) and touches no storage, timers or clocks itself", !/undo|redo|autosave|localStorage|sessionStorage|indexedDB|clipboard|copyTo|paste|AudioContext|AudioWorklet|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now/i.test(routingCode) && !/localStorage|sessionStorage|indexedDB|AudioContext|AudioWorklet|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now/i.test(ST) && !/sidechain/i.test(R + ST + M + C.session));
+check("no undo / redo, autosave, persistence, copy-paste, sidechain or audio anywhere in the 3.2 routing code (Task 7.2 added the sidechain FIELD to the model only, with its own validator — the routing module and the store still have none); the store names history and the clipboard only by delegation to the Task 3.3 modules (check:editing) and touches no storage, timers or clocks itself", !/undo|redo|autosave|localStorage|sessionStorage|indexedDB|clipboard|copyTo|paste|AudioContext|AudioWorklet|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now/i.test(routingCode) && !/localStorage|sessionStorage|indexedDB|AudioContext|AudioWorklet|requestAnimationFrame|setInterval|setTimeout|Math\.random|performance\.now|Date\.now/i.test(ST) && !/sidechain/i.test(R + ST + C.session) && /readonly sidechains\?: readonly SidechainEdge\[\];/.test(M));
 check("no screws, ever", !/screw/i.test(S.routing + S.routingTests + S.storeTests + S.loader));
 check("no dependency change", Object.keys(pkg.dependencies ?? {}).length === 0 && Object.keys(pkg.devDependencies).sort().join(",") === "@sveltejs/vite-plugin-svelte,@types/node,svelte,svelte-check,typescript,vite,vite-plugin-singlefile");
 check("npm exposes the check", pkg.scripts["check:routing"] === "node scripts/check-routing-structure.mjs");
@@ -198,7 +198,7 @@ const pinned = {
   "src/lib/mixer-chain.ts": "818fb94f4560f173819dacb76bf42726db67b28a18eb7288dacdba74f67919d2",
   // added / touched in Task 3.2, as reviewed
   "src/lib/project/routing.ts": "f5479a9e7013514fdfbc09ba1914cc88f78fdfa6f146c3773d1d5eb7a0740588",
-  "src/lib/project/model.ts": "f8e9686f21d12d059f953d9f13d3be457ff08aac98ddb8e116e681a9e64a95ce",
+  "src/lib/project/model.ts": "7df7e5b93e21573d82f022ad46ab46245db01d9ba9e00ce780cb8ab27f4bc541",
   "src/lib/project/session.ts": "079a77226200f30858f9588aafa0cb50b30b5c182b8e15a63f0fe9231a4736d5",
   "src/lib/project/store.svelte.ts": "350d510d6d43fe679680731f1b5b11668fa5bbc065c51f781b624873fb2aaec2",
   "tests/loader.mjs": "51a401d95b0f35584ca7bce2dd564346ba6c1c2c066eeffa51ebd1ad5da15451",

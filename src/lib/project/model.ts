@@ -162,6 +162,26 @@ export interface ChannelDisplay {
   readonly peak: boolean;
 }
 
+/**
+ * Which detector a sidechain edge keys (Task 7.2). Both are the *same* detectors the
+ * modules already own: with no edge the processor detects from its own input.
+ */
+export type SidechainProcessor = "compressor" | "dynamic-eq";
+
+/**
+ * One external detector key (Task 7.2, owner 2026-11-03): the pre-fader, post-trim
+ * signal of `source` drives `destination`'s detector. It is a detector edge, not an
+ * audible one — it never carries audio into the destination channel, and the audible
+ * graph is unchanged by it.
+ */
+export interface SidechainEdge {
+  /** The track whose pre-fader signal is the key. Only tracks can be sources. */
+  readonly source: TrackId;
+  /** The track or bus whose compressor / dynamic EQ listens to the key. */
+  readonly destination: ChannelId;
+  readonly processor: SidechainProcessor;
+}
+
 export interface Track {
   readonly kind: "track";
   readonly id: TrackId;
@@ -331,6 +351,13 @@ export interface Project {
   readonly returns: ReturnBus[];
   readonly buses: Bus[];
   readonly arrangement: Arrangement;
+  /**
+   * External detector keys (Task 7.2). Optional so a project stored before 7.2 loads
+   * unchanged; absent means "no sidechain", never "unknown". Invalid edges never
+   * create a connection: the engine reports them and the processor falls back to its
+   * own input (`validateSidechains`).
+   */
+  readonly sidechains?: readonly SidechainEdge[];
 }
 
 /** The label the rooms print for a channel kind (Task 0.5 / 2.7). */

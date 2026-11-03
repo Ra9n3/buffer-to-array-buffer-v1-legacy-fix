@@ -400,7 +400,7 @@ check(
 // --- 11. Pins: the 6.2 modules as reviewed. ----------------------------------------------------------
 const pinned = {
   "src/lib/dsp/dynamics.ts": "242b86ec893c8a4b5db58727fad140321e39192b284f4ec61359739c269e4675",
-  "src/lib/dsp/compressor.ts": "b94a5b1ee7a2ab32730d56e8e71b05d1e330dc04e482c047da3cfc94698d493e",
+  "src/lib/dsp/compressor.ts": "bac2cbc5a7894abde0bb1593a6bdf2ecb6d6aa276d9cba38d2cef73fe087503b",
   "src/lib/dsp/expander.ts": "66ad6a901516072bcb8507030e67e376a09e8544dfee7ee0ea832450f1760bd9",
   "src/lib/dsp/limiter.ts": "f31f07e9db3ed4bef3bf9147e4d1ed7cb20479d59f456c5eb202ef37068b1522",
 };

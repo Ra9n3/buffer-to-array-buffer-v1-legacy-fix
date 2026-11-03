@@ -43,7 +43,7 @@
  * always been there.
  */
 
-import { copyChannels, defaultCount, requireBuffers } from "./buffers";
+import { copyChannels, defaultCount, requireBuffers, requireKeyBuffers } from "./buffers";
 import {
   compressionReduction,
   dbToGain,
@@ -276,9 +276,22 @@ export class Compressor {
     }
   }
 
-  process(input: readonly Float32Array[], output: readonly Float32Array[], count?: number): void {
+  /**
+   * Processes `count` frames of every channel into `output` (the same arrays are
+   * allowed). `key` is the optional sidechain, on exactly the contract the Dynamic EQ
+   * already uses: when present **the detector reads the key**, when absent it reads the
+   * module's input. The audio being processed is always `input` — the key only drives
+   * the detector, so a key never becomes an audible connection (Task 7.2).
+   */
+  process(
+    input: readonly Float32Array[],
+    output: readonly Float32Array[],
+    count?: number,
+    key?: readonly Float32Array[],
+  ): void {
     const frames = count === undefined ? defaultCount(input) : count;
     requireBuffers("Alloy Compressor", this.channels, input, output, frames);
+    if (key !== undefined) requireKeyBuffers("Alloy Compressor", this.channels, key, frames);
     if (this.settings.bypassed) {
       copyChannels(this.channels, input, output, frames);
       return;
@@ -301,8 +314,10 @@ export class Compressor {
     let reduction = this.reductionDb;
     let peak = this.reductionPeak;
 
+    const detectorInput = key ?? input;
+
     for (let i = 0; i < frames; i++) {
-      const target = magnitudeToDb(detector.level(input, i));
+      const target = magnitudeToDb(detector.level(detectorInput, i));
       const coefficient = auto ? this.releaseCoefficient(reduction, peak) : release;
       const env = envelope.step(target, attack, coefficient);
       reduction = compressionReduction(env - threshold, knee, ratio, factor, progressive);

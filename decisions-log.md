@@ -4075,3 +4075,92 @@ allocation-free block loop, the lifecycle API, the provisional markers and the d
 **Consequences.** The "nothing is wired yet" invariant now points at the right boundary:
 UI and store wiring remain forbidden, and the DSP stays reachable through exactly one
 layer. The guard list grows to 27 scripts.
+
+---
+
+## Task 7.2 — Sidechain routing and external key inputs (2026-11-03; uncommitted, awaiting review — the owner handles Git)
+
+Direction: Phase 7's second step — a detector-signal path so one track can drive another
+channel's compressor or dynamic EQ (plan §8; `data-model.md` §18). The task's premise was
+that both processors already accept a key: true for the Dynamic EQ (6.1), **false for the
+Compressor** (6.2 had no key parameter at all), and the model had no sidechain field
+(§7 called it "a planned third edge kind … not modelled"). Both gaps were reported
+before any code was written and the owner answered five questions on 2026-11-03 —
+D7.2.1–D7.2.5. Report: `task-reports/7.2-report.md`. **Not committed, not tagged, not
+pushed**; Task 7.3 is not started.
+
+### D7.2.1 — The Compressor gains an optional `key` parameter, on the Dynamic EQ's contract (owner, 2026-11-03)
+
+**Context.** `Compressor.process(input, output, count?)` detected from `input`
+unconditionally; `grep` for "key" in `compressor.ts` returned nothing. 7.2 cannot key a
+compressor that has no way to receive a key, and the alternatives were worse: duplicating
+the approved detector in the engine, or shipping half the task.
+
+**Decision.** Add `key?: readonly Float32Array[]` as a fourth parameter and set
+`detectorInput = key ?? input`, exactly as the approved Dynamic EQ already does
+(`requireKeyBuffers` validates the shape). Nothing else changes.
+
+**Consequences.** With no key, the output is bit-identical to 6.2 and all 12 compressor
+tests pass unchanged. This is an edit to a reviewed 6.2 file, like the approved 7.1 delay
+fix, and `compressor.ts` is re-pinned in `check:dynamics`. A later reader must not add
+key-dependent behaviour beyond *where the detector listens*: no key filtering, weighting
+or lookahead.
+
+### D7.2.2 — A project-level edge list, `Project.sidechains`, with a per-edge processor (owner, 2026-11-03)
+
+**Context.** The model had nowhere to express a key. `data-model.md` §7 described
+sidechains as "a planned third edge kind, validated by the same walk"; §326 listed them as
+Phase 7 work.
+
+**Decision.** `Project.sidechains?: readonly SidechainEdge[]`, where an edge is
+`{ source: TrackId, destination: ChannelId, processor: "compressor" | "dynamic-eq" }`.
+The field is **optional**, so every stored project loads unchanged and an absent field
+means "no sidechain". One list, one validator, one source feeding many destinations, and
+each processor keyed independently.
+
+**Consequences.** The audible graph and its `routingEdges` are untouched — sidechains are
+validated by their own walk (`validateSidechains`), as the task requires. Store, UI,
+persistence and clipboard support for the new field are **not** wired: that is a separate
+change, recorded in the 7.2 report as the outstanding contract.
+
+### D7.2.3 — The key is tapped pre-fader and post-trim (owner, 2026-11-03)
+
+**Context.** The tap point decides what a key *is*, and nothing in the documents said.
+It also decides whether the engine can guarantee synchronisation at all: any tap after a
+chain makes the key depend on the order in which channels happen to be processed.
+
+**Decision.** The key is the source track's input block × its TRIM — pre-fader, pre-pan,
+pre-sends, before the source's own EQ and dynamics.
+
+**Consequences.** Moving the source's fader never changes a detector; the key is computed
+from the same block's raw audio before any chain runs, so it is sample-aligned, never
+stale, adds no latency and cannot create a feedback path. Two tracks may key each other
+safely, and no cycle rule is needed beyond rejecting a self-key. The consequence to
+accept: a key does not follow the source's own processing or fader position.
+
+### D7.2.4 — Keys follow Task 7.1 audibility; unusable edges fall back to self-detection (owner, 2026-11-03)
+
+**Context.** Mute and solo had defined audio semantics only from 7.1, and a broken
+reference could either be fatal (throw) or silent (a connection that pretends to exist).
+
+**Decision.** A muted or solo-excluded source delivers silence — no signal in, no
+reduction out. An edge that cannot be honoured (unknown source or destination, a Return
+destination, a self-key, a duplicate) is **dropped and reported** with a named reason, and
+that processor detects from its own input again.
+
+**Consequences.** `validateSidechains` never throws, unlike `validateGraph`: a broken
+detector edge must not stop a project from playing. The engine exposes
+`sidechainVerdict.problems` so a controller can surface it. Keys are silence, not bypass —
+the detector is still running, it simply has nothing to hear.
+
+### D7.2.5 — Sources are tracks; destinations are tracks and buses (owner, 2026-11-03)
+
+**Context.** The model has compressors on buses and an effect-only chain on Returns;
+the task's wording ("a channel can use another channel's audio") left the scope open.
+
+**Decision.** A track may key a track's compressor or dynamic EQ, or a bus's compressor.
+A Return is rejected as a destination (`unsupported-destination`) and is never a source.
+
+**Consequences.** A bus is processed after every track, so a bus key needs no ordering
+care. Return destinations and non-track sources stay unmodelled — if 7.3 or a later task
+wants them, they need their own decision rather than a silent widening of this one.
