@@ -1255,10 +1255,211 @@ cache 31 days old is ignored at boot and renewed by the next analysis.
 ### 13.7 Not in this build (by design)
 
 Reading a result in any room (the Console's PROCESSING band stays its
-fixture), the rules that act on measurements (Phase 6), any processing,
-playback or rendering; a worker thread (the pass yields on the main thread
+fixture), the rules that act on measurements (Phase 6), any processing of
+audio (the Tasks 6.1–6.3 DSP modules are isolated and wired to nothing —
+§14), playback or rendering; a worker thread (the pass yields on the main thread
 — D5.2.10); removing or pruning analysis records with an asset lifecycle
 (Task 5.1's open item); re-tuning the provisional thresholds (profiles,
 onsets, near-silence) against real devices and stems; the time estimate
 shown to the user (plan §11's "estimate before commit" is logic only until
 a room prints it).
+
+## 14. The DSP modules — Custom EQ and Dynamic EQ (Task 6.1)
+
+Phase 6's first step: the plan's §8 blocks 3 — "static multiband EQ" — and 4
+— "Dynamic EQ for time-varying conflicts or tonal control" — as **isolated,
+reusable TypeScript DSP**, tested on their own. Nothing routes audio through
+them yet (Task 7.1 assembles the channel chain), no room or store reads them,
+no masking logic chooses a band or a key (Task 7.3), and no other EQ type
+exists. The documents behind the contract: plan §8 (the chain, the masking
+paragraphs L347–385) and §11 (chunking and continuity, L483–487); D2.8.3 /
+D2.8.4 (the chain's parameter specs and the four-band EQ); D5.1.1 / D5.1.3
+(48 kHz, no conversion); the Task 5.2 conventions (streaming state, null /
+−∞ honesty, one constant for one provisional number). `architecture.md` and
+`module-contract.md` do not exist in this repository — every task since 0.1
+has recorded that — so **this section is the modules' contract**, as §13 is
+the engine's.
+
+### 14.1 The boundary, the format and the conventions (`src/lib/dsp/`)
+
+| file | what |
+| --- | --- |
+| `src/lib/dsp/params.ts` | the documented ranges in one place, and the validation rules (`requireFinite`, `requireInRange`, `requireSampleRate`, `requireChannels`, `DspOptions`) |
+| `src/lib/dsp/biquad.ts` | `FilterKind` (`bell` · `shelf-low` · `shelf-high`), the RBJ design at the session rate (`bandCoefficients`, `bandPass` / `lowPass` / `highPassCoefficients`, `magnitudeDb`) and `BiquadSection` — five coefficients, two state variables, `process` for a block and `step` for one sample |
+| `src/lib/dsp/buffers.ts` | the buffer contract both modules share: one `Float32Array` per channel, mono or stereo, in place allowed, a named error for every mismatch |
+| `src/lib/dsp/eq.ts` | the Custom EQ: the four documented bands, settings, `process`, `reset`, `responseDbAt` |
+| `src/lib/dsp/dynamic-eq.ts` | the Dynamic EQ: the same bands plus a depth, a detector, a key input and the reduction reading |
+
+**Audio.** One `Float32Array` per channel, mono or stereo, at the session rate
+(48 kHz — the one rate Task 5.1 admits; `sampleRate` is an option so a test
+and a later native port can ask for another, and a band at or above Nyquist is
+refused). No interleaving, no clipping, no scaling, no dither, no resampling.
+`output` may be the same arrays as `input`. Samples are assumed **finite**:
+sanitising belongs where the bytes are read (Task 5.1 / 5.2 count non-finite
+samples as integrity findings), not in every filter of a render.
+
+**State.** Every section, detector, envelope and indicator carries across
+`process` calls. No branch in either module depends on a block boundary, so
+one pass and bounded chunks of it produce **bit-identical** samples — the
+property plan §11's chunked render (Task 7.4) will lean on. Both suites hold
+one pass against blocks of 1, 7, mixed and 1 000 frames.
+
+**Allocation.** Sections, coefficient arrays, envelopes, thresholds and the
+reduction reading are built in the constructor. Neither `process` allocates:
+no `new`, no array literal, no `slice` / `map` / `subarray` in either path
+(the guard checks the two method bodies).
+
+**Determinism.** No clock, no randomness, no browser API, no import from
+outside `src/lib/dsp/`; the design is pure arithmetic, so the same settings
+and the same samples always give the same samples.
+
+**Validation (the project's own rule).** A value that is not a finite number
+is a caller bug and **throws**. A finite value outside a documented range is
+**clamped**, as the console's controls already clamp (`fromPosition` /
+`setParamValue`, D2.8.3). An unknown kind, an empty or over-long band list, a
+channel count other than 1 or 2, a non-boolean bypass, a sample rate that
+cannot hold the band (at or above Nyquist) **throw** with the module's name
+in the message. `normaliseEqSettings` / `normaliseDynamicEqSettings` return
+the clamped setting as a plain object, so what a module will do can be
+printed before it is built.
+
+### 14.2 One design, one section (`biquad.ts`)
+
+The three kinds are the documents' (D2.8.4): a **low shelf**, two **bells**
+with Q, a **high shelf**. The design is the RBJ audio-EQ cookbook prototype at
+the session rate — `A = 10^(gain/40)`, `ω₀ = 2πf/fs`, shelves at slope
+`S = 1` — and every section is stored **normalised to `a0 = 1`** as
+`[b0, b1, b2, a1, a2]`, the same arithmetic `mixer-chain.ts` draws the Mixer's
+curve from. A test runs an impulse through the module and compares the
+measured response with `eqResponseDb` (the graph's own function) at eight
+frequencies, within 0.05 dB: **the curve and the filter cannot disagree.**
+
+A 0 dB band is set to the exact identity `[1, 0, 0, 0, 0]`, so a neutral band
+passes its input through bit for bit rather than through arithmetic that
+happens to cancel. The section is transposed direct form II (the analysis
+engine's `Biquad`, §13, so the two runners agree); `process` filters a block,
+`step` one sample, both on the same coefficients and state.
+
+### 14.3 The Custom EQ (`eq.ts`)
+
+The four console bands by their Task 2.8 ids — `lf` (low shelf) · `lmf`
+(bell) · `hmf` (bell) · `hf` (high shelf) — one to four in processing order.
+
+```ts
+EqBandSetting  = { kind: "bell" | "shelf-low" | "shelf-high",
+                   freq: 20 … 20000 Hz, gain: −15 … +15 dB, q?: 0.3 … 10 }
+EqSettings     = { bypassed?: boolean, bands: EqBandSetting[1..4] }
+new Eq(settings, { channels?: 1 | 2, sampleRate?: 48000 })
+  .process(input: Float32Array[], output: Float32Array[], count?)   // in place allowed
+  .reset()
+  .responseDbAt(hertz): number                                      // 0 dB while bypassed
+  .settings / .channels / .sampleRate / .bandCount
+```
+
+`q` is the bell's; a shelf ignores it and uses the slope-1 prototype's
+`√½`. The default Q of a bell that names none is 1 (the Mixer's `q ?? 1`).
+Every channel has its **own** filter state and the same coefficients, and
+nothing in one channel reads another: stereo is processed consistently and
+independently. `neutralEqSettings()` is the four documented bands at 0 dB —
+exactly flat, the module's "switched in, doing nothing" state. Bypassed, the
+module copies its input and touches no state; `responseDbAt` is 0.
+
+Held by test: the drawn curve against the impulse response; a bell's gain at
+its centre and only its skirt away from it; frequency moving the peak; Q
+setting the width (the half-gain width scales as 1/Q); the shelves' half-gain
+corner and untouched far side; neutral and bypassed transparency, bit for
+bit; stereo independence and no crosstalk; chunk invariance; determinism and
+`reset`; in-place equals out-of-place; the clamps and the throws; a 15 dB
+high-Q boost over noise staying finite and bounded.
+
+### 14.4 The Dynamic EQ (`dynamic-eq.ts`)
+
+A dynamic band is an EQ band that can travel **downward** from its static
+GAIN by up to `depthDb` — `dynamicDepthDb` is "how far (dB) the band's gain
+may be pulled down" (D2.8.4) — so a track can yield space only while it is
+needed (plan §8's "sidechain-triggered dynamic EQ dip … only reduced when
+needed"). Nothing boosts.
+
+```ts
+DynamicEqBandSetting = EqBandSetting & {
+  depthDb: 0 … 15,        thresholdDb: −40 … 0 dBFS,
+  attackMs: 0.1 … 100,    releaseMs: 10 … 1000 }
+DynamicEqSettings    = { bypassed?: boolean, bands: DynamicEqBandSetting[1..4] }
+new DynamicEq(settings, { channels?: 1 | 2, sampleRate?: 48000 })
+  .process(input, output, count?, key?: Float32Array[])   // key = the sidechain, when there is one
+  .reset()  .responseDbAt(hertz)  .gainReductionDb: Float64Array (per band, live)
+```
+
+**Detection — two intended uses, one module** (owner, 2026-11-03): with no
+`key` the band watches **the signal entering the module**; with a `key` it
+watches **the key only**, and the channel it filters is untouched by its own
+level. Which track is the key is Task 7.2 / 7.3's routing question — this
+module only defines what to do with one.
+
+**The detector is frequency-selective**: the key is band-limited to the band
+the module is working on — a bell's **band-pass** at FREQ/Q, a low shelf's
+**low-pass** and a high shelf's **high-pass** at the corner (Q = √½). Its
+output is squared and **linked across channels by the peak** (the loudest
+channel's squared sample), so a transient on one side dips both and the
+stereo image does not shift. A one-pole envelope in the **power** domain
+follows it with the band's attack when it rises and its release when it
+falls; the envelope is compared with `10^(threshold/10)`.
+
+**The law is full depth** (owner, 2026-11-03): at or above the threshold the
+band's gain is `gain − depthDb`, below it `gain`; the amount does not depend
+on how far over the threshold the key is. Attack and release shape the move.
+Two provisional constants keep that law from clicking:
+
+- `DETECTOR_SWITCH_SLEW_MS = 2` — the indicator itself moves on a 2 ms
+  one-pole, so a binary crossing becomes a ramp (a 15 dB step would be a
+  click). It is short enough that the documented attack still dominates.
+- `GAIN_REDESIGN_STEP_DB = 0.01` — the section is redesigned only when the
+  gain has moved by 0.01 dB, per sample, into the section's own coefficient
+  array. A steady band pays no trigonometry; a moving one is exact to a
+  hundredth of a dB.
+
+`gainReductionDb[band]` is `blend × depth`: exactly the nominal reduction the
+band has applied. A band with `depthDb: 0` is a static band (no detector, no
+envelope) and is bit-identical to the Custom EQ's band. Bypassed, the module
+copies its input and runs nothing.
+
+Held by test: below the threshold the output is **bit-identical to the static
+EQ** and the reduction is 0; above it the band reaches its full depth and the
+audio is that much quieter at the band; a key 3 dB over the threshold and one
+30 dB over it settle to the same reduction; attack and release move the dip
+over their documented times, never past the depth and never negative; a key
+outside the band does not trigger it and one inside does; the shelves listen
+on their own side; self-detection, a key replacing it, and a silent key
+ignoring a loud program; one linked gain across stereo; chunk invariance with
+a key; determinism and `reset`; bypass; `depthDb: 0` as the static EQ; the
+clamps, the throws and bad keys; a 15 dB deep high-Q band over noise with a
+slam of a key staying finite and bounded.
+
+### 14.5 The decisions this task took
+
+The owner's three answers (2026-11-03, asked before any code was written,
+because the plan names the dynamic block but fixes no detector): **a key when
+supplied, the program otherwise**; **a band-limited peak-power detector with
+the chain's ranges**; **full depth, 0–15 dB, downward only**. Recorded with
+the reasoning in `task-reports/6.1-report.md`; the decisions log was left
+untouched on the task's instruction, so the log entry is the owner's when
+this is approved.
+
+Provisional numbers, each in one constant: the dynamic detector's
+**threshold / attack / release ranges reuse the chain's documented specs**
+(D2.8.3) because no document gives this block its own; the **depth range is
+the EQ's ±15 dB**, the only scale the project has for a band's gain; the
+**2 ms switch slew** and the **0.01 dB redesign step** are this task's, named
+as provisional in the source and here; a shelf's detector is **one-sided at
+the corner**, the closest band limit a shelf has.
+
+### 14.6 Not in this build (by design)
+
+The channel chain and its order (Task 7.1), send / return and sidechain
+plumbing (7.2), masking resolution — which band, which track, which key, how
+deep (7.3), chunked rendering and recovery (7.4); the compressor characters,
+the expander and the safety limiter (6.2); any UI, store field, persistence
+or Auto / Manual wiring for these parameters (the project model keeps its
+Task 2.8 chain as it is); other EQ types (high-pass, low-pass, notch); and
+any automatic choice of frequency, gain, depth or threshold — the rulebook's
+work, not the DSP's.
