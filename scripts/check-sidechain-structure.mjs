@@ -233,7 +233,12 @@ check(
   /readiness gate/i.test(report) && /no sidechain field|not modelled/i.test(report) && /Store \/ UI \/ persistence are not wired/.test(report),
 );
 check("the report records the verification numbers", /313\/313/.test(report) && /605\.60 kB/.test(report));
-check("the report states that nothing was committed and 7.3 was not started", /Nothing committed/.test(report) && /7\.3 is \*\*not started\*\*/.test(report));
+check(
+  "the report records checkpoint c3d9d14, a clean synced tree and that 7.3 was not started",
+  /checkpointed as \*\*`c3d9d14`\*\*/.test(report) &&
+    /working tree is clean/.test(report) &&
+    /7\.3 is\s+\*\*not started\*\*/.test(report),
+);
 
 // --- 9. Pins: the 7.2 sources as reviewed. ---------------------------------------------------
 const pinned = {
