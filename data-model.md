@@ -1463,3 +1463,254 @@ or Auto / Manual wiring for these parameters (the project model keeps its
 Task 2.8 chain as it is); other EQ types (high-pass, low-pass, notch); and
 any automatic choice of frequency, gain, depth or threshold — the rulebook's
 work, not the DSP's.
+
+_(Task 6.2 has since built the compressor characters, the expander and the safety
+limiter — their contract is §15.)_
+
+## 15. The dynamics modules — compressor, expander and safety limiter (Task 6.2)
+
+Phase 6's second step: the plan's §8 block 5 — "compressor with character — VCA /
+Opto / FET / Vari-Mu" — block 2's "Cleanup / expander where justified by the track
+and rules", and the output stage of L371 — "safety checks and transparent peak
+protection only" — as **isolated, reusable TypeScript DSP**, tested on their own.
+Nothing routes audio through them yet (Task 7.1 assembles the channel chain), no
+room or store reads them, no sidechain or masking logic chooses their settings
+(Task 7.3), and no renderer compensates their latency (Task 7.4).
+
+**What the documents do not say — and this section therefore does.** The plan names
+the four characters and the expander without fixing how either behaves: it gives
+no knee width, no detector, no ratio law, no expander parameter set, and it defers
+"exact headroom and peak-safety defaults" to a later decision (§17, L770–771). No
+document mentions "Auto Release" at all — not the plan, not the decisions log, not
+the glossary, not the console (which has five knobs and no switch). Those four gaps
+were put to the owner before any code was written (2026-11-03), and the answers are
+the contract recorded below: topology-inspired characters on a shared engine, no
+added saturation, a five-control expander with a 6 dB knee and a RANGE clamp, a
+5 ms sample-peak brickwall at −1 dBFS by default, and maximum-channel linking.
+Everything marked **PROVISIONAL** is an app-design choice of this task, not a
+hardware measurement and not a number any document establishes.
+
+### 15.1 The files, the shared engine and the conventions
+
+| file | what |
+| --- | --- |
+| `src/lib/dsp/params.ts` | the ranges in one place: `COMPRESSOR_*` (D2.8.3's own specs), `DYNAMICS_ATTACK_MS` / `DYNAMICS_RELEASE_MS` (the chain's, shared), `EXPANDER_*`, `LIMITER_CEILING_DB`, and `requireBoolean` for the switches |
+| `src/lib/dsp/dynamics.ts` | the engine all three share: `LevelDetector` (peak or 10 ms RMS, linked by the maximum channel), `EnvelopeFollower` (one-pole in dB), `timeConstant`, `magnitudeToDb`, `dbToGain`, `kneeReduction`, `effectiveRatio`, `compressionReduction`, `expansionReduction` |
+| `src/lib/dsp/compressor.ts` | `Compressor` and the four named models `VcaCompressor`, `OptoCompressor`, `FetCompressor`, `VariMuCompressor`, the `COMPRESSOR_CHARACTERS` table and `normaliseCompressorSettings` |
+| `src/lib/dsp/expander.ts` | `Expander`, `EXPANDER_KNEE_DB`, `ExpanderSettings`, `normaliseExpanderSettings` |
+| `src/lib/dsp/limiter.ts` | `SafetyLimiter`, `LIMITER_LOOKAHEAD_MS`, the default ceiling and release, `normaliseLimiterSettings`, `process` / `flush` / `reset` |
+
+**Audio, state, allocation, determinism, validation.** Exactly §14.1's rules: one
+`Float32Array` per channel, mono or stereo, at 48 kHz, in place allowed, samples
+assumed finite, no per-sample allocation in any `process` (the guard checks the
+three method bodies), state carried across blocks so any block split is
+bit-identical to one pass, no clock and no randomness, a non-finite value throws, a
+finite out-of-range one clamps, and a non-boolean switch throws. Each module
+reports its gain reduction (`gainReductionDb`, dB ≥ 0) and `reset()` clears it.
+
+**One engine, so the three cannot drift.** The dB conversion, the knee, the
+envelope and the linking live in `src/lib/dsp/dynamics.ts` and nowhere else. A
+second copy of "what a decibel is" would be a second set of bugs.
+
+### 15.2 The linking convention and the timing convention
+
+**Linking — the app's maximum-channel convention.** One gain envelope per module,
+derived from a single linked level, applied identically to both channels. The
+linked level is the **greater** channel's, never the sum and never a per-channel
+gain: a summed detector over-reads a correlated centre (and would over-compress
+it), and a per-channel gain moves the stereo image. The detector's kind follows the
+character, and the linking follows the detector: peak characters (`VCA`, `FET`)
+measure each channel's **peak magnitude** and take the greater; RMS characters
+(`Opto`, `Vari-Mu`) measure each channel's **RMS** and take the greater. Forcing
+peak detection on an RMS character would erase the character. The expander detects
+`max(|L|, |R|)`; the limiter detects `max(|L|, |R|)`. There is no user-facing
+linking control in this build — width, balance and "stereo link" percentages are
+not part of the console the documents describe. This is the app's convention, not a
+claim about how any hardware links its channels.
+
+**Timing — one convention, stated in its domain.** ATTACK and RELEASE are one-pole
+time constants applied to the **level envelope in dB**: the coefficient is
+`1 − e^(−1/(τ·fs))`, so a step of level reaches **63.2 %** (1 − 1/e) of its change
+after exactly τ. That is what the readouts mean, for every character and every
+module here, and it is measured that way in the suites (a step across the
+threshold, because that is where the reduction and the envelope travel the same
+distance). Where a character's curve is not proportional to the envelope — a wide
+knee, a progressive ratio, a RANGE clamp — the observed gain moves on a different
+curve than the envelope; the time constant still describes the envelope, and the
+report states the observed difference for each case. RATIO is likewise defined
+precisely: **the reduction at and up to 10 dB over the threshold is the knob's own
+ratio to the last decimal**, and above that the progressive characters walk toward
+a higher ratio (§15.3).
+
+### 15.3 The compressor and its four characters
+
+Five controls, D2.8.3's: THRESH −40 … 0 dB (1 dB steps on the console), RATIO
+1 … 20 (the printed list is 1:1, 1.5:1, 2:1, 3:1, 4:1, 6:1, 10:1, 20:1), ATTACK
+0.1 – 100 ms (log), RELEASE 10 – 1000 ms (log), MAKEUP 0 … +20 dB (0.5 dB steps).
+Character is D2.8.5's selector, in the console's order: **VCA · Opto · FET ·
+Vari-Mu**.
+
+| character | detector | knee | curve above the threshold | Auto Release ON |
+| --- | --- | --- | --- | --- |
+| VCA | peak | 0 dB (hard) | the knob's ratio, walking to 1.5× the knob's distance above unity (40 dB span) | deeper reduction recovers more slowly |
+| Opto | 10 ms RMS | 9 dB | the knob's ratio, static | two-stage: fast while the reduction is near its peak, then the knob's release |
+| FET | peak | 3 dB | walking to 2.5× (40 dB span) | the mirror: deep reduction springs back faster |
+| Vari-Mu | 10 ms RMS | 12 dB | walking to 2.5× (60 dB span) | two-stage: fast, then a tail four times slower |
+
+**The static curve.** With `over` = level − threshold, `W` = knee width, `a` = 1 −
+1/ratio:
+
+```
+over ≤ −W/2       0
+|over| < W/2      a · (over + W/2)² / (2W)      the knee
+over ≥ W/2        a · over                      the line
+```
+
+continuous in value at both knee edges, exactly the line at the knee's top, and
+exactly zero at the bottom edge. A wide knee therefore **starts earlier** — Opto
+and Vari-Mu pull a little down at and even below the threshold where the hard-kneed
+VCA does nothing — and every character meets the same line at the top of its knee.
+The RATIO readout is exact on that line (§15.2); at the threshold the knee reads
+`a·W/8` dB.
+
+**The progressive ratio** (VCA, FET, Vari-Mu; Opto is static):
+
+```
+target = min(20, 1 + (ratio − 1) · factor)
+r(over) = ratio + (target − ratio) · (over − 10) / ((over − 10) + span)     over > 10 dB
+```
+
+integrated into the reduction above the reference, so the curve is continuous in
+value and slope there and never turns back (its slope stays below 1 — a louder
+input never comes out quieter; the suite sweeps every character and ratio to check
+it). The target is scaled **above unity**, not the ratio itself, so 1:1 stays
+exactly neutral for every character however hard it is driven. No reduction may
+push an effective ratio past 20:1.
+
+**What the characters are, and are not.** They are topology-inspired presets on one
+shared engine: a curve, a detector and a release law. They are **not** hardware
+emulations and are not described as any (D2.8.1). There is **no added saturation** —
+no tanh, no clipper, no transformer — which is the plan's rule and why "FET" here
+means a fast peak character, not a circuit.
+
+### 15.4 Auto Release — the owner's one new control
+
+No document defines it; the owner specified its contract on 2026-11-03 and it is
+implemented exactly so:
+
+- **OFF (the default)** — the fixed release the RELEASE knob sets, for every
+  character, Opto included. An Opto with the switch off is not adaptive.
+- **ON** — that character's own adaptive law, the last column of §15.3.
+- **It is a switch, not a number**: a non-boolean throws; the default is OFF, so a
+  project saved before the control existed renders as if it had always been there.
+- **It never rewrites anything**: a character change preserves every displayed
+  value and the Manual ownership of each parameter. `normaliseCompressorSettings`
+  passes the caller's numbers through and fills in only the switches' defaults.
+
+### 15.5 The expander
+
+A smooth **downward** expander — not a gate, no gate mode, no mute. Five controls,
+as the owner specified, and no sixth (there is **no Hold** and no hysteresis
+control):
+
+| control | range | meaning |
+| --- | --- | --- |
+| THRESHOLD | −60 … 0 dBFS (**PROVISIONAL**) | where the knee is centred |
+| RATIO | 1:1, 1.5:1, 2:1, 3:1, 4:1 | how steeply quiet material is turned down |
+| ATTACK | 0.1 – 100 ms | the **opening** time: attenuation removed as the level rises |
+| RELEASE | 10 – 1000 ms | the **closing** time: attenuation added as the level falls |
+| RANGE | 0 … 40 dB (**PROVISIONAL**) | the most it may pull a signal down |
+
+**The law**, in dB, with `below` = threshold − level and `a` = 1 − 1/ratio, a fixed
+**6 dB knee** (PROVISIONAL):
+
+```
+reduction = min(RANGE, knee(below))
+knee(below) = 0                                below ≤ −3 dB
+            = a · (below + 3)² / 12            |below| < 3 dB
+            = a · below                        below ≥ +3 dB
+```
+
+continuous at both edges, exactly zero at and above the knee's top (threshold +
+3 dB), and clamped at RANGE. **Ratio 1:1 and RANGE 0 dB are both exactly no
+attenuation** — two neutral states, both bit-exact. The maximum range is a
+capability, not a default: the module does nothing until it is asked. Timing is
+§15.2's convention: ATTACK opens, RELEASE closes.
+
+**What it must not do.** It must not treat all sub-threshold material as noise:
+RANGE bounds the pull-down and there is no mute, so a 60 dB-under signal with the
+largest range is still present, just 40 dB down. It must not flutter: with no hold
+and no hysteresis the gain follows the level smoothly through the threshold, which
+the suite checks frame by frame. And it must be neutral unless it is asked to
+work — bypassed, ratio 1, or range 0.
+
+### 15.6 The safety limiter
+
+The output stage: **transparent peak protection only** (plan §8 L371, L397). A
+sample-peak brickwall with lookahead.
+
+| property | value |
+| --- | --- |
+| CEILING | −12 … 0 dBFS (**PROVISIONAL**), default **−1 dBFS** |
+| lookahead | **5 ms** of the actual sample rate, rounded to whole frames |
+| RELEASE | 10 – 1000 ms (**PROVISIONAL**), default 50 ms |
+| latency | `latencyFrames` — the module's real delay, public and exact |
+| gain | ≤ 1 at every frame: no make-up, no normalisation, no LUFS, no boost |
+
+**The ceiling is a sample-peak ceiling.** `ceilingAmplitude` (`10^(dB/20)`) is the
+limit every output sample obeys; it is **not** a true-peak (dBTP) guarantee, and
+between-sample peaks can still exceed it. True-peak limiting is deferred: D5.2.6's
+4× oversampled analyser is a measurement, and 4× detection alone is not a limiter.
+The default −1 dBFS is a **safety margin** for the accidental over — not a
+mastering-headroom policy and not a loudness target, which the plan explicitly
+rules out (§8 L397: no LUFS target).
+
+**How the ceiling is kept.** Detection is `max(|L|, |R|)`; one stereo-linked gain
+envelope applies to both channels. A sample that arrives over the ceiling needs
+`target = ceiling / peak` at the frame it is due out, `latencyFrames` later, so the
+module ramps its scheduled gain from the gain it is applying now down to `target`
+across the lookahead — every sample still in flight has a gain that already
+accounts for it. The applied gain is `min(scheduled, release-recovered)`, so a
+scheduled reduction always wins and **the release can never compromise the
+ceiling**. The release only ever moves the gain up, measured as §15.2's one-pole in
+the linear-gain domain.
+
+**Compensation, not trimming.** The module reports `latencyFrames` and exposes
+`flush(output, count = latencyFrames)`. A renderer drops that many leading frames
+of the module's output and calls `flush` after the last block, so the take keeps
+its length and its tail — the residual audio really is written out, never zeroed
+and never cut blind. Bypassed, the limiter still delays by the same
+`latencyFrames` at unity gain, so toggling it never moves a render's alignment.
+
+### 15.7 The decisions this task took
+
+Recorded with their reasoning in `task-reports/6.2-report.md`; the decisions log was
+left untouched on the task's instruction, so the log entry is the owner's when this
+is approved.
+
+The **owner's four answers** (2026-11-03, asked before any code was written, because
+no document fixes any of it): four topology-inspired characters on a shared engine
+with **no added saturation**; a smooth five-control downward expander with a 6 dB
+knee, ATTACK opening and RELEASE closing, no Hold, and maximum-channel linking; a
+5 ms lookahead **sample-peak** brickwall, ceiling −12 … 0 dBFS default −1, release
+that can never break the ceiling, real latency reported and flushed rather than
+trimmed, true-peak deferred; and one maximum-channel linking convention with no
+user-facing control.
+
+**Provisional numbers, each in one constant**: the four knee widths (0 / 3 / 9 /
+12 dB), the progressive factors and spans (1.5 / 2.5 / 2.5, 40 / 40 / 60 dB), the
+RMS window (10 ms), the four Auto Release laws and their constants, the expander's
+threshold / ratio / range set and its 6 dB knee, the limiter's ceiling range,
+default and release range, and the 5 ms lookahead. The compressor's own five ranges
+are not provisional — they are D2.8.3's.
+
+### 15.8 Not in this build (by design)
+
+The channel chain and its order (Task 7.1), where the compressor sits and where the
+expander sits; sidechain routing, key inputs and masking-driven settings (7.2,
+7.3); chunked rendering and latency compensation (7.4) — the modules report what the
+renderer needs, they do not wire it; any UI, store field, persistence or Auto /
+Manual wiring for these parameters (the console keeps its five red knobs and gains
+no switch from this task); true-peak limiting; a user-facing stereo-link control;
+and any automatic choice of threshold, ratio, timing or range — the rulebook's work,
+not the DSP's.

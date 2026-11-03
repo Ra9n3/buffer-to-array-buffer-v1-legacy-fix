@@ -1,7 +1,7 @@
 /**
- * ALLOY — DSP parameter ranges and validation (Task 6.1).
+ * ALLOY — DSP parameter ranges and validation (Tasks 6.1 and 6.2).
  *
- * The numbers the two Task 6.1 modules accept are the documents', not this
+ * The numbers the Task 6.1 modules accept are the documents', not this
  * file's invention:
  *
  *   FREQ 20 Hz – 20 kHz · GAIN ±15 dB / 0.5 · Q 0.3 – 10 (bells)
@@ -15,6 +15,19 @@
  *       `dynamicDepthDb` is "how far (dB) the band's gain may be pulled
  *       down" (mixer-chain.ts, D2.8.4) and the only scale the project has
  *       for a band's gain is its ±15 dB range.
+ *
+ * Task 6.2's dynamics ranges are split the same way, and the split is the
+ * point:
+ *   COMPRESSOR  THRESH −40 … 0 dB · RATIO 1 … 20 · MAKEUP 0 … +20 dB, with
+ *               ATTACK 0.1 – 100 ms and RELEASE 10 – 1000 ms shared with the
+ *               expander — all D2.8.3's chain specs, exactly;
+ *   EXPANDER    THRESHOLD −60 … 0 dBFS · RATIO 1 … 4 · RANGE 0 … 40 dB, and
+ *   LIMITER     CEILING −12 … 0 dBFS · RELEASE 10 – 1000 ms
+ *               — no document fixes these. The plan names the expander only
+ *               as "Cleanup / expander where justified by the track and
+ *               rules" (§8 block 2) and defers "exact headroom and
+ *               peak-safety defaults" (§17), so these are PROVISIONAL
+ *               app-design choices (D6.2.x, `task-reports/6.2-report.md`).
  *
  * Where the plan is silent these are PROVISIONAL and live here, one number
  * each, so a later tuning task moves them in one place (the D5.2.5 / D5.2.8
@@ -97,4 +110,41 @@ export function requireChannels(channels: number): 1 | 2 {
     throw new Error(`Alloy DSP: the channel count is 1 or 2, not ${String(channels)}`);
   }
   return channels;
+}
+
+/* =========================================================================
+   TASK 6.2 — THE DYNAMICS MODULES
+   ========================================================================= */
+
+/** The compressor's threshold, dB (D2.8.3: THRESH −40 … 0). */
+export const COMPRESSOR_THRESHOLD_DB: DspRange = { min: -40, max: 0 };
+/** The compressor's ratio (D2.8.3: the console's list runs 1 … 20). */
+export const COMPRESSOR_RATIO: DspRange = { min: 1, max: 20 };
+/** Make-up gain, dB (D2.8.3: MAKEUP 0 … +20, half-dB steps on the knob). */
+export const COMPRESSOR_MAKEUP_DB: DspRange = { min: 0, max: 20 };
+/** Attack, ms — the chain's ATTACK spec, shared by the compressor and the expander. */
+export const DYNAMICS_ATTACK_MS: DspRange = { min: 0.1, max: 100 };
+/** Release, ms — the chain's RELEASE spec, shared by the compressor, the expander and the limiter. */
+export const DYNAMICS_RELEASE_MS: DspRange = { min: 10, max: 1000 };
+/** The expander's threshold, dBFS — PROVISIONAL (no document fixes it). */
+export const EXPANDER_THRESHOLD_DB: DspRange = { min: -60, max: 0 };
+/** The expander's downward ratio — PROVISIONAL; it prints as 1:1 … 4:1. */
+export const EXPANDER_RATIO: DspRange = { min: 1, max: 4 };
+/** How far the expander may pull a signal down, dB — PROVISIONAL. */
+export const EXPANDER_RANGE_DB: DspRange = { min: 0, max: 40 };
+/** The safety limiter's sample-peak ceiling, dBFS — PROVISIONAL (plan §17 defers it). */
+export const LIMITER_CEILING_DB: DspRange = { min: -12, max: 0 };
+
+/** The highest ratio a progressive character may reach, so no band of audio can be flattened. */
+export const MAX_COMPRESSION_RATIO = 20;
+
+/**
+ * A switch — `autoRelease`, `bypassed`. Not a number, so not clamped: a
+ * non-boolean is a caller bug, like a NaN.
+ */
+export function requireBoolean(value: unknown, what: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`Alloy DSP: ${what} is a boolean, not ${String(value)}`);
+  }
+  return value;
 }
