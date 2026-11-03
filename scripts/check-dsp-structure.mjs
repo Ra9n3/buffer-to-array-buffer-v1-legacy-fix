@@ -314,9 +314,10 @@ check(
 
 // --- 8. Pins: the 6.1 modules as reviewed. ---------------------------------------------------
 const pinned = {
-  // params.ts is shared: Task 6.2 appended the dynamics ranges and requireBoolean below the
+  // params.ts is shared: Task 6.2 appended the dynamics ranges and requireBoolean, Task 6.3 the five Return
+  // ranges, below the
   // Task 6.1 ones without touching them (the 6.1 assertions above still hold).
-  "src/lib/dsp/params.ts": "87a4eae974f51a1404bfcd7dabcf095c44308f3ecde0a69553ca39f4079da6ba",
+  "src/lib/dsp/params.ts": "6653a527255d80a62d435e63aa0abc9170fb24c7cbea8d1a84aa58be72185a71",
   "src/lib/dsp/biquad.ts": "919d840eda33cd022c3f4c0bc73531608ecdcb14ee7251abb7cd4da5924fa8e8",
   "src/lib/dsp/buffers.ts": "6054edf494a5b44bf35edc2813e6487118d0b8678b50bf394cea623a1ae8af20",
   "src/lib/dsp/eq.ts": "08bb262554a4bf44bd93de22844f2b9c7cc6d208bccd0b69390c46c5e0b219d5",

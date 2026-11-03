@@ -1714,3 +1714,252 @@ Manual wiring for these parameters (the console keeps its five red knobs and gai
 no switch from this task); true-peak limiting; a user-facing stereo-link control;
 and any automatic choice of threshold, ratio, timing or range — the rulebook's work,
 not the DSP's.
+
+
+## 16. The Return effects — reverb and delay (Task 6.3)
+
+Phase 6's third step: the plan's §8a Return buses (L395–415) — "Room / Hall / Plate"
+on one Return, "Tape / Analog / Digital" delay on another — as **isolated, reusable
+TypeScript DSP**, tested on their own. Nothing routes audio through them yet (Task
+7.1 assembles the chain and its sends), no store or UI reads them, and no renderer
+sizes a tail from them (Task 7.4). The plan explicitly defers the algorithm choice
+(§17, L775); **no document fixed one**, so the readiness gate for this task asked
+instead of coding, and the owner chose the algorithm and approved the numbers in
+`task-reports/6.3-design-proposal.md` (2026-11-03). Everything marked **PROVISIONAL**
+below is an app-design number of this task: not a hardware measurement, not an
+impulse response, and not a claim of an exact room.
+
+`Tape`, `Analog` and `Digital` remain **fixture labels** in
+`channel-strip/bus-return-fixtures.ts`. There is no tape emulation, no wow/flutter,
+no saturation, no modulation and no mode switching: the delay module does not even
+read the label.
+
+### 16.1 The files and the conventions
+
+| file | what |
+| --- | --- |
+| `src/lib/dsp/params.ts` | the five Return ranges in one place: `REVERB_DECAY_S` (0.2–10 s), `REVERB_PREDELAY_MS` (0–200 ms), `DELAY_TIME_MS` (20–2000 ms), `DELAY_FEEDBACK_PERCENT` (0–90 %), `RETURN_TONE` (−10…+10) — the console's own ranges (D2.4.3) |
+| `src/lib/dsp/reverb.ts` | `Reverb`, the order-8 Householder FDN, `REVERB_CHARACTERS` / `REVERB_CHARACTER_ORDER`, `dampingCoefficient` / `dampingCutoff`, `normaliseReverbSettings`, `REVERB_WET_SCALE`, `REVERB_DECAY_CALIBRATION` |
+| `src/lib/dsp/delay.ts` | `Delay`, `delayDampingCoefficient` / `delayDampingCutoff`, `feedbackGain`, `delayRepeats`, `delayTailSeconds`, `normaliseDelaySettings`, `DELAY_WET_SCALE`, `DELAY_TONE_HZ` |
+
+**Audio, state, allocation, determinism, validation.** Exactly §14.1/§15.1’s
+rules: one `Float32Array` per channel, mono or stereo, 48 kHz (44.1 and 96 supported
+and tested), in place allowed, samples assumed finite, no per-sample allocation in
+`process` (every buffer is sized in the constructor), state carried across blocks so
+any block split is bit-identical to one pass, no clock and no randomness, a
+non-finite value throws, a finite out-of-range one **clamps**, a non-boolean switch
+throws, and the buffer shapes are checked by the shared `requireBuffers`.
+
+### 16.2 The shared boundary rules
+
+**Wet only, one fixed scale.** Neither module has a dry path, a mix control, a
+signal-dependent normalisation, a make-up gain or a separate wet-output filter.
+`REVERB_WET_SCALE` and `DELAY_WET_SCALE` are both 1 and are not loudness or energy
+promises: the Return’s fader sets the wet level, and an impulse’s peak is reported
+per configuration instead of being equalised away.
+
+**Parameters at construction.** The settings are read once, in the constructor, and
+a change is a new module. There is **no smoothing, no crossfade and no live
+parameter change**: for the delay that means a new TIME is a new module with its own
+exact integer delay and empty state, not a pitch glide or a hidden reset. The
+parameter-change policy is therefore "re-instantiate", and the report says so.
+
+**Bypass.** The output is silence, the input never enters the network or the line,
+and every element of state is **frozen**, so un-bypassing resumes the tail exactly
+where it stopped. **Reset** clears every line, diffuser, damping state, pre-delay
+ring and early-reflection history.
+
+**Latency.** Both report `latencyFrames = 0`: pre-delay and delay time are effect
+timing, not look-ahead, so a host or renderer has nothing to compensate.
+
+**Tail contract.** `Reverb.tailSeconds = preDelay + 1.5 · decay` and
+`Delay.tailSeconds = repeats · time` with `repeats = ceil(60 / (−20·log10 g))` and one
+repeat at g = 0. Neither module cuts its own tail; Task 7.4 sizes from these
+numbers. The delay’s number counts the loop gain alone, so it is a deliberate
+**upper bound** — the in-loop one-pole takes a further slice, and the measured −60 dB
+point comes earlier (90 % at 250 ms: 66 repeats promised, about 38 measured).
+
+### 16.3 The reverb network
+
+One algorithmic **feedback-delay network**, order 8, shared by the three
+configurations (owner, 2026-11-03):
+
+- **Feedback matrix**: Householder, `A = I − (2/N)·J`, i.e. `y_i = x_i − 0.25·Σx`.
+  Orthogonal, so the network itself neither gains nor loses energy: it is stable by
+  construction and the decay is set by the line gains below, not by the matrix.
+- **Line gains**: `g_i = 10^(−3 · L_i / (RT60 · CALIBRATION))` with `L_i` the line’s
+  length in seconds — the gain that gives −60 dB after RT60, computed for
+  `RT60 × 1.315` so that the **measured broadband T30 at TONE FLAT lands on the
+  knob**. The calibration is one constant, not a tolerance: the ±15 % test is
+  unchanged and per-band RT60 stays frequency-dependent by design (§16.6).
+- **Pre-delay**: an integer ring of exactly `round(ms · fs / 1000)` samples **before**
+  the diffusers, so the whole wet signal — including the early reflections — is
+  shifted by that amount and nothing leaks through before it.
+- **Input diffusion**: a Schroeder all-pass chain per channel, unique to each
+  configuration, which sets the density of the buildup.
+- **Early reflections**: feed-forward taps read from a power-of-two history of the
+  diffused signal; distinct per configuration, and none on Plate by design.
+- **Output**: four weightings (÷√8), so L and R keep separate excitation through
+  distinct input weightings and are read out through distinct output weightings:
+  `wL = [+,+,+,+,−,−,−,−]`, `wR = [+,−,+,−,+,−,+,−]`,
+  `vL = [+,+,−,−,+,+,−,−]`, `vR = [+,−,−,+,+,−,−,+]`; mono uses `wM = vM = (wL + wR)/√2`.
+  L+R is **never** pre-summed: one network, two weightings.
+
+### 16.4 The three configurations (PROVISIONAL, approved 2026-11-03)
+
+They differ **structurally** — spacing, diffusion, early reflections — never by
+default decay or by an allowed range. All numbers are milliseconds.
+
+| | lines (8) | diffusers | early reflections | TONE f0 | DECAY minimum |
+| --- | --- | --- | --- | --- | --- |
+| **Room** | 13.7, 17.3, 19.9, 23.3, 27.1, 31.7, 37.3, 41.9 | 2 at 0.60: 2.7, 4.3 | 6 taps, 4.1–29.1, alternating channels | 5 kHz | 0.2 s at ≤ 48 kHz, **0.3 s above** |
+| **Hall** | 47.9, 53.3, 59.9, 67.1, 73.7, 79.9, 89.3, 97.7 | 2 at 0.70: 5.1, 7.7, 11.3, 15.9 | 4 taps, 18.2–44.1 | 4 kHz | **0.4 s at every rate** |
+| **Plate** | 21.1, 24.7, 28.3, 31.9, 35.3, 39.7, 43.1, 47.3 | 6 at 0.65: 1.7 … 7.7 | none | 6 kHz | 0.2 s at every rate |
+
+"Character-inspired" is literal: Room answers quickly with early reflections, Hall
+is the largest and slowest to build, Plate is dense and diffused with no early
+reflections. No configuration claims to reproduce a specific room, plate or hardware.
+
+### 16.5 TONE — damping inside the loops
+
+TONE is a bipolar **damping** control, not a brightness control on the output, and
+not "0 = unfiltered, +10 = filter again". In both modules a one-pole low-pass with
+**DC gain 1** sits inside the feedback path:
+
+```
+f_lo = f0 / 4          f_hi = min(0.45·fs, 4·f0)
+fc(tone) = f_lo · (f_hi / f_lo)^((tone + 10) / 20)
+d = e^(−2π·fc/fs)      y[n] = (1 − d)·x[n] + d·y[n − 1]
+```
+
+FLAT (0) is the geometric centre of the range and is a real filter — the documented
+neutral reference (f0: Room 5 kHz, Hall 4 kHz, Plate and Delay 6 kHz), never
+"unfiltered". Because the filter is in the loop it changes **high-frequency decay**
+rather than the final timbre, and in the delay it leaves the first repeat
+bit-identical to the input.
+
+**Known consequence, reported not patched:** the law gives `fc = f0` at FLAT only
+when `4·f0 ≤ 0.45·fs`. The limit is **exposed**, not hidden: each module's
+`dampingHz` getter returns the cutoff it actually applies, and the suite asserts the
+clamped values. Room and Hall hit their f0 exactly at every rate; **Plate**
+selects 5 692 Hz at 48 kHz and 5 456 Hz at 44.1 kHz (clamped `f_hi`) and reaches
+6 000 Hz only at 96 kHz. The delay has the same 6 kHz law and the same clamping.
+Changing the law is a design decision that has not been taken.
+
+### 16.6 What DECAY measures
+
+DECAY is the **broadband RT60 target at TONE FLAT**: the whole signal’s T30, fitted
+over −5 … −35 dB by Schroeder backward integration of L²+R². Measured with
+`REVERB_DECAY_CALIBRATION = 1.315`, deviations from the knob:
+
+| character | 0.5 s (44.1 / 48 / 96 k) | 1.5 s | 4 s | 10 s |
+| --- | --- | --- | --- | --- |
+| Room | +3.2 / +1.7 / −4.5 % | +8.0 / +7.7 / +5.0 % | +9.6 / +9.6 / +7.4 % | +10.2 / +10.0 / +8.1 % |
+| Hall | −3.3 / −4.3 / **−14.6** % | +4.1 / +3.4 / −4.2 % | +9.7 / +9.5 / +6.4 % | +11.7 / +11.9 / +10.0 % |
+| Plate | +4.6 / +4.2 / −1.7 % | +11.1 / +11.1 / +8.4 % | +13.1 / +12.9 / +11.3 % | **+14.5** / +14.5 / +13.2 % |
+
+Every cell of 0.5–10 s at all three rates is inside ±15 %, and the suite asserts
+that grid. The residual is **not** flat across the range: the in-loop damping takes a
+frequency-dependent slice of every pass, so short decays read short and long decays
+long. The ±15 % acceptance is therefore met with little margin at two corners
+(Hall 96 kHz / 0.5 s at −14.6 %, Plate 10 s at +14.5 %) — stated in the report
+rather than smoothed over.
+
+### 16.6a The achievable minimum — measured, then enforced
+
+A network cannot decay faster than its own buildup, so the console's 0.2 s DECAY
+minimum is not attainable by every configuration at every rate. Swept at
+0.2 / 0.25 / 0.3 / 0.35 / 0.4 s and three rates (report §5.2), measured broadband
+T30 against the knob:
+
+| character | 0.2 s | 0.25 s | 0.3 s | 0.35 s | 0.4 s |
+| --- | --- | --- | --- | --- | --- |
+| Room @ 44.1/48 k | −2.6 / −3.6 % | −1.5 / −2.5 % | −0.1 / −1.0 % | 0.0 / −0.5 % | +1.3 / +0.1 % |
+| Room @ 96 k | **−17.5 %** | −14.7 % | −11.0 % | −9.0 % | −7.6 % |
+| Hall @ 44.1/48 k | **+67.5 / +67.9 %** | +37.7 / +37.8 % | +20.1 / +19.7 % | +9.3 / +8.7 % | +2.8 / +2.1 % |
+| Hall @ 96 k | **+68.1 %** | +36.2 % | +16.0 % | +2.9 % | −5.7 % |
+| Plate @ 44.1/48 k | +2.2 / +1.2 % | −1.5 / −1.9 % | −0.8 / −1.0 % | +0.6 / +0.5 % | +1.8 / +1.7 % |
+| Plate @ 96 k | −8.1 % | −11.5 % | −10.7 % | −7.7 % | −5.8 % |
+
+The **measured minimum** is therefore the smallest value on the console's own 0.1 s
+DECAY grid whose measured T30 stays inside the approved ±15 % **at that rate**:
+
+- **Room** 0.2 s at 44.1/48 kHz — its fixed 5 kHz neutral damping cutoff takes a
+  larger slice of the wider band at 96 kHz, costing the very short decays — and
+  **0.3 s above 48 kHz**.
+- **Hall 0.4 s at every rate** — 40 ms of diffusion and 48–98 ms line spacing smear
+  the response over ≈ 0.335 s, so no shorter tail exists; 0.3 s still reads +20 % and
+  the console's next step, 0.4 s, reads +2.8 / +2.1 / −5.7 %.
+- **Plate 0.2 s at every rate** — it tracks the console minimum within ±8 % even at
+  96 kHz.
+
+`REVERB_DECAY_MINIMUM_S` and `reverbDecayMinimum(character, sampleRate)` expose this;
+rates between the measured 48 kHz and 96 kHz take the higher-rate value, so a floor is
+never optimistic where it was not measured. The **module enforces it**: a request
+below the floor is raised to it (the same "clamp a finite out-of-range value"
+convention as the ranges), `requestedDecaySeconds` keeps the original request
+visible, `minimumDecaySeconds` reports the limit, and `tailSeconds` follows the
+**effective** decay — Hall at 0.2 s therefore reports a 0.6 s tail, not 0.3 s. The
+console's DECAY range itself is unchanged (0.2–10 s, D2.4.3): the effective minimum is
+what a UI must read, and no control was added or changed here.
+
+The pre-floor measurements above are kept as evidence, not as accepted behaviour:
+every one of those settings is now unreachable through the module.
+
+### 16.7 The delay
+
+A **single delay line per channel** — no cross-feedback, no ping-pong, no input
+summing, so a signal on one channel never appears on the other.
+
+- **TIME** is `round(ms · fs / 1000)` **whole samples**, and there is no
+  fractional-sample interpolation. Integer timing is not claimed to be universally
+  artefact-free; it is exact, and a changed time is a new module (§16.2).
+- **FEEDBACK** is the loop’s linear gain, `g = percent / 100`:
+  `write = in + LP(g · read)`, with the read taken before the write. The output is
+  the line itself, so the **first repeat is the input, unfiltered and at unity**;
+  only the repeats that pass through the loop are damped and scaled. At 0 % there is
+  exactly one repeat.
+- **Loop filter**: TONE’s one-pole (§16.5), inside the loop only. DC gain 1 with
+  g ≤ 0.9 keeps the loop bounded — a constant input accumulates to at most
+  `1/(1 − g)`, and the suite checks the 90 % case over ten seconds.
+
+### 16.8 Stereo
+
+**Reverb**: one internally coupled network, two distinct input weightings and two
+distinct output weightings (§16.3); mono builds its own weightings. L+R is never
+pre-summed, and **mono compatibility is not claimed** — the suite measures the
+fold-down and the report states what it found.
+**Delay**: fully independent channels.
+
+### 16.9 The decisions this task took
+
+Recorded with their reasoning in `task-reports/6.3-report.md`; the decisions log was
+left untouched on the task’s instruction, so its entry is the owner’s when this is
+approved.
+
+The **owner’s answers** (2026-11-03, asked at the readiness gate because no document
+fixed any of it): one shared algorithmic FDN in three structurally distinct
+configurations; DECAY as a broadband RT60 target at TONE FLAT; pre-delay separate
+and before the diffusers; TONE as in-loop damping with a documented neutral
+reference, not "unfiltered"; wet-only output with one fixed scale and no make-up;
+bypass freezing state and tails; parameters fixed at construction, no smoothing, no
+live TIME change; a delay line with integer timing, no cross-feedback and no
+tape processing.
+
+**Provisional numbers, each in one constant**: the three configurations’ line
+lengths, diffuser lengths and coefficients, early-reflection taps and gains, the
+three f0 values, the geometric TONE law, `REVERB_WET_SCALE` / `DELAY_WET_SCALE`,
+`REVERB_DECAY_CALIBRATION` (provisional, as the review requires), the tail formulas
+and the 6 kHz delay f0. The per-configuration **DECAY minimum is not provisional in
+the same sense**: it is a measurement of the approved structure, and it moves only if
+the structure moves.
+
+### 16.10 Not in this build (by design)
+
+Routing, sends and Return-chain assembly (7.1); the console’s UI, store fields and
+persistence for these parameters (it keeps its existing eight controls and gains no
+new one); chunked rendering, tail scheduling and latency compensation (7.4); any
+sidechain, masking or automatic parameter choice; tempo sync, ping-pong,
+modulation, wow/flutter, saturation, tape emulation and extra modes; convolution,
+impulse responses or IR assets; a separate wet-output filter; and any
+mono-compatibility or hardware-emulation claim.

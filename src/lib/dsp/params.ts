@@ -1,5 +1,5 @@
 /**
- * ALLOY — DSP parameter ranges and validation (Tasks 6.1 and 6.2).
+ * ALLOY — DSP parameter ranges and validation (Tasks 6.1, 6.2 and 6.3).
  *
  * The numbers the Task 6.1 modules accept are the documents', not this
  * file's invention:
@@ -28,6 +28,13 @@
  *               rules" (§8 block 2) and defers "exact headroom and
  *               peak-safety defaults" (§17), so these are PROVISIONAL
  *               app-design choices (D6.2.x, `task-reports/6.2-report.md`).
+ *
+ * Task 6.3's Return-effect ranges are the console's own (D2.4.3 / D2.9.4,
+ * the strip's `RETURN_SPECS`), kept provisional exactly as that decision says,
+ * and the owner fixed their DSP meaning on 2026-11-03: DECAY is a broadband
+ * RT60 target at TONE FLAT, PRE-DELAY and TIME are integer-sample problems,
+ * FEEDBACK is the percentage of the repeat returned, TONE is a bipolar
+ * damping reference with FLAT at 0.
  *
  * Where the plan is silent these are PROVISIONAL and live here, one number
  * each, so a later tuning task moves them in one place (the D5.2.5 / D5.2.8
@@ -148,3 +155,31 @@ export function requireBoolean(value: unknown, what: string): boolean {
   }
   return value;
 }
+
+/* =========================================================================
+   TASK 6.3 — THE RETURN EFFECTS
+   ========================================================================= */
+
+/**
+ * Reverb decay, seconds — the console's DECAY range (D2.4.3), approved as the
+ * broadband RT60 target at TONE FLAT (owner, 2026-11-03).
+ *
+ * This is the CONSOLE's range, not the effective one: a configuration cannot always
+ * produce its lowest step here (Hall bottoms out at 0.4 s, Room needs 0.3 s above
+ * 48 kHz). The measured per-character, per-rate minimum lives in `reverb.ts`
+ * (`REVERB_DECAY_MINIMUM_S` / `reverbDecayMinimum`) and is what `Reverb` enforces and
+ * a UI must read — no control range is redefined here.
+ */
+export const REVERB_DECAY_S: DspRange = { min: 0.2, max: 10 };
+/** Reverb pre-delay, ms — the console's PRE-DELAY range (D2.4.3). */
+export const REVERB_PREDELAY_MS: DspRange = { min: 0, max: 200 };
+/** Delay time, ms — the console's TIME range (D2.4.3); also the maximum supported delay. */
+export const DELAY_TIME_MS: DspRange = { min: 20, max: 2000 };
+/** Delay feedback, per cent of the repeat returned (D2.4.3: FEEDBACK 0–90 %). */
+export const DELAY_FEEDBACK_PERCENT: DspRange = { min: 0, max: 90 };
+/**
+ * Tone / damping, the console's bipolar control (D2.4.3 / D2.4.4): darker
+ * below 0, brighter above, FLAT at 0 — which is a real filter, the documented
+ * neutral reference, not "unfiltered" (owner, 2026-11-03).
+ */
+export const RETURN_TONE: DspRange = { min: -10, max: 10 };

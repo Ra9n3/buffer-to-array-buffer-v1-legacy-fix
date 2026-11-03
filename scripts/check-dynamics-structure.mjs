@@ -366,7 +366,7 @@ check(
 check(
   "the tests are recorded in the timeline and in npm test, with the guard script beside them",
   /"test": "node --import \.\/tests\/register\.mjs --test /.test(S.pkg) &&
-    /tests\/dsp-compressor\.test\.mjs tests\/dsp-expander\.test\.mjs tests\/dsp-limiter\.test\.mjs"/.test(S.pkg) &&
+    /tests\/dsp-compressor\.test\.mjs tests\/dsp-expander\.test\.mjs tests\/dsp-limiter\.test\.mjs/.test(S.pkg) &&
     /"check:dynamics": "node scripts\/check-dynamics-structure\.mjs"/.test(S.pkg),
 );
 check(
