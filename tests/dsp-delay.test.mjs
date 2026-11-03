@@ -361,3 +361,31 @@ test("validation: ranges clamp, non-numbers and buffer shapes are rejected", () 
   assert.throws(() => module.process([new Float32Array(8), new Float32Array(64)], output, 64), /frames/);
   assert.ok(delayDampingCutoff(0, RATE) > 0 && delayDampingCutoff(0, RATE) < RATE / 2);
 });
+
+test("in place: output may be the input arrays, as buffers.ts allows", () => {
+  // The 7.1 integration processes a Return through the same buffer it was handed. Reading
+  // `input[c][i]` after writing `output[c][i]` would feed the line its own output, so the
+  // module captures the source sample first; the two paths must agree sample for sample.
+  const frames = 4096;
+  const settings = { timeMs: 120, feedbackPercent: 40, tone: 3 };
+  const source = [noise(frames, 11), noise(frames, 12)];
+
+  const separate = [new Float32Array(frames), new Float32Array(frames)];
+  new Delay(settings, { channels: 2, sampleRate: RATE }).process(source, separate, frames);
+
+  const inPlaceInput = [Float32Array.from(source[0]), Float32Array.from(source[1])];
+  new Delay(settings, { channels: 2, sampleRate: RATE }).process(inPlaceInput, inPlaceInput, frames);
+
+  for (let i = 0; i < frames; i++) {
+    assert.equal(inPlaceInput[0][i], separate[0][i], `left differs at frame ${i}`);
+    assert.equal(inPlaceInput[1][i], separate[1][i], `right differs at frame ${i}`);
+  }
+
+  // And a flat burst survives the in-place path at its own delay time.
+  const burst = [new Float32Array(frames), new Float32Array(frames)];
+  for (let i = 0; i < 256; i++) burst[0][i] = 0.5;
+  const line = new Delay({ timeMs: 20, feedbackPercent: 0, tone: 0 }, { channels: 2, sampleRate: RATE });
+  line.process(burst, burst, frames);
+  assert.equal(peakOf(burst[0], 0, 960), 0, "the in-place path leaked a dry copy");
+  assert.ok(Math.abs(peakAt(burst[0], 960, 4) - 0.5) < 1e-6, "the in-place repeat is not the input at unity");
+});

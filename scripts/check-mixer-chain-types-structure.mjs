@@ -224,7 +224,7 @@ const pinned = {
   "src/components/mixer/EffectSection.svelte": "9c35887eaeb7c52ac88154a4ec832c6ea949e34d01c4ef40f860980daf4a4ef2",
   "src/components/mixer/SendsIn.svelte": "49e0892f09b0351a1f0099c089dbfb92863ddac2df5862bc8429c206d92a85e0",
   "src/lib/return-chain.ts": "8d955c33261d9bbb98d8444e67284779ef694a7d03b1643b79e57d18ee5a9f2c",
-  "src/lib/bus-chain.ts": "c5f3948bf1cade236c8040b7a8cf1f0aa7134b12d8e4e99af2b40557d5051055",
+  "src/lib/bus-chain.ts": "52ef0107246646e89b008196545510a34f2ca9cf97ee5ad4508577ea1b0093e5",
   "src/lib/mixer-chain.ts": "818fb94f4560f173819dacb76bf42726db67b28a18eb7288dacdba74f67919d2",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

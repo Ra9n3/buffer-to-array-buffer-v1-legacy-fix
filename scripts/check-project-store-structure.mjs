@@ -225,7 +225,7 @@ const pinned = {
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
   "src/lib/mixer-chain.ts": "818fb94f4560f173819dacb76bf42726db67b28a18eb7288dacdba74f67919d2",
   "src/lib/return-chain.ts": "8d955c33261d9bbb98d8444e67284779ef694a7d03b1643b79e57d18ee5a9f2c",
-  "src/lib/bus-chain.ts": "c5f3948bf1cade236c8040b7a8cf1f0aa7134b12d8e4e99af2b40557d5051055",
+  "src/lib/bus-chain.ts": "52ef0107246646e89b008196545510a34f2ca9cf97ee5ad4508577ea1b0093e5",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

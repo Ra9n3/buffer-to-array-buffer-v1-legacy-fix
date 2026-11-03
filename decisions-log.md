@@ -3935,3 +3935,143 @@ hand-overs (23 guards, 2 006 / 2 006), and the browser evidence under
 `evidence/analysis/5.2/`. Committed to local `main` on top of `ff31f9a`
 (Task 5.1) and pushed to remote `main` (the owner's PAT, used inline for
 the push and not stored). Task 5.3 is not started.
+
+---
+
+## Task 7.1 — Channel chain, summing, routing and bus processing — closeout (2026-11-03; uncommitted, awaiting review — the owner handles Git)
+
+Direction: Phase 7's first step — fix the approved 6.1–6.3 modules into one signal
+flow (plan §7, `PROCESSING_CHAIN_STEPS`, §8) without changing any of them. Five
+readiness-gate questions the documents do not answer were put to the owner before any
+code (`ask_user`, 2026-11-03) and answered "as proposed": D7.1.4–D7.1.6. Built in
+`src/lib/engine/` (`pan.ts`, `constants.ts`, `audibility.ts`, `chains.ts`,
+`mix-engine.ts`) with two new suites, a new structural guard and `data-model.md` §17;
+report `task-reports/7.1-report.md`. The owner's closeout (Task 6.4, 2026-11-03)
+resolved the three items that report raised in §8 — D7.1.1 / D7.1.2 / D7.1.3 — and
+re-ran the whole gate on the final tree. **Not committed, not tagged, not pushed**
+(the owner handles Git checkpoints); Task 7.2 is not started. `architecture.md` and
+`module-contract.md` still do not exist; `data-model.md` and this log carry the
+contract.
+
+### D7.1.1 — The delay's in-place defect is fixed inside the reviewed 6.3 module (owner, 2026-11-03)
+
+**Context.** `buffers.ts` allows a module's output to be the same arrays as its input,
+and the Return chain relies on it. `Delay.process()` read `input[c][i]` *after*
+writing `output[c][i]`, so in place the line fed itself its own output and produced
+silence — a genuine defect in a reviewed Task 6.3 file, found only because 7.1 was the
+first caller to pass one buffer.
+
+**Decision.** Keep the one-line fix: capture `const source = input[c][i];` before the
+output write, and write `buffer[at] = source + gain * filtered;`. Approved on three
+grounds — it fixes a real in-place defect, it leaves the out-of-place behaviour
+identical (all 12 original delay tests pass unchanged), and it is covered by a
+regression test that compares the two paths sample for sample
+(`tests/dsp-delay.test.mjs`, "in place: output may be the input arrays").
+
+**Consequences.** The engine needs no scratch buffer for a Return, and no later caller
+inherits the trap. `delay.ts` is re-pinned in `check-return-dsp`, whose "the delay
+damps inside the loop only" check now also pins the source-before-write order. Any
+future edit to that loop must keep the read before the write.
+
+### D7.1.2 — BALANCE is unity-at-centre and attenuation-only; it is deliberately not the pan law (owner, 2026-11-03)
+
+**Context.** The readiness gate approved a constant-power pan law for PAN and used the
+same law for a bus BALANCE. Applied literally, a bus at its **default** centre position
+drops 3.01 dB — a gain the model does not hold, and a direct disagreement with the same
+material routed straight to Master (0.707 vs 0.5). The 7.1 report implemented BALANCE as
+a console balance instead (unity on both sides at centre, linear attenuation of the
+opposite side, never a boost) and asked for confirmation.
+
+**Decision.** Keep it. BALANCE is not strict identity with PAN. The owner considered
+and declined "identical to the pan law", because a control at its default must be
+neutral.
+
+**Consequences.** Two different laws sit next to each other in `pan.ts`
+(`panGains` / `balanceGains`) with the divergence documented in the source and in
+`data-model.md` §17.3. `PAN_CENTRE_DB` (−3.01) is the PAN centre only; a centred bus
+measures unity. A later reader must not "simplify" the two into one function.
+
+### D7.1.3 — A Return's output is the Master; the B1 header is corrected, and routing is untouched (owner, 2026-11-03)
+
+**Context.** `src/lib/bus-chain.ts`'s header claimed B1 is "the bus every track and
+Return sums into", while `routing.ts` rule 4 and `session.ts` route a Return's output
+straight to Master. 7.1 followed the rule, left the comment alone and flagged it.
+
+**Decision.** Correct the header to say what the rule says — every **track** sums into
+B1 and B1 feeds Master; a Return does not pass through B1 and outputs to Master itself —
+and change nothing about routing. The correction is a comment only, with no change to
+`bus-chain.ts`'s code, so the audio and the bus's code are untouched; only the two guards that hash the
+file needed re-pinning.
+
+**Consequences.** `bus-chain.ts` is re-pinned in `check-mixer-chain-types` (110/110) and
+`check-project` (122/122). One stale sentence remains in
+`src/components/channel-strip/bus-return-fixtures.ts` ("the mix bus every track and
+Return sums into"), which repeats the old claim in a UI fixture; it is recorded in this
+closeout as outstanding because the owner's scope limited the correction to
+`bus-chain.ts`.
+
+### D7.1.4 — The Master is not a project entity: it is the unity sum through the always-on safety limiter, with no fader (owner, 2026-11-03)
+
+**Context.** Plan §7 has a Master output stage; the model (`model.ts`) has no Master
+object, so nothing said what the Master *is* or where the 6.2 limiter lives.
+
+**Decision.** The Master is the sum of everything that reaches it, through the reviewed
+`SafetyLimiter` **always in circuit** — −1 dBFS ceiling, 50 ms release, 5 ms lookahead,
+no make-up gain, no fader, no loudness maximisation (plan §8's "transparent peak
+protection only").
+
+**Consequences.** The engine reports the limiter's lookahead as `latencyFrames` (240
+frames at 48 kHz) — the only latency in the chain — so 7.4 can compensate instead of
+discovering it. The ceiling is true by construction, and the engine's node set gains no
+Master control.
+
+### D7.1.5 — Solo is in place along the routing path, mute wins, and a skipped path freezes (owner, 2026-11-03)
+
+**Context.** The model carries `solo` and `mute` on tracks, buses and Returns; no
+approved document defined their audio meaning, and the fixture session ships with a
+soloed track and two muted ones, so the first block was silent until this existed.
+
+**Decision.** Mute wins over solo. Solo is **in place**: with anything soloed, a path
+passes only if it lies on the routing path of a soloed object — a soloed track keeps its
+own bus, a soloed bus keeps its children, a soloed Return hears its feeders' sends and
+no dry signal. A path that does not pass is **skipped and frozen**, never reset — the
+6.1–6.3 bypass rule extended to routing.
+
+**Consequences.** Unmuting resumes instead of jumping, which `tests/engine-routing`
+proves against a fresh engine rather than asserting. Because audibility is read when the
+engine is built, a controller that changes mute or solo must call
+`refreshAudibility()`; that is the only way routing changes without rebuilding a chain,
+and the UI task must use it.
+
+### D7.1.6 — PAN keeps the constant-power law; the dynamic-EQ gate and the cleanup expander stay PROVISIONAL (owner, 2026-11-03)
+
+**Context.** No pan law, no dynamic-EQ detector timing and no expander values existed in
+the approved documents; `cleanup` was a boolean with nothing behind it.
+
+**Decision.** PAN is constant power (`θ = (pan+100)/200 · π/2`, `L = cos θ`, `R = sin θ`;
+−3.01 dB per side at centre, unity at the extremes, `L² + R² = 1`). The dynamic-EQ gate
+is −24 dBFS / 5 ms attack / 120 ms release; the cleanup expander is −45 dBFS / 2:1 /
+20 dB range / 5 / 120 ms. Both numeric sets are marked **PROVISIONAL** in
+`engine/constants.ts` and in `data-model.md` §17 — calibration, not contract.
+
+**Consequences.** The two gates can be retuned without touching the chain, and the guard
+holds the marker in place so no one mistakes them for approved constants. Trim is audio
+gain (plan step 01), so it feeds every detector; dynamic bands are built at static gain
+0 dB because the band's static gain already happened at step 03.
+
+### D7.1.7 — The engine layer is the only door into the DSP, and the 6.x guards now say so (owner, 2026-11-03)
+
+**Context.** The 6.1–6.3 guards asserted the opposite of what 7.1 does: "nothing outside
+`src/lib/dsp/` imports the DSP yet: no channel chain, no room, no store, no UI (Task
+7.1's work)". Four of them failed the moment the engine imported a module.
+
+**Decision.** Flip those assertions to the new truth rather than delete them: only
+`src/lib/engine/` may import the DSP — no store, no route, no component — and the engine
+layer is verified to be the one bridge. Amend `check-editing`'s pinned `npm test` string
+for the two new suites, and add `check-engine-structure.mjs` (`npm run check:engine`,
+63/63) for the chain order, the pan and balance laws, mute/solo, the graph gate, the
+allocation-free block loop, the lifecycle API, the provisional markers and the docs.
+
+**Consequences.** The "nothing is wired yet" invariant now points at the right boundary:
+UI and store wiring remain forbidden, and the DSP stays reachable through exactly one
+layer. The guard list grows to 27 scripts.

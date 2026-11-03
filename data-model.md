@@ -1963,3 +1963,131 @@ sidechain, masking or automatic parameter choice; tempo sync, ping-pong,
 modulation, wow/flutter, saturation, tape emulation and extra modes; convolution,
 impulse responses or IR assets; a separate wet-output filter; and any
 mono-compatibility or hardware-emulation claim.
+
+## 17. The mixer engine — channel chain, summing and bus processing (Task 7.1)
+
+Task 7.1 fixes the approved DSP modules (6.1–6.3) into one signal flow. It adds no new
+DSP: every filter, dynamics law and effect is the reviewed module of §14–§16, driven
+from the project model. The layer lives in `src/lib/engine/` and is the **only** code
+outside `src/lib/dsp/` that imports those modules.
+
+### 17.1 The files
+
+| File | Responsibility |
+| --- | --- |
+| `engine/pan.ts` | `PAN_CENTRE_DB` (−3.01), `panGains()` (constant-power), `balanceGains()` (bus balance) |
+| `engine/constants.ts` | the two provisional control values (dynamic-EQ gate, cleanup expander) and the master limiter's settings |
+| `engine/audibility.ts` | `computeAudibility()` — mute and solo-in-place as pass/fail rules; `busProcessingOrder()` |
+| `engine/chains.ts` | `TrackChain`, `BusChain`, `ReturnChain` — each block through its modules, in order |
+| `engine/mix-engine.ts` | `MixEngine` — graph validation, buffers, the block loop, taps, `reset()`, `flush()`, tail and latency |
+
+### 17.2 The channel chain
+
+One track, one block, in this order — the eight steps of `PROCESSING_CHAIN_STEPS`
+(`src/lib/mixer.ts`), with no step skipped and no step reordered:
+
+| Step | Control | Module | Note |
+| --- | --- | --- | --- |
+| 01 | TRIM `−24…+24 dB` | gain | before everything, so it drives the detector too |
+| 02 | CLEANUP (expander) | `Expander` | **in circuit only when `channel.cleanup` is set**; otherwise skipped, state frozen |
+| 03 | static EQ, 4 bands | `Eq` | the 4-band console EQ of §14 |
+| 04 | dynamic EQ, 4 bands | `DynamicEq` | band depth from `dynamicDepthDb`; a band at 0 dB depth is bypassed |
+| 05 | COMPRESSOR | `Compressor` | character from `CharacterId`; bypass freezes state |
+| 06 | PAN | `panGains()` | post-compressor, pre-fader |
+| 07 | FADER `−60…+6 dB` | gain | `−60` is silence, not a very small gain |
+| 08 | SENDS + ROUTING | — | see §17.5 |
+
+Two consequences are deliberate. **TRIM is audio gain, not a detector offset**: it
+changes the level the compressor sees, which is what the plan's step 01 means. **Dynamic
+bands are built with static `gain` 0 dB** and only their depth, because the band's static
+gain already happened at step 03 — otherwise a static and a dynamic setting would be
+multiplied twice.
+
+A bus is narrower, because a bus has no pan and no sends (plan §7):
+
+| Step | Control | Module |
+| --- | --- | --- |
+| 01 | TRIM | gain |
+| 02 | static EQ | `Eq` |
+| 03 | COMPRESSOR | `Compressor` |
+| 04 | BALANCE | `balanceGains()` |
+| 05 | FADER | gain |
+
+A Return has no fader in the ordinary sense: its chain is **effect → level**, where the
+level is the Return fader (`−60…0 dB`) applied to the effect's *wet* output. There is no
+dry path anywhere in a Return (§16.2).
+
+### 17.3 PAN, BALANCE and the −3.01 dB centre
+
+PAN is the approved constant-power law: `θ = (pan + 100)/200 · π/2`, `L = cos θ`,
+`R = sin θ`. Centre is −3.01 dB per side, hard positions are unity on one side and
+exactly zero on the other, and `L² + R² = 1` throughout — so a mono source keeps its
+power as it moves. `PAN_CENTRE_DB` is exported for display.
+
+BALANCE is **not** the same function, and the difference is deliberate: a balance on a
+stereo bus sits at a default that must be neutral. Applying the pan law to it would drop
+every centred bus by 3.01 dB — a gain the model does not hold, and a direct disagreement
+with the same material routed straight to Master. `balanceGains()` therefore reads like a
+console balance: unity on both sides at the centre, and moving it attenuates the opposite
+side linearly, never boosting either side. **Approved** (owner, 2026-11-03;
+`decisions-log.md` D7.1.2): strict identity with the pan law was considered and declined,
+because a control at its default must be neutral.
+
+### 17.4 Mute and solo — solo-in-place
+
+`computeAudibility()` turns the model's flags into pass/fail predicates, recomputed only
+when asked (§17.8):
+
+- **Mute wins.** A muted channel passes nothing — not to its bus, not to its sends.
+- **Solo is in place.** With any channel soloed, a path passes only if it lies on the
+  routing path of a soloed object. A soloed track keeps its own bus (the bus is not
+  silently bypassed); a soloed bus passes its children; a soloed Return hears its
+  feeders' sends but no track's dry signal.
+- A skipped path is **frozen, not reset** — that is the bypass rule of 6.1–6.3, and it is
+  what makes unmuting resume rather than jump.
+
+### 17.5 Summing, routing and the bus order
+
+Summing is plain addition in Float32 at every node, with **no compensation for the number
+of contributors**: two tracks at −6 dB sum to −6 dB + 6 dB, and a bus's level is the sum
+of what reached it. Buses are processed **sources first** (`busProcessingOrder()` sorts
+the graph), so a bus feeding another bus is finished before its consumer reads it, and a
+signal reaches the Master exactly once. Sends are **post-fader and post-pan** (step 08).
+A Return's output is fixed to Master (§7, rule 4) — a Return does not pass through a
+bus, and the `bus-chain.ts` header that claimed otherwise was corrected in Task 6.4
+(`decisions-log.md` D7.1.3).
+
+The engine **refuses to build** on a graph `validateGraph()` rejects — a missing bus, a
+cycle, a Return routed to a bus, a send to a Return that does not exist — and the error
+carries the routing verdict's own reason. Nothing is guessed at runtime, because an
+invalid graph is a bug in the store, not a condition to survive.
+
+### 17.6 The Master
+
+The Master is not a project entity (§7): it is the sum of everything that reaches it,
+through the safety limiter of §15.6, at a fixed −1 dBFS ceiling with no fader. The
+limiter is **always in circuit**, so the engine reports its 5 ms lookahead as
+`latencyFrames` — the only latency in the chain.
+
+### 17.7 Lifecycle — state, blocks, reset
+
+Processors are built **once** from the project model, in the constructor. State carries
+across blocks: chunked processing is sample-identical to a single pass, and the tests
+assert that rather than assume it. The block loop allocates nothing; every buffer it
+needs is sized in the constructor from `maxFramesPerBlock` (default 4096), and a larger
+block is a named error instead of a reallocation. `reset()` clears every module, the
+accumulators and the limiter. `flush(target, frames)` runs the tail out with no input, for
+a renderer that must not cut it. `tailSeconds` is the longest Return tail.
+
+### 17.8 Controls that change without a rebuild
+
+Mute and solo are read when the engine is built. `refreshAudibility()` re-reads them after
+a controller changes one: it recomputes only the pass/fail routing, and **no chain is
+rebuilt and no state is lost**. Rebuilding is reserved for a change of the graph itself,
+which is a new `MixEngine`.
+
+### 17.9 Not in this build (by design)
+
+The console's UI and store wiring for any of this; sidechain routing (7.2); masking
+resolution (7.3); chunked rendering, tail scheduling and latency compensation (7.4);
+transport, playback and export; and any change to the approved DSP algorithms.

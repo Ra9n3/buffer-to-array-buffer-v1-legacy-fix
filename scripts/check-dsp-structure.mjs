@@ -250,10 +250,17 @@ check(
 );
 
 // --- 6. Scope: nothing is wired, nothing new is depended on. -------------------------------
-const outside = walk("src").filter((rel) => !rel.startsWith("src/lib/dsp/"));
+// Task 7.1 wired the DSP into `src/lib/engine/`: that is the only door into it.
+const outside = walk("src").filter(
+  (rel) => !rel.startsWith("src/lib/dsp/") && !rel.startsWith("src/lib/engine/"),
+);
 check(
-  "nothing outside src/lib/dsp/ imports the DSP yet: no channel chain, no room, no store, no UI (Task 7.1's work)",
+  "only the 7.1 engine layer imports the DSP: no store, no room, no UI",
   outside.every((rel) => !/lib\/dsp\/|from "\.\.\/dsp\/|from "\.\/dsp\//.test(stripComments(read(rel)))),
+);
+check(
+  "the engine layer is the one bridge to the DSP (Task 7.1)",
+  walk("src/lib/engine").some((rel) => /from "\.\.\/dsp\//.test(read(rel))),
 );
 check("no new runtime dependency", !/"dependencies"/.test(S.pkg) || /"dependencies":\s*\{\s*\}/.test(S.pkg));
 

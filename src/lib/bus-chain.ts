@@ -11,9 +11,13 @@
  * So a bus's chain is: the strip's BUS TRIM → EQ → compressor (the same two
  * modules as a track, on the same components) → the strip's BALANCE and
  * bus fader → its output. The one pinned bus of the fixture session, B1
- * "Mix Bus", is read (Task 2.4) as the bus every track and Return sums into
- * and feeds Master directly, so its rail ends with the output stage as a
- * STATUS — peak protection not engaged — with no control (owner, D2.9.2).
+ * "Mix Bus", is read (Task 2.4) as the bus every TRACK sums into, and B1
+ * feeds Master directly. A Return does NOT pass through it: a Return's
+ * output is the Master itself (`routing.ts`, rule 4). The earlier wording
+ * here said "every track and Return", which contradicted that rule; it was
+ * corrected in Task 6.4 with no change to routing behaviour. The rail ends
+ * with the output stage as a STATUS — peak protection not engaged — with no
+ * control (owner, D2.9.2).
  * No cleanup / expander, no dynamic band, no sends: none is in the plan for
  * a bus.
  *

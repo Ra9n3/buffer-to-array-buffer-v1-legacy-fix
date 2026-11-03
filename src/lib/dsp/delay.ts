@@ -217,6 +217,9 @@ export class Delay {
       for (let c = 0; c < channels; c++) {
         const buffer = buffers[c];
         const at = indices[c];
+        // The source sample first: `output` may be `input` (buffers.ts), and writing the
+        // output before reading the input would feed the delay its own output.
+        const source = input[c][i];
         // Read before write: the sample written last pass is exactly `length` ago.
         const read = buffer[at];
         // The output is the line itself, so the first repeat is the input,
@@ -224,7 +227,7 @@ export class Delay {
         output[c][i] = scale * read;
         const filtered = oneMinusDamp * read + damp * damped[c];
         damped[c] = filtered;
-        buffer[at] = input[c][i] + gain * filtered;
+        buffer[at] = source + gain * filtered;
         indices[c] = at + 1 === length ? 0 : at + 1;
       }
     }

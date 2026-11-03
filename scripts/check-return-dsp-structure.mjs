@@ -95,9 +95,17 @@ check(
     !/\b(window|document|localStorage|indexedDB|AudioContext|XMLHttpRequest|fetch|Date\.now|performance\.now|Math\.random)\b/.test(delay),
 );
 check("no new dependency: package.json dependencies is still empty", Object.keys(pkg.dependencies ?? {}).length === 0);
+// Task 7.1 wired the Return effects into `src/lib/engine/`: that is the only door into them.
+const outside = walk("src").filter(
+  (rel) => !rel.startsWith("src/lib/dsp/") && !rel.startsWith("src/lib/engine/"),
+);
 check(
-  "nothing outside src/lib/dsp/ imports the Return modules",
-  walk("src").filter((rel) => !rel.startsWith("src/lib/dsp/")).every((rel) => !/from\s+"[^"]*\/dsp\/(reverb|delay)\b/.test(read(rel))),
+  "only the 7.1 engine layer imports the Return modules: no store, no room, no UI",
+  outside.every((rel) => !/from\s+"[^"]*\/dsp\/(reverb|delay)\b/.test(read(rel))),
+);
+check(
+  "the engine layer is the one bridge to the Return modules (Task 7.1)",
+  walk("src/lib/engine").some((rel) => /from\s+"[^"]*\/dsp\/(reverb|delay)\b/.test(read(rel))),
 );
 
 // --- 2. The network. -------------------------------------------------------------------------
@@ -152,7 +160,13 @@ check("there is no impulse response or convolution anywhere", !/convol/i.test(re
 check("the damping law is the approved geometric one-pole", /const low = toneHz \/ 4;/.test(reverb) && /Math\.min\(0\.45 \* sampleRate, 4 \* toneHz\)/.test(reverb) && /Math\.exp\(\(-2 \* Math\.PI \* cutoff\) \/ sampleRate\)/.test(reverb));
 check("the delay uses the same law with a 6 kHz neutral cutoff", /export const DELAY_TONE_HZ = 6000;/.test(delay) && /Math\.min\(0\.45 \* sampleRate, 4 \* DELAY_TONE_HZ\)/.test(delay));
 check("the reverb damps inside every feedback path", /dampingState\[j\] = z;/.test(reverb) && /damped\[j\] - householder/.test(reverb));
-check("the delay damps inside the loop only", /const filtered = oneMinusDamp \* read \+ damp \* damped\[c\];/.test(delay) && /buffer\[at\] = input\[c\]\[i\] \+ gain \* filtered;/.test(delay));
+check(
+  "the delay damps inside the loop only, and reads its source before it writes (in place is allowed)",
+  /const filtered = oneMinusDamp \* read \+ damp \* damped\[c\];/.test(delay) &&
+    /const source = input\[c\]\[i\];/.test(delay) &&
+    /buffer\[at\] = source \+ gain \* filtered;/.test(delay) &&
+    delay.indexOf("const source = input[c][i];") < delay.indexOf("output[c][i] = scale * read;"),
+);
 check("the delay's output is the raw line, so the first repeat is unfiltered", /output\[c\]\[i\] = scale \* read;/.test(delay));
 check("the reverb's output is the weighted line sum, not a filtered wet bus", /output\[c\]\[i\] = REVERB_WET_SCALE \* acc;/.test(reverb));
 check("FLAT is documented as a real filter, never 'unfiltered'", /not "unfiltered"/.test(rawReverb) && /not "unfiltered"/.test(rawDelay));
@@ -252,7 +266,7 @@ check("the report states that nothing was committed", /[Nn]othing committed|no c
 // --- 11. Pins: the 6.3 sources as reviewed. -------------------------------------------------
 const pinned = {
   "src/lib/dsp/reverb.ts": "ca30f4135030fecff8ed4e8f94afaaf31933906e49f6ea74e85784d3a66ae0a2",
-  "src/lib/dsp/delay.ts": "c6975e43401fe8d52fd82c98141c6dd814117303571759ea6ee04aa7e0d86214",
+  "src/lib/dsp/delay.ts": "3c78e0fc6f45f72b97da82b31183f23defac093f4a2d75b3fe6ba398b24e1198",
   "src/lib/dsp/params.ts": "6653a527255d80a62d435e63aa0abc9170fb24c7cbea8d1a84aa58be72185a71",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
