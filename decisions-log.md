@@ -4227,3 +4227,77 @@ fallback are preserved.
 **Consequences.** The overlay is passed to `MixEngine` through
 `maskingDynamicBands`; it is not persisted or shown in the UI by this task. Compressor
 escalation occurs only after EQ re-measurement shows meaningful remaining conflict.
+
+---
+
+## Task 7.4 — Bounded-chunk rendering, state continuity and recovery (2026-11-04; uncommitted, awaiting review — the owner handles Git)
+
+Direction: Phase 7's fourth step — plan §11 bounded chunk processing and §15's
+single-pass versus chunked comparison. Built in `src/lib/engine/render.ts` over the
+existing `MixEngine`, with a recovery-only clearing of scratch/key buffers in
+`MixEngine.reset()`, 16 tests, a structural guard, `data-model.md` §20 and
+`task-reports/7.4-report.md`. No DSP algorithm, masking methodology, project schema,
+UI, transport, export dialog or dependency was changed. **Nothing committed, tagged
+or pushed.** No later task was started.
+
+### D7.4.1 — Bounded orchestration block: 4096 frames default, 65536 cap (builder, 2026-11-04)
+
+**Context.** The plan fixes bounded chunk processing but leaves the exact chunk
+duration to implementation and validation. The engine already defaults to 4096
+frames and allocates its block buffers from `maxFramesPerBlock`.
+
+**Decision.** `DEFAULT_RENDER_CHUNK_FRAMES = 4096` (about 85 ms at 48 kHz), with a
+configurable whole-frame `chunkFrames` from 1 to `MAX_RENDER_CHUNK_FRAMES = 65536`
+(about 1.37 s at 48 kHz). The cap is a provisional orchestration safety bound, not a
+DSP control. Source, raw output and aligned output buffers are sized from the chunk,
+never from total project duration.
+
+**Consequences.** A longer project increases the number of chunks and sink writes,
+not the size of the audio buffers. The allocation test proves identical Float32
+audio allocation for short and long renders at the same chunk size.
+
+### D7.4.2 — Streaming source/sink and safe restart, not persisted DSP checkpoints (builder, 2026-11-04)
+
+**Context.** There is no production render/export path yet. Long projects must not
+require whole stems or a whole output mix in RAM, and interrupted renders must
+recover safely. Serializing every DSP state would widen the DSP/project contracts.
+
+**Decision.** `renderProject` consumes seekable `RenderSource` objects and writes to
+a `RenderSink` with `write`, `finish` and `abort`. A WAV adapter reuses Task 5.2's
+slice decoder and Task 5.1's import rules. Each attempt owns a fresh engine and
+scratch buffers; failure/cancellation resets and closes them and aborts the sink.
+Retry is a clean restart from frame 0. No mid-render checkpoint is persisted.
+
+**Consequences.** The plan's "resume or safely restart" requirement is met by safe
+restart. Durable atomic files, export selection and user-facing recovery remain later
+transport/export work. A sink must copy/persist a chunk before its async `write`
+resolves because the renderer reuses the arrays.
+
+### D7.4.3 — Render Return tails through the full graph, then compensate limiter latency (builder, 2026-11-04)
+
+**Context.** `MixEngine.tailSeconds` reports the conservative Return tail, while
+`MixEngine.flush` drains the master limiter's lookahead. Dropping the limiter delay
+without appending its flushed residual would cut real audio; flushing only the
+limiter would not advance Return networks.
+
+**Decision.** Process `N + ceil(tailSeconds × rate)` frames, where `N` is the longest
+input and the frames after `N` are silence through the full engine. Then drop the
+first `latencyFrames` raw output frames and append exactly `latencyFrames` flushed
+frames. The delivered length is `N + tailFrames`, aligned with the input.
+
+**Consequences.** Reverb/delay tails and detector releases cross chunk boundaries and
+continue after the last input. The limiter's residual audio is preserved. The
+continuous-reference tests compare the same timeline sample-for-sample.
+
+### D7.4.4 — Reset clears scratch and sidechain key buffers (builder, 2026-11-04)
+
+**Context.** Task 7.1's `reset()` cleared processors and summing accumulators, and the
+next block overwrote key buffers before use. Recovery nevertheless should not leave
+an attempt's samples resident in reusable engine buffers.
+
+**Decision.** Extend `MixEngine.reset()` to zero the scratch pair and every allocated
+compressor/Dynamic EQ key buffer, in addition to the existing processor and
+accumulator reset. No signal-path or per-block behavior changes.
+
+**Consequences.** A reset or failed-attempt cleanup leaves no stale key/scratch audio.
+The engine and sidechain structural pins are updated for this recovery-only edit.

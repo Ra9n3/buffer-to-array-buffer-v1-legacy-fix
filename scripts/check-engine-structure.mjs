@@ -55,6 +55,8 @@ const FILES = [
   "src/lib/engine/sidechain.ts",
   // Task 7.3 added masking detection/resolution as its own engine module.
   "src/lib/engine/masking.ts",
+  // Task 7.4 added bounded render orchestration over the same engine.
+  "src/lib/engine/render.ts",
 ];
 for (const rel of FILES) {
   check(`exists: ${rel}`, exists(rel));
@@ -74,6 +76,7 @@ for (const [rel, code] of Object.entries(engineCode)) {
       spec.startsWith("./") ||
       spec.startsWith("../dsp/") ||
       spec.startsWith("../analysis/") ||
+      spec.startsWith("../audio/") ||
       spec.startsWith("../project/") ||
       spec === "../mixer-chain" ||
       spec === "../return-chain",
@@ -218,7 +221,7 @@ const pinned = {
   "src/lib/engine/constants.ts": "6a0fb2fba1457ba4dfeaa955e7cb1020931e3bc5187f0703cac7b9579124710e",
   "src/lib/engine/audibility.ts": "d161c11ac94a4b188490ca8655b163380bbfda97b06f504e131a224706f0d8b5",
   "src/lib/engine/chains.ts": "3736f3b86130a0512ec777b12ae27605452ff4027178745a3665d0bc264167cd",
-  "src/lib/engine/mix-engine.ts": "efc593ccedd6330c958f78541c6345d8543799a5faa3117a1c0c4329d9c8855a",
+  "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
   "src/lib/engine/sidechain.ts": "5ef6f3c2853ce37f4a1f75ee92242f68ffbd8e728a736ed9f8de040326641881",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

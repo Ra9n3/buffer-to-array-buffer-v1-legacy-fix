@@ -407,7 +407,16 @@ export class MixEngine {
     for (const chain of this.returnChains.values()) chain.reset();
     for (const buffer of this.busBuffers.values()) for (let c = 0; c < CHANNELS; c++) buffer[c].fill(0);
     for (const buffer of this.returnBuffers.values()) for (let c = 0; c < CHANNELS; c++) buffer[c].fill(0);
-    for (let c = 0; c < CHANNELS; c++) this.masterBuffer[c].fill(0);
+    for (let c = 0; c < CHANNELS; c++) {
+      this.masterBuffer[c].fill(0);
+      this.scratch[c].fill(0);
+    }
+    // Task 7.4 recovery: a reset leaves no previous attempt's key or scratch
+    // samples behind. The next process still fills keys from its own block.
+    for (const bundle of this.keyBundles.values()) {
+      if (bundle.compressor) for (let c = 0; c < CHANNELS; c++) bundle.compressor[c].fill(0);
+      if (bundle.dynamicEq) for (let c = 0; c < CHANNELS; c++) bundle.dynamicEq[c].fill(0);
+    }
     this.limiter.reset();
   }
 }

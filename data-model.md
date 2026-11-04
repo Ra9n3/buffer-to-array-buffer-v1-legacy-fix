@@ -2308,3 +2308,104 @@ UI/store/persistence/clipboard wiring for masking results or engine-owned Dynami
 overlays; per-section priority; genre rulebook precedence; Return-bus dynamics or
 Return sidechain destinations; new effect algorithms; bounded-chunk rendering, state
 continuity and recovery (Task 7.4); WAV export; native Tauri/Rust.
+
+## 20. Bounded-chunk rendering — streaming sources, state continuity and recovery (Task 7.4)
+
+Phase 7's fourth step: plan §11's bounded chunk processing and §15's single-pass
+versus chunked comparison, built over the Task 7.1 `MixEngine` without changing the
+signal path or any DSP algorithm. It is an **engine layer only**: no UI, transport,
+store op, persistence field, WAV export dialog, native code, or new dependency.
+`architecture.md` and `module-contract.md` still do not exist; this section is the
+implemented contract.
+
+### 20.1 The files
+
+| file | what |
+| --- | --- |
+| `src/lib/engine/render.ts` | `renderProject`, streaming source/sink contracts, bounded chunk loop, latency compensation, tail scheduling, cancellation/recovery, WAV source adapter |
+| `src/lib/engine/mix-engine.ts` | one recovery-only addition: `reset()` also clears the scratch and sidechain key buffers |
+| `tests/rendering.test.mjs` | 16 deterministic rendering tests |
+| `scripts/check-rendering-structure.mjs` | the 7.4 structural guard (`npm run check:rendering`) |
+
+### 20.2 Source and sink contracts
+
+`RenderSource` is seekable and stereo at the render rate: `frames`, `sampleRate`,
+`read(frameStart, target, frames)`, optional `close()`. A read writes exactly the
+requested count into reused target arrays; a short read is a named failure, not
+silence. Missing tracks are silence; shorter tracks are padded with silence to the
+longest input. `openWavRenderSource` reuses Task 5.2's `readStoredFormat` and
+`SliceDecoder` and Task 5.1's import rules: 48 kHz, 24-bit PCM or 32-bit float,
+mono/stereo; mono is duplicated to stereo; non-finite float samples are rejected.
+
+`RenderSink.write(chunk)` receives aligned, bounded output chunks and may be async
+(backpressure). The chunk arrays are reused after `write` resolves, so a sink that
+keeps audio must copy or persist it before resolving. `finish(result)` is the single
+commit point; `abort(error)` discards partial output. The renderer owns no files and
+does not accumulate the output mix.
+
+### 20.3 Chunk size and memory
+
+`DEFAULT_RENDER_CHUNK_FRAMES = 4096` (the engine's existing default, about 85 ms at
+48 kHz). `chunkFrames` is configurable from 1 to `MAX_RENDER_CHUNK_FRAMES = 65536`
+(about 1.37 s at 48 kHz). The cap is a provisional orchestration safety bound, not a
+DSP parameter. Input buffers, raw engine output, aligned output staging, bus/Return
+accumulators and sidechain keys are sized from this cap and the channel count, not
+from project duration. DSP state remains sized by the approved module settings
+(delay time, reverb network, lookahead), as before. The allocation test instruments
+`Float32Array` construction and proves identical audio allocation for a short and a
+long render with the same chunk size.
+
+### 20.4 Timeline, tails and latency
+
+Inputs start at frame 0, matching the current imported-stem arrangement. Let `N` be
+the longest input and `T = ceil(tailSeconds × sampleRate)`, defaulting to the engine's
+conservative longest Return tail. The renderer processes `N + T` frames through the
+full engine; frames after `N` are silence, so Return tails, compressor/Dynamic EQ
+release and filter state advance normally. `MixEngine.flush` drains only the master
+limiter's lookahead; the Return tails are not shortcut through that method.
+
+The limiter reports `L = latencyFrames`. The renderer drops the first `L` raw output
+frames and appends `L` flushed frames, delivering exactly `N + T` aligned frames.
+This is the compensation contract from §15.6: the residual audio is written, not
+zeroed or blindly trimmed. `tailSeconds` may be overridden by a caller; the default
+does not truncate the approved Return tail contract.
+
+### 20.5 State continuity and masking
+
+One `MixEngine` instance is used for the whole attempt. There is no reset, rebuild,
+parameter re-resolution or masking rerun at a chunk boundary. EQ/Dynamic EQ filter
+and detector state, compressor/expander envelopes, bus processing, sidechain key
+alignment, delay lines and reverb networks carry across blocks exactly as in Task
+7.1–7.2. Task 7.3 masking is supplied as an already-resolved project plus
+`maskingDynamicBands`; the renderer preserves those decisions and edges for the whole
+render. Chunked output is tested against a continuous reference through the same
+engine, including active dynamics, sidechains, masking overlays and wet tails.
+
+### 20.6 Cancellation, failure and retry
+
+Cancellation is cooperative through an `AbortSignal`, checked before/after source
+reads, engine blocks, sink writes and yields, and before commit. `RenderCancelledError`
+is thrown; `finish` is not called. Source reads, sink writes, commit, or cleanup may
+fail. On every failure path the engine is reset, scratch buffers are zeroed, sources
+are closed, and the sink's `abort` is called once. A retry is a new `renderProject`
+call with a fresh engine and fresh scratch buffers; no attempt state is shared.
+
+The project is still contractually read-only for an attempt, but the renderer also
+fingerprints the project metadata at start and re-checks it before each engine block,
+after sink writes, and before commit. An observed change throws
+`RenderProjectChangedError`, aborts the sink, and never calls `finish`. The fingerprint
+is metadata-sized (functions omitted), not an audio-buffer copy. A controller should
+still cancel explicitly when it edits; the check is the safeguard that prevents an
+observed mid-render edit from committing inconsistent output.
+
+This task chooses **safe restart**, not persisted mid-render checkpoint resume.
+Serializing every processor's internal state would change the DSP/project contracts;
+the plan permits interrupted renders to resume *or safely restart*. Durable atomic
+storage and user-facing progress/recovery belong to the later transport/export wiring.
+
+### 20.7 Not in this build (by design)
+
+UI or transport controls; WAV export files/dialogs/stems/bus export; store/persistence
+or clipboard changes; arrangement clip offsets/automation beyond the current
+bar-1 imported-stem model; persisted checkpoint resume; new DSP algorithms; changes
+to masking methodology; native Tauri/Rust; new dependencies.
