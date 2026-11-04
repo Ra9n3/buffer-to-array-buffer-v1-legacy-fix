@@ -274,7 +274,7 @@ const pinned = {
   "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
   "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
-  "src/rooms/ConsoleRoom.svelte": "d9b216248722b3a9dc0d4a9e84f72afba654f8ce751af461cde0dc4c49a41b37",
+  "src/rooms/ConsoleRoom.svelte": "c937b69e2d4c6c2af5a0dba55e94f2fc7a2fd0ab439ca3d09337b9ad2fcde324",
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
   "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",

@@ -4355,3 +4355,66 @@ restart; export remains 8.2).
 
 **Reversible.** Yes: a durable rendered-mix store can later replace the discard-prefix
 seek without changing the transport API.
+
+## Correction 8.1.1 — Console-only layout correction (2026-11-04; uncommitted, awaiting review)
+
+**Scope.** The Console room's layout and the guards that pin it. No Mixer, Arrange, Home
+or Settings change; no component, token, DSP, engine, playback, schema or dependency
+change.
+
+### D8.1.1.1 — The Console hosts the mixer; processing detail is the Mixer's alone (owner-directed correction, 2026-11-04)
+
+**Context.** `4c5ec57` restored the "approved" Console and Mixer layouts and, in the
+Console, added a fourth zone: the selected channel's processing detail panel over the
+channel bank, on a two-fractional-row grid (`max-content max-content
+minmax(0, 0.95fr) minmax(0, 1.05fr)`) with `overflow: hidden`. `minmax(0, …)` cannot
+scroll, and the two fixed hardware decks above it (293 px bridge, 125 px deck) leave
+only 82 px of the 530 px room at 1366 × 768. Measured on the build of `4c5ec57`: the
+detail zone 30.2 px, the bank zone 33.4 px — **49 px of the 719 px channel bank visible
+at 1366 × 768** (179 px at 1920 × 1080), with the bank's own legend cut in half and the
+panel that displaced it also unusable. Neither surface was legible; the "one-screen"
+Console showed neither.
+
+**Decision.** The Console is the plan's three zones again (plan §3: the upper section the
+vintage meter bridge, "the lower section contains channel strips"; processing chain, EQ
+curve, compressor and gain-reduction displays are the Mixer's row in the same table, and
+the Console strips deliberately exclude the Mixer's tier and instrument controls). The
+detail zone, its `MixerDetailPanel` import, the room's `selectedId` / `selectedChannel`
+local state and the bank's click/focus selection handlers are removed, and
+`ConsoleRoom.svelte` is restored byte-identically to the approved file
+(`c937b69e2d4c6c2a…`) on the approved grid `max-content / max-content /
+minmax(max-content, 1fr)` scrolling vertically inside its own bounded room, never the
+page. The Mixer keeps everything `4c5ec57` gave it — the two-column layout, the compact
+selectable headers and the processing detail panel — untouched.
+
+**Guards.** The four Console guards return to their three-zone contracts
+(`check-console-bridge`, `check-console-transport`, `check-transport`,
+`check-channel-strip`), the `ConsoleRoom.svelte` hash pin returns to `c937b69e2d4c6c2a…`
+in `check-arrange-rows`, `check-arrange-timeline`, `check-bus-return`,
+`check-home-settings` and `check-mixer`, and `check-label-lamp`'s scope list regains
+`ConsoleRoom.svelte` (the correction exemption claimed the room prints legends with
+`EngravedLabel`; it prints none of its own — those headings belong to the bridge, the
+deck and the bank — so the exemption was withdrawn). `check-console-bridge` gains three
+checks (90 → 93): no `channel-detail` zone and no `MixerDetailPanel` import; no selection
+state in the room; the bank's row keeps its `minmax(max-content, 1fr)` floor, so nothing
+above can crush the strips again.
+
+**Measured.** 100 % zoom, real Chromium, production build: 1366 × 768 and 1920 × 1080 both
+render the three zones in order with no detail zone, `scrollHeight` equal to the viewport
+(no page scroll), `scrollWidth` equal to it (no horizontal overflow), the bank at its full
+719 px housing and the strips at their 160 px module width; 52 in-browser assertions pass
+across all six routes, the bank's wheel scroll, the deck's four keys and MIX, the shared
+transport's stopped state, the empty-project notice and the Mixer's selection → detail
+binding. Against the approved baseline (`b172b8b`) the screenshots differ by **0 pixels**
+at both sizes (reduced motion emulated, so the VU needles' drift is not counted).
+`npm run check` 0/0, `npm test` 362/362, 30 guards / 2 430 checks.
+
+**Consequence to note.** The approved desk is 719 px deep beneath a 418 px fixed head, so
+below a ~1 200 px window it scrolls vertically inside the room by design, as it did before
+`4c5ec57`; at 1366 × 768 that is the bank's legend plus the top ~49 px of the strips. Making
+the strips visible without scrolling at 768 px would mean shrinking or collapsing the bridge,
+the deck or the strips — all protected by standing rules — so it is an owner design decision,
+not this correction. The numbers are in `task-reports/8.1.1-report.md` §5.
+
+**Reversible.** Yes: one room file and the guard contract. No shared component, token or
+behaviour is involved.

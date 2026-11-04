@@ -218,7 +218,7 @@ const pinned = {
   "src/screens/HomeScreen.svelte": "113b69c0a220cf3dec60e865ce685b381ebcf0f6d1fb4dca04b706ccab2386ec",
   "src/screens/SettingsScreen.svelte": "6a6d5500db0a90f1d523bb2916fbc323cfd72a8928d87353fa6976ebd52fe3e3",
   "src/components/EmptyProjectNotice.svelte": "031f3c98a303ff01ac11b7e50c949f6684fd1de4970215c083eacb2ec760d152",
-  "src/rooms/ConsoleRoom.svelte": "d9b216248722b3a9dc0d4a9e84f72afba654f8ce751af461cde0dc4c49a41b37",
+  "src/rooms/ConsoleRoom.svelte": "c937b69e2d4c6c2af5a0dba55e94f2fc7a2fd0ab439ca3d09337b9ad2fcde324",
   "src/rooms/ArrangeRoom.svelte": "151201bade03fb614483c92b3d0b55d25e8ecea67f25ee9166521858fa0de273",
   "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
 };

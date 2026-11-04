@@ -219,7 +219,7 @@ check("check:mixer is wired into package.json", pkg.scripts?.["check:mixer"] ===
 // their Task 2.7 state by this and the other guards.
 const pinned = {
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
-  "src/rooms/ConsoleRoom.svelte": "d9b216248722b3a9dc0d4a9e84f72afba654f8ce751af461cde0dc4c49a41b37",
+  "src/rooms/ConsoleRoom.svelte": "c937b69e2d4c6c2af5a0dba55e94f2fc7a2fd0ab439ca3d09337b9ad2fcde324",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
   "src/rooms/ArrangeRoom.svelte": "151201bade03fb614483c92b3d0b55d25e8ecea67f25ee9166521858fa0de273",
