@@ -21,9 +21,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
-  preview: {
-    host: "0.0.0.0",
-    // The Arena live preview is proxied under a sandbox host; allow it explicitly.
-    allowedHosts: true,
-  },
 });

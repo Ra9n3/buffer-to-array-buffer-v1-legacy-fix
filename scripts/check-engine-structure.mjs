@@ -53,10 +53,6 @@ const FILES = [
   "src/lib/engine/mix-engine.ts",
   // Task 7.2 added the detector-signal path as its own engine module.
   "src/lib/engine/sidechain.ts",
-  // Task 7.3 added masking detection/resolution as its own engine module.
-  "src/lib/engine/masking.ts",
-  // Task 7.4 added bounded render orchestration over the same engine.
-  "src/lib/engine/render.ts",
 ];
 for (const rel of FILES) {
   check(`exists: ${rel}`, exists(rel));
@@ -75,8 +71,6 @@ for (const [rel, code] of Object.entries(engineCode)) {
     (spec) =>
       spec.startsWith("./") ||
       spec.startsWith("../dsp/") ||
-      spec.startsWith("../analysis/") ||
-      spec.startsWith("../audio/") ||
       spec.startsWith("../project/") ||
       spec === "../mixer-chain" ||
       spec === "../return-chain",
@@ -132,7 +126,7 @@ check("the engine exposes output and send predicates", /outputPasses/.test(audib
 check("the rules are exported for the UI and the tests to read", /AUDIBILITY_RULES/.test(audibility));
 check(
   "a skipped chain is frozen, not reset",
-  /nothing passes|frozen/i.test(read("src/lib/engine/mix-engine.ts")) && /if \(!sendActive && !outputActive\) \{/.test(engineCode["src/lib/engine/mix-engine.ts"]),
+  /nothing passes|frozen/i.test(read("src/lib/engine/mix-engine.ts")) && /if \(!sendActive && !outputActive\) continue;/.test(engineCode["src/lib/engine/mix-engine.ts"]),
 );
 check("solo-in-place: the routing path of a soloed object is walked", /solo|Solo/.test(audibility) && /busProcessingOrder/.test(audibility));
 
@@ -220,8 +214,8 @@ const pinned = {
   "src/lib/engine/pan.ts": "c03ac7e1f0786125080081d3af6b18fe8f41082947b548fc323f25b0bc6e0505",
   "src/lib/engine/constants.ts": "6a0fb2fba1457ba4dfeaa955e7cb1020931e3bc5187f0703cac7b9579124710e",
   "src/lib/engine/audibility.ts": "d161c11ac94a4b188490ca8655b163380bbfda97b06f504e131a224706f0d8b5",
-  "src/lib/engine/chains.ts": "3736f3b86130a0512ec777b12ae27605452ff4027178745a3665d0bc264167cd",
-  "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
+  "src/lib/engine/chains.ts": "41232cad82d35978f086726e63fa85f730d541ebd46a848bc8ee6c5b7acad186",
+  "src/lib/engine/mix-engine.ts": "1450c7168b3bcde57694d3ccd17cf5f71e06971311f39077dda6f89cb0343f81",
   "src/lib/engine/sidechain.ts": "5ef6f3c2853ce37f4a1f75ee92242f68ffbd8e728a736ed9f8de040326641881",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

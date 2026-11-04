@@ -200,14 +200,13 @@ check("lane: every clip says where it came from (`data-clip-source`)", /data-cli
 check("lane: an imported clip's tooltip prints its real length", /printSeconds/.test(lane));
 check("header: the fixture's sections are a prop (an imported project has none)", /sections/.test(scriptOf(S.head)) && /sections=\{arrangement\.sections\}/.test(roomTpl));
 
-// --- 7. Nothing of Phase 5.3+ in the import pipeline (Task 8.1 adds Web Audio only under src/lib/playback). ----
+// --- 7. Nothing of Phase 5.3+ (Task 5.2 added the analysis engine under src/lib/analysis — measurement only, no Web Audio, no processing). ----
 const phase5Negative = /AudioContext|OfflineAudioContext|AudioWorklet|createGain|BiquadFilterNode|DynamicsCompressor|ConvolverNode|DelayNode|decodeAudioData/;
-const importScope = (rel) => /\.(ts|svelte)$/.test(rel) && !/^src\/lib\/playback\//.test(rel);
-for (const rel of walk("src").filter(importScope)) {
+for (const rel of walk("src").filter((r) => /\.(ts|svelte)$/.test(r))) {
   const body = stripComments(read(rel));
   if (phase5Negative.test(body)) check(`no Web Audio / processing DSP in ${rel}`, false, (body.match(phase5Negative) ?? [])[0]);
 }
-check("no Web Audio / processing DSP outside the Task 8.1 playback backend", !walk("src").filter(importScope).some((rel) => phase5Negative.test(stripComments(read(rel)))));
+check("no Web Audio / processing DSP anywhere under src/", !walk("src").filter((r) => /\.(ts|svelte)$/.test(r)).some((rel) => phase5Negative.test(stripComments(read(rel)))));
 check("loudness vocabulary (LUFS) lives in the analysis engine only, not in the import pipeline or any room", !walk("src").filter((r) => /\.(ts|svelte)$/.test(r) && !/^src\/lib\/analysis\//.test(r)).some((rel) => /LUFS/.test(stripComments(read(rel)))));
 check("no new runtime dependency", !/"dependencies"/.test(S.pkg) || /"dependencies":\s*\{\s*\}/.test(S.pkg));
 

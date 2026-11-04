@@ -23,9 +23,9 @@
    *               presses.
    *   complete    the lamp is off — a rerun is available.
    *
-   * Task 2.3 left the press inert. Task 8.1 gives the live Console deck an
-   * `onPress` callback that starts the bounded rendered-mix path; the playground
-   * still passes no callback. The cap sinks under the finger because a key does.
+   * Pressing it does nothing in Task 2.3: no render, no automatic mix, no
+   * project state (plan §14: Phases 5–8). The cap sinks under the finger
+   * because a key does; that is the whole of its behaviour.
    */
   import Lamp from "../hardware/Lamp.svelte";
   import type { MixState } from "./transport-fixtures";
@@ -34,21 +34,14 @@
     state = "ready",
     name = "MIX — start the full mix",
     describedBy = null,
-    onPress = undefined,
   }: {
     state?: MixState;
     name?: string;
     /** id(s) of the text that explains the state — the status display. */
     describedBy?: string | null;
-    /** Task 8.1: the live Console deck starts the bounded rendered-mix path. */
-    onPress?: (() => void) | undefined;
   } = $props();
 
   const busy = $derived(state === "processing");
-
-  function press(): void {
-    if (!busy) onPress?.();
-  }
 </script>
 
 <div
@@ -65,7 +58,6 @@
     aria-describedby={describedBy ?? undefined}
     aria-disabled={busy ? "true" : undefined}
     data-mix-key
-    onclick={press}
   >
     <span class="mix__well" data-part="well">
       <span class="mix__cap" data-part="cap">
