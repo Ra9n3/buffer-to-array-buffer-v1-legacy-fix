@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "node --import ./tests/register.mjs --test tests/routing.test.mjs tests/store.test.mjs tests/history.test.mjs tests/persistence.test.mjs tests/clipboard.test.mjs tests/editing.test.mjs tests/shell.test.mjs tests/templates.test.mjs tests/lifecycle.test.mjs tests/settings.test.mjs tests/wav.test.mjs tests/peaks.test.mjs tests/import.test.mjs tests/analysis-level.test.mjs tests/analysis-spectral.test.mjs tests/analysis-transient.test.mjs tests/analysis-stereo.test.mjs tests/analysis-integrity.test.mjs tests/analysis-engine.test.mjs tests/benchmark.test.mjs tests/dsp-eq.test.mjs tests/dsp-dynamic-eq.test.mjs tests/dsp-compressor.test.mjs tests/dsp-expander.test.mjs tests/dsp-limiter.test.mjs tests/dsp-reverb.test.mjs tests/dsp-delay.test.mjs tests/engine-chain.test.mjs tests/engine-routing.test.mjs tests/engine-sidechain.test.mjs tests/masking.test.mjs tests/rendering.test.mjs",
+    "test": "node --import ./tests/register.mjs --test tests/routing.test.mjs tests/store.test.mjs tests/history.test.mjs tests/persistence.test.mjs tests/clipboard.test.mjs tests/editing.test.mjs tests/shell.test.mjs tests/templates.test.mjs tests/lifecycle.test.mjs tests/settings.test.mjs tests/wav.test.mjs tests/peaks.test.mjs tests/import.test.mjs tests/analysis-level.test.mjs tests/analysis-spectral.test.mjs tests/analysis-transient.test.mjs tests/analysis-stereo.test.mjs tests/analysis-integrity.test.mjs tests/analysis-engine.test.mjs tests/benchmark.test.mjs tests/dsp-eq.test.mjs tests/dsp-dynamic-eq.test.mjs tests/dsp-compressor.test.mjs tests/dsp-expander.test.mjs tests/dsp-limiter.test.mjs tests/dsp-reverb.test.mjs tests/dsp-delay.test.mjs tests/engine-chain.test.mjs tests/engine-routing.test.mjs tests/engine-sidechain.test.mjs tests/masking.test.mjs tests/rendering.test.mjs tests/playback.test.mjs",
     "check:arrange": "node scripts/check-arrange-structure.mjs",
     "check:mixer": "node scripts/check-mixer-structure.mjs",
     "check:transport": "node scripts/check-transport-structure.mjs",
@@ -38,7 +38,8 @@
     "check:engine": "node scripts/check-engine-structure.mjs",
     "check:sidechain": "node scripts/check-sidechain-structure.mjs",
     "check:masking": "node scripts/check-masking-structure.mjs",
-    "check:rendering": "node scripts/check-rendering-structure.mjs"
+    "check:rendering": "node scripts/check-rendering-structure.mjs",
+    "check:playback": "node scripts/check-playback-structure.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",

@@ -4301,3 +4301,57 @@ accumulator reset. No signal-path or per-block behavior changes.
 
 **Consequences.** A reset or failed-attempt cleanup leaves no stale key/scratch audio.
 The engine and sidechain structural pins are updated for this recovery-only edit.
+
+## Task 8.1 — Shared transport and playback integration (2026-11-04; uncommitted, awaiting review — the owner handles Git)
+
+**Scope.** Plan §6 / §14 Task 8.1 only: one shared transport across Console, Arrange and
+Mixer; raw synchronized stem playback; lightweight live preview through the existing
+`MixEngine`; full rendered-mix playback through Task 7.4 `renderProject`. No export,
+rulebook loading, DSP/masking change, project-schema change, native work or dependency
+change. **Nothing committed, tagged or pushed.**
+
+### D8.1.1 — One app-level transport facade; PLAY toggles play/pause in the live room (builder, 2026-11-04)
+
+**Context.** Task 0.6 rendered the mini transport once outside the room switch; Task 2.3
+made the Console deck a fixture with an exclusive PLAY/STOP latch and no source selector
+(D2.3.2). Task 8.1 requires play/pause/stop/seek and room-independent state.
+
+**Decision.** A single `PlaybackController` is attached to one reactive facade
+(`src/lib/playback/store.svelte.ts`). The mini transport and the live Console deck call
+that facade; rooms own no playback state. PLAY toggles play/pause, STOP returns to frame
+0, PREVIOUS/NEXT locate to start/end. The listening source remains status text; no
+selector is added. MIX starts the rendered-mix path. The playground deck remains
+simulated. This is the smallest live behaviour change to the approved keys.
+
+**Reversible.** Yes: the facade/controller boundary and the deck's `live` prop.
+
+### D8.1.2 — Bounded scheduled Web Audio output, not whole-project buffers (builder, 2026-11-04)
+
+**Decision.** Producers read/process bounded blocks (RAW/PREVIEW 2048 frames, render
+4096) and hand stereo chunks to a Web Audio backend that schedules them on the audio
+clock. The backend applies ~1 s queue backpressure and a generation stop/disconnect on
+pause/seek/stop. Memory is block- and queue-sized, never duration-sized.
+
+**Reversible.** Yes: the `PlaybackOutput` contract can be replaced by AudioWorklet or a
+native backend without changing the transport state machine.
+
+### D8.1.3 — DSP state is continuous per attempt; pause/seek/stop/restart reinitialize (builder, 2026-11-04)
+
+**Decision.** One preview `MixEngine` runs for an unbroken attempt, with
+`refreshAudibility()` per block for live mute/solo. Pause, seek, stop and restart discard
+scheduled audio and rebuild/reset at the requested frame. This avoids stale lookahead
+and tail state after a locate. Chain/graph parameter edits are heard on a new attempt;
+only mute/solo is live without a rebuild, matching the 7.1 lifecycle contract.
+
+**Reversible.** Yes: a future checkpoint/resume or live chain-refresh can replace the
+restart rule without changing the facade.
+
+### D8.1.4 — Rendered playback is streaming safe restart, not a persisted mix cache (builder, 2026-11-04)
+
+**Decision.** RENDER reuses `renderProject` with a backpressured sink. A seek/restart
+starts a new render attempt and discards output before the target frame. No full-project
+mix buffer, export file or persisted checkpoint is introduced (Task 7.4 permits safe
+restart; export remains 8.2).
+
+**Reversible.** Yes: a durable rendered-mix store can later replace the discard-prefix
+seek without changing the transport API.

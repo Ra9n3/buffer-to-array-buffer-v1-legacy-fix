@@ -241,11 +241,11 @@ const pinned = {
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",
-  "src/components/console-transport/ConsoleTransport.svelte": "b5bd2efed4f4e19f3272b54ec7c3ea8b91fb52bfc744821c803852b1cd75addb",
+  "src/components/console-transport/ConsoleTransport.svelte": "3f61ca7eafacd348d2e265570910c056712c025bad7d6deaae02315d4976c4e7",
   "src/components/console-transport/LampDisplay.svelte": "19634fdde214a7d571ed2a28271064c0d34604a7acf7910cf8f97f3a960dea9d",
-  "src/components/console-transport/MixButton.svelte": "5b08e6e8f505c478f5cea5f03465b82c4db3d09b076f0ada032075c71ba163cd",
+  "src/components/console-transport/MixButton.svelte": "0486c92b90ac5fb571320600fea474ed4ab8e25a5d17e60b181e734360eb3f8b",
   "src/components/console-transport/transport-fixtures.ts": "0333ddc273f3cd1eb6576126dc74aa917741f7f15cd35ab18ecd729a6aba9806",
-  "src/rooms/ConsoleRoom.svelte": "fd310619f4e631c260410373a56c183c361a04e6bcbfc10ed0e39430ff12dee4",
+  "src/rooms/ConsoleRoom.svelte": "c937b69e2d4c6c2af5a0dba55e94f2fc7a2fd0ab439ca3d09337b9ad2fcde324",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

@@ -2324,7 +2324,7 @@ implemented contract.
 | --- | --- |
 | `src/lib/engine/render.ts` | `renderProject`, streaming source/sink contracts, bounded chunk loop, latency compensation, tail scheduling, cancellation/recovery, WAV source adapter |
 | `src/lib/engine/mix-engine.ts` | one recovery-only addition: `reset()` also clears the scratch and sidechain key buffers |
-| `tests/rendering.test.mjs` | 16 deterministic rendering tests |
+| `tests/rendering.test.mjs` | 17 deterministic rendering tests |
 | `scripts/check-rendering-structure.mjs` | the 7.4 structural guard (`npm run check:rendering`) |
 
 ### 20.2 Source and sink contracts
@@ -2409,3 +2409,90 @@ UI or transport controls; WAV export files/dialogs/stems/bus export; store/persi
 or clipboard changes; arrangement clip offsets/automation beyond the current
 bar-1 imported-stem model; persisted checkpoint resume; new DSP algorithms; changes
 to masking methodology; native Tauri/Rust; new dependencies.
+
+## 21. Shared transport and playback (Task 8.1)
+
+Phase 8's first step: plan §6's three listening modes and §14 Task 8.1, wired to the
+existing project store, imported assets, Task 7.1 `MixEngine` and Task 7.4
+`renderProject`. **No project-model or persistence-schema field is added.** Transport
+state is app-level, transient UI/audio state, not part of the saved manifest.
+`architecture.md` and `module-contract.md` still do not exist; this section is the
+implemented contract.
+
+### 21.1 The files
+
+| file | what |
+| --- | --- |
+| `src/lib/playback/types.ts` | listening source, transport state, PCM chunk, output/clock contracts, bounded defaults |
+| `src/lib/playback/sources.ts` | opens imported stems through the 5.1 asset store and 7.4 WAV source adapter |
+| `src/lib/playback/sessions.ts` | bounded RAW sum and PREVIEW `MixEngine` producer, limiter-latency compensation |
+| `src/lib/playback/controller.ts` | the one play/pause/stop/seek/source/render state machine and attempt lifecycle |
+| `src/lib/playback/web-audio.ts` | browser scheduled-chunk output, generation stop, backpressure |
+| `src/lib/playback/store.svelte.ts` | one reactive transport facade for every room |
+| `src/lib/playback/shell.ts` | browser wiring: project store, asset store, Web Audio, macrotask clock |
+| `tests/playback.test.mjs` | deterministic transport/raw/preview/render/recovery/memory tests |
+| `scripts/check-playback-structure.mjs` | the 8.1 structural guard (`npm run check:playback`) |
+
+### 21.2 One shared transport
+
+`PlaybackController` owns `status` (`stopped | playing | paused | rendering | error`),
+`source` (`raw | preview | render`), `positionFrames`, `startFrame`, `durationFrames`,
+`renderProgress` and `error`. The shell attaches one controller to the reactive
+facade; `MiniTransport` is rendered once outside the room switch and the Console deck
+reads the same facade. Arrange and Mixer do not create playback state. Switching rooms
+therefore cannot remount or reset the playhead.
+
+Play starts or resumes the current source. Pause stops scheduled audio and keeps the
+playhead. Stop returns to `startFrame` (frame 0 in this task). Seek clamps to the known
+duration, stops the current generation, and restarts at the target if playback was
+running. Previous/Next locate to start/end. The Console deck's PLAY key toggles
+play/pause in the live room; this is the Task 8.1 deviation from the Task 2.3 inert
+latch, recorded as D8.1.1. The listening source remains status text (D2.3.2); no source
+selector was added. MIX starts the rendered-mix path.
+
+### 21.3 Raw synchronized playback
+
+RAW opens each imported track as a seekable `RenderSource` (48 kHz, mono duplicated to
+stereo, 24-bit PCM / 32-bit float). A bounded block is read from every active source at
+the same project frame and unity-summed. Shorter sources are silence after their end;
+missing/corrupt stored copies are silence for that track. Mute/solo is the shared Task
+7.1 `computeAudibility` rule, re-read each block. No trim, pan, fader, EQ, dynamics,
+send or Return processing is applied in RAW.
+
+### 21.4 Lightweight live preview
+
+PREVIEW builds one `MixEngine` for the attempt and feeds it bounded blocks. The
+approved track → bus → Return → master signal path, sidechain keys and masking overlays
+are the engine's; playback does not duplicate DSP. `refreshAudibility()` is called per
+block so mute/solo changes are heard without rebuilding chains. The master limiter's
+lookahead is compensated as in §20.4: leading latency is dropped and flushed at the
+end. DSP state is continuous inside one unbroken attempt. Pause, seek, stop and restart
+discard the attempt and reinitialize at the requested frame, so no stale compressor,
+reverb, delay or limiter state leaks across a locate.
+
+### 21.5 Full rendered mix playback
+
+RENDER calls Task 7.4 `renderProject` with a streaming sink. The sink discards output
+before the requested start frame, applies backpressure through the output, and reports
+progress. `finish` commits the rendered duration; cancellation/failure aborts the
+attempt and leaves the transport recoverable. A seek or restart is a new render attempt
+from the project start with output before the target discarded (safe restart, §20.6);
+no persisted mid-render checkpoint or full-project mix buffer is introduced.
+
+### 21.6 Buffering and memory
+
+Audio buffers are sized from the block size and channel/track count, never from project
+duration. RAW/PREVIEW default block: 2048 frames; rendered orchestration block: 4096
+frames (Task 7.4 default). The Web Audio backend schedules short chunks on the audio
+clock and waits while about one second of audio is already queued. A generation counter
+and explicit `stop()`/`disconnect()` ensure old scheduled chunks cannot sound after a
+pause, seek, stop or restart. The allocation test proves identical audio allocation for
+short and long RAW/PREVIEW sessions.
+
+### 21.7 Not in this build (by design)
+
+WAV export, processed-stem/bus export or export dialogs (8.2); external JSON rulebooks
+(8.2); a source selector or new transport layout; arrangement clip offsets beyond the
+current bar-1 imported-stem model; persisted render checkpoints; live rebuild of DSP
+chains on every parameter edit (mute/solo is live; graph/chain edits require a new
+attempt); native Tauri/Rust; new dependencies.
