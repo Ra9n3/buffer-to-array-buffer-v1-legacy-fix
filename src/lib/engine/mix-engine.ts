@@ -44,7 +44,7 @@ import { DSP_SAMPLE_RATE, requireSampleRate } from "../dsp/params";
 import { validateGraph } from "../project/routing";
 import type { Bus, BusId, ChannelId, Project, ReturnBusId, SidechainEdge, Track, TrackId } from "../project/model";
 import { computeAudibility, busProcessingOrder, type Audibility } from "./audibility";
-import { BusChain, ReturnChain, TrackChain, type DetectorKeys } from "./chains";
+import { BusChain, ReturnChain, TrackChain, type DetectorKeys, type MaskingDynamicBand } from "./chains";
 import { validateSidechains, type SidechainVerdict } from "./sidechain";
 import { MASTER_LIMITER } from "./constants";
 
@@ -55,10 +55,17 @@ export interface MixEngineOptions {
   readonly sampleRate?: number;
   /** The largest block `process` will be handed, frames. Buffers are sized once, here. */
   readonly maxFramesPerBlock?: number;
+  /**
+   * Engine-owned Dynamic EQ dips chosen by masking resolution (Task 7.3). They are
+   * additive to the project model: a band that already carries `dynamicDepthDb`
+   * keeps that configured depth, and an overlay never replaces it.
+   */
+  readonly maskingDynamicBands?: ReadonlyMap<TrackId, readonly MaskingDynamicBand[]>;
 }
 
-/** Optional monitor taps — what a bus or a Return produced this block, for meters and tests. */
+/** Optional monitor taps — what a track, bus or Return produced this block, for meters and tests. */
 export interface MixTaps {
+  readonly tracks?: ReadonlyMap<TrackId, StereoBlock>;
   readonly buses?: ReadonlyMap<BusId, StereoBlock>;
   readonly returns?: ReadonlyMap<ReturnBusId, StereoBlock>;
 }
@@ -136,7 +143,9 @@ export class MixEngine {
     this.currentAudibility = computeAudibility(project);
 
     const trackChains = new Map<TrackId, TrackChain>();
-    for (const track of project.tracks) trackChains.set(track.id, new TrackChain(track, dspOptions));
+    for (const track of project.tracks) {
+      trackChains.set(track.id, new TrackChain(track, dspOptions, options.maskingDynamicBands?.get(track.id) ?? []));
+    }
     this.trackChains = trackChains;
 
     const busChains = new Map<BusId, BusChain>();
@@ -314,12 +323,17 @@ export class MixEngine {
         if (send.to !== null && this.audibility.sendPasses(track.id, send.to)) sendActive = true;
       }
       const outputActive = this.audibility.outputPasses(track.id);
+      const trackTap = taps?.tracks?.get(track.id);
       // Nothing passes: the chain is skipped and its state frozen (the 6.x bypass rule).
-      if (!sendActive && !outputActive) continue;
+      if (!sendActive && !outputActive) {
+        if (trackTap) copyInto(trackTap, null, blockFrames);
+        continue;
+      }
 
       copyInto(scratch, trackInputs.get(track.id) ?? null, blockFrames);
       const chain = this.trackChains.get(track.id) as TrackChain;
       chain.process(scratch, blockFrames, this.keyBundles.get(track.id));
+      if (trackTap) copyInto(trackTap, scratch, blockFrames);
 
       // Post-fader sends (plan §8a): the same post-pan signal into each Return.
       for (const send of sends) {

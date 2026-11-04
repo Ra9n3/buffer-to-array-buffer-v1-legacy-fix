@@ -2208,3 +2208,103 @@ follows the source, not the source's monitoring path.
   support for `Project.sidechains`; Return destinations and non-track sources; key
   filtering, weighting, lookahead or a key-level control; masking (7.3); rendering and
   tail handling (7.4).
+
+## 19. Masking resolution — frequency/time conflicts, priority and wet tails (Task 7.3)
+
+Phase 7's third step: the plan's §8 masking paragraphs and §8a wet-tail rule, built
+on the Task 5.2 spectral grid, the Task 6.1 EQ / Dynamic EQ, the Task 6.2 compressor,
+and the Task 7.1–7.2 engine / sidechain path. It is an **engine layer only**: no UI,
+store op, persistence field, transport, export, new DSP algorithm, new routing edge
+kind, or Task 7.4 bounded-render orchestration is added. `architecture.md` and
+`module-contract.md` still do not exist; this section is the implemented contract.
+
+### 19.1 The files
+
+| file | what |
+| --- | --- |
+| `src/lib/engine/masking.ts` | measurement, detection, resolution, re-measurement and escalation |
+| `src/lib/engine/chains.ts` | one additive integration: `MaskingDynamicBand` overlay on a band with no configured `dynamicDepthDb` |
+| `src/lib/engine/mix-engine.ts` | two additive integrations: optional `MixTaps.tracks`, and `MixEngineOptions.maskingDynamicBands` |
+| `tests/masking.test.mjs` | 15 synthetic-measurement and controlled-audio tests |
+| `scripts/check-masking-structure.mjs` | the 7.3 structural guard (`npm run check:masking`) |
+
+### 19.2 Measurement — reuse the 5.2 grid, attribute wet sends
+
+`measureMaskingSources(project, inputs, options)` runs the existing `MixEngine` in
+blocks and feeds the existing `SpectralAnalyser` (`BANDS`, `CELL_SECONDS`,
+`cellFramesFor`) on the same 100 ms grid. It measures:
+
+- **dry sources**: each track's post-fader tap (`MixTaps.tracks`), gated by the
+  Task 7.1 audibility rules;
+- **wet sources**: each active post-fader send, attributed to its sending track as
+  `trackId>returnId`. The send signal is the track tap × send gain, passed through
+  the same approved `ReturnChain` settings in isolation. The Return effects are
+  linear and static during a render, so this is superposition, not a new effect or
+  routing model. A shared Return output alone cannot say which send produced a tail.
+
+The measurement analyses `tailSeconds` of silence after the last input so reverb and
+delay tails participate. A wet source inherits the sending track's Priority; a Return
+Bus is never treated as an ordinary track and never becomes a sidechain destination.
+
+### 19.3 Detection — meaningful overlap, not mere spectral overlap
+
+`detectMaskingConflicts(measurement, config)` compares sources from different tracks.
+The higher-Priority source is protected; equal Priority is reported nowhere as an
+arbitrary cut. A band cell is a conflict only when both sources are above
+`energyFloorDb`, the band carries at least `minBandShare` of each source's energy,
+and the yielding source is no more than `maskingWindowDb` below the protected source.
+Contiguous conflict cells become intervals. `persistent` means the conflict occupies
+at least `persistentRatio` of the longer active run and at least `persistentMinCells`;
+otherwise a conflict with at least `intermittentMinCells` is `intermittent`.
+
+A conflict carries the two contributors, the affected `BandDef`, the time intervals,
+active/conflict cell counts, mean band levels, `excessDb` (yielding minus protected),
+and the Priority difference. Role is not read.
+
+### 19.4 Resolution — Auto-only, priority-ordered, cumulative-safe
+
+`resolveMaskingConflicts(project, conflicts, config, previousLedger)` clones the
+project and writes only Auto parameters:
+
+- persistent dry conflict → proportional static EQ cut on the lower-priority track;
+- intermittent dry conflict → engine-owned Dynamic EQ dip keyed by the protected
+  track through the existing `Project.sidechains` / `validateSidechains` path;
+- wet conflict → proportional send reduction on the lower-priority sending track
+  (persistent uses the full requested cut; intermittent scales by measured duty
+  cycle because a Return has no dynamics to key).
+
+Manual EQ gain/frequency/Q, Manual sends, and Manual compressor parameters are never
+written. A configured `dynamicDepthDb` is preserved; the masking overlay is additive
+only on bands whose depth is `null`. Existing sidechain assignments are preserved;
+invalid edges keep the Task 7.2 fallback and are exposed in `sidechainVerdict`.
+
+The cumulative ledger tracks masking-applied EQ reduction per track and per band,
+and send reduction per Return. `cumulativeCutLimitDb` (default **6 dB**) prevents
+repeated small cuts from hollowing a track. The limit is deterministic, configurable,
+and carried across reruns through `previousLedger`.
+
+### 19.5 Re-measurement and escalation
+
+`resolveMaskingAudio` measures, detects, resolves, then **re-measures** the resolved
+project with the Dynamic EQ overlays. Compressor escalation is considered only for
+conflicts that received an EQ move and still have meaningful remaining excess
+(`escalationThresholdDb`). It adds an external-key compressor edge and may lower an
+Auto threshold / raise an Auto ratio; a bypassed compressor or an existing compressor
+key is not overridden. A final measurement reports the remaining conflicts.
+
+### 19.6 Provisional defaults (D7.3.1)
+
+No universal masking threshold is claimed. The defaults are conservative, configurable
+starting points in `DEFAULT_MASKING_DETECTION` / `DEFAULT_MASKING_RESOLUTION`:
+`energyFloorDb -60`, `minBandShare 0.05`, `maskingWindowDb 12`, `persistentRatio 0.6`,
+`persistentMinCells 3`, `intermittentMinCells 2`, `targetSeparationDb 3`,
+`maxCutPerConflictDb 3`, `minCutDb 0.25`, `cumulativeCutLimitDb 6`, `maxSendCutDb 6`,
+`escalationThresholdDb 1.5`, `maxCompThresholdShiftDb 6`. They reuse the 5.2 grid and
+the 6.x ranges; they are not genre rules and remain tunable.
+
+### 19.7 Not in this build (by design)
+
+UI/store/persistence/clipboard wiring for masking results or engine-owned Dynamic EQ
+overlays; per-section priority; genre rulebook precedence; Return-bus dynamics or
+Return sidechain destinations; new effect algorithms; bounded-chunk rendering, state
+continuity and recovery (Task 7.4); WAV export; native Tauri/Rust.

@@ -34,7 +34,7 @@ import { Eq } from "../dsp/eq";
 import { Expander } from "../dsp/expander";
 import { Reverb, type ReverbCharacterId } from "../dsp/reverb";
 import type { DspOptions } from "../dsp/params";
-import type { CharacterId, CompState, EqState } from "../mixer-chain";
+import type { BandId, CharacterId, CompState, EqState } from "../mixer-chain";
 import type { ReturnChainState } from "../return-chain";
 import type { Bus, ReturnBus, Track } from "../project/model";
 import { CLEANUP_EXPANDER, DYNAMIC_BAND_GATE } from "./constants";
@@ -64,20 +64,35 @@ function eqBands(eq: EqState) {
   }));
 }
 
+/**
+ * A masking-resolution dip on a band that has no configured `dynamicDepthDb`.
+ * It is engine-owned, downward-only, and uses the same approved Dynamic EQ gate.
+ * Existing configured depths are never replaced by this overlay.
+ */
+export interface MaskingDynamicBand {
+  readonly bandId: BandId;
+  readonly depthDb: number;
+}
+
 /** The dynamic bands: every band that carries a depth, with gain 0 (see the header). */
-function dynamicBands(eq: EqState) {
-  return eq.bands
-    .filter((band) => band.dynamicDepthDb !== null)
-    .map((band) => ({
+function dynamicBands(eq: EqState, masking: readonly MaskingDynamicBand[] = []) {
+  const out = [];
+  for (const band of eq.bands) {
+    const overlay = masking.find((entry) => entry.bandId === band.band.id);
+    const depthDb = band.dynamicDepthDb ?? overlay?.depthDb ?? null;
+    if (depthDb === null || depthDb <= 0) continue;
+    out.push({
       kind: band.band.kind,
       freq: band.freq.value,
       gain: 0,
       q: band.q === null ? undefined : band.q.value,
-      depthDb: band.dynamicDepthDb as number,
+      depthDb,
       thresholdDb: DYNAMIC_BAND_GATE.thresholdDb,
       attackMs: DYNAMIC_BAND_GATE.attackMs,
       releaseMs: DYNAMIC_BAND_GATE.releaseMs,
-    }));
+    });
+  }
+  return out;
 }
 
 /**
@@ -153,7 +168,7 @@ export class TrackChain {
   private readonly dynamicEq: DynamicEq | null;
   private readonly compressor: Compressor;
 
-  constructor(track: Track, options: DspOptions) {
+  constructor(track: Track, options: DspOptions, maskingDynamicBands: readonly MaskingDynamicBand[] = []) {
     const channel = track.channel;
     this.trimGain = dbToGain(channel.trim);
     this.faderGain = levelGain(channel.level);
@@ -175,7 +190,7 @@ export class TrackChain {
 
     this.eq = new Eq({ bypassed: track.chain.eq.bypassed, bands: eqBands(track.chain.eq) }, options);
 
-    const dynamic = dynamicBands(track.chain.eq);
+    const dynamic = dynamicBands(track.chain.eq, maskingDynamicBands);
     this.dynamicEq = dynamic.length > 0 ? new DynamicEq({ bands: dynamic }, options) : null;
     this.hasDynamicEq = this.dynamicEq !== null;
 

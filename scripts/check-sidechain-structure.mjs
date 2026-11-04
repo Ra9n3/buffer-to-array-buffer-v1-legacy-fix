@@ -244,8 +244,8 @@ check(
 const pinned = {
   "src/lib/engine/sidechain.ts": "5ef6f3c2853ce37f4a1f75ee92242f68ffbd8e728a736ed9f8de040326641881",
   "src/lib/dsp/compressor.ts": "bac2cbc5a7894abde0bb1593a6bdf2ecb6d6aa276d9cba38d2cef73fe087503b",
-  "src/lib/engine/chains.ts": "41232cad82d35978f086726e63fa85f730d541ebd46a848bc8ee6c5b7acad186",
-  "src/lib/engine/mix-engine.ts": "1450c7168b3bcde57694d3ccd17cf5f71e06971311f39077dda6f89cb0343f81",
+  "src/lib/engine/chains.ts": "3736f3b86130a0512ec777b12ae27605452ff4027178745a3665d0bc264167cd",
+  "src/lib/engine/mix-engine.ts": "efc593ccedd6330c958f78541c6345d8543799a5faa3117a1c0c4329d9c8855a",
   "src/lib/project/model.ts": "7df7e5b93e21573d82f022ad46ab46245db01d9ba9e00ce780cb8ab27f4bc541",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

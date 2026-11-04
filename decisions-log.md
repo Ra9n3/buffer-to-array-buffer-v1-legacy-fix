@@ -4164,3 +4164,66 @@ A Return is rejected as a destination (`unsupported-destination`) and is never a
 **Consequences.** A bus is processed after every track, so a bus key needs no ordering
 care. Return destinations and non-track sources stay unmodelled — if 7.3 or a later task
 wants them, they need their own decision rather than a silent widening of this one.
+
+---
+
+## Task 7.3 — Masking resolution (2026-11-03; uncommitted, awaiting review — the owner handles Git)
+
+Direction: Phase 7's third step — priority-based frequency/time masking detection and
+resolution, including wet reverb/delay tails (plan §8, §8a). Built in
+`src/lib/engine/masking.ts` with two additive engine integrations (track taps and an
+engine-owned Dynamic EQ overlay), 15 tests, a structural guard, `data-model.md` §19
+and `task-reports/7.3-report.md`. **Nothing committed, tagged or pushed.** Task 7.4
+was not started. `architecture.md` and `module-contract.md` still do not exist.
+
+### D7.3.1 — Provisional, configurable masking defaults; no universal threshold (builder, 2026-11-03)
+
+**Context.** The plan requires meaningful frequency-and-time conflict detection,
+persistent versus intermittent resolution, cumulative-cut safety and wet-tail
+analysis, but fixes no numeric masking threshold and defers genre rulebook tuning.
+
+**Decision.** Use the Task 5.2 100 ms spectral grid and six bands. A conflict requires
+simultaneous salient band energy from both sources, not mere spectral overlap:
+`energyFloorDb -60`, `minBandShare 0.05`, `maskingWindowDb 12`. Persistence is
+`persistentRatio 0.6` of the longer active run with at least 3 cells; intermittent
+requires at least 2 cells. Resolution defaults: `targetSeparationDb 3`,
+`maxCutPerConflictDb 3`, `minCutDb 0.25`, `cumulativeCutLimitDb 6`, `maxSendCutDb 6`,
+`escalationThresholdDb 1.5`, `maxCompThresholdShiftDb 6`. All live in
+`DEFAULT_MASKING_DETECTION` / `DEFAULT_MASKING_RESOLUTION` and are configurable.
+
+**Consequences.** The numbers are conservative starting points, not genre rules or
+scientific universals. The cumulative 6 dB EQ limit is deterministic and testable;
+repeated small cuts cannot exceed it when the ledger is carried across reruns.
+
+### D7.3.2 — Wet tails are attributed to existing post-fader sends, not to a new Return track (builder, 2026-11-03)
+
+**Context.** A Return Bus sums its sends before the effect, so the shared wet output
+cannot identify which track produced a masking tail. The plan requires wet tails in
+masking analysis but forbids a new routing model.
+
+**Decision.** Measure each active send in isolation through the same approved
+`ReturnChain` settings (linear superposition), attribute it to the sending track as
+`trackId>returnId`, and inherit that track's Priority. Analyse `tailSeconds` of silence
+after the input. A persistent wet/dry conflict reduces the lower-priority Auto send;
+an intermittent wet conflict scales the send move by measured duty cycle because the
+Return has no dynamics to key.
+
+**Consequences.** No Return sidechain destination, Return compressor/Dynamic EQ, or
+ordinary-track treatment of a Return is introduced. The existing post-fader send and
+per-send Auto/Manual rules are preserved.
+
+### D7.3.3 — Engine-owned Dynamic EQ overlay preserves configured depths and Auto/Manual (builder, 2026-11-03)
+
+**Context.** `EqBandState.dynamicDepthDb` is a plain configured value with no
+Auto/Manual mode. Overwriting it would silently change existing behavior; adding a
+new owned model field would touch UI/persistence outside this engine task.
+
+**Decision.** Masking may add an engine-owned `MaskingDynamicBand` overlay only on a
+band whose `dynamicDepthDb` is `null`. A configured depth is never replaced. Static EQ
+gain/frequency/Q, sends and compressor parameters are written only when Auto. Manual
+values are never overwritten. Existing sidechain assignments and Task 7.2 validation /
+fallback are preserved.
+
+**Consequences.** The overlay is passed to `MixEngine` through
+`maskingDynamicBands`; it is not persisted or shown in the UI by this task. Compressor
+escalation occurs only after EQ re-measurement shows meaningful remaining conflict.
