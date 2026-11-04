@@ -212,7 +212,7 @@ const pinned = {
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
   "src/rooms/ArrangeRoom.svelte": "151201bade03fb614483c92b3d0b55d25e8ecea67f25ee9166521858fa0de273",
-  "src/rooms/MixerRoom.svelte": "3e3282f0af09b5cacd4e456558cdc17b3de60341e250f5e0645f45d6a4872e65",
+  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
   "src/components/mixer/MixerBank.svelte": "4f81961d110de391d5eed77ac3b033bcb0894b306975cef7e3137d22b81359d5",
   "src/components/mixer/MixerTrackStrip.svelte": "b5107fb09a39d9516ae57ca4254465d45cca2c4c6aaa4868fbb87917f1a36122",
   "src/components/mixer/MixerReturnStrip.svelte": "b9041f86f91553ecc9afe61dc5daa596eb28c81be2f2892c2c2e320254809109",

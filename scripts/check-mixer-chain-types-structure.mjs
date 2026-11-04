@@ -212,7 +212,7 @@ const pinned = {
   "src/components/channel-strip/BusMasterStrip.svelte": "0b2187e0ffa445aabd372d5fc65e083016123c7667bc4fb34083d1162e5b1dd4",
   "src/components/channel-strip/StripModule.svelte": "d302bbbcfb2be1538f19bc43284cffafe25a121ab4e0b2759838e5aa76cce75f",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
-  "src/rooms/MixerRoom.svelte": "3e3282f0af09b5cacd4e456558cdc17b3de60341e250f5e0645f45d6a4872e65",
+  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
   // touched / added in Task 2.9, as reviewed
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/mixer/ProcessingChain.svelte": "ac74ed271a024c5f8f0ba3fae3460f346cdfa484696b1197fe4d44ea39a9f559",

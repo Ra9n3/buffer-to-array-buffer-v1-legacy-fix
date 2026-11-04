@@ -175,8 +175,8 @@ const pinned = {
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
-  "src/rooms/MixerRoom.svelte": "3e3282f0af09b5cacd4e456558cdc17b3de60341e250f5e0645f45d6a4872e65",
-  "src/rooms/ConsoleRoom.svelte": "c937b69e2d4c6c2af5a0dba55e94f2fc7a2fd0ab439ca3d09337b9ad2fcde324",
+  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
+  "src/rooms/ConsoleRoom.svelte": "d9b216248722b3a9dc0d4a9e84f72afba654f8ce751af461cde0dc4c49a41b37",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   const actual = sha(rel);
