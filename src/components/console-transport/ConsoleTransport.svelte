@@ -38,9 +38,6 @@
    */
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
-  import { secondsToBars } from "../../lib/arrange-audio";
-  import { transport } from "../../lib/playback/store.svelte";
-  import { project } from "../../lib/project/store.svelte";
   import LampDisplay from "./LampDisplay.svelte";
   import MixButton from "./MixButton.svelte";
   import {
@@ -55,45 +52,19 @@
   let {
     fixture = TRANSPORT_FIXTURE,
     headingId = "console-transport-title",
-    live = false,
   }: {
-    /** The snapshot to print when not live (the playground). */
+    /** The snapshot to print. The Console passes nothing: the default. */
     fixture?: TransportFixture;
     /** The engraved legend's id — ConsoleRoom's zone is labelled by it. */
     headingId?: string;
-    /** Task 8.1: the Console room drives the one shared transport. */
-    live?: boolean;
   } = $props();
 
   const uid = `transport${++nextId}`;
 
-  const playing = $derived(transport.status === "playing" || transport.status === "rendering");
-  const liveFixture = $derived<TransportFixture>(buildLiveFixture());
-  const view = $derived(live ? liveFixture : fixture);
-
-  function buildLiveFixture(): TransportFixture {
-    const seconds = transport.positionSeconds;
-    const bars = secondsToBars(seconds, project.arrangement.tempoMarkers);
-    const bar = Math.floor(bars) + 1;
-    const beat = Math.min(4, Math.floor((bars % 1) * 4) + 1);
-    const rendering = transport.status === "rendering";
-    const complete = transport.source === "render" && transport.renderProgress === 1;
-    return {
-      transport: playing ? "playing" : "stopped",
-      position: { seconds, bar, beat },
-      source: transport.source,
-      profile: "balanced",
-      mix: {
-        state: rendering ? "processing" : complete ? "complete" : "ready",
-        stageIndex: rendering ? 6 : undefined,
-        progress: rendering ? (transport.renderProgress ?? 0) : undefined,
-        warnings: transport.error ? 1 : 0,
-      },
-    };
-  }
-
-  /* PLAY/STOP lamps follow the shared transport when live; the playground keeps
-     the approved local latch. PLAY toggles play/pause in the live room. */
+  /* The keys' own state — strip-local UI, seeded once from the fixture, never
+     shared or stored. PLAY and STOP are one latching pair; a pressed PLAY
+     plays, a pressed STOP stops, pressing the engaged one again changes
+     nothing. PREVIOUS and NEXT spring back the moment they are released. */
   // svelte-ignore state_referenced_locally
   let playOn = $state(fixture.transport === "playing");
   // svelte-ignore state_referenced_locally
@@ -101,56 +72,34 @@
   let prevOn = $state(false);
   let nextOn = $state(false);
 
-  $effect(() => {
-    if (!live) return;
-    playOn = playing;
-    stopOn = !playing;
-  });
-
   function onPlay() {
-    if (live) {
-      transport.togglePlay();
-      return;
-    }
     playOn = true;
     stopOn = false;
   }
 
   function onStop() {
-    if (live) {
-      transport.stop();
-      return;
-    }
     stopOn = true;
     playOn = false;
   }
 
   function onPrev() {
-    if (live) transport.seek(transport.startFrame);
     prevOn = false;
   }
 
   function onNext() {
-    if (live) transport.seek(transport.durationFrames);
     nextOn = false;
   }
 
-  function onMix() {
-    if (live) void transport.render();
-  }
-
-  const clock = $derived(formatClock(view.position.seconds));
-  const beatPrint = $derived([`Bar ${view.position.bar}`, `Beat ${view.position.beat}`]);
-  const word = $derived(stageWord(view.mix));
-  const details = $derived(statusDetails(view));
-  const progress = $derived(view.mix.state === "processing" ? (view.mix.progress ?? 0) : null);
-  const simulated = $derived(live ? undefined : SIMULATED);
-  const note = $derived(live ? "Live — shared transport" : "Simulated \u2014 no engine connected");
-  const timeName = $derived(`Time ${clock}, bar ${view.position.bar} beat ${view.position.beat}${simulated ? `, ${simulated}` : ""}`);
-  const statusName = $derived(`Status: ${word}, ${details.join(", ")}${simulated ? `, ${simulated}` : ""}`);
+  const clock = $derived(formatClock(fixture.position.seconds));
+  const beatPrint = $derived([`Bar ${fixture.position.bar}`, `Beat ${fixture.position.beat}`]);
+  const word = $derived(stageWord(fixture.mix));
+  const details = $derived(statusDetails(fixture));
+  const progress = $derived(fixture.mix.state === "processing" ? (fixture.mix.progress ?? 0) : null);
+  const timeName = $derived(`Time ${clock}, bar ${fixture.position.bar} beat ${fixture.position.beat}, ${SIMULATED}`);
+  const statusName = $derived(`Status: ${word}, ${details.join(", ")}, ${SIMULATED}`);
 </script>
 
-<div class="transport" data-console-transport data-simulated={simulated} data-transport-state={playOn ? "playing" : "stopped"}>
+<div class="transport" data-console-transport data-simulated={SIMULATED} data-transport-state={playOn ? "playing" : "stopped"}>
   <div class="transport__cheek transport__cheek--left" aria-hidden="true"></div>
 
   <div class="transport__deck">
@@ -160,7 +109,7 @@
          this id; the legend is the deck's own engraved print. -->
     <header class="transport__legend">
       <EngravedLabel as="h2" id={headingId} text="Transport" size="sm" />
-      <EngravedLabel id={`${uid}-note`} text={note} size="xs" tone="muted" />
+      <EngravedLabel id={`${uid}-note`} text={"Simulated \u2014 no engine connected"} size="xs" tone="muted" />
     </header>
 
     <div class="transport__body">
@@ -220,7 +169,7 @@
 
       <!-- MIX -->
       <div class="transport__mix" data-transport-mix>
-        <MixButton state={view.mix.state} describedBy={`${uid}-status ${uid}-note`} onPress={live ? onMix : undefined} />
+        <MixButton state={fixture.mix.state} describedBy={`${uid}-status ${uid}-note`} />
         <EngravedLabel text="Automatic mix" size="xs" tone="muted" />
       </div>
     </div>

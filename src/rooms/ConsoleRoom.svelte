@@ -62,7 +62,7 @@
         data-console-zone="transport"
         aria-labelledby="console-transport-title"
       >
-        <ConsoleTransport live />
+        <ConsoleTransport />
       </section>
 
       <section
