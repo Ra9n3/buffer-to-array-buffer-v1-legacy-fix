@@ -42,6 +42,8 @@
  */
 
 import { indexedDbAssetStore, type AssetStore } from "../audio/asset-store";
+import { installPlaybackShell } from "../playback/shell";
+import { transport } from "../playback/store.svelte";
 import { attachSettings, detachSettings, settings, type AppSettings } from "../settings.svelte";
 import { analysis } from "./analysis.svelte";
 import { assets } from "./assets.svelte";
@@ -128,6 +130,8 @@ export interface DebugHandle {
   readonly analysis: typeof analysis;
   /** The hardware profile in use and the benchmark behind it (Task 5.2). */
   readonly hardware: typeof hardware;
+  /** The shared transport facade (Task 8.1). */
+  readonly transport: typeof transport;
 }
 
 export function debugHandle(restored: RestoreResult | null = null): DebugHandle {
@@ -149,6 +153,7 @@ export function debugHandle(restored: RestoreResult | null = null): DebugHandle 
     assets,
     analysis,
     hardware,
+    transport,
   };
 }
 
@@ -249,6 +254,10 @@ export function installProjectShell(win: Window, options: ShellOptions = {}): ()
     analysis.attach(assetStore, { now, clock: () => win.performance.now(), yieldBetween });
   }
 
+  // Task 8.1: the shared transport. It reads the same project store and the same
+  // attached asset store; rooms never create their own playback state.
+  const detachPlayback = installPlaybackShell(win, { assetStore });
+
   // 6. lifecycle — storage, wall clock, ids; then the last project
   lifecycle.attach({
     storage: adapter,
@@ -271,6 +280,7 @@ export function installProjectShell(win: Window, options: ShellOptions = {}): ()
 
   return () => {
     win.removeEventListener("keydown", onKeydown);
+    detachPlayback();
     unsubscribeSettings();
     lifecycle.detach();
     analysis.detach();

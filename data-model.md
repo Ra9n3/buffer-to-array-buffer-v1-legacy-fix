@@ -2208,3 +2208,291 @@ follows the source, not the source's monitoring path.
   support for `Project.sidechains`; Return destinations and non-track sources; key
   filtering, weighting, lookahead or a key-level control; masking (7.3); rendering and
   tail handling (7.4).
+
+## 19. Masking resolution — frequency/time conflicts, priority and wet tails (Task 7.3)
+
+Phase 7's third step: the plan's §8 masking paragraphs and §8a wet-tail rule, built
+on the Task 5.2 spectral grid, the Task 6.1 EQ / Dynamic EQ, the Task 6.2 compressor,
+and the Task 7.1–7.2 engine / sidechain path. It is an **engine layer only**: no UI,
+store op, persistence field, transport, export, new DSP algorithm, new routing edge
+kind, or Task 7.4 bounded-render orchestration is added. `architecture.md` and
+`module-contract.md` still do not exist; this section is the implemented contract.
+
+### 19.1 The files
+
+| file | what |
+| --- | --- |
+| `src/lib/engine/masking.ts` | measurement, detection, resolution, re-measurement and escalation |
+| `src/lib/engine/chains.ts` | one additive integration: `MaskingDynamicBand` overlay on a band with no configured `dynamicDepthDb` |
+| `src/lib/engine/mix-engine.ts` | two additive integrations: optional `MixTaps.tracks`, and `MixEngineOptions.maskingDynamicBands` |
+| `tests/masking.test.mjs` | 15 synthetic-measurement and controlled-audio tests |
+| `scripts/check-masking-structure.mjs` | the 7.3 structural guard (`npm run check:masking`) |
+
+### 19.2 Measurement — reuse the 5.2 grid, attribute wet sends
+
+`measureMaskingSources(project, inputs, options)` runs the existing `MixEngine` in
+blocks and feeds the existing `SpectralAnalyser` (`BANDS`, `CELL_SECONDS`,
+`cellFramesFor`) on the same 100 ms grid. It measures:
+
+- **dry sources**: each track's post-fader tap (`MixTaps.tracks`), gated by the
+  Task 7.1 audibility rules;
+- **wet sources**: each active post-fader send, attributed to its sending track as
+  `trackId>returnId`. The send signal is the track tap × send gain, passed through
+  the same approved `ReturnChain` settings in isolation. The Return effects are
+  linear and static during a render, so this is superposition, not a new effect or
+  routing model. A shared Return output alone cannot say which send produced a tail.
+
+The measurement analyses `tailSeconds` of silence after the last input so reverb and
+delay tails participate. A wet source inherits the sending track's Priority; a Return
+Bus is never treated as an ordinary track and never becomes a sidechain destination.
+
+### 19.3 Detection — meaningful overlap, not mere spectral overlap
+
+`detectMaskingConflicts(measurement, config)` compares sources from different tracks.
+The higher-Priority source is protected; equal Priority is reported nowhere as an
+arbitrary cut. A band cell is a conflict only when both sources are above
+`energyFloorDb`, the band carries at least `minBandShare` of each source's energy,
+and the yielding source is no more than `maskingWindowDb` below the protected source.
+Contiguous conflict cells become intervals. `persistent` means the conflict occupies
+at least `persistentRatio` of the longer active run and at least `persistentMinCells`;
+otherwise a conflict with at least `intermittentMinCells` is `intermittent`.
+
+A conflict carries the two contributors, the affected `BandDef`, the time intervals,
+active/conflict cell counts, mean band levels, `excessDb` (yielding minus protected),
+and the Priority difference. Role is not read.
+
+### 19.4 Resolution — Auto-only, priority-ordered, cumulative-safe
+
+`resolveMaskingConflicts(project, conflicts, config, previousLedger)` clones the
+project and writes only Auto parameters:
+
+- persistent dry conflict → proportional static EQ cut on the lower-priority track;
+- intermittent dry conflict → engine-owned Dynamic EQ dip keyed by the protected
+  track through the existing `Project.sidechains` / `validateSidechains` path;
+- wet conflict → proportional send reduction on the lower-priority sending track
+  (persistent uses the full requested cut; intermittent scales by measured duty
+  cycle because a Return has no dynamics to key).
+
+Manual EQ gain/frequency/Q, Manual sends, and Manual compressor parameters are never
+written. A configured `dynamicDepthDb` is preserved; the masking overlay is additive
+only on bands whose depth is `null`. Existing sidechain assignments are preserved;
+invalid edges keep the Task 7.2 fallback and are exposed in `sidechainVerdict`.
+
+The cumulative ledger tracks masking-applied EQ reduction per track and per band,
+and send reduction per Return. `cumulativeCutLimitDb` (default **6 dB**) prevents
+repeated small cuts from hollowing a track. The limit is deterministic, configurable,
+and carried across reruns through `previousLedger`.
+
+### 19.5 Re-measurement and escalation
+
+`resolveMaskingAudio` measures, detects, resolves, then **re-measures** the resolved
+project with the Dynamic EQ overlays. Compressor escalation is considered only for
+conflicts that received an EQ move and still have meaningful remaining excess
+(`escalationThresholdDb`). It adds an external-key compressor edge and may lower an
+Auto threshold / raise an Auto ratio; a bypassed compressor or an existing compressor
+key is not overridden. A final measurement reports the remaining conflicts.
+
+### 19.6 Provisional defaults (D7.3.1)
+
+No universal masking threshold is claimed. The defaults are conservative, configurable
+starting points in `DEFAULT_MASKING_DETECTION` / `DEFAULT_MASKING_RESOLUTION`:
+`energyFloorDb -60`, `minBandShare 0.05`, `maskingWindowDb 12`, `persistentRatio 0.6`,
+`persistentMinCells 3`, `intermittentMinCells 2`, `targetSeparationDb 3`,
+`maxCutPerConflictDb 3`, `minCutDb 0.25`, `cumulativeCutLimitDb 6`, `maxSendCutDb 6`,
+`escalationThresholdDb 1.5`, `maxCompThresholdShiftDb 6`. They reuse the 5.2 grid and
+the 6.x ranges; they are not genre rules and remain tunable.
+
+### 19.7 Not in this build (by design)
+
+UI/store/persistence/clipboard wiring for masking results or engine-owned Dynamic EQ
+overlays; per-section priority; genre rulebook precedence; Return-bus dynamics or
+Return sidechain destinations; new effect algorithms; bounded-chunk rendering, state
+continuity and recovery (Task 7.4); WAV export; native Tauri/Rust.
+
+## 20. Bounded-chunk rendering — streaming sources, state continuity and recovery (Task 7.4)
+
+Phase 7's fourth step: plan §11's bounded chunk processing and §15's single-pass
+versus chunked comparison, built over the Task 7.1 `MixEngine` without changing the
+signal path or any DSP algorithm. It is an **engine layer only**: no UI, transport,
+store op, persistence field, WAV export dialog, native code, or new dependency.
+`architecture.md` and `module-contract.md` still do not exist; this section is the
+implemented contract.
+
+### 20.1 The files
+
+| file | what |
+| --- | --- |
+| `src/lib/engine/render.ts` | `renderProject`, streaming source/sink contracts, bounded chunk loop, latency compensation, tail scheduling, cancellation/recovery, WAV source adapter |
+| `src/lib/engine/mix-engine.ts` | one recovery-only addition: `reset()` also clears the scratch and sidechain key buffers |
+| `tests/rendering.test.mjs` | 17 deterministic rendering tests |
+| `scripts/check-rendering-structure.mjs` | the 7.4 structural guard (`npm run check:rendering`) |
+
+### 20.2 Source and sink contracts
+
+`RenderSource` is seekable and stereo at the render rate: `frames`, `sampleRate`,
+`read(frameStart, target, frames)`, optional `close()`. A read writes exactly the
+requested count into reused target arrays; a short read is a named failure, not
+silence. Missing tracks are silence; shorter tracks are padded with silence to the
+longest input. `openWavRenderSource` reuses Task 5.2's `readStoredFormat` and
+`SliceDecoder` and Task 5.1's import rules: 48 kHz, 24-bit PCM or 32-bit float,
+mono/stereo; mono is duplicated to stereo; non-finite float samples are rejected.
+
+`RenderSink.write(chunk)` receives aligned, bounded output chunks and may be async
+(backpressure). The chunk arrays are reused after `write` resolves, so a sink that
+keeps audio must copy or persist it before resolving. `finish(result)` is the single
+commit point; `abort(error)` discards partial output. The renderer owns no files and
+does not accumulate the output mix.
+
+### 20.3 Chunk size and memory
+
+`DEFAULT_RENDER_CHUNK_FRAMES = 4096` (the engine's existing default, about 85 ms at
+48 kHz). `chunkFrames` is configurable from 1 to `MAX_RENDER_CHUNK_FRAMES = 65536`
+(about 1.37 s at 48 kHz). The cap is a provisional orchestration safety bound, not a
+DSP parameter. Input buffers, raw engine output, aligned output staging, bus/Return
+accumulators and sidechain keys are sized from this cap and the channel count, not
+from project duration. DSP state remains sized by the approved module settings
+(delay time, reverb network, lookahead), as before. The allocation test instruments
+`Float32Array` construction and proves identical audio allocation for a short and a
+long render with the same chunk size.
+
+### 20.4 Timeline, tails and latency
+
+Inputs start at frame 0, matching the current imported-stem arrangement. Let `N` be
+the longest input and `T = ceil(tailSeconds × sampleRate)`, defaulting to the engine's
+conservative longest Return tail. The renderer processes `N + T` frames through the
+full engine; frames after `N` are silence, so Return tails, compressor/Dynamic EQ
+release and filter state advance normally. `MixEngine.flush` drains only the master
+limiter's lookahead; the Return tails are not shortcut through that method.
+
+The limiter reports `L = latencyFrames`. The renderer drops the first `L` raw output
+frames and appends `L` flushed frames, delivering exactly `N + T` aligned frames.
+This is the compensation contract from §15.6: the residual audio is written, not
+zeroed or blindly trimmed. `tailSeconds` may be overridden by a caller; the default
+does not truncate the approved Return tail contract.
+
+### 20.5 State continuity and masking
+
+One `MixEngine` instance is used for the whole attempt. There is no reset, rebuild,
+parameter re-resolution or masking rerun at a chunk boundary. EQ/Dynamic EQ filter
+and detector state, compressor/expander envelopes, bus processing, sidechain key
+alignment, delay lines and reverb networks carry across blocks exactly as in Task
+7.1–7.2. Task 7.3 masking is supplied as an already-resolved project plus
+`maskingDynamicBands`; the renderer preserves those decisions and edges for the whole
+render. Chunked output is tested against a continuous reference through the same
+engine, including active dynamics, sidechains, masking overlays and wet tails.
+
+### 20.6 Cancellation, failure and retry
+
+Cancellation is cooperative through an `AbortSignal`, checked before/after source
+reads, engine blocks, sink writes and yields, and before commit. `RenderCancelledError`
+is thrown; `finish` is not called. Source reads, sink writes, commit, or cleanup may
+fail. On every failure path the engine is reset, scratch buffers are zeroed, sources
+are closed, and the sink's `abort` is called once. A retry is a new `renderProject`
+call with a fresh engine and fresh scratch buffers; no attempt state is shared.
+
+The project is still contractually read-only for an attempt, but the renderer also
+fingerprints the project metadata at start and re-checks it before each engine block,
+after sink writes, and before commit. An observed change throws
+`RenderProjectChangedError`, aborts the sink, and never calls `finish`. The fingerprint
+is metadata-sized (functions omitted), not an audio-buffer copy. A controller should
+still cancel explicitly when it edits; the check is the safeguard that prevents an
+observed mid-render edit from committing inconsistent output.
+
+This task chooses **safe restart**, not persisted mid-render checkpoint resume.
+Serializing every processor's internal state would change the DSP/project contracts;
+the plan permits interrupted renders to resume *or safely restart*. Durable atomic
+storage and user-facing progress/recovery belong to the later transport/export wiring.
+
+### 20.7 Not in this build (by design)
+
+UI or transport controls; WAV export files/dialogs/stems/bus export; store/persistence
+or clipboard changes; arrangement clip offsets/automation beyond the current
+bar-1 imported-stem model; persisted checkpoint resume; new DSP algorithms; changes
+to masking methodology; native Tauri/Rust; new dependencies.
+
+## 21. Shared transport and playback (Task 8.1)
+
+Phase 8's first step: plan §6's three listening modes and §14 Task 8.1, wired to the
+existing project store, imported assets, Task 7.1 `MixEngine` and Task 7.4
+`renderProject`. **No project-model or persistence-schema field is added.** Transport
+state is app-level, transient UI/audio state, not part of the saved manifest.
+`architecture.md` and `module-contract.md` still do not exist; this section is the
+implemented contract.
+
+### 21.1 The files
+
+| file | what |
+| --- | --- |
+| `src/lib/playback/types.ts` | listening source, transport state, PCM chunk, output/clock contracts, bounded defaults |
+| `src/lib/playback/sources.ts` | opens imported stems through the 5.1 asset store and 7.4 WAV source adapter |
+| `src/lib/playback/sessions.ts` | bounded RAW sum and PREVIEW `MixEngine` producer, limiter-latency compensation |
+| `src/lib/playback/controller.ts` | the one play/pause/stop/seek/source/render state machine and attempt lifecycle |
+| `src/lib/playback/web-audio.ts` | browser scheduled-chunk output, generation stop, backpressure |
+| `src/lib/playback/store.svelte.ts` | one reactive transport facade for every room |
+| `src/lib/playback/shell.ts` | browser wiring: project store, asset store, Web Audio, macrotask clock |
+| `tests/playback.test.mjs` | deterministic transport/raw/preview/render/recovery/memory tests |
+| `scripts/check-playback-structure.mjs` | the 8.1 structural guard (`npm run check:playback`) |
+
+### 21.2 One shared transport
+
+`PlaybackController` owns `status` (`stopped | playing | paused | rendering | error`),
+`source` (`raw | preview | render`), `positionFrames`, `startFrame`, `durationFrames`,
+`renderProgress` and `error`. The shell attaches one controller to the reactive
+facade; `MiniTransport` is rendered once outside the room switch and the Console deck
+reads the same facade. Arrange and Mixer do not create playback state. Switching rooms
+therefore cannot remount or reset the playhead.
+
+Play starts or resumes the current source. Pause stops scheduled audio and keeps the
+playhead. Stop returns to `startFrame` (frame 0 in this task). Seek clamps to the known
+duration, stops the current generation, and restarts at the target if playback was
+running. Previous/Next locate to start/end. The Console deck's PLAY key toggles
+play/pause in the live room; this is the Task 8.1 deviation from the Task 2.3 inert
+latch, recorded as D8.1.1. The listening source remains status text (D2.3.2); no source
+selector was added. MIX starts the rendered-mix path.
+
+### 21.3 Raw synchronized playback
+
+RAW opens each imported track as a seekable `RenderSource` (48 kHz, mono duplicated to
+stereo, 24-bit PCM / 32-bit float). A bounded block is read from every active source at
+the same project frame and unity-summed. Shorter sources are silence after their end;
+missing/corrupt stored copies are silence for that track. Mute/solo is the shared Task
+7.1 `computeAudibility` rule, re-read each block. No trim, pan, fader, EQ, dynamics,
+send or Return processing is applied in RAW.
+
+### 21.4 Lightweight live preview
+
+PREVIEW builds one `MixEngine` for the attempt and feeds it bounded blocks. The
+approved track → bus → Return → master signal path, sidechain keys and masking overlays
+are the engine's; playback does not duplicate DSP. `refreshAudibility()` is called per
+block so mute/solo changes are heard without rebuilding chains. The master limiter's
+lookahead is compensated as in §20.4: leading latency is dropped and flushed at the
+end. DSP state is continuous inside one unbroken attempt. Pause, seek, stop and restart
+discard the attempt and reinitialize at the requested frame, so no stale compressor,
+reverb, delay or limiter state leaks across a locate.
+
+### 21.5 Full rendered mix playback
+
+RENDER calls Task 7.4 `renderProject` with a streaming sink. The sink discards output
+before the requested start frame, applies backpressure through the output, and reports
+progress. `finish` commits the rendered duration; cancellation/failure aborts the
+attempt and leaves the transport recoverable. A seek or restart is a new render attempt
+from the project start with output before the target discarded (safe restart, §20.6);
+no persisted mid-render checkpoint or full-project mix buffer is introduced.
+
+### 21.6 Buffering and memory
+
+Audio buffers are sized from the block size and channel/track count, never from project
+duration. RAW/PREVIEW default block: 2048 frames; rendered orchestration block: 4096
+frames (Task 7.4 default). The Web Audio backend schedules short chunks on the audio
+clock and waits while about one second of audio is already queued. A generation counter
+and explicit `stop()`/`disconnect()` ensure old scheduled chunks cannot sound after a
+pause, seek, stop or restart. The allocation test proves identical audio allocation for
+short and long RAW/PREVIEW sessions.
+
+### 21.7 Not in this build (by design)
+
+WAV export, processed-stem/bus export or export dialogs (8.2); external JSON rulebooks
+(8.2); a source selector or new transport layout; arrangement clip offsets beyond the
+current bar-1 imported-stem model; persisted render checkpoints; live rebuild of DSP
+chains on every parameter edit (mute/solo is live; graph/chain edits require a new
+attempt); native Tauri/Rust; new dependencies.
