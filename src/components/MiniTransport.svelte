@@ -1,25 +1,33 @@
 <script lang="ts">
   /**
-   * Persistent mini transport — Task 0.6.
+   * Persistent mini transport — Task 0.6 structure, Task 8.1 live wiring.
    *
    * Rendered once, by App.svelte, outside every room's content, so it cannot be
-   * remounted or repositioned by switching rooms.
+   * remounted or repositioned by switching rooms. The controls now drive the one
+   * shared transport facade (lib/playback/store.svelte.ts); the playhead and
+   * status are the same in Console, Arrange and Mixer.
    *
-   * Phase 0: structure only. The controls are inert placeholders. They are NOT
-   * wired to audio, an audio engine, the project model, or timeline playback,
-   * and they do not represent that anything is playing. The visible note below
-   * the controls says so, and each button is described by it, so the placeholder
-   * nature is available both visually and to assistive technology.
-   *
-   * Play/Stop/Previous/Next are the minimum set that matches the product plan's
-   * transport conventions. Extra controls (record, loop, tempo, MIX) are
-   * deliberately absent: MIX is a Phase 2 Console control per plan §2.3 and is
-   * not a transport control, and the rest would be invented.
+   * Play/Stop/Previous/Next remain the Phase 0 set. Play toggles play/pause,
+   * Stop returns to the defined start, Previous locates to the start and Next to
+   * the end of the current listening source. MIX is deliberately absent here: it
+   * is the Console deck's separate render action (plan §6, D2.3.2).
    */
+  import { formatTransportPosition, transport, transportStatusText } from "../lib/playback/store.svelte";
 
-  /** Buttons are focusable and inert by design: a disabled control cannot be
-   *  inspected with the keyboard, and this task is a structural review. */
   const CONTROLS = ["Previous", "Play", "Stop", "Next"] as const;
+
+  const playing = $derived(transport.status === "playing" || transport.status === "rendering");
+  const position = $derived(formatTransportPosition(transport.positionFrames, transport.sampleRate));
+  const status = $derived(transportStatusText(transport));
+
+  function onControl(control: (typeof CONTROLS)[number]): void {
+    switch (control) {
+      case "Play": transport.togglePlay(); break;
+      case "Stop": transport.stop(); break;
+      case "Previous": transport.seek(transport.startFrame); break;
+      case "Next": transport.seek(transport.durationFrames); break;
+    }
+  }
 </script>
 
 <footer
@@ -29,7 +37,7 @@
 >
   <p class="mini-transport__label" id="mini-transport-title">Mini transport</p>
 
-  <div class="mini-transport__controls" role="group" aria-label="Transport controls, placeholders">
+  <div class="mini-transport__controls" role="group" aria-label="Shared transport controls">
     {#each CONTROLS as control (control)}
       <button
         type="button"
@@ -37,25 +45,27 @@
         class:mini-transport__button--primary={control === "Play"}
         data-transport-control={control.toLowerCase()}
         aria-describedby="mini-transport-note"
+        aria-pressed={control === "Play" ? playing : control === "Stop" ? !playing : undefined}
+        onclick={() => onControl(control)}
       >
-        {control}
+        {control === "Play" && playing ? "Pause" : control}
       </button>
     {/each}
   </div>
 
   <p class="mini-transport__readout" data-transport-position>
     <span class="mini-transport__readout-label">Position / time</span>
-    <span class="mini-transport__readout-value">00:00:00.000</span>
+    <span class="mini-transport__readout-value">{position}</span>
   </p>
 
   <p class="mini-transport__status" data-transport-status>
     <span class="mini-transport__status-label">Status</span>
-    <span class="mini-transport__status-value">Idle — placeholder</span>
+    <span class="mini-transport__status-value">{status}</span>
   </p>
 
   <p class="mini-transport__note" id="mini-transport-note">
-    Placeholder controls. No audio engine is connected in Phase 0, so nothing
-    plays.
+    Shared transport. Play/pause, stop to start, and locate across Console,
+    Arrange and Mixer.
   </p>
 </footer>
 

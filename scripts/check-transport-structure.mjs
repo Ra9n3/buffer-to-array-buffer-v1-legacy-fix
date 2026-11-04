@@ -14,8 +14,8 @@
  *      its height, so it cannot scroll away and cannot cover room content.
  *   4. The Console's old scroll-revealed transport placeholder is gone, and no
  *      room still depends on page scrolling to reveal anything.
- *   5. Placeholder honesty: the controls are inert, labelled as placeholders,
- *      and no audio/playback API or shared state is referenced.
+ *   5. Task 8.1: the controls drive the one shared transport facade; the
+ *      component itself still creates no audio context, timer or persistence.
  *   6. The nav order and tab layout from Task 0.5 are unchanged.
  *
  * Run: npm run check:transport
@@ -107,7 +107,7 @@ check(
   ),
 );
 
-// --- 5. Placeholder honesty. ----------------------------------------------
+// --- 5. Task 8.1 live shared transport. ------------------------------------
 check(
   "transport controls are real buttons (one template button per control)",
   /<button[\s\S]*?data-transport-control/.test(transport) &&
@@ -115,20 +115,22 @@ check(
     ["Previous", "Play", "Stop", "Next"].every((c) => transport.includes(`"${c}"`)),
 );
 check("Play, Stop, Previous and Next are present", ["Previous", "Play", "Stop", "Next"].every((c) => transport.includes(`"${c}"`)));
-check("a position/time readout placeholder exists", /data-transport-position/.test(transport));
-check("a status placeholder exists", /data-transport-status/.test(transport));
-check("the strip says it is a placeholder in visible text", /Placeholder controls/.test(transport));
+check("the controls drive the shared transport facade", /import \{ formatTransportPosition, transport, transportStatusText \} from "\.\.\/lib\/playback\/store\.svelte"/.test(transport) && /onclick=\{\(\) => onControl\(control\)\}/.test(transport));
+check("Play toggles play/pause, Stop returns to start, Previous/Next locate", /transport\.togglePlay\(\)/.test(transport) && /transport\.stop\(\)/.test(transport) && /transport\.seek\(transport\.startFrame\)/.test(transport) && /transport\.seek\(transport\.durationFrames\)/.test(transport));
+check("a live position/time readout exists", /data-transport-position/.test(transport) && /\{position\}/.test(transport));
+check("a live status readout exists", /data-transport-status/.test(transport) && /\{status\}/.test(transport));
+check("the strip says it is the shared transport in visible text", /Shared transport/.test(transport));
 check(
-  "controls are described by the placeholder note",
+  "controls are described by the transport note",
   /aria-describedby="mini-transport-note"/.test(transport),
 );
 check(
-  "no audio, playback, or clock API is referenced",
-  !/AudioContext|AudioBuffer|requestAnimationFrame|setInterval|currentTime|\.play\(|\.pause\(/.test(transport),
+  "the component itself creates no audio context, timer or clock",
+  !/AudioContext|AudioBuffer|requestAnimationFrame|setInterval|setTimeout|currentTime|\.play\(|\.pause\(/.test(transport),
 );
 check(
-  "no shared project state, store, or persistence",
-  !/\$state|\$derived|localStorage|sessionStorage|\$store|writable\(/.test(transport),
+  "the component reads reactive transport state, not persistence",
+  /\$derived/.test(transport) && !/localStorage|sessionStorage|writable\(/.test(transport),
 );
 check(
   "no keyboard-shortcut handling was added",
