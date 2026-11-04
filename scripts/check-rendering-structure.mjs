@@ -71,7 +71,12 @@ check("failure/cancellation aborts the sink", /await sink\.abort\?\.\(finalError
 check("output arrays are documented as reused after write resolves", /reused after `write` resolves/.test(renderRaw));
 
 // State, tails and latency.
-check("the same engine processes every block of the attempt", /engine\.process\(inputBuffers as TrackInputs, raw, count\)/.test(render));
+// Task 8.2 added the optional 4th argument (the bus taps). The engine, the buffers and
+// the call site are unchanged: the taps ride alongside, they do not replace anything.
+check(
+  "the same engine processes every block of the attempt",
+  /engine\.process\(inputBuffers as TrackInputs, raw, count(?:, tapBuffers\.size > 0 \? \{ buses: tapBuffers \} : undefined)?\)/.test(render),
+);
 check("Return tail silence is processed through the full graph", /const engineFrames = inputFrames \+ tailFrames;/.test(render) && /for \(let at = 0; at < engineFrames; at \+= chunkFrames\)/.test(render));
 check("tail length defaults to the engine's conservative Return tail", /options\.tailSeconds \?\? engine\.tailSeconds/.test(render));
 check("limiter latency is dropped at the head", /let latencyToDrop = engine\.latencyFrames;/.test(render) && /latencyToDrop -= skipped;/.test(render));
@@ -95,6 +100,13 @@ check("WAV adapter reuses the Task 5.1 import rules", /judgeFormat\(format\)/.te
 check("mono WAV is duplicated to stereo", /format\.channels === 1 \? 0 : c/.test(render));
 check("non-finite float samples are rejected", /non-finite sample/.test(renderRaw));
 
+// Task 8.2 — the bus taps the export reads. They are observers: no gain, no routing,
+// no state, and the master's own head drop is not applied to them a second time.
+check("bus taps are opt-in and delivered per block", /readonly onBuses\?:/.test(render) && /deliverBusTaps/.test(render));
+check("the tap block is aligned to the input timeline, not shifted again", /startFrame: at, frames: count/.test(render));
+check("tap delivery is awaited, so a writer applies backpressure", /await deliverBusTaps\(options\.onBuses/.test(render));
+check("taps are allocated only when they are asked for", /if \(options\.onBuses\)/.test(render));
+
 // Tests.
 const countTests = (text) => (text.match(/^test\(/gm) ?? []).length;
 check("rendering suite covers the required scenarios", countTests(tests) >= 17 && /short renders/.test(tests) && /long render/.test(tests) && /multiple chunk boundaries/.test(tests) && /reverb and delay tails/.test(tests) && /compressor, Dynamic EQ/.test(tests) && /masking overlays/.test(tests) && /cancellation/.test(tests) && /injected source failure/.test(tests) && /Float32 audio allocation/.test(tests) && /continuous reference/.test(tests) && /project change during a render aborts before commit/.test(tests));
@@ -109,7 +121,10 @@ check("decisions log records Task 7.4 choices", /## Task 7\.4/.test(decisions) &
 check("report records verification and stop condition", /npm run check/.test(report) && /0 errors/.test(report) && /Nothing committed/.test(report) && /No later task was started/.test(report));
 
 const pinned = {
-  "src/lib/engine/render.ts": "1a08dd23e75445ca65cb7d7a664f5a42a88cabd7a1f8534a35cdad3f148aba70",
+  // Re-pinned by Task 8.2: the bus monitor taps (`RenderOptions.onBuses`) were added
+  // for the export. The pin moved, the review did not: the tap path is an observer and
+  // the 8.2 tests assert the master is bit-identical with and without it.
+  "src/lib/engine/render.ts": "a08c6d127bf2943bd1954e0f81f97f36e110f70b9b5b3d263b70c0ef9255b72a",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`reviewed file pinned: ${rel}`, exists(rel) && sha256(read(rel)) === hash, sha256(read(rel)).slice(0, 16));

@@ -102,7 +102,7 @@ check("no new dependency", Object.keys(pkg.dependencies ?? {}).length === 0 && J
 
 // --- 8. The 7.x engine/renderer are unchanged --------------------------------
 const pinned = {
-  "src/lib/engine/render.ts": "1a08dd23e75445ca65cb7d7a664f5a42a88cabd7a1f8534a35cdad3f148aba70",
+  "src/lib/engine/render.ts": "a08c6d127bf2943bd1954e0f81f97f36e110f70b9b5b3d263b70c0ef9255b72a", // re-pinned by 8.2: bus monitor taps
   "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

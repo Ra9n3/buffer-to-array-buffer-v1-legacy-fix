@@ -28,7 +28,7 @@ import { requireBuffers } from "../dsp/buffers";
 import { DSP_SAMPLE_RATE, requireSampleRate } from "../dsp/params";
 import { byteSourceOf, readStoredFormat, SliceDecoder, type ByteSource } from "../analysis/decode";
 import { judgeFormat } from "../audio/import-rules";
-import type { Project, TrackId } from "../project/model";
+import type { BusId, Project, TrackId } from "../project/model";
 import { MixEngine, type MixEngineOptions, type StereoBlock, type TrackInputs } from "./mix-engine";
 
 /** Default block: the engine's 4096-frame block, about 85 ms at 48 kHz. */
@@ -54,6 +54,18 @@ export interface RenderChunk {
   readonly startFrame: number;
   readonly frames: number;
   readonly channels: StereoBlock;
+}
+
+/**
+ * One block of every bus's processed output, aligned to the delivered timeline
+ * (Task 8.2). `buses` holds the engine's own buffers: read `channels[c][skip … skip +
+ * frames]`. `startFrame` is the delivered frame of `channels[c][skip]`.
+ */
+export interface RenderBusTap {
+  /** The delivered frame this block starts at — always a multiple of the block size. */
+  readonly startFrame: number;
+  readonly frames: number;
+  readonly buses: ReadonlyMap<BusId, StereoBlock>;
 }
 
 export interface RenderResult {
@@ -96,6 +108,25 @@ export interface RenderOptions extends Omit<MixEngineOptions, "maxFramesPerBlock
   /** Awaited between engine blocks so a browser controller can yield to the page. */
   readonly yieldBetween?: () => Promise<void>;
   readonly onProgress?: (progress: RenderProgress) => void;
+  /**
+   * Optional per-bus monitor taps (Task 8.2). Every block, `onBuses` receives each
+   * bus's processed output for that block — after the bus's own chain, before it is
+   * summed into its destination.
+   *
+   * Buses carry no latency: a block tapped at input frame `at` is the bus's output
+   * for those same input frames, so `startFrame === at` and the master's limiter
+   * lookahead is already compensated once, by the master's own head drop. Subtracting
+   * it again here would shift every bus file 5 ms early, so it is deliberately not
+   * subtracted.
+   *
+   * Taps are read-only observers. With them absent the render is unchanged, and the
+   * delivered master is sample-identical with or without them: they add no gain, no
+   * routing and no state (the 8.2 tests assert the identity).
+   *
+   * The arrays are reused after the callback returns, like the sink's chunks, so a
+   * consumer that keeps audio must copy it.
+   */
+  readonly onBuses?: (chunk: RenderBusTap) => void | Promise<void>;
 }
 
 export class RenderCancelledError extends Error {
@@ -148,6 +179,25 @@ function validateChunkFrames(value: number): number {
  * the resolved project and `maskingDynamicBands` from Task 7.3 so the approved
  * decisions and sidechain edges stay fixed while the stateful DSP runs.
  */
+/**
+ * Hand one block of each tapped bus's processed output to the caller (Task 8.2).
+ *
+ * The block's input frames are `[at, at + count)` and its buffers hold exactly those
+ * frames — a bus has no latency of its own, and the master's limiter lookahead is
+ * compensated by the master's head drop, not here.
+ */
+async function deliverBusTaps(
+  onBuses: ((chunk: RenderBusTap) => void | Promise<void>) | undefined,
+  buses: ReadonlyMap<BusId, StereoBlock>,
+  at: number,
+  count: number,
+): Promise<void> {
+  if (!onBuses || count <= 0) return;
+  // Awaited: a consumer writing these blocks to disk applies backpressure here, the
+  // same way the sink does for the master.
+  await onBuses({ startFrame: at, frames: count, buses });
+}
+
 export async function renderProject(
   project: Project,
   sources: ReadonlyMap<TrackId, RenderSource>,
@@ -160,6 +210,13 @@ export async function renderProject(
     throw new Error(`Alloy Renderer: tailSeconds must be finite and ≥ 0, not ${String(options.tailSeconds)}`);
   }
   if (typeof sink.write !== "function") throw new Error("Alloy Renderer: the sink must provide write()");
+
+  // Bus taps (Task 8.2): one buffer pair per bus, sized once at the block capacity.
+  // They are the engine's monitor taps — observers, never participants.
+  const tapBuffers = new Map<BusId, StereoBlock>();
+  if (options.onBuses) {
+    for (const bus of project.buses) tapBuffers.set(bus.id, zeroPair(chunkFrames));
+  }
 
   const trackIds = new Set(project.tracks.map((track) => track.id));
   let inputFrames = 0;
@@ -275,7 +332,8 @@ export async function renderProject(
       await fillInputs(at, count);
       checkAbort(options.signal);
       checkProject();
-      engine.process(inputBuffers as TrackInputs, raw, count);
+      engine.process(inputBuffers as TrackInputs, raw, count, tapBuffers.size > 0 ? { buses: tapBuffers } : undefined);
+      await deliverBusTaps(options.onBuses, tapBuffers, at, count);
       await pushRaw(count);
       if (at + count < engineFrames) {
         await options.yieldBetween?.();
@@ -322,6 +380,10 @@ export async function renderProject(
     cleanupFailure = error;
   }
   for (const buffer of inputBuffers.values()) {
+    buffer[0].fill(0);
+    buffer[1].fill(0);
+  }
+  for (const buffer of tapBuffers.values()) {
     buffer[0].fill(0);
     buffer[1].fill(0);
   }

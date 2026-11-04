@@ -2491,8 +2491,168 @@ short and long RAW/PREVIEW sessions.
 
 ### 21.7 Not in this build (by design)
 
-WAV export, processed-stem/bus export or export dialogs (8.2); external JSON rulebooks
-(8.2); a source selector or new transport layout; arrangement clip offsets beyond the
-current bar-1 imported-stem model; persisted render checkpoints; live rebuild of DSP
-chains on every parameter edit (mute/solo is live; graph/chain edits require a new
-attempt); native Tauri/Rust; new dependencies.
+An export dialog or other export UI (the engine-level export landed in 8.2, §22; the
+screen that drives it is still deferred); a source selector or new transport layout;
+arrangement clip offsets beyond the current bar-1 imported-stem model; persisted render
+checkpoints; live rebuild of DSP chains on every parameter edit (mute/solo is live;
+graph/chain edits require a new attempt); native Tauri/Rust; new dependencies.
+
+## 22. WAV export and external rulebooks (Task 8.2)
+
+Plan §12 asks for any combination of the full mix, the processed individual stems and the
+processed buses, as WAV, into a folder the user chooses; plan §9 asks for genre rulebooks
+loaded from external JSON. Both are implemented as library code with no UI: this section
+is the contract, `src/lib/export/` and `src/lib/rulebook/` are the implementation.
+
+### 22.1 There is no second export pipeline
+
+Every exported file is produced by **Task 7.4's `renderProject`** — the same `MixEngine`,
+the same chains, the same summing, the same Return tails, the same safety limiter and the
+same latency compensation the transport uses (§20, §21). Export adds three things and
+nothing else:
+
+1. a **destination** (`ExportDestination`) — a real folder, memory, or a collector the
+   shell turns into downloads;
+2. a **writer** (`WavStreamWriter`) — bounded, streaming, with the header written first
+   and its sizes patched at `finish()`;
+3. **bus monitor taps** (`RenderOptions.onBuses`) — the one addition to the renderer.
+
+The taps are observers. They allocate a buffer pair per bus only when asked for, the
+engine writes each bus's output into them during the block it already processes, and the
+delivered master is **bit-identical with and without them** (asserted in
+`tests/export.test.mjs`). They introduce no gain, no routing and no state.
+
+A tap block is aligned to the input timeline: a block covering input frames
+`[at, at + count)` is handed over with `startFrame === at`. Buses carry no latency, and
+the master's limiter lookahead is compensated by the master's own head drop, not a second
+time here — subtracting it twice shifted every bus file 5 ms early.
+
+### 22.2 What each file contains
+
+| file | signal path | notes |
+| --- | --- | --- |
+| `<Project> - mix.wav` | every track's inserts → post-fader sends → Returns → bus chains → summing → master safety limiter | the whole path, no mastering, no loudness target |
+| `Stems/NN <Track>.wav` | that track's inserts → its own pan/fader → its declared route (bus chain, or Master) | one render per track; no other track is present |
+| `Buses/NN <Bus>.wav` | that bus's chain → before it is summed into its destination | read from the tap of the mix pass |
+| `export.json` | — | what was written, in what format, with each stem's routing note |
+
+A **stem is a render of that track's own channel**, not a solo trick and not a mute
+afterwards: `stemProject()` hands the renderer a project containing one track and only the
+Returns its live sends reach, with `sidechains: []` so no other track can duck it. Its
+pan, fader, mute and solo are the project's, so an export cannot disagree with what the
+user hears. Because each stem keeps its declared route, **the stems sum to the full mix**
+sample-for-sample over the project's length (asserted) — with two documented exceptions:
+
+- the master **safety limiter** is the sum's overs guard, not a track's processing, so it
+  is not in a stem; a session that never reaches the ceiling makes this exactly zero;
+- a **Return** is a shared, effect-only channel: its wet signal belongs to the whole mix,
+  and the stems between them carry it once each through the sends that reach it.
+
+Each stem's routing note in `export.json` states its output, which Return you would have
+to re-create, and that the master limiter is absent — plan §12's "document carefully".
+
+### 22.3 Format, sample rate and the absence of mastering
+
+- **WAV only** (plan §12). Two encodings: **32-bit IEEE float** (default — the engine's
+  own precision, so the file's samples are the render's samples bit for bit) and
+  **24-bit PCM** (`formatFromId("pcm24", rate)`), which is the only path that can clip; it
+  rounds to nearest, clamps, and reports `clipped: true` per file.
+- **Stereo, at the project's sample rate** — `DSP_SAMPLE_RATE`, 48 kHz (§16).
+- **No dither.** No noise shaping, no loudness measurement, no `-14 LUFS`, no
+  normalisation, no maximisation, no master-bus EQ or compression — §15/§16 fix the
+  safety limiter as an overs guard and nothing else. A quiet mix stays quiet; a hot mix is
+  held at the ceiling rather than turned down to a target.
+- `export.json` records `mastering: "none"` so a downstream tool cannot guess otherwise.
+
+### 22.4 Folder structure and file names
+
+One folder per export, named after the project:
+
+```
+<Project>/
+  <Project> - mix.wav
+  Stems/01 Kick.wav
+  Buses/01 Drums.wav
+  export.json
+```
+
+Names are produced by one pure module (`plan.ts`), in this order:
+
+1. strip what a file system cannot hold (path separators, control characters, the
+   Windows-reserved set) and collapse whitespace;
+2. never start with a dot, never end with a dot or a space;
+3. never use a DOS device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1-9`, `LPT1-9`) — those
+   become `CON (name)`;
+4. truncate to an **80-byte** budget, counted in bytes so a multi-byte character is never
+   split, with `…` appended;
+5. dedupe **case-insensitively**, adding ` (2)`, ` (3)` — two tracks called "Kick" cannot
+   overwrite each other, and neither can they on a case-insensitive volume.
+
+A stem is numbered from its track code (`01`), a bus from its bus code, so the numbers
+match the Console's strip order and the order can be changed without renaming anything.
+
+### 22.5 Progress, and what happens when things go wrong
+
+`ExportProgress` reports `preparing → rendering → writing → manifest → done` with a
+per-file fraction and an overall one. The overall fraction holds a high-water mark: the
+mix and its bus files come from the same pass, so their per-file fractions interleave and
+a bar must never jump backwards.
+
+The export reports rather than throws, and never leaves a half-written file:
+
+| situation | result |
+| --- | --- |
+| nothing selected | `stopped.reason = "no-selection"`, one sentence, no files |
+| selected output has nothing to render | `stopped.reason = "no-audio"`, with the plan's own note |
+| one file fails (source, DSP, write) | that file is aborted and recorded in `failures`; the rest continue |
+| the destination cannot be created at all | `stopped.reason = "write"`, export ends |
+| an unsupported format/sample rate | `reason = "format"`, fatal, because the next file would fail identically |
+| the user cancels | `reason = "cancelled"`, the current file aborted |
+| the project changed mid-export | `reason = "project-changed"` (from `RenderProjectChangedError`) |
+| a bus receives nothing | left out, and `plan.notes` says how many |
+
+Failures are also written into `export.json` as `skipped`, so a folder cannot look
+complete when one file is missing.
+
+### 22.6 External rulebooks
+
+A rulebook is JSON with schema `alloy.rulebook/1`:
+
+```json
+{
+  "schema": "alloy.rulebook/1",
+  "id": "cinematic",
+  "name": "Cinematic",
+  "targets": [
+    { "scope": "all", "settings": [{ "parameter": "compressor.threshold", "value": -18 }] },
+    { "scope": "family", "id": "drums", "settings": [{ "parameter": "eq.lf.gain", "value": 2.5 }] },
+    { "scope": "role", "id": "bass", "settings": [{ "parameter": "compressor.ratio", "value": 3 }] }
+  ]
+}
+```
+
+- **The vocabulary is the engine's own parameter specs** (`RULES` in
+  `src/lib/rulebook/rulebook.ts` references `EQ_FREQ`, `EQ_GAIN`, `EQ_Q` and the five
+  `COMP_*` specs *by object identity*). A rulebook therefore cannot invent a control, a
+  unit or a range: it names a path and a number, and the mixer decides what that means.
+- **Paths the plan locked are refused by name** (`PINNED_PATHS`: priority, tier, mode,
+  ownership, routing, output, sends, master) — a rulebook may not overrule §16.
+- **Validation collects every problem** and returns them as
+  `{ok: false, problems: [{kind, path, message}]}` with JSON paths such as
+  `targets[1].settings[0].value`. Kinds: `missing`, `malformed-json`,
+  `unsupported-schema`, `structure`, `unsupported-parameter`, `pinned-parameter`,
+  `value-out-of-range`, `wrong-type`. A file loader (`loadRulebookFile`) distinguishes
+  "no such file" from "not JSON", and `loadRulebooks` loads several while keeping every
+  problem next to the file that caused it.
+- **Application is the softest nudge.** `applyRulebook` writes only values whose owner is
+  `auto` — a Manual value is the user's, the same rule Tasks 6.x and 7.x use — clamps and
+  steps them to the spec, reports what changed and which scopes matched nothing, and
+  returns a NEW project (copy-on-write per chain; the caller's project is untouched). It
+  runs **after** tier/priority protection and masking resolution: plan §9's precedence.
+- **The shipped rulebook is inert.** `PLACEHOLDER_RULEBOOK` is valid, changes nothing, and
+  says so in its own `$comment`: plan §9 defers the numeric contents to listening tests,
+  so inventing values here would be exactly what it forbids.
+
+The application is at the library level: there is no rulebook screen, no file picker in
+the UI and no automatic genre lookup. Loading a file is the caller's job (a `readText`
+callback), which keeps the module free of DOM and Node specifics.

@@ -4418,3 +4418,135 @@ not this correction. The numbers are in `task-reports/8.1.1-report.md` §5.
 
 **Reversible.** Yes: one room file and the guard contract. No shared component, token or
 behaviour is involved.
+
+## Task 8.2 — WAV export and external rulebook integration
+
+**Scope.** Plan §12 (export) and §9 (rulebooks). Functional integration only: no Console,
+Arrange or Mixer layout change, no mini-transport change, no new dependency. The export
+lives at the library level (`src/lib/export/`), the rulebook loader beside it
+(`src/lib/rulebook/`); neither is wired into a screen in this task.
+
+### D8.2.1 — Export is the 7.4 renderer plus a destination and a writer; there is no second pipeline
+
+`renderProject` already renders the complete path with latency compensation, Return tails,
+backpressure and cancellation, and it is the only code that knows how. So an export is:
+
+- one pass over the whole project, whose sink writes the **full mix** and whose **bus
+  taps** write the **bus files** — one pass, so the mix and its bus files are consistent by
+  construction;
+- one scoped pass per track for the **stems**.
+
+**Rejected:** copying audio out of a mix buffer (loses the limiter's latency compensation
+and the Return tails), muting other tracks around one render (a second run through stateful
+DSP, and the mute state is the user's), and re-implementing summing for buses (a second
+pipeline to keep in sync).
+
+**Cost accepted:** `render.ts` gains `RenderOptions.onBuses` and its pinned sha moves from
+`1a08dd23…` to `a08c6d12…`. `check-rendering-structure.mjs` is re-pinned with the reason
+and gains four checks for the tap contract; nothing else in that guard was relaxed, and
+its "same engine processes every block" check was widened to allow the optional fourth
+argument rather than deleted.
+
+**Consequence, deliberately:** taps are handed over **without** subtracting the limiter
+lookahead. The first implementation did subtract it and every bus file arrived 240 frames
+(5 ms) early — the master's own head drop had already compensated it. A test now
+cross-correlates a bus file against the mix and requires the best lag to be **0**.
+
+### D8.2.2 — A stem is that track's channel plus its declared route
+
+A stem is rendered from a project containing exactly one track and only the Returns that
+track's live sends reach, with `sidechains: []`. Consequences, all asserted:
+
+- the track's inserts, pan, fader, mute and solo apply — the stem agrees with the mix;
+- the **bus chain applies**, because the track's route is part of its sound (a stem that
+  bypassed the bus would not sum with the others);
+- **the stems sum to the full mix** over the project's length, sample for sample;
+- a Return's wet signal is shared, effect-only, and reaches the mix through the sends, so
+  the sum is exact only up to the master safety limiter (the sum's overs guard, not a
+  track's processing).
+
+The last point is the one plan §12 asks to "document carefully", so it is documented
+**per stem, in the folder itself**: `export.json` carries `routing.output`,
+`routing.sends[{to, levelDb, inStem: false}]` and a sentence naming the Return to
+re-create and stating that the master limiter is absent.
+
+**Rejected:** putting bus processing only in the bus file and leaving stems pre-bus (the
+stem set would then not reconstruct the mix, and neither file would be "the track's
+sound"); applying the master limiter per stem (it is a sum-level guard; per-stem limiting
+would make the sum wrong).
+
+### D8.2.3 — 32-bit float by default, 24-bit PCM offered, and no mastering at all
+
+Plan §16 fixes 32-bit float internally and forbids mastering, normalisation and a loudness
+target; the safety limiter is an overs guard only.
+
+- **float32 WAV** is the default: the file's samples are the render's samples bit for bit
+  (the test asserts a max sample error of exactly 0 against an unwritten render).
+- **24-bit PCM** is offered because it is what delivery usually wants; it is the only path
+  that can clip, so it rounds, clamps and reports `clipped` per file rather than wrapping.
+- **No dither** (no dither stage exists in this build, and adding one would be inventing
+  DSP behaviour §16 does not authorise), no `-14 LUFS`, no maximisation, no master EQ.
+- `export.json` records `mastering: "none"`, and a test asserts a quiet mix stays quiet and
+  a hot one is held at the ceiling rather than turned down to a target.
+
+**Rejected:** reusing `encodeWav` from `src/lib/audio/wav.ts` — that function is documented
+tests-and-evidence-only and needs the whole file in memory. `WavStreamWriter` streams a
+block at a time, which is what a render delivers.
+
+### D8.2.4 — Names are sanitised, truncated by bytes and deduped case-insensitively
+
+Plan §12 wants predictable, collision-safe names; §17 leaves the convention open. Chosen
+and documented in `data-model.md` §22.4: `<Project>/`, `Stems/NN <Track>.wav`,
+`Buses/NN <Bus>.wav`, `<Project> - mix.wav`, plus `export.json`. Illegal characters,
+leading dots and trailing dots/spaces go; DOS device names are escaped; the budget is
+**80 bytes** (so a multi-byte character is never split); duplicates get ` (2)`, ` (3)`
+**case-insensitively**, because a volume may be case-insensitive and two tracks may share a
+name. The numbers in a stem or bus name come from the model's own `code`, so the files
+match the Console's strip order.
+
+### D8.2.5 — Rulebooks: external JSON only, validated against the engine's own specs, inert by default
+
+- Schema `alloy.rulebook/1`. A rulebook has an `id`, a `name`, and `targets` scoped to
+  `all`, a `family` or a `role`.
+- **The parameter vocabulary is the engine's `ParamSpec` objects, by identity**
+  (`RULES[...].spec === EQ_GAIN`). A rulebook therefore cannot invent a control, a unit or
+  a range — a test asserts the identity so a copy cannot silently drift.
+- **Locked decisions are refused by name** (`PINNED_PATHS`): priority, tier, mode,
+  ownership, routing, output, sends, master. §16 is not negotiable by a data file.
+- **Problems, never throws**: `{ok: false, problems: [{kind, path, message}]}` with JSON
+  paths, every problem collected so a file can be fixed in one pass. `missing` and
+  `malformed-json` and `unsupported-schema` are separate kinds, because "no such file",
+  "not JSON" and "written for a newer build" are three different things to tell a user.
+- **Application is the lowest-precedence nudge**, after tier/priority and masking: only
+  `auto` values are written (a Manual value is the user's), values are clamped and stepped
+  to the spec, unmatched scopes are reported, and the project is copied on write.
+- **The shipped rulebook is inert.** Plan §9 defers the numeric contents, so
+  `PLACEHOLDER_RULEBOOK` is valid, changes nothing, and says so in its own `$comment`.
+  **No genre-specific value was invented or tuned**, which was an explicit constraint.
+
+**Rejected:** baking rulebooks into the bundle as TypeScript constants (the task asks for
+external JSON), and a rulebook that can express routing or ownership (that would let a data
+file overrule decisions the plan locked).
+
+### D8.2.6 — Two test suites, and a guard that pins the shape rather than the prose
+
+`tests/export.test.mjs` (38 tests) renders through the real engine and asserts the bytes:
+the mix file equals an unwritten render exactly, the stems sum to the mix, a bus file is
+the bus's own processed output and is aligned with the mix, the format and sample rate are
+the project's, a quiet mix stays quiet, a hot one is held but not normalised, collisions
+resolve, empty selections and failures are reported, and two exports of one project are
+byte-identical.
+
+`tests/rulebook.test.mjs` (20 tests) loads **real fixture files**
+(`tests/fixtures/rulebooks/`) so "missing", "malformed" and "wrong schema" are exercised
+against a file system, then asserts the validation matrix, the Auto-only rule, clamping,
+idempotence and that routing/sends/priority are untouchable.
+
+`scripts/check-export-structure.mjs` (`npm run check:export`, 95 checks) guards the shape:
+no second pipeline, no mastering stage, the format and folder contract, the naming rules,
+the failure behaviour, the rulebook's limits, that both suites are wired into `npm test`,
+that no dependency was added, and that the rooms were not touched.
+
+**Reversible.** Yes: new modules under `src/lib/export/` and `src/lib/rulebook/`, one
+optional renderer option, one guard, two suites, docs. Removing them leaves the transport
+exactly as it was.
