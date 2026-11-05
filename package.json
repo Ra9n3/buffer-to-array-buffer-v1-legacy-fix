@@ -40,7 +40,8 @@
     "check:masking": "node scripts/check-masking-structure.mjs",
     "check:rendering": "node scripts/check-rendering-structure.mjs",
     "check:playback": "node scripts/check-playback-structure.mjs",
-    "check:export": "node scripts/check-export-structure.mjs"
+    "check:export": "node scripts/check-export-structure.mjs",
+    "check:git-sync": "node scripts/git-sync-guard.mjs"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "6.2.4",

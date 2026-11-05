@@ -4775,3 +4775,44 @@ MIX still does not resolve masking (D9.1.2 / Task 10). Both are separate scoped 
 
 **Reversible.** Yes: the two state fields, one `set` block, `clearMix()`, one `now()` on the clock,
 and the Console's `complete` expression.
+
+### D9.1.4 — A stale clone must fail loudly, not silently delete pushed work (owner, 2026-11-05)
+
+**Context.** Twice in one session the local checkout held a history that had **lost commits already
+pushed to origin**. `HEAD` sat on an older commit, `origin/<branch>` was further ahead, and the files
+of the missing work survived only as untracked copies on disk. In both cases a plain
+`git add -A && git commit` would have committed **deletions of ~5,400 pushed lines**, and the push
+would have served that deletion to the pull request. Both times it was caught by noticing the local
+log looked short — by luck, not by any check.
+
+**Decision (owner).** Make it impossible rather than merely unlikely.
+
+**What was added.** `scripts/git-sync-guard.mjs`, plus `npm run check:git-sync` and an optional
+pre-commit hook (`--install`).
+
+- It **fetches first**. This is the whole point: in both incidents the remote-tracking ref was
+  itself absent or stale, so a check that only read `origin/<branch>` could not have fired.
+- It classifies `in-sync`, `ahead`, `behind`, `diverged`, `no-upstream`, `detached`, and treats
+  **behind** as unsafe — that is precisely the shape of the incident.
+- `ahead` is normal and passes silently (it is just unpushed work).
+- An **unreachable origin stands down** (exit 0). A sync check must never block work because the
+  network is down.
+- `ALLOY_SKIP_SYNC_CHECK=1` bypasses it, so a deliberate reset is always possible.
+- It prints the exact remediation, which is a **mixed** `git reset origin/<branch>` — files on disk
+  untouched, as the existing history notes require.
+
+**Verified end to end** in a throwaway clone that reproduces the incident: the guard reports
+`BEHIND` and exits 1; the installed pre-commit hook **blocks** the commit and leaves the changes
+staged; following the printed advice (`git fetch && git reset origin/main`) restores the pushed
+commit; the same commit then succeeds and the pushed content is intact.
+
+**Guards.** A 13-check contract (`check-git-sync`) pins the fetch-first ordering, the
+behind-is-unsafe classification, the offline stand-down, the bypass, the hook installer and the
+absence of a new dependency. **No dependency was added** — detection is a `git` subprocess call.
+
+**Note on the merge that prompted this.** PR #5 was merged into `main` (merge commit `92769d1`),
+carrying all seven task commits: `4c5ec57`, `e472f3e`, `8f131b2`, `f809fdd`, `4d09bfa`, `322b130`,
+`4a86b20`. PR #4 was redundant — its single commit was fully contained in #5 — and closed by that
+merge; `main`'s tree is byte-identical to the verified `4a86b20`, so nothing was added or lost.
+
+**Reversible.** Yes: delete the script, the `check:git-sync` entry, the contract and the hook.

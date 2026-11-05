@@ -37,7 +37,7 @@ npm run dev              # development server
 npm run build            # production build (single self-contained index.html)
 npm run preview          # serve the production build
 npm run check            # svelte-check + TypeScript diagnostics (0 errors, 0 warnings)
-npm test                 # full suite: 425 tests, 36 files, no browser needed
+npm test                 # full suite: 450 tests, 37 files, no browser needed
                        # one structural contract check per area:
                        #   arrange · mixer · transport · tokens · knob · fader · switch
                        #   meter · label-lamp · console-bridge · channel-strip
@@ -45,15 +45,34 @@ npm test                 # full suite: 425 tests, 36 files, no browser needed
                        #   arrange-timeline · mixer-detail · mixer-chain-types · project
                        #   routing · editing · home-settings · import · analysis · dsp
                        #   dynamics · return-dsp · engine · sidechain · masking
-                       #   rendering · playback · export
-npm run check:playback   # e.g. the shared-transport contract (41 checks)
+                       #   rendering · playback · export · git-sync
+npm run check:playback   # e.g. the shared-transport contract (48 checks)
 npm run check:export     # e.g. WAV export and rulebook contract (95 checks)
+npm run check:git-sync   # is this clone in sync with origin, or stale?
 ```
 
-The 32 `check:*` scripts are structural contracts, not linters: each one pins a
+The 33 `check:*` scripts are structural contracts, not linters: each one pins a
 public component's markup, its approved dimensions and the invariants a future
 change must not quietly break. They run in about a second and are the reason a
 refactor cannot silently move a control or drop a guard.
+
+### Keep the clone in sync — install the hook first
+
+A stale clone is a real hazard here: it happened twice during Task 9.1, where the
+local checkout sat on an older commit while origin was ahead, with pushed work
+surviving only as untracked files. Committing then would have **deleted** that
+pushed work, and pushing would have served the deletion to the pull request.
+
+```bash
+node scripts/git-sync-guard.mjs --install   # once per clone
+node scripts/git-sync-guard.mjs             # check any time
+```
+
+It fetches first (a check that only reads `origin/<branch>` cannot catch a stale
+remote-tracking ref), then blocks the commit if local history has fallen **behind**
+or **diverged** from origin, printing the exact fix. It stands down when origin is
+unreachable rather than blocking work offline, and `ALLOY_SKIP_SYNC_CHECK=1`
+bypasses it during a deliberate reset.
 
 ## What actually works
 
