@@ -50,6 +50,12 @@ export class PlaybackController {
   private readonly tailSeconds?: number;
   private abort: AbortController | null = null;
   private generation = 0;
+  /**
+   * Task 9.1.3: counts mixes made, for the life of the controller. Monotonic on
+   * purpose — `clearMix` sets the *state* back to null but must not rewind this, or
+   * the mix after a cleared one would reuse the number of the mix before it.
+   */
+  private mixRevisions = 0;
   private cancelPoll: () => void;
   private disposed = false;
 
@@ -94,8 +100,47 @@ export class PlaybackController {
     const wasPlaying = this.state.status === "playing" || this.state.status === "rendering";
     const position = this.state.positionFrames;
     this.stop();
-    this.set({ source, positionFrames: position, durationFrames: 0, renderProgress: null, error: null });
+    // The duration is NOT blanked here (Task 9.1): it belongs to the project, not to
+    // the listening mode, and zeroing it made the playhead's range (and therefore
+    // Previous/Next) collapse every time the user changed how they were listening.
+    // The new mode's duration is recomputed below; until it arrives the old one is a
+    // better bound than nothing.
+    this.set({ source, positionFrames: position, renderProgress: null, error: null });
+    void this.refreshDuration();
     if (wasPlaying) void this.play();
+  }
+
+  /**
+   * Recompute `durationFrames` without playing, seeking or changing status.
+   *
+   * The duration is a property of the project and the listening mode, so the transport
+   * must know it before the first Play: Previous/Next, the readout and the playhead's
+   * clamp all read it while the transport is stopped. Opening the sources is the only
+   * way to know the longest stem, so this costs one pass over them — the shell calls it
+   * when the project's structure changes (an import, a project switch), which is exactly
+   * when the answer can differ.
+   */
+  async refreshDuration(): Promise<void> {
+    if (this.disposed) return;
+    const generation = this.generation;
+    const source = this.state.source;
+    const project = this.getProject();
+    let sources: ReadonlyMap<TrackId, RenderSource> | null = null;
+    try {
+      sources = await this.openSources(project);
+    } catch {
+      // A duration refresh is a convenience, never a failure: the transport stays
+      // usable and the next play reports anything that is really wrong.
+      return;
+    }
+    try {
+      if (generation !== this.generation || this.disposed) return;
+      const tail = source === "raw" ? 0 : this.defaultTailSeconds(project);
+      const duration = sourceDurationFrames(sources, source, this.output.sampleRate, tail);
+      this.set({ durationFrames: duration });
+    } finally {
+      await closeSources(sources);
+    }
   }
 
   async play(): Promise<void> {
@@ -260,7 +305,26 @@ export class PlaybackController {
     if (signal.aborted || generation !== this.generation) return;
     await this.output.drain?.();
     if (signal.aborted || generation !== this.generation) return;
-    this.set({ status: "stopped", positionFrames: duration, renderProgress: null });
+    // Task 9.1.3: record that a mix finished *before* clearing the gauge. Clearing
+    // `renderProgress` here is correct — it is a live gauge and nothing is rendering
+    // any more — but it used to also erase the only evidence that a mix had ever
+    // completed, so the Console's "Mixed / Rerun available" could never appear.
+    this.set({
+      status: "stopped",
+      positionFrames: duration,
+      renderProgress: null,
+      mixRevision: ++this.mixRevisions,
+      mixedAt: this.clock.now(),
+    });
+  }
+
+  /**
+   * Task 9.1.3: the mix no longer describes the project (it was edited, replaced or
+   * reopened), so stop claiming it is current. Kept separate from `setSource`, which
+   * only chooses what to listen to and must not discard a mix the user still has.
+   */
+  clearMix(): void {
+    if (this.state.mixRevision !== null) this.set({ mixRevision: null, mixedAt: null });
   }
 
   dispose(): void {

@@ -1,0 +1,9 @@
+{
+  "schema": "alloy.rulebook/1",
+  "id": "fixture-rock",
+  "name": "Fixture rock",
+  "targets": [
+    { "scope": "all", "settings": [{ "parameter": "compressor.threshold", "value": -18 }] },
+    { "scope": "family", "id": "drums", "settings": [{ "parameter": "eq.lf.gain", "value": 2.5 }] }
+  ]
+}

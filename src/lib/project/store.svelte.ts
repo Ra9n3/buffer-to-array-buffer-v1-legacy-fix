@@ -113,7 +113,7 @@ import {
   type RoutingNodeId,
   type RoutingVerdict,
 } from "./routing";
-import { createSessionProject } from "./session";
+import { createEmptyProject } from "./templates";
 import { untrack } from "svelte";
 import { applyPaste, copyChannelSettings, pasteVerdict, type ChannelSettings, type PasteVerdict } from "./clipboard";
 import { projectFields } from "./fields";
@@ -124,7 +124,15 @@ import { buildManifest, createAutosave, serializeManifest } from "./persistence"
    THE STATE
    ========================================================================= */
 
-const state: Project = $state(createSessionProject());
+/**
+ * The open project. Task 9.1.2 (owner): ALLOY boots with an EMPTY project, not the
+ * 20-track development fixture. The fixture session is still the project model's
+ * reference (it is what the dev playground and the fixture-based tests use), but a
+ * new user who imports stems must never find their audio silent because a fixture
+ * track they never touched is still soloed. See `createSessionProject` in
+ * `./session` for the development session itself; it is no longer the default.
+ */
+const state: Project = $state(createEmptyProject("untitled-project", "Untitled project"));
 
 /* =========================================================================
    EDITING (Task 3.3) — the registry, history, autosave, the observer

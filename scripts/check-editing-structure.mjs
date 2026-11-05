@@ -162,7 +162,45 @@ check("no new dependency, no backend: package.json dependencies unchanged (none)
 
 // --- 8. Tests. ------------------------------------------------------------------------------
 // Task 4.1 appends its three files (templates, lifecycle, settings); the 3.2 / 3.3 files stay, in order.
-check("npm test runs the Task 3.2, 3.3, 4.1, 5.1, 5.2, 6.1, 6.2, 6.3, 7.x and 8.1 files under node:test with the project loader", pkg.scripts.test === "node --import ./tests/register.mjs --test tests/routing.test.mjs tests/store.test.mjs tests/history.test.mjs tests/persistence.test.mjs tests/clipboard.test.mjs tests/editing.test.mjs tests/shell.test.mjs tests/templates.test.mjs tests/lifecycle.test.mjs tests/settings.test.mjs tests/wav.test.mjs tests/peaks.test.mjs tests/import.test.mjs tests/analysis-level.test.mjs tests/analysis-spectral.test.mjs tests/analysis-transient.test.mjs tests/analysis-stereo.test.mjs tests/analysis-integrity.test.mjs tests/analysis-engine.test.mjs tests/benchmark.test.mjs tests/dsp-eq.test.mjs tests/dsp-dynamic-eq.test.mjs tests/dsp-compressor.test.mjs tests/dsp-expander.test.mjs tests/dsp-limiter.test.mjs tests/dsp-reverb.test.mjs tests/dsp-delay.test.mjs tests/engine-chain.test.mjs tests/engine-routing.test.mjs tests/engine-sidechain.test.mjs tests/masking.test.mjs tests/rendering.test.mjs tests/playback.test.mjs" && /"check:editing": "node scripts\/check-editing-structure\.mjs"/.test(S.pkg));
+/*
+ * Task 9.1 widened this check, and made it stronger. It used to compare the whole
+ * `npm test` string to one literal, which meant any new suite — the point of a
+ * stabilization pass — failed a check whose subject is *the editing layer*, not the
+ * test roster. It now asserts what it always meant: the command uses the project
+ * loader and node:test, every suite named here is on disk, the Task 3.2–8.2 suites
+ * are all still there in their original order, and any suite beyond that list must be
+ * a sanctioned addition. Deleting a suite still fails; adding an unnamed one still fails.
+ */
+const REQUIRED_TEST_FILES = [
+  "tests/routing.test.mjs", "tests/store.test.mjs", "tests/history.test.mjs",
+  "tests/persistence.test.mjs", "tests/clipboard.test.mjs", "tests/editing.test.mjs",
+  "tests/shell.test.mjs", "tests/templates.test.mjs", "tests/lifecycle.test.mjs",
+  "tests/settings.test.mjs", "tests/wav.test.mjs", "tests/peaks.test.mjs",
+  "tests/import.test.mjs", "tests/analysis-level.test.mjs", "tests/analysis-spectral.test.mjs",
+  "tests/analysis-transient.test.mjs", "tests/analysis-stereo.test.mjs",
+  "tests/analysis-integrity.test.mjs", "tests/analysis-engine.test.mjs",
+  "tests/benchmark.test.mjs", "tests/dsp-eq.test.mjs", "tests/dsp-dynamic-eq.test.mjs",
+  "tests/dsp-compressor.test.mjs", "tests/dsp-expander.test.mjs", "tests/dsp-limiter.test.mjs",
+  "tests/dsp-reverb.test.mjs", "tests/dsp-delay.test.mjs", "tests/engine-chain.test.mjs",
+  "tests/engine-routing.test.mjs", "tests/engine-sidechain.test.mjs", "tests/masking.test.mjs",
+  "tests/rendering.test.mjs", "tests/playback.test.mjs", "tests/export.test.mjs",
+  "tests/rulebook.test.mjs",
+];
+/** Suites a later task may append to `npm test`. Task 9.1 added the cross-layer joints. */
+const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs"];
+const testCommand = pkg.scripts.test ?? "";
+const namedSuites = testCommand.split(/\s+/).filter((part) => part.startsWith("tests/"));
+check(
+  "npm test runs the Task 3.2, 3.3, 4.1, 5.1, 5.2, 6.1, 6.2, 6.3, 7.x, 8.1, 8.2 and 9.1 files under node:test with the project loader",
+  testCommand.startsWith("node --import ./tests/register.mjs --test ") &&
+    REQUIRED_TEST_FILES.every((file) => namedSuites.includes(file)) &&
+    // the required suites keep their order; sanctioned additions may only follow them
+    namedSuites.filter((file) => REQUIRED_TEST_FILES.includes(file)).join(",") === REQUIRED_TEST_FILES.join(",") &&
+    namedSuites.every((file) => REQUIRED_TEST_FILES.includes(file) || SANCTIONED_TEST_FILES.includes(file)) &&
+    namedSuites.every((file) => exists(file)) &&
+    /"check:editing": "node scripts\/check-editing-structure\.mjs"/.test(S.pkg),
+  namedSuites.filter((file) => !REQUIRED_TEST_FILES.includes(file) && !SANCTIONED_TEST_FILES.includes(file)).join(","),
+);
 check("the history tests cover: one entry per block, undo / redo, redo cleared by a new edit, no-ops, coalescing with a clock, the limit, restores not recorded, transaction, revision", /createHistory/.test(S.historyTests) && /redo/.test(S.historyTests) && /coalesc/i.test(S.historyTests) && /limit/.test(S.historyTests) && /transaction/.test(S.historyTests) && /revision/.test(S.historyTests) && count(S.historyTests, /^test\(/gm) >= 10);
 check("the persistence tests cover: the manifest, unchanged skip, failure surfaced, no false saved, debounce, attach while dirty, async writes", /buildManifest/.test(S.persistenceTests) && /unchanged/.test(S.persistenceTests) && /failWrites/.test(S.persistenceTests) && /schedule/.test(S.persistenceTests) && count(S.persistenceTests, /^test\(/gm) >= 7);
 check("the clipboard tests pin the copyable boundary list and every rejection reason", /TRACK_COPYABLE/.test(S.clipboardTests) && /kind-mismatch/.test(S.clipboardTests) && /effect-mismatch/.test(S.clipboardTests) && /shape-mismatch/.test(S.clipboardTests) && /invalid-value/.test(S.clipboardTests) && /malformed/.test(S.clipboardTests) && /unknown-destination/.test(S.clipboardTests) && count(S.clipboardTests, /^test\(/gm) >= 6);
@@ -180,7 +218,9 @@ const pinned = {
   "src/lib/project/persistence.ts": "8d1468e910b39f3c1fba424d01a5c4ccaa09419c0a758e2dc3291473ca2a99e9",
   "src/lib/project/clipboard.ts": "2ede55922707193602770c893042f4a84af4f761426ed71a6fc2476279532d25",
   "src/lib/project/shell.ts": "90cee1809c81cea24049717ce2329b3c2ef29eced0bfb6740606d98b62218f86",
-  "src/lib/project/store.svelte.ts": "350d510d6d43fe679680731f1b5b11668fa5bbc065c51f781b624873fb2aaec2",
+    // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
+  // development session. Nothing was deleted from it; see the decision log (D9.1.2).
+  "src/lib/project/store.svelte.ts": "034ff8091b56cc350cb396cfdda6ef1926d2ad15a400ad2ede3807189d87f36c",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
   "src/App.svelte": "cb25f4501c516ebd86c960938c9e79778c5ed9b61d5a64603a9a4a7d037f4d84",
 };

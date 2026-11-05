@@ -92,6 +92,19 @@ check("the playground deck can still run simulated", /live = false/.test(deck) &
 // --- 7. Tests, docs, package --------------------------------------------------
 const countTests = (tests.match(/^test\(/gm) ?? []).length;
 check("the playback suite is substantial and deterministic", countTests >= 14 && /signalSource/.test(tests) && /autoOutput/.test(tests));
+/* --- 9.1.3: a finished mix must remain reportable ------------------------------ */
+// The defect this pins: `renderProgress` is a LIVE gauge, so every path that ends a
+// run clears it — including the render's own completion. Testing `renderProgress === 1`
+// to decide "a mix is finished" was therefore unsatisfiable, and the Console showed
+// "Ready" after a completed mix. Completion is now its own recorded fact.
+check("a finished mix is recorded as state, not inferred from the live progress gauge", /interface PlaybackState \{[\s\S]*renderProgress: number \| null[\s\S]*mixRevision: number \| null[\s\S]*mixedAt: string \| null/.test(T));
+check("the controller records the completed mix AFTER covering the gauge, never before", /mixRevision: \+\+this\.mixRevisions,\s*mixedAt: this\.clock\.now\(\)/.test(C) && /status: "stopped",\s*positionFrames: duration,\s*renderProgress: null,\s*mixRevision: \+\+this\.mixRevisions/.test(C));
+check("the mix counter is monotonic, so a cleared mix cannot reuse the number of the one before it", /private mixRevisions = 0;/.test(C) && !/this\.mixRevisions = 0/.test(C.replace(/private mixRevisions = 0;/, "")));
+check("a mix is discarded only when the project changes under it, through clearMix()", /clearMix\(\): void \{\s*if \(this\.state\.mixRevision !== null\) this\.set\(\{ mixRevision: null, mixedAt: null \}\);/.test(C) && /transport\.clearMix\(\)/.test(read(files.shell)));
+check("the Console decides 'complete' from the recorded mix, not from renderProgress === 1", /const complete = transport\.mixRevision !== null/.test(read("src/components/console-transport/ConsoleTransport.svelte")));
+check("the wall clock is injected with the rest of the clock, so the minute is assertable", /now\(\): string;/.test(T) && /now: \(\) => \{\s*const d = new Date\(\);/.test(read(files.shell)));
+check("the suite tests a completed mix, a stale mix, a rerun and a failed render", /a finished render is reported as a completed mix/.test(tests) && /keeps the finished mix/.test(tests) && /stops being current when the project changes/.test(tests) && /a failed render never records a completed mix/.test(tests));
+
 check("the suite covers transport, raw sync, mute/solo, preview routing, render failure and bounded memory", /reactive transport facade/.test(tests) && /raw playback sums imported tracks/.test(tests) && /mute and solo/.test(tests) && /bus, Return send and sidechain/.test(tests) && /render failure and cancellation/.test(tests) && /duration-proportional/.test(tests));
 check("npm test runs the playback suite", /tests\/playback\.test\.mjs/.test(pkg.scripts.test));
 check("the guard is wired as check:playback", pkg.scripts["check:playback"] === "node scripts/check-playback-structure.mjs");
@@ -102,7 +115,7 @@ check("no new dependency", Object.keys(pkg.dependencies ?? {}).length === 0 && J
 
 // --- 8. The 7.x engine/renderer are unchanged --------------------------------
 const pinned = {
-  "src/lib/engine/render.ts": "1a08dd23e75445ca65cb7d7a664f5a42a88cabd7a1f8534a35cdad3f148aba70",
+  "src/lib/engine/render.ts": "a08c6d127bf2943bd1954e0f81f97f36e110f70b9b5b3d263b70c0ef9255b72a", // re-pinned by 8.2: bus monitor taps
   "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

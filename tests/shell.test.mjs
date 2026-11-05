@@ -14,6 +14,10 @@ import { lifecycle, projectKey, RECENT_KEY } from "../src/lib/project/lifecycle.
 import { SESSION_PROJECT_ID } from "../src/lib/project/session.ts";
 import { SETTINGS_KEY, settings, settingsOps } from "../src/lib/settings.svelte.ts";
 import { motionAttribute, newProjectId } from "../src/lib/project/shell.ts";
+// Task 9.1.2: the app boots an EMPTY project. This suite exercises the shell against the
+// development session's channels, so it loads that session explicitly.
+import { loadFixtureSession } from "./fixture-session.mjs";
+loadFixtureSession();
 
 const key = (k, mods = {}, target = { tagName: "BUTTON" }) => ({
   key: k,

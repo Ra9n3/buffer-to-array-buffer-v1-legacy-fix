@@ -222,7 +222,12 @@ const pinned = {
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",
-  "src/components/MiniTransport.svelte": "ea6ec47f50148927b3ec3ee22869ee7e72cb80eedbc84233c94099598a4e2d07",
+  // Task 9.1.1 re-pinned the strip (owner decision D9.1.2 option a): it now mounts the
+  // listening-source selector beside the keys. The APPROVED part — this deck — is
+  // untouched: it is still pinned below, no key or MIX legend changed, and the deck's
+  // own key-count / symbol checks above still hold. The strip's four keys and their
+  // functions are unchanged; what moved the hash is one additional child component.
+  "src/components/MiniTransport.svelte": "d52703bb523e403298373557892d24f3d4902b986b4e31ecae4fbd1d2209bccc",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
@@ -234,6 +239,10 @@ check(
   !("dependencies" in pkg) &&
     JSON.stringify(Object.keys(pkg.devDependencies).sort()) ===
       JSON.stringify(["@sveltejs/vite-plugin-svelte", "@types/node", "svelte", "svelte-check", "typescript", "vite", "vite-plugin-singlefile"]),
+);
+check(
+  "the deck still selects no listening source: the selector lives in the shared strip, so D2.3.2's four-key roster stands (Task 9.1.1)",
+  !/setSource|data-transport-source/.test(deckTemplate) && /data-transport-source/.test(read("src/components/MiniTransportSource.svelte")),
 );
 check("the check is wired into package.json", pkg.scripts["check:console-transport"] === "node scripts/check-console-transport-structure.mjs");
 

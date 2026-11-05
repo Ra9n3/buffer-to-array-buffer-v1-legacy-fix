@@ -1,14 +1,14 @@
 # ALLOY
 
-Rule-based automatic rough-mixing application. The current build is the Phase 0
-application shell: one shared shell with three rooms — **Arrange**, **Console**
-and **Mixer** — working navigation between them, and a persistent mini transport
-strip that stays put across all three. The Console room has its
-structural skeleton: meter bridge, a horizontally scrollable 20-strip channel
-bank (11 tracks fit by default) with pinned Return and bus-master channels, and
-a transport placeholder zone. The Mixer room has its skeleton too: a vertically
-scrollable channel column on the left and a selected-channel processing-detail
-panel on the right, with local placeholder selection.
+Rule-based automatic rough-mixing application. The build now carries the product's
+working audio path end to end: import 48 kHz stems, mix them, route them through
+buses and Returns, listen to them, export them, and reopen the project.
+
+All UI work through Phase 2 is implemented and approved. The DSP, routing, import,
+rendering, playback and export layers are implemented and covered by automated
+tests (425 tests across 36 suites). This README describes **verified** behaviour;
+`task-reports/9.1-stabilization.md` is the audit that produced it, including the
+things that are **not** wired and the ones that cannot be checked without a browser.
 
 ## Sources of truth
 
@@ -18,153 +18,219 @@ panel on the right, with local placeholder selection.
 | `ALLOY-HARDWARE-REFERENCE-SPEC.md` | Required reading for Phase 1 and Phase 2 UI work |
 | `ALLOY-PRODUCT-GLOSSARY.md` | Canonical terminology |
 | `ALLOY-TASK-PROMPT-TEMPLATE.md` | Required task/report structure |
+| `decisions-log.md` | Recorded decisions, including the owner's UI rulings |
+| `data-model.md` | The project model and its invariants |
 | `task-reports/` | One report per finished task |
-
-## Design tokens
-
-`src/lib/tokens.css` is the single authoritative source for colour, spacing and
-typography values. `src/lib/tokens.ts` holds metadata only (label, category,
-purpose, provenance) — no values — so the two cannot drift; `npm run
-check:tokens` fails if they disagree in either direction.
-
-Every token is inspectable at the private playground route
-**`#/dev/components`**. It is deliberately not a room: it is absent from the room
-navigation and reachable only by typing the hash. Colour values shown there are
-read from the live document at runtime.
-
-Tokens are declared globally in Task 1.1 and applied to **nothing** yet —
-skinning the rooms is Phase 2 work.
 
 ## Stack
 
 Svelte 5 + TypeScript + Vite 7. No SvelteKit and no server-side rendering, per
-the locked decision in the product plan.
-
-## Structure
-
-```text
-src/
-├── App.svelte                    application shell and room routing
-├── app.css                       flat gray-box Phase 0 styles
-├── main.ts                       app mount
-├── components/
-│   ├── ArrangeTimelineLane.svelte empty structural timeline lane
-│   ├── ArrangeTrackRow.svelte    track-list row placeholder
-│   ├── ChannelBank.svelte        horizontal track bank and pinned rail
-│   ├── ChannelStrip.svelte       neutral channel-strip placeholder
-│   ├── MiniTransport.svelte      persistent transport strip (shared shell)
-│   ├── MixerChannelStrip.svelte  selectable Mixer channel header
-│   ├── MixerDetailPanel.svelte   selected-channel processing-detail panel
-│   ├── RoomNav.svelte            Arrange / Console / Mixer navigation
-│   ├── RoomPlaceholder.svelte    labeled empty-room placeholder
-│   └── RoomShell.svelte          shared room header and content boundary
-├── dev/
-│   └── DevComponentsPage.svelte  private token playground (#/dev/components)
-├── lib/
-│   ├── arrange.ts                Arrange placeholder counts and labels
-│   ├── mixer.ts                  Mixer placeholder channels and chain steps
-│   ├── rooms.ts                  room definitions and hash parsing
-│   ├── tokens.css                design tokens — the authoritative values
-│   └── tokens.ts                 token metadata, no values
-└── rooms/
-    ├── ConsoleRoom.svelte
-    ├── ArrangeRoom.svelte
-    └── MixerRoom.svelte
-scripts/
-├── check-arrange-structure.mjs   Arrange layout contract check
-├── check-mixer-structure.mjs     Mixer + navigation contract check
-├── check-transport-structure.mjs Mini transport contract check
-└── check-tokens-structure.mjs    Design token contract check
-```
+the locked decision in the product plan. No runtime dependencies beyond Svelte;
+the DSP, the WAV codec, the exporter and the asset store are all first-party code
+in `src/lib/`.
 
 ## Commands
 
 ```bash
 npm install
-npm run dev       # development server
-npm run check          # svelte-check + TypeScript diagnostics
-npm run check:arrange  # Arrange structural contract check (no geometry)
-npm run check:mixer    # Mixer + navigation contract check (no geometry)
-npm run check:transport # Mini transport contract check (no geometry)
-npm run check:tokens    # Design token contract check (no rendering)
-npm run build          # production build
-npm run preview   # serve the production build
+npm run dev              # development server
+npm run build            # production build (single self-contained index.html)
+npm run preview          # serve the production build
+npm run check            # svelte-check + TypeScript diagnostics (0 errors, 0 warnings)
+npm test                 # full suite: 425 tests, 36 files, no browser needed
+                       # one structural contract check per area:
+                       #   arrange · mixer · transport · tokens · knob · fader · switch
+                       #   meter · label-lamp · console-bridge · channel-strip
+                       #   console-transport · bus-return · arrange-rows
+                       #   arrange-timeline · mixer-detail · mixer-chain-types · project
+                       #   routing · editing · home-settings · import · analysis · dsp
+                       #   dynamics · return-dsp · engine · sidechain · masking
+                       #   rendering · playback · export
+npm run check:playback   # e.g. the shared-transport contract (41 checks)
+npm run check:export     # e.g. WAV export and rulebook contract (95 checks)
 ```
 
-## Room routing
+The 32 `check:*` scripts are structural contracts, not linters: each one pins a
+public component's markup, its approved dimensions and the invariants a future
+change must not quietly break. They run in about a second and are the reason a
+refactor cannot silently move a control or drop a guard.
+
+## What actually works
+
+### Rooms and routing
 
 Hash routes keep the shell static-host friendly:
 
 - `#/console` — default room
 - `#/arrange`
 - `#/mixer`
-- `#/dev/components` — private token playground, not a room, not in the nav
+- `#/dev/components` — private token/component playground, not a room, not in the nav
 
-The navigation stays visible across room changes, marks the active room with
-`aria-current="page"`, and each room exposes its own labeled content. Tabs read
-left to right **Arrange | Console | Mixer**, sit on the right of the top bar with
-the ALLOY wordmark on the left, and are deliberately compact (28px tall). The
-top bar is sticky. The Console channel bank shows 11 of its 20 tracks by default and
-scrolls horizontally; its Return and bus-master rail stays pinned at the right.
+All three rooms read **one** project store (`src/lib/project/store.svelte.ts`).
+There is no per-room copy of a track, a level, a mute, a solo or a name: a change
+made in the Console is what the Mixer and the Arrange rows read on their next
+render. Cross-room consistency is structural, not synchronised after the fact.
 
-All three rooms are bounded to the viewport: room content scrolls inside its own
-pane rather than the page, so the mini transport below it can never cover it.
+### Starting state
+
+ALLOY opens an **empty project** — no tracks, no Returns, no buses — and every room shows its
+empty state. Import stems to begin. (Until Task 9.1.2 it opened the 20-track development
+fixture, which ships a solo on "Lead Vocal"; a user who imported 11 stems heard silence and had
+no way to know why. The fixture is now development/test data only, available in the private
+`#/dev/components` playground.)
+
+### Automatic mix
+
+MIX renders the whole session through the mix engine and plays the result. When it finishes the
+deck's status display reads **Mixed** — with the time it was made and **Rerun available** — and the
+button returns to `ready` for another run. The listening source stays on RENDER, so pressing PLAY
+plays the mix you just made; RAW and PREVIEW remain selectable at any time.
+
+A finished mix is forgotten only when the project changes underneath it (an import, a project
+switch, an undo past one). Moving the playhead, stopping, or listening to RAW does not discard it.
+The mix is streamed to the output as it is produced — nothing is written to disk, and there is no
+export UI yet.
+
+### Import
+
+Drag or choose WAV files in the Arrange room's import band.
+
+| Accepted | Refused |
+| --- | --- |
+| WAV · **48 kHz** · **24-bit PCM** or **32-bit float** · **mono or stereo** | any other sample rate (no resampling), 16/8-bit or compressed WAVs, more than 2 channels, files that are not WAV |
+
+Refusals are per file and per reason: a format problem says what the file is and
+what to re-export; a file that is not a WAV is a *format* refusal, not a claim
+that it is damaged. A batch keeps every file that passed. A mono stem is
+flagged, not duplicated. A very short stem is flagged and padded. A silent stem
+is flagged. The same file imported twice becomes two tracks with two copies of
+the audio — ALLOY keeps no import history, so nothing is overwritten (verified,
+and a known limitation).
+
+An import is **not undoable** (like a project switch, it leaves nothing to undo);
+it is saved by autosave immediately.
+
+### Project state, undo/redo and autosave
+
+Every editable leaf of the project is registered by a stable path
+(`src/lib/project/fields.ts`). The store observes them, records what moved as one
+history entry, and autosave writes the manifest to Web Storage 1 s after the last
+change. Undo and redo are `Ctrl/Cmd+Z` and `Ctrl/Cmd+Shift+Z` / `Ctrl+Y`, and are
+suppressed while typing in a text field. An edit and its undo restore the exact
+value (verified for the channel level; the mechanism is the same for every
+registered field).
+
+### Processing and the mix engine
+
+Per-channel trim, pan, level, mute, solo; sends to the Reverb and Delay Returns;
+EQ, compressor, expander; buses; sidechain detection; masking resolution and the
+safety limiter are implemented in `src/lib/engine/` and verified as modules.
+
+**MIX does not yet invoke masking.** `measureMaskingSources`,
+`detectMaskingConflicts`, `resolveMaskingConflicts` and `resolveMaskingAudio` are
+implemented and tested but no application code calls them — see the known issues
+below.
+
+### Playback — three modes, one transport
+
+| Mode | What it plays | Reachable from the UI |
+| --- | --- | --- |
+| **RAW** (default) | the stems as imported, summed with no channel processing | yes — the default, and the source selector |
+| **PREVIEW** | the live lightweight preview: real routing and DSP, chunked | yes — the source selector |
+| **RENDER** | the full rendered mix | yes — the Console's MIX button, or the source selector |
+
+The mode is chosen with the three-position **Raw · Preview · Render** control in the mini
+transport, which is visible in every room. It is an addition beside the four approved keys and
+MIX, not a replacement for any of them: PREVIOUS, PLAY, STOP, NEXT and MIX keep their exact
+functions. Choosing a mode never starts playback, STOP and the locate keys never change the mode,
+and the playhead position survives a switch.
+
+MIX is the Console deck's separate render action, not Play (`D2.3.2`). Play
+toggles play/pause, Stop returns to the defined start, Previous locates to the
+start and Next to the end of the current source. The transport is one controller
+for all three rooms: switching rooms cannot remount it, reset it or resume it
+twice. Playback state includes the playable length, which is measured when the
+shell installs and re-measured when the project's structure moves (an import, a
+project switch, an undo past one).
+
+### Export
+
+The export **library** writes a full mix, processed stems and processed buses as
+WAV (`src/lib/export/`), with a manifest, collision-free names and no mastering
+or loudness maximisation. Two formats, both 48 kHz stereo and both re-importable:
+
+| Format | Encoding |
+| --- | --- |
+| `float32` (default) | 48 kHz · 32-bit float · stereo |
+| `pcm24` | 48 kHz · 24-bit PCM · stereo |
+
+Verified export invariants: the processed stems sum to the full mix (max error
+< 1e-6 below the limiter's threshold); a bus file is sample-aligned with the mix
+where the bus carries latency (best cross-correlation lag is zero); the manifest
+states `mastering: "none"`.
+
+**There is no export UI.** The exporter is a library the app does not yet call —
+no button starts an export. The same is true of opening a project from disk:
+autosave and the reopen path exist, but there is no file-open control.
+
+### Rulebooks
+
+`schema: "alloy.rulebook/1"` validation, safe failure on bad input, and a shipped
+**placeholder** rulebook that is valid, honest and changes nothing (plan §9
+defers the numeric contents until listening tests). The exporter can report a
+rulebook set beside the files. Nothing in the app currently loads a rulebook.
+
+## Structure
+
+```text
+src/
+├── App.svelte                    application shell and room routing
+├── main.ts                       app mount and shell installation
+├── components/                   approved UI: strips, keys, knobs, faders,
+│                                 meters, labels, lamps, transport, import band
+│                                 MiniTransportSource.svelte = the source selector
+├── dev/DevComponentsPage.svelte  private component playground
+├── lib/
+│   ├── tokens.css / tokens.ts    design tokens: values / metadata, kept in step
+│   ├── project/                  model, store, history, autosave, import, lifecycle
+│   ├── audio/                    WAV codec, import rules, asset store, peaks
+│   ├── analysis/                 level · spectral · transient · stereo · integrity
+│   ├── dsp/                      EQ · dynamic EQ · compressor · expander · limiter ·
+│   │                             FDN reverb · delay
+│   ├── engine/                   chains, routing, summing, buses, sidechain, masking
+│   ├── rendering/                bounded render
+│   ├── playback/                 controller, sessions, Web Audio output, facade
+│   ├── export/                   planner, encoder, destinations, manifest
+│   ├── rulebook/                 schema, validation, shipped placeholder
+│   └── arrange.ts, mixer.ts, rooms.ts, settings.svelte.ts
+└── rooms/                        ConsoleRoom · ArrangeRoom · MixerRoom
+scripts/                          32 structural contract checks
+tests/                            36 suites, 425 tests, no browser required
+```
+
+## Known issues and deferred work
+
+Full detail in `task-reports/9.1-stabilization.md`. In short:
+
+1. **There is no on-screen playhead.** The only position feedback is the numeric
+   `POSITION / TIME` readout in the mini transport. Nothing moves on the timeline during
+   playback, and the Arrange timeline is not clickable to seek. Recorded rather than
+   papered over; not yet scheduled.
+2. **Nothing about the listening source is outstanding** — it was the last functional hole
+   in the transport and it is closed. RAW / PREVIEW / RENDER are all selectable from the
+   source selector in the mini transport, the active mode is shown in
+   `Stopped — RAW / PREVIEW / RENDER`, and RAW is reachable again after MIX. The selector is
+   **not saved with the project**: a reload starts at RAW.
+3. **MIX does not resolve masking**, so the Auto-vs-Manual and rerun semantics of
+   plan §10/§15 are verified in the engine, not in the integrated path.
+4. **No export UI and no open-project UI.**
+5. **None of the UI has been exercised in a browser here.** This environment has no
+   browser, so all browser-level behaviour is verified only through the logic the
+   components call. A manual pass is still required.
+6. **There is no Tauri shell** — the native port has not started; see the
+   native-port section of the 9.1 report for what it requires.
 
 ## Retired documentation site
 
 The previous React documentation/playground site is preserved in
 `archive/documentation-site/` for reference only. It is not part of the build.
-The product documents themselves remain at the repository root and in
-`task-reports/`.
-
-## Arrange room
-
-The Arrange room is a bounded two-dimensional scroller. A single scroll
-container holds a CSS grid whose rows are shared between the track-list column
-and the timeline, so a track row and its lane are literally the same grid row
-and cannot drift apart. The track-list header and the timeline header
-(structure markers, tempo track, ruler) stick to the top; the track-list column
-sticks to the left. Horizontal scrolling moves only the timeline content, and
-vertical scrolling moves rows and lanes together. 20 placeholder track rows,
-56 bars, and the seven canonical structure markers are placeholders only — no
-waveforms, audio, or project state.
-
-## Mixer room
-
-A two-pane bounded workspace. The left column is a vertically scrollable list of
-23 selectable placeholder channels (20 tracks, then the Reverb and Delay Returns
-and the bus master). The right pane is the selected channel's processing detail:
-chain steps in the product plan's order, EQ curve, compressor and gain
-reduction, sends, Auto/Manual, original-versus-current ghost indicators, and the
-"what changed and why" area — all neutral placeholders.
-
-Selection is local per-room UI state only, held in `$state`; there is no store,
-no persistence, and no cross-room synchronisation. Strips are real `<button>`
-elements carrying `aria-pressed`, so selection works with mouse and keyboard.
-
-The Mixer track headers are dimensioned to match the Arrange track headers — row
-height, padding, label alignment, typography scale and border treatment. The
-shared geometry lives as `--track-header-*` custom properties in `app.css`, and
-`npm run check:mixer` fails if the Mixer tokens and the Arrange row values ever
-disagree. Selection is drawn with a background change and an inset ring, so
-selecting a channel never changes the header's size.
-
-## Mini transport
-
-One `MiniTransport` component is rendered by `App.svelte` outside the room
-switch, so switching rooms neither remounts it nor moves it. It is fixed to the
-bottom of the shell, its height is declared once as `--mini-transport-height`,
-and the shell reserves exactly that height beneath its content. Content that
-narrows gives way in a fixed order rather than clipping.
-
-It is a **placeholder**: Previous / Play / Stop / Next are inert, the position
-readout is static, and the strip says so in visible text that also describes the
-buttons for screen readers. No audio engine, project state, or playback is
-connected — that is Phase 3+ work, per the plan's build-order rule.
-
-## Status
-
-Tasks 0.1–0.6 are implemented and **approved** — Phase 0 (UI structure) is
-complete. Task 1.1 (design tokens + swatch playground) is implemented and **approved**. Phase 1 components (1.2–1.6), Phase 2 skinning, channel-type-aware
-Mixer detail, shared project state, and audio functionality are **not**
-implemented.

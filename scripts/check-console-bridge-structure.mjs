@@ -138,6 +138,29 @@ check(
   check("the generic zone rule carries no placeholder frame any more", !/dashed|#f1f1f1|#e8e8e8/.test(consoleRoom));
 }
 
+// The Console hosts the mixer, it does not edit it. The plan's Console is the
+// one-screen overview — the bridge, the transport and the bank (plan §3:
+// "the lower section contains channel strips", the upper section the bridge).
+// Processing detail belongs to the Mixer room alone. A selected-channel
+// processing panel stacked into the Console was briefly added and squeezed the
+// bank to a 33 px sliver at 1366×768, so the separation is pinned here: no
+// detail zone, no detail panel, no selection state, and the bank keeps a floor
+// it cannot be crushed below.
+check(
+  "the Console has no processing-detail zone and imports no detail panel: detail editing is the Mixer's (plan §3)",
+  !/data-console-zone="channel-detail"|MixerDetailPanel/.test(consoleRoom),
+);
+check(
+  "the Console keeps no selection state of its own (selection would exist only to feed a detail panel)",
+  !/\$state|selectedId|selectedChannel|onclick|onfocusin/.test(consoleRoom),
+);
+check(
+  "the bank's row keeps a content floor, so nothing above it can crush the strips",
+  /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content,\s*1fr\)/.test(
+    consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "",
+  ),
+);
+
 // --- 2. Composed of the approved components; no meter drawn here. ------------
 check(
   "the bridge imports VUMeter and EngravedLabel from the approved library",

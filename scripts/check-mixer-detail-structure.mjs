@@ -218,7 +218,7 @@ check("check:mixer-detail is wired into package.json", pkg.scripts?.["check:mixe
 // Approved files this task builds on and must not have changed, plus the two
 // files it changed, pinned at their Task 2.8 state.
 const pinned = {
-  "src/rooms/MixerRoom.svelte": "3e3282f0af09b5cacd4e456558cdc17b3de60341e250f5e0645f45d6a4872e65",
+  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
   "src/lib/arrange.ts": "f7c85d6385270ef6c066403c18ceb351da51fc701378b49d913d213597995ff0",
   "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
