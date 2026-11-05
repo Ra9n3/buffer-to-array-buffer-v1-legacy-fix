@@ -71,6 +71,21 @@ There is no per-room copy of a track, a level, a mute, a solo or a name: a chang
 made in the Console is what the Mixer and the Arrange rows read on their next
 render. Cross-room consistency is structural, not synchronised after the fact.
 
+### Getting around
+
+The top bar has a menu bar (File · Edit · View · Help), a toolbar with the primary actions
+(Import stems · Undo · Redo · Save), and four navigation tabs: **Arrange · Console · Mixer · Home**.
+
+- **Import** — the toolbar button, `File > Import stems…`, or `Ctrl/Cmd+I`. All three open the same
+  picker and import into the open project.
+- **Save** — the app saves itself after every edit; this flushes the pending write now and tells you
+  what happened.
+- **Home** — the fourth tab. It is where you start an empty project or reopen a recent one.
+- **Settings** — under `Help`.
+
+Rooms carry no header band any more, and the transport strip at the bottom shows only its controls
+and live values.
+
 ### Starting state
 
 ALLOY opens an **empty project** — no tracks, no Returns, no buses — and every room shows its

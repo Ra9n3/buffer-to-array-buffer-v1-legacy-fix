@@ -213,8 +213,26 @@ const pinned = {
   "src/components/channel-strip/BusMasterStrip.svelte": "0b2187e0ffa445aabd372d5fc65e083016123c7667bc4fb34083d1162e5b1dd4",
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
-  "src/rooms/ArrangeRoom.svelte": "151201bade03fb614483c92b3d0b55d25e8ecea67f25ee9166521858fa0de273",
-  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/ArrangeRoom.svelte": "6e276cdccbbc9273228a224ecbbd3e4c39c7938aecfdaf6f2cddb09b9ce2949c",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/MixerRoom.svelte": "b6a73be6e10e2c5c63308477342f8cf3b312a971790c3251ac78fa73233f2c6b",
   "src/components/mixer/MixerBank.svelte": "4f81961d110de391d5eed77ac3b033bcb0894b306975cef7e3137d22b81359d5",
   "src/components/mixer/MixerTrackStrip.svelte": "b5107fb09a39d9516ae57ca4254465d45cca2c4c6aaa4868fbb87917f1a36122",
   "src/components/mixer/MixerReturnStrip.svelte": "b9041f86f91553ecc9afe61dc5daa596eb28c81be2f2892c2c2e320254809109",

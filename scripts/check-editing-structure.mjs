@@ -155,7 +155,37 @@ check("no other project module reaches the browser's storage, clocks or timers: 
 // --- 7. No new UI; the approved rooms, components and App untouched by this task. ---------
 const uiFiles = walk("src").filter((rel) => rel.endsWith(".svelte"));
 const uiCode = uiFiles.map((rel) => stripComments(scriptOf(read(rel))) + "\n" + stripComments(templateOf(read(rel)))).join("\n");
-check("no visible undo / redo / copy / paste / autosave control or text anywhere in the UI (owner: shortcuts only, store / API only, no settings UI)", !/\b(undo|redo|clipboard|paste|autosave)\b|history\.|⌘|Ctrl ?\+|Cmd ?\+/i.test(uiCode.replace(/history\.replaceState/g, "")), uiFiles.filter((rel) => /undo|redo|clipboard|paste|autosave|history\./i.test(stripComments(scriptOf(read(rel))) + stripComments(templateOf(read(rel))))).join(", "));
+/*
+  Task 9.2 (owner) supersedes the original rule here. The rule was "shortcuts
+  only: no visible undo / redo / autosave control anywhere in the UI". The
+  owner then asked for a top toolbar with direct Undo, Redo and Save buttons,
+  and for File > Save — an explicit reversal of that instruction, not a silent
+  drift, so it is recorded as an owner decision (D9.2.1) rather than quietly
+  relaxed.
+
+  What is still forbidden, and is what the old check was really protecting:
+  there must be no *second* undo mechanism. The clipboard stays invisible, no
+  new settings surface appears, and the toolbar may only call the one history
+  and the one autosave — never open a store of its own.
+*/
+check(
+  "undo / redo / save are visible now (owner D9.2.1 supersedes the shortcuts-only rule)",
+  /<ToolbarKey[\s\S]*?hook="undo"/.test(read("src/components/AppToolbar.svelte")) &&
+    /<ToolbarKey[\s\S]*?hook="redo"/.test(read("src/components/AppToolbar.svelte")) &&
+    /<ToolbarKey[\s\S]*?hook="save"/.test(read("src/components/AppToolbar.svelte")),
+);
+check(
+  "the clipboard is still invisible — no copy / paste control or text in the UI",
+  !/\b(clipboard|paste)\b/i.test(uiCode.replace(/history\.replaceState/g, "")) &&
+    uiFiles.filter((rel) => /clipboard|paste/i.test(stripComments(scriptOf(read(rel))) + stripComments(templateOf(read(rel))))).length === 0,
+);
+check(
+  "the toolbar binds to the ONE project history and the ONE autosave, never its own state",
+  /import \{ autosave, history \} from "\.\.\/lib\/project\/store\.svelte"/.test(read("src/components/AppToolbar.svelte")) &&
+    /history\.undo\(\)/.test(read("src/components/AppToolbar.svelte")) &&
+    /history\.redo\(\)/.test(read("src/components/AppToolbar.svelte")) &&
+    /autosave\.save\(\)/.test(read("src/components/AppToolbar.svelte")),
+);
 check("no component or room imports the editing modules: fields, history, persistence, clipboard, shell are reached only through the store and main.ts", uiFiles.every((rel) => !/project\/(fields|history|persistence|clipboard|shell)"/.test(read(rel))));
 check("NO SCREWS, EVER (owner, D2.1.9): nothing renders a screw", walk("src").every((rel) => !/(class=["'{][^"'}]*screw|\.[\w-]*screw[\w-]*\s*[{,:]|data-[\w-]*screw|__screw)/i.test(read(rel))));
 check("no new dependency, no backend: package.json dependencies unchanged (none) and no fetch / WebSocket / XMLHttpRequest in the editing modules; IndexedDB (Task 5.1 asset copies) is reached in the shell only", Object.keys(pkg.dependencies ?? {}).length === 0 && !/fetch\(|WebSocket|XMLHttpRequest/.test([F, H, P, CB, SH, ST].join("\n")) && !/indexedDB/.test([F, H, P, CB, ST].join("\n")) && /const idb = win\.indexedDB;\s*return idb \? indexedDbAssetStore\(idb\) : null;/.test(SH));
@@ -222,7 +252,16 @@ const pinned = {
   // development session. Nothing was deleted from it; see the decision log (D9.1.2).
   "src/lib/project/store.svelte.ts": "034ff8091b56cc350cb396cfdda6ef1926d2ad15a400ad2ede3807189d87f36c",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
-  "src/App.svelte": "cb25f4501c516ebd86c960938c9e79778c5ed9b61d5a64603a9a4a7d037f4d84",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/App.svelte": "c82681587787d678287f9d9d50bac7242424c9a2983db05992d68711176b569b",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

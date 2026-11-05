@@ -227,7 +227,16 @@ const pinned = {
   // untouched: it is still pinned below, no key or MIX legend changed, and the deck's
   // own key-count / symbol checks above still hold. The strip's four keys and their
   // functions are unchanged; what moved the hash is one additional child component.
-  "src/components/MiniTransport.svelte": "d52703bb523e403298373557892d24f3d4902b986b4e31ecae4fbd1d2209bccc",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/components/MiniTransport.svelte": "442869b2337bc90b1172aeb9e35cc3fb3bcbcbff5eab48f42af02ac138335891",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

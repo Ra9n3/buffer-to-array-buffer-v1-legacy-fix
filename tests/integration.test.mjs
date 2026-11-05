@@ -561,3 +561,164 @@ test("9.1.2 · the fixture session really does silence other tracks, which is wh
   const ordinary = session.tracks.find((t) => !t.channel.solo);
   assert.equal(audibility.outputPasses(ordinary.id), false, "and it silences every other track");
 });
+
+/* --- 10. Task 9.2: the top-bar and transport overhaul ---------------------------- */
+
+const readSource = async (rel) => (await import("node:fs/promises")).readFile(new URL(`../${rel}`, import.meta.url), "utf8");
+
+test("9.2 · the top bar carries no wordmark, no tab numbers and no Settings button", async () => {
+  const app = await readSource("src/App.svelte");
+  const nav = await readSource("src/components/RoomNav.svelte");
+
+  assert.ok(!/class="app-brand"/.test(app), "the ALLOY wordmark is gone");
+  assert.ok(!/app-nav__settings/.test(app), "the Settings button is gone from the bar");
+  assert.ok(!/room-nav__index/.test(nav), "the 01/02/03 prefixes are gone");
+  assert.ok(!/padStart\(2, "0"\)/.test(nav), "nothing recomputes an index label");
+});
+
+test("9.2 · Home is the fourth navigation tab, and it is not a room", async () => {
+  const nav = await readSource("src/components/RoomNav.svelte");
+  const rooms = await readSource("src/lib/rooms.ts");
+
+  // The wordmark used to be the only route home; the tab replaces it.
+  assert.match(nav, /data-app-link="home"/, "Home is a nav destination");
+  assert.match(nav, /HOME_HREF/, "pointing at the real Home route");
+
+  // Home must NOT have been promoted to a room: the room model still has three.
+  assert.match(rooms, /export type RoomId = "console" \| "arrange" \| "mixer";/);
+  assert.match(rooms, /export const HOME_HREF = "#\/";/);
+});
+
+test("9.2 · the toolbar's actions are real bindings, not decoration", async () => {
+  const bar = await readSource("src/components/AppToolbar.svelte");
+
+  assert.match(bar, /import \{ autosave, history \} from "\.\.\/lib\/project\/store\.svelte"/);
+  assert.match(bar, /history\.undo\(\)/);
+  assert.match(bar, /history\.redo\(\)/);
+  assert.match(bar, /autosave\.save\(\)/);
+  // Undo and Redo must reflect whether there is anything to do.
+  assert.match(bar, /disabled=\{!canUndo\}/);
+  assert.match(bar, /disabled=\{!canRedo\}/);
+  // Save reports what actually happened rather than always claiming success.
+  assert.match(bar, /NO STORAGE/i);
+});
+
+test("9.2 · there is exactly one file picker, and every import entry point reaches it", async () => {
+  const app = await readSource("src/App.svelte");
+  const arrange = await readSource("src/rooms/ArrangeRoom.svelte");
+
+  assert.equal((app.match(/type="file"/g) ?? []).length, 1, "one picker in the shell");
+  assert.ok(!/type="file"/.test(arrange), "and none left in Arrange");
+  assert.ok(!/ArrangeImportBand/.test(arrange), "the dark Import band is gone");
+
+  assert.match(app, /key === "i"/, "Ctrl/Cmd+I");
+  assert.match(app, /key === "s"/, "Ctrl/Cmd+S");
+  assert.match(app, /assets\.importBatch/, "reaching the real importer");
+});
+
+test("9.2 · the transport keeps its controls and values but loses its decorative text", async () => {
+  const transport = await readSource("src/components/MiniTransport.svelte");
+
+  for (const control of ["Previous", "Play", "Stop", "Next"]) {
+    assert.ok(transport.includes(`"${control}"`), `${control} is still a control`);
+  }
+  assert.match(transport, /data-transport-position/, "the time value is still rendered");
+  assert.match(transport, /data-transport-status/, "the status value is still rendered");
+
+  // The owner's removals.
+  assert.ok(!/Shared transport\.\s*Play/.test(transport), "the explanatory paragraph is gone");
+  assert.ok(!/mini-transport__note/.test(transport), "and nothing references it");
+  for (const label of ["Position / time", "Mini transport"]) {
+    // Only allowed inside the visually-hidden helper, never as a printed label.
+    assert.ok(!new RegExp(`mini-transport__[a-z-]*label"[^>]*>${label}`).test(transport), `"${label}" is not printed`);
+  }
+});
+
+/* --- 11. Task 9.3: hardware chrome and tactile keys ------------------------------ */
+
+test("9.3 · every chrome button is the approved tactile cap, not a grey web button", async () => {
+  const menu = await readSource("src/components/MenuBar.svelte");
+  const bar = await readSource("src/components/AppToolbar.svelte");
+  const source = await readSource("src/components/MiniTransportSource.svelte");
+  const transport = await readSource("src/components/MiniTransport.svelte");
+
+  // The menus, the toolbar, the listening source and the transport keys all use
+  // one key component, so they cannot drift into different materials.
+  assert.match(menu, /import ToolbarKey from "\.\/hardware\/ToolbarKey\.svelte"/);
+  assert.match(bar, /import ToolbarKey from "\.\/hardware\/ToolbarKey\.svelte"/);
+  assert.match(source, /import ToolbarKey from "\.\/hardware\/ToolbarKey\.svelte"/);
+  assert.match(transport, /import ToolbarKey from "\.\/hardware\/ToolbarKey\.svelte"/);
+
+  // And that key really is a platform <button>, not a styled div.
+  const key = await readSource("src/components/hardware/ToolbarKey.svelte");
+  assert.match(key, /<button/);
+  assert.match(key, /data-part="cap"/);
+  // …carrying the approved cream cap recipe from the transport switch.
+  assert.match(key, /--al-function-cream-hi/);
+  assert.match(key, /--al-function-cream-base/);
+});
+
+test("9.3 · no light web-grey surface survives in the shipping UI", async () => {
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+
+  const walk = async (dir) => {
+    const out = [];
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "dev") continue; // the private playground is out of scope
+        out.push(...(await walk(full)));
+      } else if (/\.(svelte|css)$/.test(entry.name)) {
+        out.push(full);
+      }
+    }
+    return out;
+  };
+
+  const offenders = [];
+  for (const file of await walk("src")) {
+    // ChannelStrip.svelte is dead code: nothing imports it, and check-channel-strip
+    // pins it byte-identical as a Phase 0 artefact. It is the one exception, and it
+    // ships no route, so its light greys never reach a screen.
+    if (file.endsWith("components/ChannelStrip.svelte")) continue;
+    const text = await fs.readFile(file, "utf8");
+    // A near-white literal background is a web panel, not this app's material.
+    for (const m of text.matchAll(/background(?:-color)?:\s*(#[defc][0-9a-f]{2,5})\b/gi)) {
+      if (!/var\(--al-/.test(m[0])) offenders.push(`${file}: ${m[0]}`);
+    }
+  }
+  assert.deepEqual(offenders, [], "no light-grey web surfaces left in shipping code");
+});
+
+test("9.3 · the top bar is one thin hardware band, reading menus → tools → tabs", async () => {
+  const app = await readSource("src/App.svelte");
+
+  // The band wraps all three groups, in that order.
+  const band = app.indexOf("<ChromeBand");
+  const menus = app.indexOf("<MenuBar");
+  const tools = app.indexOf("<AppToolbar");
+  const tabs = app.indexOf("<RoomNav");
+  assert.ok(band > -1 && menus > band && tools > menus && tabs > tools,
+    "menus, then tools, then tabs — inside one band");
+
+  // And the app ground is the cabinet material, not office grey.
+  const css = await readSource("src/app.css");
+  assert.match(css, /background: var\(--al-material-recess\)/);
+  assert.ok(!/background: #e4e4e4/.test(css), "the old light page ground is gone");
+});
+
+test("9.3 · the transport strip and the top bar share one band component", async () => {
+  const transport = await readSource("src/components/MiniTransport.svelte");
+  const app = await readSource("src/App.svelte");
+
+  // One component, so the two cannot become two different materials.
+  assert.match(transport, /import ChromeBand from "\.\/ChromeBand\.svelte"/);
+  assert.match(app, /import ChromeBand from "\.\/components\/ChromeBand\.svelte"/);
+
+  // And it is built from the shared material tokens, not from hexes.
+  const band = await readSource("src/components/ChromeBand.svelte");
+  assert.match(band, /var\(--al-material-panel\)/);
+  assert.match(band, /var\(--al-bevel-light\)/);
+  assert.match(band, /var\(--al-material-wood\)/);
+});

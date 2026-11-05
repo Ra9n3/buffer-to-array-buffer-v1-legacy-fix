@@ -21,6 +21,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "src"),
     },
   },
+  server: {
+    host: "0.0.0.0",
+    // The Arena live preview is proxied under a sandbox host; allow it here too,
+    // not only in `preview`, so `npm run dev` works in the preview pane.
+    allowedHosts: true,
+  },
   preview: {
     host: "0.0.0.0",
     // The Arena live preview is proxied under a sandbox host; allow it explicitly.

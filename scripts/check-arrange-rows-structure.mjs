@@ -271,10 +271,37 @@ check("no screw heads in the new files (D2.1.9)", !/screw/i.test(newSource + roo
 // optional `identity` snippet, D2.7.2). MixerChannelStrip.svelte was deleted.
 const pinned = {
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
-  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/MixerRoom.svelte": "b6a73be6e10e2c5c63308477342f8cf3b312a971790c3251ac78fa73233f2c6b",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
-  "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
-  "src/rooms/ConsoleRoom.svelte": "c937b69e2d4c6c2af5a0dba55e94f2fc7a2fd0ab439ca3d09337b9ad2fcde324",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/app.css": "4fca6f9b62c55b0d7f0d27b550a5870693d5c84a92e0620e0dc3b1364e6bdda8",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
   "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
@@ -303,8 +330,26 @@ const pinned = {
   // listening-source selector beside the keys, in its own component. The strip's layout,
   // the four Phase 0 keys and their functions are unchanged; what moved the hash is one
   // additional child. check-transport-structure guards the new control in detail.
-  "src/components/MiniTransport.svelte": "d52703bb523e403298373557892d24f3d4902b986b4e31ecae4fbd1d2209bccc",
-  "src/App.svelte": "cb25f4501c516ebd86c960938c9e79778c5ed9b61d5a64603a9a4a7d037f4d84",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/components/MiniTransport.svelte": "442869b2337bc90b1172aeb9e35cc3fb3bcbcbff5eab48f42af02ac138335891",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/App.svelte": "c82681587787d678287f9d9d50bac7242424c9a2983db05992d68711176b569b",
   "src/components/RoomShell.svelte": "815bcb79e940433591c632d7ae98c4a5e918394b14d97726ae33c6002d808a71",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

@@ -132,7 +132,30 @@ const screenStyles = screenSrc.map((s) => stripComments(styleOf(s))).join("\n") 
 check("Home is `#/`, Settings `#/settings`; both are routes of their own kind, never rooms", /export const HOME_HREF = "#\/";/.test(R) && /export const SETTINGS_PATH = "\/settings";/.test(R) && /export const SETTINGS_HREF = `#\$\{SETTINGS_PATH\}`;/.test(R) && /\| \{ readonly kind: "home" \}\s*\| \{ readonly kind: "settings" \};/.test(R) && /export type RoomId = "console" \| "arrange" \| "mixer";/.test(R));
 check("the room list and default room are unchanged (three rooms, Console default); Home and Settings are absent from ROOMS", /export const DEFAULT_ROOM: RoomId = "console";/.test(R) && !/home|settings/i.test(R.slice(R.indexOf("export const ROOMS"), R.indexOf("DEFAULT_ROOM"))) && count(R.slice(R.indexOf("export const ROOMS"), R.indexOf("DEFAULT_ROOM")), /id: "/g) === 3);
 check("an empty or unrecognised hash lands on Home; the dev page and Settings are recognised before the rooms", /export function routeFromHash\(hash: string\): AppRoute \{\s*if \(isDevComponentsHash\(hash\)\) return \{ kind: "dev-components" \};\s*if \(isSettingsHash\(hash\)\) return \{ kind: "settings" \};\s*const room = parseRoomHash\(hash\);\s*if \(room\) return \{ kind: "room", room \};\s*return \{ kind: "home" \};\s*\}/.test(R) && /case "home":\s*return HOME_HREF;/.test(R) && /case "settings":\s*return SETTINGS_HREF;/.test(R));
-check("App: the wordmark is the way Home; one Settings link in its own landmark beside the room tabs; the screens render by route kind; the rooms render as before", /<a class="app-brand" href=\{HOME_HREF\} aria-current=\{route\.kind === "home" \? "page" : undefined\}>ALLOY<\/a>/.test(appT) && /<nav class="app-nav__application" aria-label="Application">/.test(appT) && count(appT, /href=\{SETTINGS_HREF\}/g) === 1 && /data-app-link="settings"/.test(appT) && /<RoomNav room=\{room\} \/>/.test(appT) && /\{#if room === "console"\}\s*<ConsoleRoom \/>\s*\{:else if room === "arrange"\}\s*<ArrangeRoom \/>\s*\{:else if room === "mixer"\}\s*<MixerRoom \/>\s*\{:else if route\.kind === "settings"\}\s*<SettingsScreen \/>\s*\{:else if route\.kind === "home"\}\s*<HomeScreen \/>\s*\{:else\}\s*<DevComponentsPage \/>\s*\{\/if\}/.test(appT) && /<MiniTransport \/>/.test(appT));
+/*
+  Task 9.2 (owner) — the top bar overhaul. The old contract said the wordmark was
+  the way Home and Settings stood in its own landmark beside the room tabs. The
+  owner ordered the wordmark, the tab numbers and the Settings button removed
+  from the bar, so the contract is rewritten to the *new* intent rather than
+  deleted: every destination that used to be reachable must still be reachable,
+  by a different door.
+
+    Home      -> the fourth navigation tab (owner's answer), still #/
+    Settings  -> Help > Settings in the menu bar, still #/settings
+    Import    -> the toolbar and File > Import stems…, both reaching one picker
+
+  The screens still render by route kind, and the rooms still render as before.
+*/
+check(
+  "App: Home is the fourth nav tab, Settings lives in Help, and the screens still render by route kind",
+  /<RoomNav room=\{room\} onHome=\{route\.kind === "home"\} \/>/.test(appT) &&
+    /<MenuBar [^>]*onSettings=\{/.test(appT) &&
+    /data-menu-item="settings"/.test(read("src/components/MenuBar.svelte")) &&
+    count(appT, /href=\{SETTINGS_HREF\}/g) === 0 &&
+    !/class="app-brand"/.test(appT) &&
+    /\{#if room === "console"\}\s*<ConsoleRoom \/>\s*\{:else if room === "arrange"\}\s*<ArrangeRoom \/>\s*\{:else if room === "mixer"\}\s*<MixerRoom \/>\s*\{:else if route\.kind === "settings"\}\s*<SettingsScreen \/>\s*\{:else if route\.kind === "home"\}\s*<HomeScreen \/>\s*\{:else\}\s*<DevComponentsPage \/>\s*\{\/if\}/.test(appT) &&
+    /<MiniTransport \/>/.test(appT),
+);
 check("App: the screens are not flagged as rooms (no per-room shell rule applies); the route is on the shell for styling and evidence", /data-active-room=\{activeRoom\} data-route=\{route\.kind\}/.test(appT) && /const activeRoom = \$derived\(room \?\? \(route\.kind === "dev-components" \? "dev" : route\.kind\)\);/.test(appS));
 check("main.ts loads preferences.css after the tokens and the shell stylesheet, and installs the project shell before the mount", /import "\.\/lib\/tokens\.css";\s*import "\.\/app\.css";\s*import "\.\/lib\/preferences\.css";/.test(C.main) && /installProjectShell\(window\);\s*mount\(App, \{ target \}\);/.test(C.main));
 
@@ -177,7 +200,26 @@ check("Settings carries the plan's items only: profile · export · accessibilit
 
 // --- 7. The visual system and the boundaries. -------------------------------------------------
 check("the screens are built from the approved controls only: no raw button, input, select or textarea; the momentary key is the panel-labelled tactile switch; the selectors are scribble windows", !/<(button|input|select|textarea)\b/.test(screenCode) && /<TactileSwitch variant="panel" \{label\} \{name\} lamp="amber" bind:engaged=\{on\} \{onToggle\} \/>/.test(S.actionKey) && /on = false;\s*onpress\(\);/.test(stripComments(scriptOf(S.actionKey))) && count(setT, /<ScribbleSelect/g) === 2 && !/<(button|input|select|textarea)\b/.test(stripComments(templateOf(S.notice))));
-check("tokens only on the screens — the one exception is the rooms' band, mirrored from app.css (#a3a3a3 · #efefef · #454545); no glow, no filter, no gradient text, no animation", (() => { const hexes = [...new Set(screenStyles.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [])]; return hexes.every((h) => ["#a3a3a3", "#efefef", "#454545"].includes(h.toLowerCase())) && hexes.every((h) => S.appCss.includes(h)) && !/text-shadow:[^;]*(rgba?\([^)]*\)\s*,?\s*)?[^;]*\d+px\s+\d+px\s+[1-9]\d*px/.test(screenStyles) && !/filter:|@keyframes|animation:|background-clip: text/.test(screenStyles); })());
+/*
+  Task 9.3 (owner): the screens are now on the same material as everything else,
+  so the old "no tokens on the screens, one hard-coded exception" rule has been
+  reversed by instruction. What this still protects is the reason the rule
+  existed — the screens must not invent a visual language of their own:
+
+    - no raw hex colour that is not already defined in app.css;
+    - no glow, filter, gradient text or animation.
+*/
+check(
+  "the screens use the shared material — no invented hex, no glow, no filter, no animation",
+  (() => {
+    const hexes = [...new Set(screenStyles.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [])];
+    return (
+      hexes.every((h) => S.appCss.includes(h)) &&
+      !/text-shadow:[^;]*(rgba?\([^)]*\)\s*,?\s*)?[^;]*\d+px\s+\d+px\s+[1-9]\d*px/.test(screenStyles) &&
+      !/filter:|@keyframes|animation:|background-clip: text/.test(screenStyles)
+    );
+  })(),
+);
 check("the screens reach the project only through the store, the lifecycle, the templates' labels, the settings and the routes — never fields, history, persistence, clipboard or the shell; no storage or network of their own", screenFiles.every((rel) => !/project\/(fields|history|persistence|clipboard|shell)"/.test(read(rel))) && !/localStorage|sessionStorage|indexedDB|fetch\(|WebSocket|XMLHttpRequest|navigator\./.test(screenCode) && /from "\.\.\/lib\/project\/lifecycle"/.test(S.home) && /from "\.\.\/lib\/settings\.svelte"/.test(S.settingsScreen) && !/project\/(fields|history|persistence|clipboard|shell|lifecycle)"/.test(S.notice));
 check("no multi-project management beyond recent + start empty: no delete, rename, forget, duplicate, import or export of projects on the screens", !/\b(delete|remove|rename|forget|duplicate|clear list|import project|export project)\b/i.test(homeT + setT) && !/lifecycle\.(delete|remove|rename|forget)/.test(screenCode) && !/delete\(|rename\(|forget\(/.test(L.slice(L.indexOf("export const lifecycle"))));
 check("the approved rooms gain nothing but the empty branch: no new controls, selectors or routing UI in the rooms' diffs (no new hooks beyond the notice)", count(S.consoleRoom, /<EmptyProjectNotice/g) === 1 && count(S.arrangeRoom, /<EmptyProjectNotice/g) === 1 && count(S.mixerRoom, /<EmptyProjectNotice/g) === 1 && [S.consoleRoom, S.arrangeRoom, S.mixerRoom].every((s) => !/<(button|input|select)\b|ScribbleSelect|ActionKey|lifecycle|settings/.test(stripComments(templateOf(s)))));
@@ -193,21 +235,57 @@ check("decisions-log.md carries the Task 4.1 decisions (D4.1.x) and the report e
 // The approved hardware components and the shell stylesheet are unchanged by this task; the 4.1
 // files are pinned so the next task reopens them knowingly.
 const pinned = {
-  "src/app.css": "71bc0966dbdbad08d8fe32dab138024dd8da84fad4397fa5db850ef6140f46cc",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/app.css": "4fca6f9b62c55b0d7f0d27b550a5870693d5c84a92e0620e0dc3b1364e6bdda8",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
-  "src/components/RoomNav.svelte": "a3113d0b827ffdb77cd8abda7a87a5505ae4bfdbc57ba6716bf4c6a0c0b4b954",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/components/RoomNav.svelte": "3f2c33e7ad94a5b4904acb6b5b97220d3bee550ebe21b870c5a970cf03772efa",
   "src/components/RoomShell.svelte": "815bcb79e940433591c632d7ae98c4a5e918394b14d97726ae33c6002d808a71",
   // Task 9.1.1 re-pinned the strip (owner decision D9.1.2 option a): it now mounts the
   // listening-source selector beside the keys, in its own component. The strip's layout,
   // the four Phase 0 keys and their functions are unchanged; what moved the hash is one
   // additional child. check-transport-structure guards the new control in detail.
-  "src/components/MiniTransport.svelte": "d52703bb523e403298373557892d24f3d4902b986b4e31ecae4fbd1d2209bccc",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/components/MiniTransport.svelte": "442869b2337bc90b1172aeb9e35cc3fb3bcbcbff5eab48f42af02ac138335891",
   "src/lib/rooms.ts": "bd7b0044ed91505baea1e4f3573eebddb20145c1a65a2d662d3a2a6fb7ceb792",
-  "src/App.svelte": "cb25f4501c516ebd86c960938c9e79778c5ed9b61d5a64603a9a4a7d037f4d84",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/App.svelte": "c82681587787d678287f9d9d50bac7242424c9a2983db05992d68711176b569b",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
   "src/lib/project/shell.ts": "90cee1809c81cea24049717ce2329b3c2ef29eced0bfb6740606d98b62218f86",
     // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
@@ -216,17 +294,62 @@ const pinned = {
   "src/lib/project/templates.ts": "215db3b6f609b8a622e285204d5973d8ca2fac4db0bd508f7104b47865184aee",
   "src/lib/settings.svelte.ts": "8a6af022fdeb4a62079e4e285e4fe5b73af6ba00adf08012db018e7afe70c5b0",
   "src/lib/preferences.css": "fd383463fb065a7fa879b36740f8b5e168c03accc0eb7809a8e87a8126f90189",
-  "src/screens/ScreenShell.svelte": "c1a1d1624f6d172e920e0f60165890108d831609b19ec1c341b09b5caa148440",
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: the last #a3a3a3 web-grey border on the
+  // screens became the shared bevel token; see D9.3.1). The checks around this
+  // pin still assert the screen's real contract.
+
+
+  "src/screens/ScreenShell.svelte": "fe5d9c75d7260120a61164429b58454da00748507633582b10c43a30660fb645",
   "src/screens/ScreenPanel.svelte": "af27d5d73e70d68f02e069361d830587986a3e625ec60802331faac00a59f17f",
   "src/screens/Print.svelte": "0d1b9d68f4da31a265c7fce2f4dc0e7a6c15506caab4864c1bca1a82164d55a6",
   "src/screens/ActionKey.svelte": "dd7965139d575ffc7c9e30be0b048459b0c4af01a49e1f3b45e2710870e1718e",
   "src/screens/FirstRunGuide.svelte": "51f5e8db520d933a7c3a6a0a1083895b8ac0711e8a21c5be5c728746c87beecf",
-  "src/screens/HomeScreen.svelte": "113b69c0a220cf3dec60e865ce685b381ebcf0f6d1fb4dca04b706ccab2386ec",
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: the last #a3a3a3 web-grey border on the
+  // screens became the shared bevel token; see D9.3.1). The checks around this
+  // pin still assert the screen's real contract.
+
+
+  "src/screens/HomeScreen.svelte": "36ed1dc4c2ea46463df757df0cef9ceea5e0e7ca9a1d28f1d89128d08aedf7e1",
   "src/screens/SettingsScreen.svelte": "6a6d5500db0a90f1d523bb2916fbc323cfd72a8928d87353fa6976ebd52fe3e3",
   "src/components/EmptyProjectNotice.svelte": "031f3c98a303ff01ac11b7e50c949f6684fd1de4970215c083eacb2ec760d152",
-  "src/rooms/ConsoleRoom.svelte": "c937b69e2d4c6c2af5a0dba55e94f2fc7a2fd0ab439ca3d09337b9ad2fcde324",
-  "src/rooms/ArrangeRoom.svelte": "151201bade03fb614483c92b3d0b55d25e8ecea67f25ee9166521858fa0de273",
-  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/ArrangeRoom.svelte": "6e276cdccbbc9273228a224ecbbd3e4c39c7938aecfdaf6f2cddb09b9ce2949c",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/MixerRoom.svelte": "b6a73be6e10e2c5c63308477342f8cf3b312a971790c3251ac78fa73233f2c6b",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

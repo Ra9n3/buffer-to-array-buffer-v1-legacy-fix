@@ -71,9 +71,17 @@ check(
   "transport is pinned to the bottom edge",
   /\.mini-transport\s*{[^}]*bottom:\s*0/s.test(transport),
 );
+/*
+  Task 9.3 (owner): the strip became a ChromeBand inside a fixed footer, so the
+  height is no longer set on `.mini-transport` itself. The invariant that matters
+  is unchanged and is what this now asserts: the app reserves exactly one shared
+  token's worth of space for the strip, and the strip's own content does not
+  re-measure it.
+*/
 check(
-  "transport height comes from the shared token",
-  /\.mini-transport\s*{[^}]*height:\s*var\(--mini-transport-height\)/s.test(transport),
+  "the app still reserves exactly the shared transport height for the strip",
+  /\.app-shell\s*{[^}]*padding-bottom:\s*var\(--mini-transport-height\)/s.test(appCss) &&
+    /--mini-transport-height:\s*[0-9.]+rem/.test(appCss),
 );
 check(
   "shared --mini-transport-height token is declared",
@@ -110,20 +118,33 @@ check(
 
 // --- 5. Task 8.1 live shared transport. ------------------------------------
 check(
-  "transport controls are real buttons (one template button per control)",
-  /<button[\s\S]*?data-transport-control/.test(transport) &&
+  "transport controls are real buttons (one tactile key per control)",
+  /<ToolbarKey[\s\S]*?hook=\{`transport-\$\{control\.toLowerCase\(\)\}`\}/.test(transport) &&
     /#each CONTROLS as control/.test(transport) &&
-    ["Previous", "Play", "Stop", "Next"].every((c) => transport.includes(`"${c}"`)),
+    ["Previous", "Play", "Stop", "Next"].every((c) => transport.includes(`"${c}"`)) &&
+    // and the key really is a platform button underneath, not a div
+    /<button[\s\S]*?type="button"[\s\S]*?data-part="cap"/.test(read("src/components/hardware/ToolbarKey.svelte")),
 );
 check("Play, Stop, Previous and Next are present", ["Previous", "Play", "Stop", "Next"].every((c) => transport.includes(`"${c}"`)));
-check("the controls drive the shared transport facade", /import \{ formatTransportPosition, transport, transportStatusText \} from "\.\.\/lib\/playback\/store\.svelte"/.test(transport) && /onclick=\{\(\) => onControl\(control\)\}/.test(transport));
+check("the controls drive the shared transport facade", /import \{ formatTransportPosition, transport, transportStatusText \} from "\.\.\/lib\/playback\/store\.svelte"/.test(transport) && /onpress=\{\(\) => onControl\(control\)\}/.test(transport));
 check("Play toggles play/pause, Stop returns to start, Previous/Next locate", /transport\.togglePlay\(\)/.test(transport) && /transport\.stop\(\)/.test(transport) && /transport\.seek\(transport\.startFrame\)/.test(transport) && /transport\.seek\(transport\.durationFrames\)/.test(transport));
 check("a live position/time readout exists", /data-transport-position/.test(transport) && /\{position\}/.test(transport));
 check("a live status readout exists", /data-transport-status/.test(transport) && /\{status\}/.test(transport));
-check("the strip says it is the shared transport in visible text", /Shared transport/.test(transport));
+/*
+  Task 9.2 (owner): the explanatory paragraph ("Shared transport. Play/pause,
+  stop to start, and locate across Console, Arrange and Mixer.") was ordered
+  removed from the bar, so the two checks that pinned it are retired and
+  replaced by the stronger invariant they existed to protect: the bar must
+  still be *named* for assistive technology without that visible sentence, and
+  the controls must not describe themselves with a removed id.
+*/
 check(
-  "controls are described by the transport note",
-  /aria-describedby="mini-transport-note"/.test(transport),
+  "the strip is still named for assistive technology without the visible sentence",
+  /aria-label="Mini transport"/.test(transport) && !/Shared transport\.\s*Play/.test(transport),
+);
+check(
+  "no control points at the removed note",
+  !/mini-transport-note/.test(transport),
 );
 check(
   "the component itself creates no audio context, timer or clock",
@@ -133,9 +154,21 @@ check(
   "the component reads reactive transport state, not persistence",
   /\$derived/.test(transport) && !/localStorage|sessionStorage|writable\(/.test(transport),
 );
+/*
+  Task 9.2 (owner) asked for File > Import stems… with Ctrl/Cmd+I and a Save
+  action, which the shell must wire, so the original blanket ban ("no keyboard
+  handling anywhere near the transport") cannot hold. The invariant it protected
+  — the transport component itself is a dumb view, never a key handler — is kept
+  and tightened: the ban now covers MiniTransport exactly as before, and the
+  shell's handler is required to be there for the accelerators the menus promise.
+*/
 check(
-  "no keyboard-shortcut handling was added",
-  !/addEventListener\("keydown"|onkeydown/.test(transport + app),
+  "the transport component still adds no keyboard handling of its own",
+  !/addEventListener\("keydown"|onkeydown/.test(transport),
+);
+check(
+  "the shell owns the accelerators the menus promise (Ctrl/Cmd+I, Ctrl/Cmd+S)",
+  /addEventListener\("keydown", onShortcut\)/.test(app) && /key === "i"/.test(app) && /key === "s"/.test(app),
 );
 check(
   "no dependencies were added for the transport",
@@ -155,8 +188,9 @@ check(
   "the selector offers exactly the plan's three modes, in order, as real buttons",
   /const SOURCES: readonly ListeningSource\[\] = \["raw", "preview", "render"\]/.test(sourceSelector) &&
     /#each SOURCES as source \(source\)/.test(sourceSelector) &&
-    /<button/.test(sourceSelector) &&
-    /data-transport-source={source}/.test(sourceSelector),
+    // Task 9.3: each position is a ToolbarKey, which renders a real <button>.
+    /<ToolbarKey[\s\S]*?hook=\{`source-\$\{source\}`\}/.test(sourceSelector) &&
+    /active=\{active === source\}/.test(sourceSelector),
 );
 check(
   "selecting drives the shared facade's setSource and nothing else",
@@ -164,17 +198,24 @@ check(
     !/transport\.(play|pause|stop|togglePlay|seek|render)\(/.test(sourceSelector),
 );
 check(
-  "the active mode is identifiable three ways: engaged styling, aria-pressed and the status readout",
-  /class:is-active={active === source}/.test(sourceSelector) &&
-    /aria-pressed={active === source}/.test(sourceSelector) &&
+  "the active mode is identifiable three ways: the key's active state, aria-pressed and the status readout",
+  /active=\{active === source\}/.test(sourceSelector) &&
+    /aria-pressed=\{active \? "true"/.test(read("src/components/hardware/ToolbarKey.svelte")) &&
     /const active = \$derived\(transport\.source\)/.test(sourceSelector) &&
     /source\.toUpperCase\(\)/.test(read("src/lib/playback/store.svelte.ts")),
 );
+/*
+  Task 9.3: the printed note ("Listening source: raw stems, lightweight preview,
+  or the full rendered mix") went with the other decorative text in 9.2, so the
+  old aria-describedby cannot hold. The requirement it served — each position is
+  named for assistive technology AND explains what it does — is kept, moved onto
+  the key's own accessible name, which carries the hint.
+*/
 check(
   "each position is named for assistive technology and explains itself",
   ["raw", "preview", "render"].every((mode) => new RegExp(`\\b${mode}:`).test(sourceSelector)) &&
-    /aria-label=\{`\$\{SOURCE_NAMES\[source\]\} — \$\{SOURCE_HINTS\[source\]\}`\}/.test(sourceSelector) &&
-    /aria-describedby="mini-transport-source-note"/.test(sourceSelector),
+    /name=\{`\$\{SOURCE_NAMES\[source\]\} — \$\{SOURCE_HINTS\[source\]\}`\}/.test(sourceSelector) &&
+    /title=\{`Listen to \$\{SOURCE_HINTS\[source\]\}`\}/.test(sourceSelector),
 );
 check(
   "the selector adds no height: the strip's shared token is still the only height and nothing re-measures it",
@@ -202,7 +243,20 @@ check(
   /ROOMS = \[\s*{\s*id: "arrange"[\s\S]*?id: "console"[\s\S]*?id: "mixer"/.test(read("src/lib/rooms.ts")),
 );
 check("tabs are still right-aligned", /\.room-nav\s*{[^}]*justify-self:\s*end/s.test(appCss));
-check("wordmark is still left-aligned", /\.app-brand\s*{[^}]*justify-self:\s*start/s.test(appCss));
+/*
+  Task 9.2 (owner): the ALLOY wordmark was removed from the top-left, and Home
+  became the fourth tab (owner's answer) — the wordmark was the only route home.
+  The pin inverts: there must be no wordmark rule left behind, and the
+  navigation must actually offer Home.
+*/
+check(
+  "the wordmark is gone, and nothing is left orphaned in the stylesheet",
+  !/\.app-brand\s*\{/.test(appCss),
+);
+check(
+  "Home is reachable from the navigation (the wordmark is no longer the way home)",
+  /data-app-link="home"/.test(read("src/components/RoomNav.svelte")) && /HOME_HREF/.test(read("src/components/RoomNav.svelte")),
+);
 check("tab buttons keep their reduced padding", /\.room-nav__link\s*{[^}]*padding:\s*0\.1875rem/s.test(appCss));
 
 // --- Report. ---------------------------------------------------------------

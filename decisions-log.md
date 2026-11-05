@@ -4775,3 +4775,173 @@ MIX still does not resolve masking (D9.1.2 / Task 10). Both are separate scoped 
 
 **Reversible.** Yes: the two state fields, one `set` block, `clearMix()`, one `now()` on the clock,
 and the Console's `complete` expression.
+
+### D9.2.1 — Top bar, room headers and transport strip (owner, 2026-11-05)
+
+The owner supplied a UI overhaul instruction with three annotated screenshots. This decision records
+what was changed, and — more importantly — the three points where it **reverses an earlier locked
+instruction**. Those reversals are explicit owner decisions, not drift, and each is recorded with the
+guard that had to change.
+
+**Removed from the top bar.** The ALLOY wordmark, the `01/02/03` tab prefixes, and the Settings
+button.
+
+**Removed from the rooms.** The Console header box, the Mixer header box and its subtitle, and the
+whole dark `IMPORT STEMS` band from Arrange. The first two use `RoomShell`'s existing `hideHeader`
+(already how Arrange hid its own); the `<h1>` stays in the DOM as the section's accessible name.
+
+**Removed from the transport strip.** The printed `MINI TRANSPORT`, `SOURCE`, `POSITION / TIME` and
+`STATUS` labels, and the explanatory paragraph on the right. The controls and the live values are
+untouched. Nothing was lost from the accessible tree: the bar keeps `aria-label`, and the two value
+labels became visually-hidden text, so a screen reader still hears "Position and time 00:00:00.000".
+
+**Added.** A `MenuBar` (File · Edit · View · Help) and an `AppToolbar` (Import stems · Undo · Redo ·
+Save). Import is reachable three ways — toolbar, `File > Import stems…`, and `Ctrl/Cmd+I` — all
+pointing at **one** file input that now lives in the shell; the per-room band and its duplicate input
+are gone. `Ctrl/Cmd+S` saves.
+
+#### The three reversals
+
+1. **Home was the wordmark; it is now the fourth tab.** `App.svelte` carried
+   `<!-- The wordmark is the way Home (Task 4.1, owner D4.1.3). -->`, and Home is not one of the
+   three rooms — removing the name would have removed the only route home. Asked directly, the owner
+   chose *a fourth navigation tab*. Home is therefore a nav destination but **not** a `RoomId`: the
+   room model still has exactly three, because a room is a workspace with a transport-bearing canvas
+   and Home is a screen of recent projects.
+2. **Undo / redo / save were forbidden in the UI.** `check-editing` asserted "no visible undo / redo
+   / copy / paste / autosave control or text anywhere in the UI (owner: shortcuts only, store / API
+   only)". The owner now asked for exactly those buttons in the toolbar. The check is rewritten, not
+   deleted: the clipboard must **still** be invisible, and the toolbar must bind to the one project
+   history and the one autosave rather than opening state of its own.
+3. **The Arrange band was pinned as "the first thing in the room".** `check-audio-import` asserted
+   it; the owner ordered the band removed. The check inverts, and the invariant it was protecting is
+   kept and strengthened: there is still exactly one file picker, still the platform's input, still
+   `multiple` and WAV-only, and every entry point reaches that one input.
+
+#### Save means something
+
+The app saves itself (a debounced autosave after every edit), so a Save button would be inert if it
+were cosmetic. The toolbar's Save **flushes the pending write immediately** and reports what
+happened — including "Not saved — storage unavailable" when storage is missing. It is the only
+meaning a Save key can have in an auto-saving app.
+
+#### Menu items deliberately absent
+
+There is no New / Open / Save-As / Export row. A project is created and reopened from Home, saved
+automatically, and export has no UI yet. Printing disabled rows for them would advertise what the app
+cannot do, so they are documented as absent instead.
+
+#### Guards
+
+32 guards, **2 584 checks, 0 failing** (was 2 578). Six substantive assertions were rewritten to
+their new subject (transport naming and shortcut ownership, the editing ban, the import band, the
+app/home/settings contract, and two wordmark pins). 25 hash pins across 10 guards were re-pointed,
+each carrying an inline note naming this decision; the checks around each pin still assert that
+file's real contract.
+
+#### Tests
+
+5 added to `tests/integration.test.mjs` (450 → 455): the top bar carries no wordmark, tab numbers or
+Settings button; Home is the fourth tab and still not a room; the toolbar's actions are real
+bindings and Save reports honestly; exactly one file picker with every entry point reaching it; the
+transport keeps its controls and values but loses its decorative text. **Mutation-checked:** removing
+the Home tab fails the Home test.
+
+#### Not done
+
+No visual redesign beyond the removals and the new chrome; no resize behaviour changed in the rooms.
+The "final design assets" in the instruction do not exist in this repository — there are no image
+assets of any kind, so the existing token/component language was used throughout.
+
+**Reversible.** Yes: each removal is a discrete block, and the guards record what each one replaced.
+
+### D9.3.1 — The chrome is hardware: tactile keys, one band, thin bar (owner, 2026-11-05)
+
+**Owner's review of the 9.2 pass**, in their words: the new buttons "should be a proper buttons
+like the whole other buttons in the app — find every button across the whole tabs that looks like
+this"; "all the grey areas should be the same as the area painted green … the whole app, the whole
+tabs should look like a hardware"; and the bar must read "menus => tools buttons => tabs buttons",
+be "thin not taking a hug junk of the window", and be "the same across the three tabs".
+
+This is a correction of my own work: 9.2 built the chrome as grey web buttons on a grey bar, sitting
+next to a hardware console. The owner is right, and the plan's whole premise (§4, the hardware
+reference spec) is that this application looks like a machine.
+
+**Three new pieces, each reused rather than repeated:**
+
+- **`ToolbarKey.svelte`** — the approved cream cap from `TactileSwitch` variant A, rebuilt at chrome
+  scale: the same 135° convex ramp, the same edge lights and shades, the same specular bloom, the
+  same 2–3 px wall and foot, the same press that sinks it to a 1 px wall. The recipe is **copied
+  value for value**, because "looks similar" is exactly what was rejected. Differences, all
+  deliberate: a wide cap sized by its label, **no lamp** (these are momentary commands and a lamp
+  would claim a state that does not exist), and an `active` mode that paints the cap dark for the
+  one case that genuinely is a selection.
+- **`ChromeBand.svelte`** — the single material for the top bar *and* the transport strip, so the two
+  cannot drift apart: warm near-black plate, lit top bevel, shaded bottom bevel, subtle vertical
+  brushing, walnut cheeks. Built from the shared material tokens, recipe copied from the Console
+  housing.
+- **`RoomNav`** draws the same cap around each tab. The tabs had to stay `<a>` elements (they are
+  navigation and must remain openable and readable as destinations), so the recipe is written out
+  there too — identically, because a tab and a key that differed by one gradient stop would read as
+  two materials.
+
+**Every button, across every tab.** Menus, toolbar, listening source, transport keys and the tabs
+now all use one of the two caps. The remaining raw `<button>`s in shipping code were checked: they
+are either already hardware (`MixButton`, `Knob`, `Fader`, `ScribbleSelect`'s material menu) or
+invisible hit areas (the Mixer's selectable strip, a `<button>` used as a whole-listbox row).
+
+**The ground.** The page was `#e4e4e4` office grey — the "yellow" in the owner's markup. It is now
+`--al-material-recess`, the cabinet colour the decks sit on, so the chrome and the rooms read as one
+machine. Every remaining near-white surface in shipping code was converted to material tokens:
+the app notice, the room placeholder, the screens' header band and panel, and the last `#a3a3a3`
+border left on the Home and Settings screens.
+
+**The dead placeholder.** `ChannelStrip.svelte` was restyled in passing and then **reverted**: nothing
+imports it, and `check-channel-strip` pins it byte-identical as a Phase 0 artefact. Restyling dead
+code and rewriting its guard would have been strictly worse than leaving it alone. It is the single
+documented exception in the new "no light surfaces" test, with that reason recorded.
+
+**Bar layout.** One row inside the band: menus → tools → tabs, with the tabs pushed to the right
+edge, and thin padding (0.375rem) so the bar does not eat the window. It is the same bar in all
+three rooms because it is drawn once by `App.svelte`, outside the room host.
+
+#### Guards — 8 assertions rewritten, 29 pins re-pointed, none weakened
+
+- `check-transport`: the strip is a band now, so "height comes from the token" became "the app still
+  reserves exactly the shared height"; "real buttons" became "one tactile key per control" **plus**
+  a new assertion that `ToolbarKey` really renders a `<button>` underneath; the active-mode and
+  naming checks moved onto the key's props; the retired note's `aria-describedby` was replaced by
+  the key's own accessible name, which carries the hint.
+- `check-tokens`: `RoomNav` and `MiniTransport` **left the "no Phase 2 skinning" placeholder list**,
+  exactly as seven other files left it in Tasks 2.2–2.8. That rule exists to stop *placeholders*
+  being skinned early, and these are no longer placeholders — the owner has skinned them by
+  instruction. `ChannelStrip` stays on the list.
+- `check-home-settings`: "tokens only on the screens, one hard-coded exception" was reversed by
+  instruction; it now asserts what the rule protected — no invented hex outside app.css, no glow,
+  no filter, no gradient text, no animation.
+- `check-audio-import` / `check-editing`: the hooks moved from `data-toolbar-action` to `hook`.
+
+#### Tests: 4 added (455 → 459)
+
+Every chrome button is the approved tactile cap (asserted across all four surfaces); no light
+web-grey surface survives in shipping code; the top bar is one band reading menus → tools → tabs;
+the transport strip and the top bar share one band component. **Mutation-checked** by construction:
+the "no light surfaces" scan found the leftover `#a3a3a3` on both screens, which is how those two
+were caught.
+
+#### Verification
+
+```text
+npm test        # tests 459   # pass 459   # fail 0
+npm run check   # 0 errors, 0 warnings
+npm run build   # ✓ 673.76 kB │ gzip: 185.77 kB
+32 guards       # 2 582/2 582 checks, 0 failing
+```
+
+The built bundle was grepped to confirm the cream cap (`--al-function-cream-hi`) and the walnut
+cheek (`--al-material-wood`) are actually in the shipped CSS, and that the old `#d2d2d2` bar is gone.
+
+**Not verified: the pixels.** No browser is available here; this is static and served-markup
+verification. The live preview is running for exactly this check.
+
+**Reversible.** Yes: two components, one shared band, and a set of token substitutions.

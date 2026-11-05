@@ -250,7 +250,16 @@ const pinned = {
   "src/components/console-transport/LampDisplay.svelte": "19634fdde214a7d571ed2a28271064c0d34604a7acf7910cf8f97f3a960dea9d",
   "src/components/console-transport/MixButton.svelte": "0486c92b90ac5fb571320600fea474ed4ab8e25a5d17e60b181e734360eb3f8b",
   "src/components/console-transport/transport-fixtures.ts": "0333ddc273f3cd1eb6576126dc74aa917741f7f15cd35ab18ecd729a6aba9806",
-  "src/rooms/ConsoleRoom.svelte": "c937b69e2d4c6c2af5a0dba55e94f2fc7a2fd0ab439ca3d09337b9ad2fcde324",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

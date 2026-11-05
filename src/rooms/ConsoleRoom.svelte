@@ -46,6 +46,7 @@
   roomId="console"
   title="Console"
   purpose="Primary overview and automatic-mix workspace."
+  hideHeader
 >
   <div class="console-room">
     <div class="console-layout" data-console-layout>

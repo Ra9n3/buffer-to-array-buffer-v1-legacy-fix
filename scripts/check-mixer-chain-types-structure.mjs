@@ -214,7 +214,16 @@ const pinned = {
   "src/components/channel-strip/BusMasterStrip.svelte": "0b2187e0ffa445aabd372d5fc65e083016123c7667bc4fb34083d1162e5b1dd4",
   "src/components/channel-strip/StripModule.svelte": "d302bbbcfb2be1538f19bc43284cffafe25a121ab4e0b2759838e5aa76cce75f",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
-  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/MixerRoom.svelte": "b6a73be6e10e2c5c63308477342f8cf3b312a971790c3251ac78fa73233f2c6b",
   // touched / added in Task 2.9, as reviewed
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/mixer/ProcessingChain.svelte": "ac74ed271a024c5f8f0ba3fae3460f346cdfa484696b1197fe4d44ea39a9f559",

@@ -177,7 +177,36 @@ check("shell: asset ids come from the platform's crypto, like project ids", /exp
 check("shell: `window.alloy.assets` under ?debug", /assets,/.test(S.shell) || /assets:/.test(S.shell));
 
 // --- 6. Arrange: the band, the rows, the lanes. ------------------------------------------------
-check("room: the band is the first thing in the room, above both the empty state and the grid", /<div class="arrange-room"[^>]*>\s*<ArrangeImportBand \/>/.test(roomTpl));
+/*
+  Task 9.2 (owner) — the owner ordered the dark IMPORT STEMS band removed from
+  Arrange and importing promoted to the top toolbar and File > Import stems….
+  This check pinned the band as the first thing in the room; that instruction is
+  reversed deliberately, so the check inverts.
+
+  The invariant that must survive is stronger than the band's position: there is
+  still exactly ONE file picker in the application, it is still the platform's
+  input, it is still multiple and WAV-only, and every entry point reaches that
+  one input rather than growing a second.
+*/
+check(
+  "room: the Arrange band is gone, as ordered (Task 9.2)",
+  !/<ArrangeImportBand/.test(roomTpl) && !/ArrangeImportBand/.test(roomScript),
+);
+check(
+  "import: exactly one file picker in the shell, still the platform's input, multiple, WAV only",
+  count(read("src/App.svelte"), /type="file"/g) === 1 &&
+    /\bmultiple\b/.test(read("src/App.svelte")) &&
+    /accept="\.wav,audio\/wav,audio\/x-wav,audio\/wave,audio\/vnd\.wave"/.test(read("src/App.svelte")) &&
+    /data-import-input/.test(read("src/App.svelte")) &&
+    !/type="file"/.test(roomTpl),
+);
+check(
+  "import: the toolbar and File > Import stems… both reach that one picker",
+  /<ToolbarKey label="Import stems"[^>]*hook="import"/.test(read("src/components/AppToolbar.svelte")) &&
+    /data-menu-item="import"/.test(read("src/components/MenuBar.svelte")) &&
+    /requestImport/.test(read("src/App.svelte")) &&
+    /assets\.importBatch/.test(read("src/App.svelte")),
+);
 check("room: the rows get the imported audio, the padded flag and the stored copy's status", /audio=\{track\.audio\}/.test(roomTpl) && /padded=\{isPadded\(track\.audio\)\}/.test(roomTpl) && /audioStatus=\{assets\.statusOf\(track\.id\)\}/.test(roomTpl));
 check("room: padded = shorter than the longest imported stem (by more than a sample)", /const longestSeconds = \$derived\(tracks\.reduce\(/.test(roomScript) && /longestSeconds - audio\.frames \/ audio\.sampleRate > 1 \/ audio\.sampleRate/.test(roomScript));
 check("band: the approved controls only — ActionKey and EngravedLabel, plus the platform's file input", /import ActionKey from "\.\.\/screens\/ActionKey\.svelte";/.test(bandScript) && /import EngravedLabel from "\.\/hardware\/EngravedLabel\.svelte";/.test(bandScript) && !/<button|<select|<a\b|<dialog/.test(bandTpl));

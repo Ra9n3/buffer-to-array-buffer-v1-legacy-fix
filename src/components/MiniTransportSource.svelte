@@ -25,6 +25,7 @@
    */
   import { transport } from "../lib/playback/store.svelte";
   import type { ListeningSource } from "../lib/playback/types";
+  import ToolbarKey from "./hardware/ToolbarKey.svelte";
 
   /** Plan §6's three modes in the order of the listening journey: raw, preview, render. */
   const SOURCES: readonly ListeningSource[] = ["raw", "preview", "render"];
@@ -54,134 +55,52 @@
   class="mini-transport__sources"
   role="group"
   aria-label="Listening source"
-  aria-describedby="mini-transport-source-note"
   data-transport-sources
 >
-  <span class="mini-transport__sources-label" aria-hidden="true">Source</span>
 
   <div class="mini-transport__sources-list">
     {#each SOURCES as source (source)}
-      <button
-        type="button"
-        class="mini-transport__source"
-        class:is-active={active === source}
-        data-transport-source={source}
-        aria-pressed={active === source}
-        aria-label={`${SOURCE_NAMES[source]} — ${SOURCE_HINTS[source]}`}
+      <ToolbarKey
+        label={SOURCE_NAMES[source]}
+        name={`${SOURCE_NAMES[source]} — ${SOURCE_HINTS[source]}`}
+        hook={`source-${source}`}
+        size="m"
+        active={active === source}
         title={`Listen to ${SOURCE_HINTS[source]}`}
-        onclick={() => select(source)}
-      >
-        {SOURCE_NAMES[source]}
-      </button>
+        onpress={() => select(source)}
+      />
     {/each}
-  </div>
-
-  <p class="mini-transport__source-note" id="mini-transport-source-note">
-    Listening source: raw stems, lightweight preview, or the full rendered mix.
-  </p>
+</div>
 </div>
 
 <style>
-  /* The strip is a single non-wrapping row whose height is the shared
-     --mini-transport-height token. This group is one more item in that row and
-     adds no height of its own: the buttons are the same size as the transport's
-     controls beside them, so nothing in the bar is re-measured or re-laid-out. */
+  /* The three positions are three ToolbarKeys — the approved cream caps — so
+     they are the same material as the transport keys beside them (Task 9.3, the
+     owner's review). The current one has its cap painted dark. */
   .mini-transport__sources {
     display: flex;
     flex: 0 0 auto;
     align-items: center;
-    gap: 0.375rem;
     min-width: 0;
+    padding: 0.125rem 0;
   }
 
-  .mini-transport__sources-label {
-    color: #5d5d5d;
-    font-size: 0.625rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  /* The three positions form one control, so they sit together with no gap and
-     share their edges — the way a console's own mode preset reads. The control's
-     own border box is the boundary between the transport keys and the readouts,
-     so the strip needs no second vertical rule here. */
   .mini-transport__sources-list {
     display: flex;
-    align-items: stretch;
-    border: 1px solid #8a8a8a;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 0.1875rem;
+    min-width: 0;
+    padding-left: 0.625rem;
+    margin-left: 0.25rem;
+    border-left: 2px solid var(--al-bevel-shadow);
+    box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.06);
   }
 
-  .mini-transport__source {
-    padding: 0.1875rem 0.5rem;
-    border: 0;
-    border-left: 1px solid #8a8a8a;
-    background: #f3f3f3;
-    color: #1b1b1b;
-    font-family: inherit;
-    font-size: 0.75rem;
-    font-weight: 600;
-    line-height: 1.5;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-
-  .mini-transport__source:first-child {
-    border-left: 0;
-  }
-
-  .mini-transport__source:hover {
-    background: #ffffff;
-  }
-
-  /* The engaged position, in the neutral Phase 0 palette the bar already uses
-     (the same inversion as the Play key's emphasis). A lit mode is unmistakable
-     and needs no new colour. */
-  .mini-transport__source.is-active {
-    background: #4a4a4a;
-    color: #ffffff;
-  }
-
-  .mini-transport__source.is-active:hover {
-    background: #333333;
-  }
-
-  /* Keyboard focus must stay visible on the engaged position too. */
-  .mini-transport__source:focus-visible {
-    outline: 2px solid #1b1b1b;
-    outline-offset: -3px;
-  }
-
-  /* The note describes the group for assistive technology; it is not a visible
-     label line, so it takes no space in the bar. */
-  .mini-transport__source-note {
-    margin: 0;
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  /* The bar gives up its content in a fixed order as it narrows: the honesty
-     note first, then the status readout, then the section label. The source
-     selector is a control and survives — but its word shrinks to the three
-     initials, so three positions never push the transport keys off the row. */
-  @media (max-width: 64rem) {
-    .mini-transport__sources-label {
-      display: none;
-    }
-  }
-
-  @media (max-width: 52rem) {
-    .mini-transport__source {
-      padding: 0.1875rem 0.375rem;
-      font-size: 0.6875rem;
+  @media (max-width: 48rem) {
+    .mini-transport__sources-list {
+      padding-left: 0.375rem;
+      gap: 0.125rem;
     }
   }
 </style>
