@@ -504,3 +504,191 @@ test("long raw and preview playback allocate no duration-proportional audio buff
   assert.deepEqual(previewLong, previewShort);
   assert.ok(previewLong.max <= 64 * 2 + 4096, "engine DSP state may exceed the block, but never the project length");
 });
+
+/* --- Task 9.1: the playable length, and switching how you listen ---------------- */
+
+test("9.1 · the transport knows the playable length before the first play", async () => {
+  // Previously the duration was 0 until something played, so PREVIOUS/NEXT (which seek
+  // to `startFrame` and `durationFrames`) were silent no-ops until then: `seek` clamps
+  // to a zero length. The shell now refreshes the duration when the project's structure
+  // moves, and `refreshDuration` is the seam it uses.
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(1000, () => 0.1)]]);
+  const controller = controllerFor(project, sources, autoOutput());
+  assert.equal(controller.getState().durationFrames, 0, "nothing has been measured yet");
+
+  await controller.refreshDuration();
+  const state = controller.getState();
+  assert.equal(state.durationFrames, 1000);
+  assert.equal(state.status, "stopped", "measuring the length does not start playback");
+  assert.equal(state.positionFrames, 0);
+
+  // NEXT and PREVIOUS now do what they say.
+  controller.seek(controller.getState().durationFrames);
+  assert.equal(controller.getState().positionFrames, 1000);
+  controller.seek(controller.getState().startFrame);
+  assert.equal(controller.getState().positionFrames, 0);
+  controller.dispose();
+});
+
+test("9.1 · a duration refresh never disturbs what the transport is doing", async () => {
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(400, () => 0.1)]]);
+  const output = blockingOutput();
+  const controller = controllerFor(project, sources, output);
+  const playing = controller.play();
+  output.release();
+  await Promise.resolve();
+  const during = controller.getState();
+  assert.equal(during.status, "playing");
+
+  await controller.refreshDuration();
+  assert.equal(controller.getState().status, "playing", "a refresh is not a stop");
+  assert.equal(controller.getState().positionFrames, during.positionFrames);
+
+  controller.stop();
+  await playing.catch(() => {});
+  controller.dispose();
+});
+
+test("9.1 · a failing source read does not break the transport while measuring", async () => {
+  const project = rawProject(["track-a"]);
+  const controller = new PlaybackController({
+    getProject: () => project,
+    openSources: async () => {
+      throw new Error("asset store unavailable");
+    },
+    output: autoOutput(),
+    clock: immediateClock,
+    chunkFrames: 4,
+    renderChunkFrames: 4,
+    tailSeconds: 0,
+  });
+  // A refresh is a convenience: it leaves the length alone and reports no error.
+  await controller.refreshDuration();
+  assert.equal(controller.getState().durationFrames, 0);
+  assert.equal(controller.getState().status, "stopped");
+  assert.equal(controller.getState().error, null);
+  controller.dispose();
+});
+
+test("9.1 · switching the listening source keeps the playable length and the position", async () => {
+  // Previously `setSource` blanked the duration, so every switch collapsed the playhead's
+  // range to zero and the next PREVIOUS/NEXT became a no-op.
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(500, () => 0.1)]]);
+  const controller = controllerFor(project, sources, autoOutput(), { tailSeconds: 0.01 });
+  await controller.refreshDuration();
+  const rawDuration = controller.getState().durationFrames;
+  controller.seek(120);
+
+  controller.setSource("preview");
+  const switched = controller.getState();
+  assert.equal(switched.source, "preview");
+  assert.equal(switched.positionFrames, 120, "the playhead is kept across a source switch");
+  assert.ok(switched.durationFrames > 0, "the duration is not blanked");
+  // Preview adds the processed tail, so its length is at least the raw length.
+  await Promise.resolve();
+  assert.ok(controller.getState().durationFrames >= rawDuration);
+
+  controller.setSource("raw");
+  assert.ok(controller.getState().durationFrames > 0, "switching back keeps a usable length");
+  controller.dispose();
+});
+
+test("9.1 · a source switch while playing restarts in the new mode at the same place", async () => {
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(200, () => 0.1)]]);
+  const controller = controllerFor(project, sources, autoOutput());
+  await controller.refreshDuration();
+  controller.seek(40);
+  const playing = controller.play();
+  await playing;
+  controller.setSource("preview");
+  assert.equal(controller.getState().source, "preview");
+  controller.stop();
+  controller.dispose();
+});
+
+/* --- Task 9.1.1: selecting the listening source (D9.1.2 option a) ----------------- */
+
+test("9.1.1 · all three modes are selectable through the facade the selector calls", async () => {
+  // The selector is a thin control: it calls `transport.setSource`. What must hold is that
+  // the facade accepts all three of plan §6's modes and reports the one it was given.
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(600, () => 0.1)]]);
+  const controller = controllerFor(project, sources, autoOutput(), { tailSeconds: 0.01 });
+  await controller.refreshDuration();
+
+  for (const mode of ["raw", "preview", "render"]) {
+    controller.setSource(mode);
+    assert.equal(controller.getState().source, mode, `${mode} is selectable`);
+  }
+  controller.dispose();
+});
+
+test("9.1.1 · RAW can be restored after MIX switched the transport to RENDER", async () => {
+  // The defect this control exists to fix: MIX calls `setSource("render")` and, before
+  // Task 9.1, there was no route back to the raw stems for comparison (plan §10).
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(600, () => 0.1)]]);
+  const controller = controllerFor(project, sources, autoOutput(), { tailSeconds: 0.01 });
+  await controller.refreshDuration();
+
+  controller.setSource("render");
+  assert.equal(controller.getState().source, "render");
+  controller.stop();
+  assert.equal(controller.getState().source, "render", "STOP does not change the source it was not asked to change");
+
+  controller.setSource("raw");
+  const state = controller.getState();
+  assert.equal(state.source, "raw", "RAW is reachable again after MIX");
+  assert.ok(state.durationFrames > 0, "and the playable length survives the round trip");
+  controller.dispose();
+});
+
+test("9.1.1 · a mode can be chosen while stopped, without starting playback", async () => {
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(600, () => 0.1)]]);
+  const output = autoOutput();
+  const controller = controllerFor(project, sources, output);
+  await controller.refreshDuration();
+
+  controller.setSource("preview");
+  assert.equal(controller.getState().status, "stopped", "choosing a mode is not a play command");
+  assert.equal(output.chunks.length, 0, "nothing was scheduled by choosing a mode");
+  controller.dispose();
+});
+
+test("9.1.1 · the mode survives STOP, PREVIOUS and NEXT: only the selector changes it", async () => {
+  // The four transport keys must keep their own functions and must not disturb the mode.
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(600, () => 0.1)]]);
+  const controller = controllerFor(project, sources, autoOutput());
+  await controller.refreshDuration();
+  controller.setSource("preview");
+
+  controller.stop();
+  assert.equal(controller.getState().source, "preview", "STOP leaves the mode alone");
+  controller.seek(controller.getState().startFrame);
+  assert.equal(controller.getState().source, "preview", "PREVIOUS leaves the mode alone");
+  controller.seek(controller.getState().durationFrames);
+  assert.equal(controller.getState().source, "preview", "NEXT leaves the mode alone");
+  controller.dispose();
+});
+
+test("9.1.1 · choosing the mode already in use is a no-op, not a restart", async () => {
+  const project = rawProject(["track-a"]);
+  const sources = new Map([["track-a", signalSource(600, () => 0.1)]]);
+  const output = autoOutput();
+  const controller = controllerFor(project, sources, output);
+  await controller.refreshDuration();
+  controller.seek(240);
+
+  controller.setSource("raw");
+  const state = controller.getState();
+  assert.equal(state.source, "raw");
+  assert.equal(state.positionFrames, 240, "re-selecting the current mode does not move the playhead");
+  assert.equal(state.status, "stopped");
+  controller.dispose();
+});

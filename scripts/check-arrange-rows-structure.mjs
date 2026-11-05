@@ -294,7 +294,11 @@ const pinned = {
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
   "src/components/meter-bridge/ConsoleMeterBridge.svelte": "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002",
   "src/components/console-transport/ConsoleTransport.svelte": "3f61ca7eafacd348d2e265570910c056712c025bad7d6deaae02315d4976c4e7",
-  "src/components/MiniTransport.svelte": "ea6ec47f50148927b3ec3ee22869ee7e72cb80eedbc84233c94099598a4e2d07",
+  // Task 9.1.1 re-pinned the strip (owner decision D9.1.2 option a): it now mounts the
+  // listening-source selector beside the keys, in its own component. The strip's layout,
+  // the four Phase 0 keys and their functions are unchanged; what moved the hash is one
+  // additional child. check-transport-structure guards the new control in detail.
+  "src/components/MiniTransport.svelte": "d52703bb523e403298373557892d24f3d4902b986b4e31ecae4fbd1d2209bccc",
   "src/App.svelte": "cb25f4501c516ebd86c960938c9e79778c5ed9b61d5a64603a9a4a7d037f4d84",
   "src/components/RoomShell.svelte": "815bcb79e940433591c632d7ae98c4a5e918394b14d97726ae33c6002d808a71",
 };

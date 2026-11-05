@@ -38,6 +38,7 @@ function check(name, condition, detail = "") {
 
 const app = read("src/App.svelte");
 const transport = read("src/components/MiniTransport.svelte");
+const sourceSelector = read("src/components/MiniTransportSource.svelte");
 const appCss = read("src/app.css");
 const consoleRoom = read("src/rooms/ConsoleRoom.svelte");
 const arrangeRoom = read("src/rooms/ArrangeRoom.svelte");
@@ -139,6 +140,60 @@ check(
 check(
   "no dependencies were added for the transport",
   !/from "(?!\.)/.test(transport),
+);
+
+// --- 7. Task 9.1.1: the listening-source selector (owner decision D9.1.2 option a). ---
+// One small visible three-position control for plan §6's modes. Added BESIDE the keys:
+// the four Phase 0 keys and their functions are untouched, so the checks above still hold
+// unchanged, and nothing was repurposed to carry the mode.
+check(
+  "the strip mounts one source selector, in its own component",
+  (transport.match(/<MiniTransportSource \/>/g) ?? []).length === 1 &&
+    /import MiniTransportSource from "\.\/MiniTransportSource\.svelte"/.test(transport),
+);
+check(
+  "the selector offers exactly the plan's three modes, in order, as real buttons",
+  /const SOURCES: readonly ListeningSource\[\] = \["raw", "preview", "render"\]/.test(sourceSelector) &&
+    /#each SOURCES as source \(source\)/.test(sourceSelector) &&
+    /<button/.test(sourceSelector) &&
+    /data-transport-source={source}/.test(sourceSelector),
+);
+check(
+  "selecting drives the shared facade's setSource and nothing else",
+  /transport\.setSource\(source\)/.test(sourceSelector) &&
+    !/transport\.(play|pause|stop|togglePlay|seek|render)\(/.test(sourceSelector),
+);
+check(
+  "the active mode is identifiable three ways: engaged styling, aria-pressed and the status readout",
+  /class:is-active={active === source}/.test(sourceSelector) &&
+    /aria-pressed={active === source}/.test(sourceSelector) &&
+    /const active = \$derived\(transport\.source\)/.test(sourceSelector) &&
+    /source\.toUpperCase\(\)/.test(read("src/lib/playback/store.svelte.ts")),
+);
+check(
+  "each position is named for assistive technology and explains itself",
+  ["raw", "preview", "render"].every((mode) => new RegExp(`\\b${mode}:`).test(sourceSelector)) &&
+    /aria-label=\{`\$\{SOURCE_NAMES\[source\]\} — \$\{SOURCE_HINTS\[source\]\}`\}/.test(sourceSelector) &&
+    /aria-describedby="mini-transport-source-note"/.test(sourceSelector),
+);
+check(
+  "the selector adds no height: the strip's shared token is still the only height and nothing re-measures it",
+  !/height:\s*var\(--mini-transport-height\)/.test(sourceSelector) &&
+    !/AudioContext|AudioBuffer|requestAnimationFrame|setInterval|setTimeout|currentTime/.test(sourceSelector) &&
+    !/localStorage|sessionStorage|writable\(/.test(sourceSelector) &&
+    !/from "(?!\.)/.test(sourceSelector),
+);
+check(
+  "the selector brings no keyboard-shortcut handling and no new dependency",
+  !/addEventListener\("keydown"|onkeydown/.test(sourceSelector),
+);
+check(
+  "the four approved keys keep their exact functions: PLAY toggles, STOP stops, PREVIOUS/NEXT locate — the selector did not take one over",
+  /transport\.togglePlay\(\)/.test(transport) &&
+    /transport\.stop\(\)/.test(transport) &&
+    /transport\.seek\(transport\.startFrame\)/.test(transport) &&
+    /transport\.seek\(transport\.durationFrames\)/.test(transport) &&
+    !/setSource/.test(transport),
 );
 
 // --- 6. Task 0.5 results preserved. ---------------------------------------

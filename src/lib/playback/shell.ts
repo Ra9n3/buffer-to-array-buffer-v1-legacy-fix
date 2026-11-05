@@ -8,7 +8,7 @@
 
 import type { AssetStore } from "../audio/asset-store";
 import type { Project } from "../project/model";
-import { project } from "../project/store.svelte";
+import { history, project } from "../project/store.svelte";
 import { PlaybackController } from "./controller";
 import { openProjectSources } from "./sources";
 import { transport } from "./store.svelte";
@@ -38,7 +38,32 @@ export function installPlaybackShell(win: Window, options: PlaybackShellOptions)
     },
   });
   const detach = transport.attach(controller);
+
+  /*
+   * Keep the playable length current (Task 9.1). The transport must know how long the
+   * session is BEFORE the first Play, because Previous/Next, the position readout and
+   * the playhead's clamp all read the duration while stopped. The project store's own
+   * history is the notification that the project's structure moved: an import, a
+   * project switch (`loadProject`) and an undo/redo past one all `clear` it, while an
+   * ordinary parameter edit only `record`s. Recomputing on the structural events keeps
+   * the cost to the moments the answer can actually change.
+   */
+  let refreshing: Promise<void> | null = null;
+  const refresh = (): void => {
+    if (refreshing) return;
+    refreshing = controller.refreshDuration().finally(() => {
+      refreshing = null;
+    });
+  };
+  const stopWatching = history.subscribe((event) => {
+    if (event.kind !== "clear") return;
+    refresh();
+  });
+  // Once at install, so a reopened project has a length before anything is pressed.
+  refresh();
+
   return () => {
+    stopWatching();
     detach();
     controller.dispose();
   };

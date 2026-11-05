@@ -4550,3 +4550,123 @@ that no dependency was added, and that the rooms were not touched.
 **Reversible.** Yes: new modules under `src/lib/export/` and `src/lib/rulebook/`, one
 optional renderer option, one guard, two suites, docs. Removing them leaves the transport
 exactly as it was.
+
+## Task 9.1 — Stabilization and end-to-end verification (2026-11-05; uncommitted, awaiting review — the owner handles Git)
+
+**Scope.** Plan §14 Task 9.1 only: verify the complete workflow, fix reproducible
+stabilization defects, audit the mini transport against §3 / Phase 0.6, and document
+verified behaviour. No visual redesign, no new feature, no dependency change, no DSP
+behaviour change. **Nothing committed, tagged or pushed.** Report:
+`task-reports/9.1-stabilization.md`.
+
+### D9.1.1 — The transport measures the playable length without playing (builder, 2026-11-05)
+
+**Context.** `durationFrames` began at 0 and was written only inside `startPlayback()`, so
+it was 0 until something played. PREVIOUS and NEXT call `seek(startFrame)` and
+`seek(durationFrames)`, and `seek` is `clampFrame(frames, durationFrames)`: with a length
+of 0 both located to 0. The two locate keys therefore did nothing until the user had
+played once, and the position readout's denominator was meaningless. The controller had no
+way to learn the length, so the shell had nothing to call.
+
+**Decision.** `PlaybackController.refreshDuration()` opens the sources, computes
+`sourceDurationFrames` for the current mode, and sets **only** `durationFrames` — it does
+not play, pause, seek or change status. `setSource()` no longer blanks the length; it keeps
+it and refreshes it for the new mode (PREVIEW and RENDER add the effect tail, so the
+answer legitimately differs). `installPlaybackShell` measures once at install and again
+when the project's **structure** moves.
+
+**Trigger.** The project store's own history is the notification: an import, a project
+switch (`loadProject`) and an undo/redo past a structural change all emit `clear`, while
+an ordinary parameter edit emits only `record`/`merge`. A fader move therefore never pays
+for a re-measure — pinned by a test that would fail if the trigger were widened.
+
+**Safe failure, deliberately.** A refresh that cannot open the sources is silent: a length
+is a convenience, and the next PLAY reports anything that is genuinely wrong. A failed
+measurement must never turn the transport into an error state.
+
+**Reversible.** Yes: one controller method, one facade line, one shell subscription. Removing
+them restores the previous behaviour exactly.
+
+### D9.1.2 — The listening-source selector: Option B plus one small control, in the persistent strip (owner choice 2026-11-05; **implemented as Task 9.1.1**)
+
+**History.** `D2.3.2` (owner, 2026-10-31) decided the source is "printed as text … and selected
+nowhere", restated by `D8.1.1`; a key column written during 9.1 was reverted for that reason. The
+owner then approved a selector, chose **Option B** (bind the modes to existing controls, keep the
+four-key deck), and — after B was shown to have no conflict-free mapping, because the app's only
+five interactive controls are all committed and PREVIEW had no candidate — chose **(a): B plus one
+small, visible three-position control**.
+
+**Decision.** A three-position **RAW / PREVIEW / RENDER** control, as the owner specified: the four
+approved keys and MIX keep exactly their functions, nothing is repurposed, and the room layout is
+redesigned in no way.
+
+**Where it lives, and why there.** In the **persistent mini transport**, as `MiniTransportSource.svelte`
+mounted beside the transport keys. The strip is the one surface rendered outside the room switch, so
+the control is visible and usable in **Console, Arrange and Mixer** alike. The Console deck was
+deliberately left untouched: putting it there would have changed approved deck markup and D2.3.2's
+four-key roster. This choice also keeps `check:console-transport`'s "selected nowhere" meaning intact
+— that check still holds for the deck, and a new check asserts the selector is not on the deck.
+
+**How the active mode is identifiable — three ways, deliberately.** The engaged position is drawn
+inverted in the bar's existing neutral palette (the same treatment as PLAY's emphasis, no new
+colour); it carries `aria-pressed`; and the transport's status readout beside it — unchanged, and
+already printing `Stopped — RAW / PREVIEW / RENDER` — confirms it in words. Each position also has an
+`aria-label` naming the mode and what it means.
+
+**Behaviour.** Selecting a mode calls the shared facade's `setSource`; it does nothing else. Choosing
+a mode while stopped does not start playback. The playhead position and the playable length survive a
+switch (`S9.1.2`), and a switch made while playing restarts at the same position in the new mode.
+Choosing the mode already in use is a no-op. **STOP, PREVIOUS and NEXT leave the mode alone** — the
+selector is the only thing that changes it, so stopping to make an edit does not silently discard the
+rendered mix the user was comparing against (plan §10). RAW after MIX now works, which is the defect
+the control exists to fix.
+
+**Guards: three re-pins, no relaxations, and new protection.** `src/components/MiniTransport.svelte`
+is hash-pinned in three guards (`check-console-transport`, `check-arrange-rows`,
+`check-home-settings`); each was re-pinned from `ea6ec47f…` to `d52703bb…` with the reason recorded
+inline. Nothing was deleted: the deck's key-count, symbol and "selected nowhere" checks still pass
+unchanged, and the min-height, fixed-position and token checks are untouched.
+`check-transport-structure` **gains 8 checks** (34 → 42): one selector mounted from its own
+component; exactly the plan's three modes in order as real buttons; selection drives `setSource`
+and nothing else; the three-way active identification; per-mode accessible naming; no height, audio
+context, timer, storage or dependency added; no keyboard-shortcut handling; and that the four keys
+keep their exact functions with `setSource` absent from the strip. `check-console-transport` gains
+one check asserting the selector is not on the deck (102 → 103).
+
+**Tests: 6 added.** Five in `tests/playback.test.mjs` (24 total): all three modes selectable through
+the facade; RAW restored after RENDER; a mode chosen while stopped starts nothing; the mode survives
+STOP / PREVIOUS / NEXT; re-selecting the current mode is a no-op. One in
+`tests/integration.test.mjs` (14 total) proving the two modes produce **different audio** — raw is the
+summed stems, render applies the channel strip, so the comparison plan §10 requires is real rather
+than a label change. Mutation-checked: removing `setSource`, dropping `aria-pressed`, and repurposing
+PLAY to carry PREVIEW each fail the guards.
+
+**Masking stays deferred** (`D9.1.3`): MIX still does not resolve masking. Not part of this task.
+
+**Reversible.** Yes: one new component, one mount line and one import in the strip, and the guard
+re-pins. Removing them returns the strip to its 8.1 state, and the deck was never touched.
+
+### D9.1.3 — MIX still does not resolve masking (found in 9.1, deferred)
+
+`measureMaskingSources`, `detectMaskingConflicts`, `resolveMaskingConflicts` and
+`resolveMaskingAudio` are implemented and tested but called by **no file in `src/`**. The
+engine accepts `maskingDynamicBands`; nothing supplies them. MIX is therefore a straight
+render without conflict resolution, and plan §15's "Auto recalculated on rerun / Manual
+preserved" is verified in the engine, not through the integrated path. 7.3 deferred
+masking→store/UI/persistence explicitly; this needs the MIX orchestration task, not a
+stabilization patch. **Not implemented in 9.1.**
+
+### D9.1.4 — A guard that pinned a literal punished the act of adding a test suite (builder, 2026-11-05)
+
+`check-editing-structure.mjs` compared the whole `npm test` string to one literal. Its
+subject is the editing layer, so adding a suite failed it — and it would have accepted a
+command that silently dropped a file, as long as the string matched.
+
+**Changed, strengthened.** It now asserts the intent: the command uses the project loader
+and `node:test`, every suite it names exists on disk, the Task 3.2–8.2 suites keep their
+original order, and any suite beyond that roster must be on a named sanctioned list
+(`tests/integration.test.mjs`, added by 9.1). Verified to still fail on a removed suite and
+on an unsanctioned addition, naming the offending file. No other guard was relaxed: all 32
+pass, 2 562 checks, and the count is unchanged.
+
+**Reversible.** Yes: the check is one expression in one guard.

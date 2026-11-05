@@ -201,7 +201,11 @@ const pinned = {
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
   "src/components/RoomNav.svelte": "a3113d0b827ffdb77cd8abda7a87a5505ae4bfdbc57ba6716bf4c6a0c0b4b954",
   "src/components/RoomShell.svelte": "815bcb79e940433591c632d7ae98c4a5e918394b14d97726ae33c6002d808a71",
-  "src/components/MiniTransport.svelte": "ea6ec47f50148927b3ec3ee22869ee7e72cb80eedbc84233c94099598a4e2d07",
+  // Task 9.1.1 re-pinned the strip (owner decision D9.1.2 option a): it now mounts the
+  // listening-source selector beside the keys, in its own component. The strip's layout,
+  // the four Phase 0 keys and their functions are unchanged; what moved the hash is one
+  // additional child. check-transport-structure guards the new control in detail.
+  "src/components/MiniTransport.svelte": "d52703bb523e403298373557892d24f3d4902b986b4e31ecae4fbd1d2209bccc",
   "src/lib/rooms.ts": "bd7b0044ed91505baea1e4f3573eebddb20145c1a65a2d662d3a2a6fb7ceb792",
   "src/App.svelte": "cb25f4501c516ebd86c960938c9e79778c5ed9b61d5a64603a9a4a7d037f4d84",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",

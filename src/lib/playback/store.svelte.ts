@@ -46,6 +46,8 @@ export const transport = {
   setSource(source: ListeningSource): void { controller?.setSource(source); },
   render(): Promise<void> { return controller?.render() ?? Promise.resolve(); },
   syncPosition(): void { controller?.syncPosition(); },
+  /** Recompute the playable length without playing (Task 9.1). */
+  refreshDuration(): Promise<void> { return controller?.refreshDuration() ?? Promise.resolve(); },
 } as const;
 
 /** H:MM:SS.mmm for the mini transport's existing position readout. */

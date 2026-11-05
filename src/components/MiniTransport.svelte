@@ -11,8 +11,16 @@
    * Stop returns to the defined start, Previous locates to the start and Next to
    * the end of the current listening source. MIX is deliberately absent here: it
    * is the Console deck's separate render action (plan §6, D2.3.2).
+   *
+   * Task 9.1.1 (owner decision D9.1.2 option a) adds the listening-source
+   * selector, in its own component beside the keys. It is a control, not a
+   * shortcut and not a key: the four approved keys and MIX keep exactly their
+   * functions. It lives here because this strip is the one surface visible in
+   * every room, so RAW / PREVIEW / RENDER can be read and changed from Console,
+   * Arrange and Mixer alike — including returning to RAW after MIX (plan §10).
    */
   import { formatTransportPosition, transport, transportStatusText } from "../lib/playback/store.svelte";
+  import MiniTransportSource from "./MiniTransportSource.svelte";
 
   const CONTROLS = ["Previous", "Play", "Stop", "Next"] as const;
 
@@ -52,6 +60,8 @@
       </button>
     {/each}
   </div>
+
+  <MiniTransportSource />
 
   <p class="mini-transport__readout" data-transport-position>
     <span class="mini-transport__readout-label">Position / time</span>
