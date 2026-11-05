@@ -123,6 +123,7 @@ function blockingOutput() {
 const immediateClock = {
   schedule: () => () => {},
   yieldBetween: async () => {},
+  now: () => "14:02", // Task 9.1.3: fixed so the "at …" detail is assertable
 };
 
 function controllerFor(project, sources, output, options = {}) {
@@ -459,6 +460,86 @@ test("render failure and cancellation leave the transport recoverable and never 
   assert.equal(cancellable.getState().status, "paused");
   assert.equal(cancellable.getState().renderProgress, null);
   cancellable.dispose();
+});
+
+/* --- 9.1.3: a finished mix must be reported as finished ------------------------- */
+
+test("9.1.3 a finished render is reported as a completed mix, not as a fresh one", async () => {
+  // The reported defect: MIX ran to completion and the Console fell back to "Ready",
+  // because the render's own completion cleared the renderProgress that marked it done.
+  const project = previewProject();
+  const sources = new Map([["track-01", signalSource(1024, () => 0.25)]]);
+  const output = autoOutput();
+  const controller = controllerFor(project, sources, output, { renderChunkFrames: 256, tailSeconds: 0.02 });
+
+  assert.equal(controller.getState().mixRevision, null, "no mix yet");
+
+  controller.setSource("render");
+  await controller.play();
+
+  const state = controller.getState();
+  assert.equal(state.status, "stopped");
+  assert.equal(state.renderProgress, null, "the live gauge is correctly cleared");
+  assert.equal(state.mixRevision, 1, "…but the finished mix is still on record");
+
+  // The Console's expression, verbatim.
+  const complete = state.mixRevision !== null || (state.source === "render" && state.renderProgress === 1);
+  assert.equal(complete, true, "MIX shows 'complete' — this is the row the user was missing");
+
+  controller.dispose();
+});
+
+test("9.1.3 moving the playhead or changing the source keeps the finished mix", async () => {
+  const project = previewProject();
+  const sources = new Map([["track-01", signalSource(512, () => 0.2)]]);
+  const output = autoOutput();
+  const controller = controllerFor(project, sources, output, { renderChunkFrames: 128, tailSeconds: 0 });
+  controller.setSource("render");
+  await controller.play();
+  assert.equal(controller.getState().mixRevision, 1);
+
+  controller.pause();
+  controller.stop();
+  controller.seek(0);
+  assert.equal(controller.getState().mixRevision, 1, "none of these discards the material");
+
+  controller.setSource("raw");
+  assert.equal(controller.getState().mixRevision, 1, "listening to RAW after MIX keeps the mix");
+  controller.setSource("preview");
+  controller.setSource("render");
+  assert.equal(controller.getState().mixRevision, 1, "and returning to RENDER finds it still there");
+
+  controller.dispose();
+});
+
+test("9.1.3 a mix stops being current when the project changes under it", async () => {
+  const project = previewProject();
+  const sources = new Map([["track-01", signalSource(256, () => 0.2)]]);
+  const output = autoOutput();
+  const controller = controllerFor(project, sources, output, { renderChunkFrames: 128, tailSeconds: 0 });
+  controller.setSource("render");
+  await controller.play();
+  assert.equal(controller.getState().mixRevision, 1);
+
+  controller.clearMix();
+  assert.equal(controller.getState().mixRevision, null, "the deck asks for a rerun");
+
+  // A rerun is a new mix and must be distinguishable from the one it replaces —
+  // this is why the counter is monotonic rather than derived from the live gauge.
+  await controller.play();
+  assert.equal(controller.getState().mixRevision, 2, "the rerun is a different mix, numbered onwards");
+  controller.dispose();
+});
+
+test("9.1.3 a failed render never records a completed mix", async () => {
+  const project = previewProject();
+  const badSources = new Map([["track-01", { open: async () => { throw new Error("damaged asset"); } }]]);
+  const controller = controllerFor(project, badSources, autoOutput(), { renderChunkFrames: 128, tailSeconds: 0 });
+  controller.setSource("render");
+  await controller.play();
+  assert.equal(controller.getState().status, "error");
+  assert.equal(controller.getState().mixRevision, null, "an error is not a finished mix");
+  controller.dispose();
 });
 
 /* --- bounded memory ------------------------------------------------------------- */

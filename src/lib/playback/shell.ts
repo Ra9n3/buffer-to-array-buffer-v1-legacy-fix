@@ -35,6 +35,11 @@ export function installPlaybackShell(win: Window, options: PlaybackShellOptions)
         if (typeof win.setTimeout !== "function") resolve();
         else win.setTimeout(resolve, 0);
       }),
+      // Task 9.1.3: the deck prints the minute a mix was made ("Mixed — at 14:02").
+      now: () => {
+        const d = new Date();
+        return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+      },
     },
   });
   const detach = transport.attach(controller);
@@ -57,6 +62,11 @@ export function installPlaybackShell(win: Window, options: PlaybackShellOptions)
   };
   const stopWatching = history.subscribe((event) => {
     if (event.kind !== "clear") return;
+    // Task 9.1.3: the same structural events mean any finished mix no longer
+    // describes this project — an import, a project switch, or an undo past one.
+    // A plain parameter edit is not a `clear`, and it is deliberately left alone:
+    // the deck reports that case as "N manual edits since, rerun available".
+    transport.clearMix();
     refresh();
   });
   // Once at install, so a reopened project has a length before anything is pressed.

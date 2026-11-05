@@ -21,6 +21,10 @@ export const transport = {
   get startFrame() { return state.startFrame; },
   get durationFrames() { return state.durationFrames; },
   get renderProgress() { return state.renderProgress; },
+  /** Task 9.1.3: non-null once a mix has finished and still describes the project. */
+  get mixRevision() { return state.mixRevision; },
+  /** Task 9.1.3: HH:MM the finished mix was made, for the deck's "at …" detail. */
+  get mixedAt() { return state.mixedAt; },
   get error() { return state.error; },
   get positionSeconds() { return state.positionFrames / state.sampleRate; },
   get durationSeconds() { return state.durationFrames / state.sampleRate; },
@@ -45,6 +49,8 @@ export const transport = {
   togglePlay(): void { controller?.togglePlay(); },
   setSource(source: ListeningSource): void { controller?.setSource(source); },
   render(): Promise<void> { return controller?.render() ?? Promise.resolve(); },
+  /** Task 9.1.3: forget a finished mix because the project changed under it. */
+  clearMix(): void { controller?.clearMix(); },
   syncPosition(): void { controller?.syncPosition(); },
   /** Recompute the playable length without playing (Task 9.1). */
   refreshDuration(): Promise<void> { return controller?.refreshDuration() ?? Promise.resolve(); },

@@ -27,6 +27,20 @@ export interface PlaybackState {
   readonly durationFrames: number;
   /** 0–1 while a rendered mix is being produced; null otherwise. */
   readonly renderProgress: number | null;
+  /**
+   * Task 9.1.3: the revision of a mix that finished, or null until one has.
+   *
+   * `renderProgress` alone cannot carry this: it is a *live* gauge, so every
+   * path that ends a run has to clear it (a stop, a seek, a new source). That
+   * means the moment a render finishes is exactly the moment its `renderProgress`
+   * of 1 is replaced by null — the Console could never observe "complete". This
+   * field survives those clears and is dropped only when the project changes
+   * underneath the mix, which is what makes it the honest answer to "is the mix
+   * I am listening to up to date?".
+   */
+  readonly mixRevision: number | null;
+  /** The wall-clock time (HH:MM) the recorded mix finished; null with no mix. */
+  readonly mixedAt: string | null;
   readonly error: string | null;
 }
 
@@ -58,6 +72,12 @@ export interface PlaybackClock {
   schedule(fn: () => void, ms: number): () => void;
   /** Awaited between bounded producer blocks so the page can paint. */
   yieldBetween(): Promise<void>;
+  /**
+   * Task 9.1.3: the wall clock, as HH:MM, for the time a finished mix was made.
+   * Injected like the rest of the clock so the controller reads no globals and a
+   * test can name the minute rather than race it.
+   */
+  now(): string;
 }
 
 export interface PlaybackControllerOptions {
@@ -88,6 +108,8 @@ export function initialPlaybackState(sampleRate: number): PlaybackState {
     startFrame: 0,
     durationFrames: 0,
     renderProgress: null,
+    mixRevision: null,
+    mixedAt: null,
     error: null,
   };
 }

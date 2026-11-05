@@ -50,6 +50,12 @@ export class PlaybackController {
   private readonly tailSeconds?: number;
   private abort: AbortController | null = null;
   private generation = 0;
+  /**
+   * Task 9.1.3: counts mixes made, for the life of the controller. Monotonic on
+   * purpose — `clearMix` sets the *state* back to null but must not rewind this, or
+   * the mix after a cleared one would reuse the number of the mix before it.
+   */
+  private mixRevisions = 0;
   private cancelPoll: () => void;
   private disposed = false;
 
@@ -299,7 +305,26 @@ export class PlaybackController {
     if (signal.aborted || generation !== this.generation) return;
     await this.output.drain?.();
     if (signal.aborted || generation !== this.generation) return;
-    this.set({ status: "stopped", positionFrames: duration, renderProgress: null });
+    // Task 9.1.3: record that a mix finished *before* clearing the gauge. Clearing
+    // `renderProgress` here is correct — it is a live gauge and nothing is rendering
+    // any more — but it used to also erase the only evidence that a mix had ever
+    // completed, so the Console's "Mixed / Rerun available" could never appear.
+    this.set({
+      status: "stopped",
+      positionFrames: duration,
+      renderProgress: null,
+      mixRevision: ++this.mixRevisions,
+      mixedAt: this.clock.now(),
+    });
+  }
+
+  /**
+   * Task 9.1.3: the mix no longer describes the project (it was edited, replaced or
+   * reopened), so stop claiming it is current. Kept separate from `setSource`, which
+   * only chooses what to listen to and must not discard a mix the user still has.
+   */
+  clearMix(): void {
+    if (this.state.mixRevision !== null) this.set({ mixRevision: null, mixedAt: null });
   }
 
   dispose(): void {

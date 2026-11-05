@@ -241,7 +241,12 @@ const pinned = {
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",
-  "src/components/console-transport/ConsoleTransport.svelte": "3f61ca7eafacd348d2e265570910c056712c025bad7d6deaae02315d4976c4e7",
+  // Task 9.1.3 re-pinned this file. Two lines changed, both in the *state the deck
+  // reads* — the MIX state now asks `mixRevision` instead of the live `renderProgress
+  // === 1` gauge that a finished render always clears, and the completed mix passes
+  // its HH:MM through. No markup, class, style or DOM contract was touched; the
+  // approved visual structure the rest of this guard describes is unchanged.
+  "src/components/console-transport/ConsoleTransport.svelte": "6436b14c5c410a40549d0c4ea049004780ebbea4fa4d9083b54804078e834ef6",
   "src/components/console-transport/LampDisplay.svelte": "19634fdde214a7d571ed2a28271064c0d34604a7acf7910cf8f97f3a960dea9d",
   "src/components/console-transport/MixButton.svelte": "0486c92b90ac5fb571320600fea474ed4ab8e25a5d17e60b181e734360eb3f8b",
   "src/components/console-transport/transport-fixtures.ts": "0333ddc273f3cd1eb6576126dc74aa917741f7f15cd35ab18ecd729a6aba9806",
