@@ -6,6 +6,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const store = await import("../src/lib/project/store.svelte.ts");
+// Task 9.1.2: the store boots EMPTY. This suite tests the fixture session, so it loads it.
+const { loadFixtureSession } = await import("./fixture-session.mjs");
+loadFixtureSession();
 const chainOps = await import("../src/lib/mixer-chain.ts");
 const { SEND_RANGE, DEFAULT_SEND_LEVEL } = await import("../src/components/channel-strip/track-strip-fixtures.ts");
 const { project, ops, trackStrip, returnLive, busLive, arrangeTrackOf, trackMeta } = store;

@@ -3,43 +3,50 @@
   import ConsoleTransport from "../components/console-transport/ConsoleTransport.svelte";
   import EmptyProjectNotice from "../components/EmptyProjectNotice.svelte";
   import ConsoleMeterBridge from "../components/meter-bridge/ConsoleMeterBridge.svelte";
-  import MixerDetailPanel from "../components/MixerDetailPanel.svelte";
   import RoomShell from "../components/RoomShell.svelte";
   import { project } from "../lib/project/store.svelte";
 
-  /**
-   * ALLOY Console room — the approved one-screen arrangement, on the current
-   * shared session and components.
-   *
-   * The Console keeps the newer integrations the approved layout did not have
-   * (the meter bridge and the live transport deck) and restores the approved
-   * stacked workspace beneath them: the selected channel's processing detail
-   * over the channel bank. All four zones share one bounded viewport: the two
-   * fixed-height hardware decks keep their size, while the detail and the bank
-   * each scroll inside their own pane. The page never scrolls.
-   *
-   * Selection is local UI state, an id into the one project store. Clicking or
-   * focusing any channel in the bank selects it; the detail panel receives the
-   * same entity the Mixer edits.
-   */
-  let selectedId = $state<string>(project.channels[0]?.id ?? "");
-  const selectedChannel = $derived(project.channel(selectedId));
+  /* The Console's own scroll-revealed transport placeholder was removed in
+     Task 0.6: the persistent mini transport is now rendered once by the shell
+     and is visible in every room, so a second, page-scroll-dependent transport
+     placeholder here would duplicate it and could not be shown at the same time
+     as the shared strip without overlapping it. The Console's full vintage
+     transport, status/time display and MIX button are scheduled as Task 2.3 in
+     the product plan.
 
-  function selectFromBank(event: Event): void {
-    const target = event.target;
-    if (!(target instanceof Element)) return;
-    const strip = target.closest<HTMLElement>("[data-track-strip], [data-pinned-strip]");
-    if (!strip) return;
-    const code = strip.dataset.trackStrip ?? strip.dataset.pinnedStrip;
-    const channel = project.channels.find((entry) => entry.code === code);
-    if (channel) selectedId = channel.id;
-  }
+     Task 2.1 replaced the meter-bridge zone's gray placeholder with the
+     skinned ConsoleMeterBridge (fixture data only, nothing wired). The zone
+     keeps its data-console-zone hook and its accessible name — the bridge
+     renders the <h2 id="console-meter-title"> as its engraved legend.
+
+     Task 2.2 did the same for the channel-bank zone: the Phase 0 grey header
+     and frame are gone and the ChannelBank is its own bridge-matching
+     housing, rendering the <h2 id="console-channels-title"> as its engraved
+     legend. The 20 regular track strips are skinned (TrackStrip, fixtures
+     only); the pinned Bus / Returns strips stay Phase 0 placeholders until
+     Task 2.4. Both zones keep their data-console-zone hooks and names.
+
+     Task 2.3 restores the transport as a zone of its own — the Phase 0.2
+     skeleton had one; 0.6 removed its scroll-revealed placeholder — as the
+     ConsoleTransport deck between the bridge and the bank (owner, D2.3.1):
+     the four transport keys, the lamp-lit time and status windows and the
+     dominant MIX button, fixtures only. It renders the
+     <h2 id="console-transport-title"> as its engraved legend. The shell's
+     persistent mini transport (Task 0.6) is untouched and still the only
+     transport outside this room.
+
+     Task 4.1: when the open project has no channels (an empty project,
+     owner D4.1.2) the channel-bank zone shows the explicit empty state in
+     place of the bank; the zone, its hook and its accessible name stay (the
+     notice renders the <h2 id="console-channels-title">). The bridge and the
+     transport are fixture surfaces and stay as approved. */
 </script>
 
 <RoomShell
   roomId="console"
   title="Console"
   purpose="Primary overview and automatic-mix workspace."
+  hideHeader
 >
   <div class="console-room">
     <div class="console-layout" data-console-layout>
@@ -60,20 +67,9 @@
       </section>
 
       <section
-        class="console-zone console-zone--detail"
-        data-console-zone="channel-detail"
-        aria-labelledby="mixer-detail-title"
-      >
-        <MixerDetailPanel channel={selectedChannel} />
-      </section>
-
-      <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_noninteractive_element_interactions -->
-      <section
         class="console-zone console-zone--channels"
         data-console-zone="channel-bank"
         aria-labelledby="console-channels-title"
-        onclick={selectFromBank}
-        onfocusin={selectFromBank}
       >
         {#if project.isEmpty}
           <EmptyProjectNotice headingId="console-channels-title" room="console" />
@@ -90,15 +86,20 @@
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
+    gap: 1rem;
     min-width: 0;
     min-height: 0;
     height: 100%;
   }
 
-  /* The bridge and the transport keep their content height (their meters,
-     keys and windows must not stretch); the detail and the bank share the
-     rest and scroll inside their own panes. Nothing scrolls the room or the
-     page. */
+  /* Task 2.1: the meter bridge row is sized by the bridge itself (its meters
+     have fixed physical sizes and must not stretch with the window), and the
+     channel bank takes the rest but never less than its own content. Both
+     minimums are max-content rather than auto on purpose: with a definite
+     layout height and no free space, an auto row collapses below its content
+     and the two zones overlap. On a window too short for both, the layout
+     scrolls vertically inside the room — never the page, and never sideways.
+     Task 2.3: the transport deck is a second max-content row between them. */
   .console-layout {
     display: grid;
     flex: 1 1 auto;
@@ -106,12 +107,12 @@
     grid-template-rows:
       max-content
       max-content
-      minmax(0, 0.95fr)
-      minmax(0, 1.05fr);
+      minmax(max-content, 1fr);
     gap: 1rem;
     min-width: 0;
     min-height: 0;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .console-zone {
@@ -122,18 +123,10 @@
     min-height: 0;
   }
 
-  .console-zone--detail,
-  .console-zone--channels {
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-  }
-
   /* The skinned zones are their own housings: no placeholder frame round
-     them (the bridge, the transport, the detail panel and the bank). */
+     them (Task 2.1 the bridge, Task 2.2 the bank, Task 2.3 the transport). */
   .console-zone--meter,
   .console-zone--transport,
-  .console-zone--detail,
   .console-zone--channels {
     padding: 0;
     border: 0;

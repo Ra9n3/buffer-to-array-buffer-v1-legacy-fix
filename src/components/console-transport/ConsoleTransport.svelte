@@ -77,7 +77,13 @@
     const bar = Math.floor(bars) + 1;
     const beat = Math.min(4, Math.floor((bars % 1) * 4) + 1);
     const rendering = transport.status === "rendering";
-    const complete = transport.source === "render" && transport.renderProgress === 1;
+    // Task 9.1.3: "has a mix finished?" is `mixRevision`, not `renderProgress === 1`.
+    // The two used to be the same test and it could never be true: the render's own
+    // completion clears `renderProgress`, so by the time the deck re-read state the
+    // evidence was gone and the button fell back to "ready" — a finished mix looked
+    // like an unstarted one. The old expression is kept only for a run still streaming.
+    const complete = transport.mixRevision !== null
+      || (transport.source === "render" && transport.renderProgress === 1);
     return {
       transport: playing ? "playing" : "stopped",
       position: { seconds, bar, beat },
@@ -87,6 +93,7 @@
         state: rendering ? "processing" : complete ? "complete" : "ready",
         stageIndex: rendering ? 6 : undefined,
         progress: rendering ? (transport.renderProgress ?? 0) : undefined,
+        completedAt: complete ? (transport.mixedAt ?? undefined) : undefined,
         warnings: transport.error ? 1 : 0,
       },
     };

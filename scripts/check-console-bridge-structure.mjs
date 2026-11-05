@@ -89,9 +89,9 @@ check(
   /<EngravedLabel as="h2" id="console-meter-title" text="Meter bridge"/.test(bridge),
 );
 check(
-  "Console keeps the bridge as its first zone, over the transport deck, the selected-channel detail and the bank, in order",
+  "Console keeps the bridge as its first zone, over the transport deck (Task 2.3) and the bank, in order",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-detail",data-console-zone="channel-bank"',
+    'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"',
 );
 
 // The channel-bank zone: Task 2.2 replaced its Phase 0 header and frame with
@@ -99,9 +99,18 @@ check(
 // bridge does for its zone). The zone is a bare, labelled wrapper round it.
 // Task 4.1: an empty project (Master only) shows the explicit empty-project notice in the zone
 // instead of the bank; a project with channels renders the bank exactly as before.
-const CHANNEL_BANK_ZONE =
-  /<section\s+class="console-zone console-zone--channels"\s+data-console-zone="channel-bank"\s+aria-labelledby="console-channels-title"[\s\S]*?>\s*\{#if project\.isEmpty\}\s*<EmptyProjectNotice headingId="console-channels-title" room="console" \/>\s*\{:else\}\s*<ChannelBank \/>\s*\{\/if\}\s*<\/section>/;
-check("the channel-bank zone is a labelled wrapper round the ChannelBank (Task 2.2), or the empty-project notice when the project has no channels (Task 4.1)", CHANNEL_BANK_ZONE.test(consoleRoom));
+const CHANNEL_BANK_ZONE = `      <section
+        class="console-zone console-zone--channels"
+        data-console-zone="channel-bank"
+        aria-labelledby="console-channels-title"
+      >
+        {#if project.isEmpty}
+          <EmptyProjectNotice headingId="console-channels-title" room="console" />
+        {:else}
+          <ChannelBank />
+        {/if}
+      </section>`;
+check("the channel-bank zone is a bare labelled wrapper round the ChannelBank (Task 2.2), or the empty-project notice when the project has no channels (Task 4.1)", consoleRoom.includes(CHANNEL_BANK_ZONE));
 check("ConsoleRoom renders the ChannelBank once", (consoleRoom.match(/<ChannelBank \/>/g) ?? []).length === 1);
 check("the Phase 0 zone header, eyebrow, detail and bank frame are gone from ConsoleRoom", !/console-zone__header|console-zone__eyebrow|console-zone__detail|console-bank\b|Zone 02/.test(consoleRoom));
 check(
@@ -114,24 +123,43 @@ check(
 {
   const layout = consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "";
   check(
-    "console layout rows: the content-sized bridge and transport over the sharing detail and bank rows, all inside one viewport",
-    /grid-template-rows:\s*max-content\s+max-content\s+minmax\(0,\s*0\.95fr\)\s+minmax\(0,\s*1\.05fr\)/.test(layout),
+    "console layout rows: max-content bridge over a max-content transport deck (Task 2.3) over the minmax(max-content, 1fr) bank",
+    /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content,\s*1fr\)/.test(layout),
     layout.trim().slice(0, 200),
   );
-  check(
-    "the room itself never scrolls; the detail and bank panes scroll internally",
-    /overflow:\s*hidden/.test(layout) &&
-      /\.console-zone--detail,\s*\.console-zone--channels\s*{[^}]*overflow-y:\s*auto/s.test(consoleRoom),
-  );
+  check("console layout scrolls vertically inside the room only", /overflow-y:\s*auto/.test(layout) && /overflow-x:\s*hidden/.test(layout));
   // Since Task 2.2 the skinned zones share one reset rule; Task 2.3 added the
   // transport deck to it.
-  const meterZone = consoleRoom.match(/\.console-zone--meter,\s*\.console-zone--transport,\s*\.console-zone--detail,\s*\.console-zone--channels\s*{([^}]*)}/s)?.[1] ?? "";
+  const meterZone = consoleRoom.match(/\.console-zone--meter,\s*\.console-zone--transport,\s*\.console-zone--channels\s*{([^}]*)}/s)?.[1] ?? "";
   check(
-    "the meter, transport, detail and channel zones drop the placeholder frame (no padding, border or background)",
+    "the meter and channel zones drop the placeholder frame (no padding, border or background)",
     /padding:\s*0/.test(meterZone) && /border:\s*0/.test(meterZone) && /background:\s*none/.test(meterZone),
   );
   check("the generic zone rule carries no placeholder frame any more", !/dashed|#f1f1f1|#e8e8e8/.test(consoleRoom));
 }
+
+// The Console hosts the mixer, it does not edit it. The plan's Console is the
+// one-screen overview — the bridge, the transport and the bank (plan §3:
+// "the lower section contains channel strips", the upper section the bridge).
+// Processing detail belongs to the Mixer room alone. A selected-channel
+// processing panel stacked into the Console was briefly added and squeezed the
+// bank to a 33 px sliver at 1366×768, so the separation is pinned here: no
+// detail zone, no detail panel, no selection state, and the bank keeps a floor
+// it cannot be crushed below.
+check(
+  "the Console has no processing-detail zone and imports no detail panel: detail editing is the Mixer's (plan §3)",
+  !/data-console-zone="channel-detail"|MixerDetailPanel/.test(consoleRoom),
+);
+check(
+  "the Console keeps no selection state of its own (selection would exist only to feed a detail panel)",
+  !/\$state|selectedId|selectedChannel|onclick|onfocusin/.test(consoleRoom),
+);
+check(
+  "the bank's row keeps a content floor, so nothing above it can crush the strips",
+  /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content,\s*1fr\)/.test(
+    consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "",
+  ),
+);
 
 // --- 2. Composed of the approved components; no meter drawn here. ------------
 check(

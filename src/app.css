@@ -34,8 +34,14 @@
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   line-height: 1.5;
-  background: #e4e4e4;
-  color: #1b1b1b;
+  /*
+    Task 9.3 (owner): "all the grey areas should be the same as the green area —
+    the whole app should look like a hardware". The page ground is now the warm
+    near-black cabinet colour the panels sit on, so the chrome and the decks read
+    as one machine instead of hardware floating on office grey.
+  */
+  background: var(--al-material-recess);
+  color: var(--al-text-primary);
 }
 
 *,
@@ -56,10 +62,13 @@ body {
 
 a {
   color: inherit;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
 }
 
 :focus-visible {
-  outline: 3px solid #1f5fbf;
+  /* Task 9.3: the amber lamp reads on the dark material; the old blue was a
+     web-default that no other surface in the app uses. */
+  outline: 2px solid var(--al-material-lamp);
   outline-offset: 2px;
 }
 
@@ -72,32 +81,38 @@ a {
   /* Reserves the space the fixed mini transport occupies, so no room's content
      can end up underneath it. */
   padding-bottom: var(--mini-transport-height);
-  background: #e4e4e4;
+  background: var(--al-material-recess);
 }
 
+/*
+  Task 9.2 (owner) — the top bar.
+
+  The wordmark is gone, so the bar is no longer "brand | tabs". It is now three
+  bands: the menu bar and the toolbar share the first row (menus left, tools
+  beside them), and the destination tabs take the second row on small screens
+  and sit at the right of the first where there is room.
+
+  The `.app-brand` rule is deleted rather than left orphaned: nothing renders it.
+*/
+/*
+  Task 9.3 (owner): the top bar is a hardware band, not a grey web toolbar. It
+  keeps the sticky behaviour and the thin padding (the bar must not eat the
+  window), and takes the page's dark ground so the band reads as part of the
+  machine rather than a strip of grey above it.
+*/
 .app-header {
   position: sticky;
   top: 0;
   z-index: 20;
-  display: grid;
-  /* Wordmark takes the free space, the tab list is pushed to the right edge.
-     The tabs are vertically centred by align-items. */
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  column-gap: 1rem;
   min-width: 0;
-  padding: 0.5rem 1rem;
-  background: #d2d2d2;
-  border-bottom: 2px solid #6d6d6d;
-}
-
-.app-brand {
-  justify-self: start;
-  font-size: 1.125rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-decoration: none;
-  padding: 0.25rem 0.125rem;
+  padding: 0.375rem 0.5rem;
+  background: var(--al-material-panel);
+  border-bottom: 2px solid var(--al-bevel-shadow);
+  box-shadow:
+    inset 0 1px 0 var(--al-bevel-light),
+    0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
 .room-nav {
@@ -120,37 +135,13 @@ a {
    0.8125rem label lands the button at ~28px tall, down from ~38px, while the
    label stays above the 12px legibility floor and the target stays comfortable
    for mouse and keyboard. */
-.room-nav__link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  padding: 0.1875rem 0.5rem;
-  border: 1px solid #8a8a8a;
-  background: #f3f3f3;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.5;
-  text-align: center;
-  text-decoration: none;
-}
-
-.room-nav__link:hover {
-  background: #ffffff;
-}
-
-.room-nav__link.is-active {
-  background: #3b3b3b;
-  border-color: #1b1b1b;
-  color: #ffffff;
-}
-
-.room-nav__index {
-  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
-  font-size: 0.625rem;
-  letter-spacing: 0.08em;
-  opacity: 0.78;
-}
+/*
+  Task 9.3: the tab styling moved into RoomNav, which draws the approved cream
+  cap around each link. The old light web-button rules (.room-nav__link,
+  .room-nav__index) are deleted rather than left orphaned — nothing renders
+  those classes any more, and leaving them would let a future edit resurrect a
+  grey button by adding a class name.
+*/
 
 .room-host {
   min-width: 0;
@@ -170,8 +161,9 @@ a {
 .room__header {
   min-width: 0;
   padding: 0.75rem 1rem;
-  border: 1px solid #a3a3a3;
-  background: #efefef;
+  border: 1px solid var(--al-bevel-shadow);
+  background: var(--al-material-surface);
+  color: var(--al-text-primary);
 }
 
 /* Keeps the room heading in the accessibility tree while removing its visual
@@ -222,8 +214,9 @@ a {
   min-width: 0;
   min-height: 12rem;
   padding: 2rem 1rem;
-  border: 2px dashed #8a8a8a;
-  background: #f1f1f1;
+  border: 2px dashed color-mix(in srgb, var(--al-material-metal) 55%, var(--al-material-recess));
+  background: var(--al-material-surface);
+  color: var(--al-text-primary);
   text-align: center;
 }
 
@@ -397,15 +390,14 @@ a {
   }
 }
 
-@media (max-width: 40rem) {
+@media (max-width: 64rem) {
+  /* Task 9.2: the bar now holds menus + toolbar + tabs. Below this width they
+     stack into two rows rather than crushing the tabs, and the tabs take their
+     own centred row. Resize behaviour of the rooms below is untouched. */
   .app-header {
     grid-template-columns: minmax(0, 1fr);
     justify-items: center;
-    row-gap: 0.5rem;
-  }
-
-  .app-brand {
-    justify-self: center;
+    row-gap: 0.375rem;
   }
 
   .room-nav {

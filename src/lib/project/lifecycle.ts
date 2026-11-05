@@ -168,6 +168,12 @@ export interface StartResult {
 
 export type RestoreResult =
   | { readonly outcome: "restored"; readonly id: string; readonly skipped: readonly string[] }
+  /**
+   * Nothing was restored, so the store keeps the project it booted with. That project is
+   * now an EMPTY one (Task 9.1.2), so the outcome name is `empty`; `fixture` is kept in
+   * the union for saved manifests that still name the development session.
+   */
+  | { readonly outcome: "empty"; readonly id: string; readonly because: "no-storage" | "no-entries" | UnavailableReason }
   | { readonly outcome: "fixture"; readonly id: string; readonly because: "no-storage" | "no-entries" | UnavailableReason };
 
 export interface LifecycleOptions {
@@ -336,6 +342,15 @@ function openStored(entry: RecentEntry): OpenResult {
   return { ok: true, id: built.project.id, applied: built.applied, skipped: built.skipped };
 }
 
+/**
+ * What the store is holding when nothing is restored. Since Task 9.1.2 the store boots an
+ * EMPTY project, so the honest outcome is `empty`; a build that booted the development
+ * session would report `fixture`. Reading the template keeps this true rather than assumed.
+ */
+function bootOutcome(): "empty" | "fixture" {
+  return project.template === "session-fixture" ? "fixture" : "empty";
+}
+
 function untitledName(entries: readonly RecentEntry[]): string {
   const taken = new Set(entries.map((e) => e.name));
   if (!taken.has(EMPTY_PROJECT_NAME)) return EMPTY_PROJECT_NAME;
@@ -417,24 +432,25 @@ export const lifecycle = {
 
   /**
    * At start: reopen the newest listed project when its saved copy is
-   * valid; otherwise keep what the store booted with (the fixture session)
-   * and say why. The open project is recorded either way.
+   * valid; otherwise keep what the store booted with (an empty project since
+   * Task 9.1.2) and say why. The open project is recorded either way.
    */
   restoreLast(): RestoreResult {
+    const booted = bootOutcome();
     if (!options?.storage) {
-      return { outcome: "fixture", id: project.id, because: "no-storage" };
+      return { outcome: booted, id: project.id, because: "no-storage" };
     }
     const [newest] = readIndex();
     if (!newest) {
       ensureStored();
       touch(project);
-      return { outcome: "fixture", id: project.id, because: "no-entries" };
+      return { outcome: booted, id: project.id, because: "no-entries" };
     }
     const result = openStored(newest);
     if (result.ok) return { outcome: "restored", id: result.id, skipped: result.skipped };
     ensureStored();
     touch(project);
     const because = result.reason === "current" || result.reason === "unknown" ? "missing" : result.reason;
-    return { outcome: "fixture", id: project.id, because };
+    return { outcome: booted, id: project.id, because };
   },
 } as const;

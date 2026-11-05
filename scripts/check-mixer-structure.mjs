@@ -103,7 +103,16 @@ const trackFixtures = read("src/components/channel-strip/track-strip-fixtures.ts
 const roomIds = [...rooms.matchAll(/id:\s*"([a-z]+)"/g)].map((m) => m[1]);
 check("room order is Arrange, Console, Mixer", JSON.stringify(roomIds) === JSON.stringify(["arrange", "console", "mixer"]), `found ${JSON.stringify(roomIds)}`);
 check("tabs are right-aligned", /\.room-nav\s*{[^}]*justify-self:\s*end/s.test(appCss));
-check("wordmark stays left-aligned", /\.app-brand\s*{[^}]*justify-self:\s*start/s.test(appCss));
+/*
+  Task 9.2 (owner): the wordmark is removed, so "the wordmark stays
+  left-aligned" no longer has a subject. It is replaced by the rule that keeps
+  this guard's real concern — the Mixer's own layout is untouched by the top-bar
+  change, and the shell no longer carries a brand.
+*/
+check(
+  "the shell carries no wordmark, and the Mixer's own layout contract still holds",
+  !/\.app-brand\s*\{/.test(appCss) && /\.mixer\b/.test(read("src/rooms/MixerRoom.svelte")),
+);
 check("tab buttons are smaller than the original 0.5rem padding", /\.room-nav__link\s*{[^}]*padding:\s*0\.1875rem/s.test(appCss));
 
 // --- 2. The room: channel column beside detail, bounded, scrolling inside. ---
@@ -219,10 +228,28 @@ check("check:mixer is wired into package.json", pkg.scripts?.["check:mixer"] ===
 // their Task 2.7 state by this and the other guards.
 const pinned = {
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
-  "src/rooms/ConsoleRoom.svelte": "d9b216248722b3a9dc0d4a9e84f72afba654f8ce751af461cde0dc4c49a41b37",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
-  "src/rooms/ArrangeRoom.svelte": "151201bade03fb614483c92b3d0b55d25e8ecea67f25ee9166521858fa0de273",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/ArrangeRoom.svelte": "6e276cdccbbc9273228a224ecbbd3e4c39c7938aecfdaf6f2cddb09b9ce2949c",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/channel-strip/bus-return-fixtures.ts": "551fa3fc978362f3f7e48cb1a81110fa2b2ba09d4a3886630a02dc3594df1b1e",

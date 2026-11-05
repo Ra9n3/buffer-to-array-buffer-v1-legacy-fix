@@ -79,7 +79,9 @@ test("without storage: nothing listed, no reopening, start-empty still works (un
   assert.equal(project.id, "project-a");
   assert.equal(project.isEmpty, true);
   assert.deepEqual(lifecycle.recent(), [], "no storage, no list — nothing is claimed");
-  assert.equal(lifecycle.restoreLast().outcome, "fixture");
+  // Task 9.1.2: the project open here is the one `startEmpty()` just made, so the honest
+  // outcome is `empty`. `restoreLast()` reports what the store is holding, not a template name.
+  assert.equal(lifecycle.restoreLast().outcome, "empty");
   reset();
 });
 

@@ -4355,3 +4355,593 @@ restart; export remains 8.2).
 
 **Reversible.** Yes: a durable rendered-mix store can later replace the discard-prefix
 seek without changing the transport API.
+
+## Correction 8.1.1 — Console-only layout correction (2026-11-04; uncommitted, awaiting review)
+
+**Scope.** The Console room's layout and the guards that pin it. No Mixer, Arrange, Home
+or Settings change; no component, token, DSP, engine, playback, schema or dependency
+change.
+
+### D8.1.1.1 — The Console hosts the mixer; processing detail is the Mixer's alone (owner-directed correction, 2026-11-04)
+
+**Context.** `4c5ec57` restored the "approved" Console and Mixer layouts and, in the
+Console, added a fourth zone: the selected channel's processing detail panel over the
+channel bank, on a two-fractional-row grid (`max-content max-content
+minmax(0, 0.95fr) minmax(0, 1.05fr)`) with `overflow: hidden`. `minmax(0, …)` cannot
+scroll, and the two fixed hardware decks above it (293 px bridge, 125 px deck) leave
+only 82 px of the 530 px room at 1366 × 768. Measured on the build of `4c5ec57`: the
+detail zone 30.2 px, the bank zone 33.4 px — **49 px of the 719 px channel bank visible
+at 1366 × 768** (179 px at 1920 × 1080), with the bank's own legend cut in half and the
+panel that displaced it also unusable. Neither surface was legible; the "one-screen"
+Console showed neither.
+
+**Decision.** The Console is the plan's three zones again (plan §3: the upper section the
+vintage meter bridge, "the lower section contains channel strips"; processing chain, EQ
+curve, compressor and gain-reduction displays are the Mixer's row in the same table, and
+the Console strips deliberately exclude the Mixer's tier and instrument controls). The
+detail zone, its `MixerDetailPanel` import, the room's `selectedId` / `selectedChannel`
+local state and the bank's click/focus selection handlers are removed, and
+`ConsoleRoom.svelte` is restored byte-identically to the approved file
+(`c937b69e2d4c6c2a…`) on the approved grid `max-content / max-content /
+minmax(max-content, 1fr)` scrolling vertically inside its own bounded room, never the
+page. The Mixer keeps everything `4c5ec57` gave it — the two-column layout, the compact
+selectable headers and the processing detail panel — untouched.
+
+**Guards.** The four Console guards return to their three-zone contracts
+(`check-console-bridge`, `check-console-transport`, `check-transport`,
+`check-channel-strip`), the `ConsoleRoom.svelte` hash pin returns to `c937b69e2d4c6c2a…`
+in `check-arrange-rows`, `check-arrange-timeline`, `check-bus-return`,
+`check-home-settings` and `check-mixer`, and `check-label-lamp`'s scope list regains
+`ConsoleRoom.svelte` (the correction exemption claimed the room prints legends with
+`EngravedLabel`; it prints none of its own — those headings belong to the bridge, the
+deck and the bank — so the exemption was withdrawn). `check-console-bridge` gains three
+checks (90 → 93): no `channel-detail` zone and no `MixerDetailPanel` import; no selection
+state in the room; the bank's row keeps its `minmax(max-content, 1fr)` floor, so nothing
+above can crush the strips again.
+
+**Measured.** 100 % zoom, real Chromium, production build: 1366 × 768 and 1920 × 1080 both
+render the three zones in order with no detail zone, `scrollHeight` equal to the viewport
+(no page scroll), `scrollWidth` equal to it (no horizontal overflow), the bank at its full
+719 px housing and the strips at their 160 px module width; 52 in-browser assertions pass
+across all six routes, the bank's wheel scroll, the deck's four keys and MIX, the shared
+transport's stopped state, the empty-project notice and the Mixer's selection → detail
+binding. Against the approved baseline (`b172b8b`) the screenshots differ by **0 pixels**
+at both sizes (reduced motion emulated, so the VU needles' drift is not counted).
+`npm run check` 0/0, `npm test` 362/362, 30 guards / 2 430 checks.
+
+**Consequence to note.** The approved desk is 719 px deep beneath a 418 px fixed head, so
+below a ~1 200 px window it scrolls vertically inside the room by design, as it did before
+`4c5ec57`; at 1366 × 768 that is the bank's legend plus the top ~49 px of the strips. Making
+the strips visible without scrolling at 768 px would mean shrinking or collapsing the bridge,
+the deck or the strips — all protected by standing rules — so it is an owner design decision,
+not this correction. The numbers are in `task-reports/8.1.1-report.md` §5.
+
+**Reversible.** Yes: one room file and the guard contract. No shared component, token or
+behaviour is involved.
+
+## Task 8.2 — WAV export and external rulebook integration
+
+**Scope.** Plan §12 (export) and §9 (rulebooks). Functional integration only: no Console,
+Arrange or Mixer layout change, no mini-transport change, no new dependency. The export
+lives at the library level (`src/lib/export/`), the rulebook loader beside it
+(`src/lib/rulebook/`); neither is wired into a screen in this task.
+
+### D8.2.1 — Export is the 7.4 renderer plus a destination and a writer; there is no second pipeline
+
+`renderProject` already renders the complete path with latency compensation, Return tails,
+backpressure and cancellation, and it is the only code that knows how. So an export is:
+
+- one pass over the whole project, whose sink writes the **full mix** and whose **bus
+  taps** write the **bus files** — one pass, so the mix and its bus files are consistent by
+  construction;
+- one scoped pass per track for the **stems**.
+
+**Rejected:** copying audio out of a mix buffer (loses the limiter's latency compensation
+and the Return tails), muting other tracks around one render (a second run through stateful
+DSP, and the mute state is the user's), and re-implementing summing for buses (a second
+pipeline to keep in sync).
+
+**Cost accepted:** `render.ts` gains `RenderOptions.onBuses` and its pinned sha moves from
+`1a08dd23…` to `a08c6d12…`. `check-rendering-structure.mjs` is re-pinned with the reason
+and gains four checks for the tap contract; nothing else in that guard was relaxed, and
+its "same engine processes every block" check was widened to allow the optional fourth
+argument rather than deleted.
+
+**Consequence, deliberately:** taps are handed over **without** subtracting the limiter
+lookahead. The first implementation did subtract it and every bus file arrived 240 frames
+(5 ms) early — the master's own head drop had already compensated it. A test now
+cross-correlates a bus file against the mix and requires the best lag to be **0**.
+
+### D8.2.2 — A stem is that track's channel plus its declared route
+
+A stem is rendered from a project containing exactly one track and only the Returns that
+track's live sends reach, with `sidechains: []`. Consequences, all asserted:
+
+- the track's inserts, pan, fader, mute and solo apply — the stem agrees with the mix;
+- the **bus chain applies**, because the track's route is part of its sound (a stem that
+  bypassed the bus would not sum with the others);
+- **the stems sum to the full mix** over the project's length, sample for sample;
+- a Return's wet signal is shared, effect-only, and reaches the mix through the sends, so
+  the sum is exact only up to the master safety limiter (the sum's overs guard, not a
+  track's processing).
+
+The last point is the one plan §12 asks to "document carefully", so it is documented
+**per stem, in the folder itself**: `export.json` carries `routing.output`,
+`routing.sends[{to, levelDb, inStem: false}]` and a sentence naming the Return to
+re-create and stating that the master limiter is absent.
+
+**Rejected:** putting bus processing only in the bus file and leaving stems pre-bus (the
+stem set would then not reconstruct the mix, and neither file would be "the track's
+sound"); applying the master limiter per stem (it is a sum-level guard; per-stem limiting
+would make the sum wrong).
+
+### D8.2.3 — 32-bit float by default, 24-bit PCM offered, and no mastering at all
+
+Plan §16 fixes 32-bit float internally and forbids mastering, normalisation and a loudness
+target; the safety limiter is an overs guard only.
+
+- **float32 WAV** is the default: the file's samples are the render's samples bit for bit
+  (the test asserts a max sample error of exactly 0 against an unwritten render).
+- **24-bit PCM** is offered because it is what delivery usually wants; it is the only path
+  that can clip, so it rounds, clamps and reports `clipped` per file rather than wrapping.
+- **No dither** (no dither stage exists in this build, and adding one would be inventing
+  DSP behaviour §16 does not authorise), no `-14 LUFS`, no maximisation, no master EQ.
+- `export.json` records `mastering: "none"`, and a test asserts a quiet mix stays quiet and
+  a hot one is held at the ceiling rather than turned down to a target.
+
+**Rejected:** reusing `encodeWav` from `src/lib/audio/wav.ts` — that function is documented
+tests-and-evidence-only and needs the whole file in memory. `WavStreamWriter` streams a
+block at a time, which is what a render delivers.
+
+### D8.2.4 — Names are sanitised, truncated by bytes and deduped case-insensitively
+
+Plan §12 wants predictable, collision-safe names; §17 leaves the convention open. Chosen
+and documented in `data-model.md` §22.4: `<Project>/`, `Stems/NN <Track>.wav`,
+`Buses/NN <Bus>.wav`, `<Project> - mix.wav`, plus `export.json`. Illegal characters,
+leading dots and trailing dots/spaces go; DOS device names are escaped; the budget is
+**80 bytes** (so a multi-byte character is never split); duplicates get ` (2)`, ` (3)`
+**case-insensitively**, because a volume may be case-insensitive and two tracks may share a
+name. The numbers in a stem or bus name come from the model's own `code`, so the files
+match the Console's strip order.
+
+### D8.2.5 — Rulebooks: external JSON only, validated against the engine's own specs, inert by default
+
+- Schema `alloy.rulebook/1`. A rulebook has an `id`, a `name`, and `targets` scoped to
+  `all`, a `family` or a `role`.
+- **The parameter vocabulary is the engine's `ParamSpec` objects, by identity**
+  (`RULES[...].spec === EQ_GAIN`). A rulebook therefore cannot invent a control, a unit or
+  a range — a test asserts the identity so a copy cannot silently drift.
+- **Locked decisions are refused by name** (`PINNED_PATHS`): priority, tier, mode,
+  ownership, routing, output, sends, master. §16 is not negotiable by a data file.
+- **Problems, never throws**: `{ok: false, problems: [{kind, path, message}]}` with JSON
+  paths, every problem collected so a file can be fixed in one pass. `missing` and
+  `malformed-json` and `unsupported-schema` are separate kinds, because "no such file",
+  "not JSON" and "written for a newer build" are three different things to tell a user.
+- **Application is the lowest-precedence nudge**, after tier/priority and masking: only
+  `auto` values are written (a Manual value is the user's), values are clamped and stepped
+  to the spec, unmatched scopes are reported, and the project is copied on write.
+- **The shipped rulebook is inert.** Plan §9 defers the numeric contents, so
+  `PLACEHOLDER_RULEBOOK` is valid, changes nothing, and says so in its own `$comment`.
+  **No genre-specific value was invented or tuned**, which was an explicit constraint.
+
+**Rejected:** baking rulebooks into the bundle as TypeScript constants (the task asks for
+external JSON), and a rulebook that can express routing or ownership (that would let a data
+file overrule decisions the plan locked).
+
+### D8.2.6 — Two test suites, and a guard that pins the shape rather than the prose
+
+`tests/export.test.mjs` (38 tests) renders through the real engine and asserts the bytes:
+the mix file equals an unwritten render exactly, the stems sum to the mix, a bus file is
+the bus's own processed output and is aligned with the mix, the format and sample rate are
+the project's, a quiet mix stays quiet, a hot one is held but not normalised, collisions
+resolve, empty selections and failures are reported, and two exports of one project are
+byte-identical.
+
+`tests/rulebook.test.mjs` (20 tests) loads **real fixture files**
+(`tests/fixtures/rulebooks/`) so "missing", "malformed" and "wrong schema" are exercised
+against a file system, then asserts the validation matrix, the Auto-only rule, clamping,
+idempotence and that routing/sends/priority are untouchable.
+
+`scripts/check-export-structure.mjs` (`npm run check:export`, 95 checks) guards the shape:
+no second pipeline, no mastering stage, the format and folder contract, the naming rules,
+the failure behaviour, the rulebook's limits, that both suites are wired into `npm test`,
+that no dependency was added, and that the rooms were not touched.
+
+**Reversible.** Yes: new modules under `src/lib/export/` and `src/lib/rulebook/`, one
+optional renderer option, one guard, two suites, docs. Removing them leaves the transport
+exactly as it was.
+
+## Task 9.1 — Stabilization and end-to-end verification (2026-11-05; uncommitted, awaiting review — the owner handles Git)
+
+**Scope.** Plan §14 Task 9.1 only: verify the complete workflow, fix reproducible
+stabilization defects, audit the mini transport against §3 / Phase 0.6, and document
+verified behaviour. No visual redesign, no new feature, no dependency change, no DSP
+behaviour change. **Nothing committed, tagged or pushed.** Report:
+`task-reports/9.1-stabilization.md`.
+
+### D9.1.1 — The transport measures the playable length without playing (builder, 2026-11-05)
+
+**Context.** `durationFrames` began at 0 and was written only inside `startPlayback()`, so
+it was 0 until something played. PREVIOUS and NEXT call `seek(startFrame)` and
+`seek(durationFrames)`, and `seek` is `clampFrame(frames, durationFrames)`: with a length
+of 0 both located to 0. The two locate keys therefore did nothing until the user had
+played once, and the position readout's denominator was meaningless. The controller had no
+way to learn the length, so the shell had nothing to call.
+
+**Decision.** `PlaybackController.refreshDuration()` opens the sources, computes
+`sourceDurationFrames` for the current mode, and sets **only** `durationFrames` — it does
+not play, pause, seek or change status. `setSource()` no longer blanks the length; it keeps
+it and refreshes it for the new mode (PREVIEW and RENDER add the effect tail, so the
+answer legitimately differs). `installPlaybackShell` measures once at install and again
+when the project's **structure** moves.
+
+**Trigger.** The project store's own history is the notification: an import, a project
+switch (`loadProject`) and an undo/redo past a structural change all emit `clear`, while
+an ordinary parameter edit emits only `record`/`merge`. A fader move therefore never pays
+for a re-measure — pinned by a test that would fail if the trigger were widened.
+
+**Safe failure, deliberately.** A refresh that cannot open the sources is silent: a length
+is a convenience, and the next PLAY reports anything that is genuinely wrong. A failed
+measurement must never turn the transport into an error state.
+
+**Reversible.** Yes: one controller method, one facade line, one shell subscription. Removing
+them restores the previous behaviour exactly.
+
+### D9.1.2 — The listening-source selector: Option B plus one small control, in the persistent strip (owner choice 2026-11-05; **implemented as Task 9.1.1**)
+
+**History.** `D2.3.2` (owner, 2026-10-31) decided the source is "printed as text … and selected
+nowhere", restated by `D8.1.1`; a key column written during 9.1 was reverted for that reason. The
+owner then approved a selector, chose **Option B** (bind the modes to existing controls, keep the
+four-key deck), and — after B was shown to have no conflict-free mapping, because the app's only
+five interactive controls are all committed and PREVIEW had no candidate — chose **(a): B plus one
+small, visible three-position control**.
+
+**Decision.** A three-position **RAW / PREVIEW / RENDER** control, as the owner specified: the four
+approved keys and MIX keep exactly their functions, nothing is repurposed, and the room layout is
+redesigned in no way.
+
+**Where it lives, and why there.** In the **persistent mini transport**, as `MiniTransportSource.svelte`
+mounted beside the transport keys. The strip is the one surface rendered outside the room switch, so
+the control is visible and usable in **Console, Arrange and Mixer** alike. The Console deck was
+deliberately left untouched: putting it there would have changed approved deck markup and D2.3.2's
+four-key roster. This choice also keeps `check:console-transport`'s "selected nowhere" meaning intact
+— that check still holds for the deck, and a new check asserts the selector is not on the deck.
+
+**How the active mode is identifiable — three ways, deliberately.** The engaged position is drawn
+inverted in the bar's existing neutral palette (the same treatment as PLAY's emphasis, no new
+colour); it carries `aria-pressed`; and the transport's status readout beside it — unchanged, and
+already printing `Stopped — RAW / PREVIEW / RENDER` — confirms it in words. Each position also has an
+`aria-label` naming the mode and what it means.
+
+**Behaviour.** Selecting a mode calls the shared facade's `setSource`; it does nothing else. Choosing
+a mode while stopped does not start playback. The playhead position and the playable length survive a
+switch (`S9.1.2`), and a switch made while playing restarts at the same position in the new mode.
+Choosing the mode already in use is a no-op. **STOP, PREVIOUS and NEXT leave the mode alone** — the
+selector is the only thing that changes it, so stopping to make an edit does not silently discard the
+rendered mix the user was comparing against (plan §10). RAW after MIX now works, which is the defect
+the control exists to fix.
+
+**Guards: three re-pins, no relaxations, and new protection.** `src/components/MiniTransport.svelte`
+is hash-pinned in three guards (`check-console-transport`, `check-arrange-rows`,
+`check-home-settings`); each was re-pinned from `ea6ec47f…` to `d52703bb…` with the reason recorded
+inline. Nothing was deleted: the deck's key-count, symbol and "selected nowhere" checks still pass
+unchanged, and the min-height, fixed-position and token checks are untouched.
+`check-transport-structure` **gains 8 checks** (34 → 42): one selector mounted from its own
+component; exactly the plan's three modes in order as real buttons; selection drives `setSource`
+and nothing else; the three-way active identification; per-mode accessible naming; no height, audio
+context, timer, storage or dependency added; no keyboard-shortcut handling; and that the four keys
+keep their exact functions with `setSource` absent from the strip. `check-console-transport` gains
+one check asserting the selector is not on the deck (102 → 103).
+
+**Tests: 6 added.** Five in `tests/playback.test.mjs` (24 total): all three modes selectable through
+the facade; RAW restored after RENDER; a mode chosen while stopped starts nothing; the mode survives
+STOP / PREVIOUS / NEXT; re-selecting the current mode is a no-op. One in
+`tests/integration.test.mjs` (14 total) proving the two modes produce **different audio** — raw is the
+summed stems, render applies the channel strip, so the comparison plan §10 requires is real rather
+than a label change. Mutation-checked: removing `setSource`, dropping `aria-pressed`, and repurposing
+PLAY to carry PREVIEW each fail the guards.
+
+**Masking stays deferred** (`D9.1.3`): MIX still does not resolve masking. Not part of this task.
+
+**Reversible.** Yes: one new component, one mount line and one import in the strip, and the guard
+re-pins. Removing them returns the strip to its 8.1 state, and the deck was never touched.
+
+### D9.1.3 — MIX still does not resolve masking (found in 9.1, deferred)
+
+`measureMaskingSources`, `detectMaskingConflicts`, `resolveMaskingConflicts` and
+`resolveMaskingAudio` are implemented and tested but called by **no file in `src/`**. The
+engine accepts `maskingDynamicBands`; nothing supplies them. MIX is therefore a straight
+render without conflict resolution, and plan §15's "Auto recalculated on rerun / Manual
+preserved" is verified in the engine, not through the integrated path. 7.3 deferred
+masking→store/UI/persistence explicitly; this needs the MIX orchestration task, not a
+stabilization patch. **Not implemented in 9.1.**
+
+### D9.1.4 — A guard that pinned a literal punished the act of adding a test suite (builder, 2026-11-05)
+
+`check-editing-structure.mjs` compared the whole `npm test` string to one literal. Its
+subject is the editing layer, so adding a suite failed it — and it would have accepted a
+command that silently dropped a file, as long as the string matched.
+
+**Changed, strengthened.** It now asserts the intent: the command uses the project loader
+and `node:test`, every suite it names exists on disk, the Task 3.2–8.2 suites keep their
+original order, and any suite beyond that roster must be on a named sanctioned list
+(`tests/integration.test.mjs`, added by 9.1). Verified to still fail on a removed suite and
+on an unsanctioned addition, naming the offending file. No other guard was relaxed: all 32
+pass, 2 562 checks, and the count is unchanged.
+
+**Reversible.** Yes: the check is one expression in one guard.
+
+### D9.1.2a — The app boots an EMPTY project; the development session is dev/test data (owner, 2026-11-05)
+
+**Context — a user-facing defect found in the browser, after 9.1 shipped.** A user imported
+11 stems (48 kHz, 32-bit float) and heard nothing, while the transport reported
+`Playing — RAW` and the clock advanced. The chain was sound: the fixture session ships
+**track 15 "Lead Vocal" SOLOED** (and two tracks muted), solo silences every other track
+(`computeAudibility` → `outputPasses` false), and the 11 imported stems became tracks 21–31.
+Nothing in the UI said a fixture track the user had never touched was silencing them. The
+solo is real fixture data, not a bug in the mixer.
+
+**Owner decision.** Remove the mock project as the starting point: ALLOY must open an EMPTY
+project. Keep the fixture session as development/test data.
+
+**What changed.**
+
+- `store.svelte.ts` boots `createEmptyProject(...)` instead of `createSessionProject()`.
+  It is still the one `$state` tree — the guard for that is unchanged in substance and now
+  asserts the empty boot.
+- `lifecycle.restoreLast()` reports `outcome: "empty"` when nothing is restored, because the
+  project it keeps is the empty one. `"fixture"` stays in the union for saved manifests that
+  still name the development session; `bootOutcome()` reads the open project's template so the
+  report is true rather than assumed.
+- **New `tests/fixture-session.mjs`**: `loadFixtureSession()` replaces the open project with the
+  development session *and* retargets autosave to that project's key, exactly as the lifecycle
+  does on a switch. Four suites (`store`, `editing`, `shell`) and the parts of `lifecycle` that
+  test fixture behaviour now load it **explicitly** instead of inheriting it from a default.
+  That is the honest form: those tests are about the fixture, so they say so.
+- The fixture modules themselves are **untouched**, and the dev playground still shows them.
+
+**Guards: 4 re-pins, 3 checks rewritten, none weakened.** `store.svelte.ts`, `lifecycle.ts` and
+`tests/store.test.mjs` are hash-pinned in four guards; each re-pinned with the reason inline.
+Three checks changed subject rather than being deleted: the store guard now asserts the empty
+boot (still one `$state` tree), the mixer-chain guard accepts the empty boot while still
+requiring the Return fixtures to build the chain when the session is loaded, and the
+`restoreLast` guard now requires `bootOutcome()` and the `empty` outcome.
+
+**Tests: 2 added** to `tests/integration.test.mjs` — the app boots empty, and the fixture
+session really does silence its other tracks (so the reason for this change cannot quietly
+outlive its cause). Total 444 → 446.
+
+**Deliberately not done.** The fixture-drawn timeline waveforms still exist *in the fixture*;
+a new empty project draws nothing, which is the correct outcome for an empty project. Removing
+the fixture drawing code outright was offered and declined in favour of this narrower change.
+
+**Reversible.** Yes: one line in the store, the `bootOutcome` helper, the helper module and the
+test wiring.
+
+### D9.1.3 — A finished mix is a recorded fact, not a reading of the live progress gauge (owner, 2026-11-05)
+
+**Context — a second browser defect, reported alongside the first.** The owner pressed MIX, watched
+it run to completion, and nothing changed: the deck fell back to `Ready`, and the status display
+never reported a mix. The three listening sources (RAW / PREVIEW / RENDER) worked; the *completion*
+of an automatic mix was simply never shown, and nothing distinguished a mixed session from an
+unmixed one.
+
+**Root cause.** `ConsoleTransport` decided completion with
+`transport.source === "render" && transport.renderProgress === 1`.
+`renderProgress` is a **live gauge**: it is 0–1 while a render runs and `null` at every other
+moment, and every path that ends a run clears it — including the render's *own* completion
+(`controller.ts`, end of `runRender`: `renderProgress: null`). The `finish()` callback that set
+`renderProgress` to 1 is immediately undone by the transport state that follows it. So the
+expression could not be true at any moment a component could observe, and the "complete" branch of
+the Mix button, its lit lamp, the `Mixed` status word and `Rerun available` were all unreachable.
+
+This is a **state-modelling** defect, not a display one: the engine rendered correctly throughout
+(verified: a one-track project renders 48 000 frames at peak 0.3536 and streams them to the
+output), and the deck was honest about the state it was given. There was no fact to display.
+
+**Fix.** Completion becomes its own recorded state, in the controller that owns transport state:
+
+- `PlaybackState.renderProgress` is unchanged and still means the live gauge.
+- New `PlaybackState.mixRevision: number | null` and `mixedAt: string | null`. Both are set at the
+  very end of `runRender`, **after** the gauge is cleared, so the record and the gauge cannot
+  contradict each other.
+- `mixRevision` is **monotonic** (`private mixRevisions`), so a rerun after a cleared mix gets a new
+  number rather than reusing the previous one. `clearMix()` sets the *state* to null; it does not
+  rewind the counter.
+- It survives `pause`, `stop`, `seek` and `setSource` — moving the playhead or choosing to listen
+  to RAW does not discard a mix the user still has, and RAW → RENDER after a MIX finds it there.
+- It is dropped by `clearMix()`, which `installPlaybackShell` calls on the same project-history
+  `clear` events that already trigger a duration refresh: import, project switch, undo past one. A
+  mix that no longer describes the open project stops claiming to.
+- A **failed** render never records one; the error path leaves `mixRevision` null.
+
+**Clock.** `mixedAt` needs a wall clock, and the controller reads no globals, so `PlaybackClock`
+gains `now(): string` (HH:MM). The shell supplies `new Date()`; tests supply a fixed `"14:02"`, so
+the "Mixed — at …" detail is assertable instead of raced.
+
+**Guards.** 7 checks added to `check-playback-structure` pinning all of the above, including the
+*ordering* (the record is written after the gauge is cleared) and the monotonicity. Two guards that
+hash-pin `ConsoleTransport.svelte` were re-pinned: the change there is two expressions in the
+script block, with no markup, class, style or DOM contract touched — the approved visual structure
+is intact and the rest of those guards still assert it. **Mutation-checked:** reverting the record
+makes 3 of the new tests fail.
+
+**Tests: 4 added** (446 → 450) — a completed mix is reported complete; pause/stop/seek/source
+changes keep it; a project change drops it and a rerun is numbered onwards; a failed render records
+nothing.
+
+**Not done, deliberately.** The deck does not count "manual edits since the mix" (`editsSince`), and
+MIX still does not resolve masking (D9.1.2 / Task 10). Both are separate scoped work.
+
+**Reversible.** Yes: the two state fields, one `set` block, `clearMix()`, one `now()` on the clock,
+and the Console's `complete` expression.
+
+### D9.2.1 — Top bar, room headers and transport strip (owner, 2026-11-05)
+
+The owner supplied a UI overhaul instruction with three annotated screenshots. This decision records
+what was changed, and — more importantly — the three points where it **reverses an earlier locked
+instruction**. Those reversals are explicit owner decisions, not drift, and each is recorded with the
+guard that had to change.
+
+**Removed from the top bar.** The ALLOY wordmark, the `01/02/03` tab prefixes, and the Settings
+button.
+
+**Removed from the rooms.** The Console header box, the Mixer header box and its subtitle, and the
+whole dark `IMPORT STEMS` band from Arrange. The first two use `RoomShell`'s existing `hideHeader`
+(already how Arrange hid its own); the `<h1>` stays in the DOM as the section's accessible name.
+
+**Removed from the transport strip.** The printed `MINI TRANSPORT`, `SOURCE`, `POSITION / TIME` and
+`STATUS` labels, and the explanatory paragraph on the right. The controls and the live values are
+untouched. Nothing was lost from the accessible tree: the bar keeps `aria-label`, and the two value
+labels became visually-hidden text, so a screen reader still hears "Position and time 00:00:00.000".
+
+**Added.** A `MenuBar` (File · Edit · View · Help) and an `AppToolbar` (Import stems · Undo · Redo ·
+Save). Import is reachable three ways — toolbar, `File > Import stems…`, and `Ctrl/Cmd+I` — all
+pointing at **one** file input that now lives in the shell; the per-room band and its duplicate input
+are gone. `Ctrl/Cmd+S` saves.
+
+#### The three reversals
+
+1. **Home was the wordmark; it is now the fourth tab.** `App.svelte` carried
+   `<!-- The wordmark is the way Home (Task 4.1, owner D4.1.3). -->`, and Home is not one of the
+   three rooms — removing the name would have removed the only route home. Asked directly, the owner
+   chose *a fourth navigation tab*. Home is therefore a nav destination but **not** a `RoomId`: the
+   room model still has exactly three, because a room is a workspace with a transport-bearing canvas
+   and Home is a screen of recent projects.
+2. **Undo / redo / save were forbidden in the UI.** `check-editing` asserted "no visible undo / redo
+   / copy / paste / autosave control or text anywhere in the UI (owner: shortcuts only, store / API
+   only)". The owner now asked for exactly those buttons in the toolbar. The check is rewritten, not
+   deleted: the clipboard must **still** be invisible, and the toolbar must bind to the one project
+   history and the one autosave rather than opening state of its own.
+3. **The Arrange band was pinned as "the first thing in the room".** `check-audio-import` asserted
+   it; the owner ordered the band removed. The check inverts, and the invariant it was protecting is
+   kept and strengthened: there is still exactly one file picker, still the platform's input, still
+   `multiple` and WAV-only, and every entry point reaches that one input.
+
+#### Save means something
+
+The app saves itself (a debounced autosave after every edit), so a Save button would be inert if it
+were cosmetic. The toolbar's Save **flushes the pending write immediately** and reports what
+happened — including "Not saved — storage unavailable" when storage is missing. It is the only
+meaning a Save key can have in an auto-saving app.
+
+#### Menu items deliberately absent
+
+There is no New / Open / Save-As / Export row. A project is created and reopened from Home, saved
+automatically, and export has no UI yet. Printing disabled rows for them would advertise what the app
+cannot do, so they are documented as absent instead.
+
+#### Guards
+
+32 guards, **2 584 checks, 0 failing** (was 2 578). Six substantive assertions were rewritten to
+their new subject (transport naming and shortcut ownership, the editing ban, the import band, the
+app/home/settings contract, and two wordmark pins). 25 hash pins across 10 guards were re-pointed,
+each carrying an inline note naming this decision; the checks around each pin still assert that
+file's real contract.
+
+#### Tests
+
+5 added to `tests/integration.test.mjs` (450 → 455): the top bar carries no wordmark, tab numbers or
+Settings button; Home is the fourth tab and still not a room; the toolbar's actions are real
+bindings and Save reports honestly; exactly one file picker with every entry point reaching it; the
+transport keeps its controls and values but loses its decorative text. **Mutation-checked:** removing
+the Home tab fails the Home test.
+
+#### Not done
+
+No visual redesign beyond the removals and the new chrome; no resize behaviour changed in the rooms.
+The "final design assets" in the instruction do not exist in this repository — there are no image
+assets of any kind, so the existing token/component language was used throughout.
+
+**Reversible.** Yes: each removal is a discrete block, and the guards record what each one replaced.
+
+### D9.3.1 — The chrome is hardware: tactile keys, one band, thin bar (owner, 2026-11-05)
+
+**Owner's review of the 9.2 pass**, in their words: the new buttons "should be a proper buttons
+like the whole other buttons in the app — find every button across the whole tabs that looks like
+this"; "all the grey areas should be the same as the area painted green … the whole app, the whole
+tabs should look like a hardware"; and the bar must read "menus => tools buttons => tabs buttons",
+be "thin not taking a hug junk of the window", and be "the same across the three tabs".
+
+This is a correction of my own work: 9.2 built the chrome as grey web buttons on a grey bar, sitting
+next to a hardware console. The owner is right, and the plan's whole premise (§4, the hardware
+reference spec) is that this application looks like a machine.
+
+**Three new pieces, each reused rather than repeated:**
+
+- **`ToolbarKey.svelte`** — the approved cream cap from `TactileSwitch` variant A, rebuilt at chrome
+  scale: the same 135° convex ramp, the same edge lights and shades, the same specular bloom, the
+  same 2–3 px wall and foot, the same press that sinks it to a 1 px wall. The recipe is **copied
+  value for value**, because "looks similar" is exactly what was rejected. Differences, all
+  deliberate: a wide cap sized by its label, **no lamp** (these are momentary commands and a lamp
+  would claim a state that does not exist), and an `active` mode that paints the cap dark for the
+  one case that genuinely is a selection.
+- **`ChromeBand.svelte`** — the single material for the top bar *and* the transport strip, so the two
+  cannot drift apart: warm near-black plate, lit top bevel, shaded bottom bevel, subtle vertical
+  brushing, walnut cheeks. Built from the shared material tokens, recipe copied from the Console
+  housing.
+- **`RoomNav`** draws the same cap around each tab. The tabs had to stay `<a>` elements (they are
+  navigation and must remain openable and readable as destinations), so the recipe is written out
+  there too — identically, because a tab and a key that differed by one gradient stop would read as
+  two materials.
+
+**Every button, across every tab.** Menus, toolbar, listening source, transport keys and the tabs
+now all use one of the two caps. The remaining raw `<button>`s in shipping code were checked: they
+are either already hardware (`MixButton`, `Knob`, `Fader`, `ScribbleSelect`'s material menu) or
+invisible hit areas (the Mixer's selectable strip, a `<button>` used as a whole-listbox row).
+
+**The ground.** The page was `#e4e4e4` office grey — the "yellow" in the owner's markup. It is now
+`--al-material-recess`, the cabinet colour the decks sit on, so the chrome and the rooms read as one
+machine. Every remaining near-white surface in shipping code was converted to material tokens:
+the app notice, the room placeholder, the screens' header band and panel, and the last `#a3a3a3`
+border left on the Home and Settings screens.
+
+**The dead placeholder.** `ChannelStrip.svelte` was restyled in passing and then **reverted**: nothing
+imports it, and `check-channel-strip` pins it byte-identical as a Phase 0 artefact. Restyling dead
+code and rewriting its guard would have been strictly worse than leaving it alone. It is the single
+documented exception in the new "no light surfaces" test, with that reason recorded.
+
+**Bar layout.** One row inside the band: menus → tools → tabs, with the tabs pushed to the right
+edge, and thin padding (0.375rem) so the bar does not eat the window. It is the same bar in all
+three rooms because it is drawn once by `App.svelte`, outside the room host.
+
+#### Guards — 8 assertions rewritten, 29 pins re-pointed, none weakened
+
+- `check-transport`: the strip is a band now, so "height comes from the token" became "the app still
+  reserves exactly the shared height"; "real buttons" became "one tactile key per control" **plus**
+  a new assertion that `ToolbarKey` really renders a `<button>` underneath; the active-mode and
+  naming checks moved onto the key's props; the retired note's `aria-describedby` was replaced by
+  the key's own accessible name, which carries the hint.
+- `check-tokens`: `RoomNav` and `MiniTransport` **left the "no Phase 2 skinning" placeholder list**,
+  exactly as seven other files left it in Tasks 2.2–2.8. That rule exists to stop *placeholders*
+  being skinned early, and these are no longer placeholders — the owner has skinned them by
+  instruction. `ChannelStrip` stays on the list.
+- `check-home-settings`: "tokens only on the screens, one hard-coded exception" was reversed by
+  instruction; it now asserts what the rule protected — no invented hex outside app.css, no glow,
+  no filter, no gradient text, no animation.
+- `check-audio-import` / `check-editing`: the hooks moved from `data-toolbar-action` to `hook`.
+
+#### Tests: 4 added (455 → 459)
+
+Every chrome button is the approved tactile cap (asserted across all four surfaces); no light
+web-grey surface survives in shipping code; the top bar is one band reading menus → tools → tabs;
+the transport strip and the top bar share one band component. **Mutation-checked** by construction:
+the "no light surfaces" scan found the leftover `#a3a3a3` on both screens, which is how those two
+were caught.
+
+#### Verification
+
+```text
+npm test        # tests 459   # pass 459   # fail 0
+npm run check   # 0 errors, 0 warnings
+npm run build   # ✓ 673.76 kB │ gzip: 185.77 kB
+32 guards       # 2 582/2 582 checks, 0 failing
+```
+
+The built bundle was grepped to confirm the cream cap (`--al-function-cream-hi`) and the walnut
+cheek (`--al-material-wood`) are actually in the shipped CSS, and that the old `#d2d2d2` bar is gone.
+
+**Not verified: the pixels.** No browser is available here; this is static and served-markup
+verification. The live preview is running for exactly this check.
+
+**Reversible.** Yes: two components, one shared band, and a set of token substitutions.

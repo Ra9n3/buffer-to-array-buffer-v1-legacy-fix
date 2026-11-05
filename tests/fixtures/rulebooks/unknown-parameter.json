@@ -1,0 +1,8 @@
+{
+  "schema": "alloy.rulebook/1",
+  "id": "typo",
+  "name": "Typo",
+  "targets": [
+    { "scope": "all", "settings": [{ "parameter": "compressor.treshold", "value": -18 }] }
+  ]
+}

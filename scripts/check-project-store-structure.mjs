@@ -130,7 +130,7 @@ check("the kind label and the output label are model helpers (Master, or the bus
 check("no routing graph, cycle detection, undo, persistence, decoding or final DSP in the model (Task 5.1 adds the stem's facts — `TrackAudio` — not its samples: no buffers, no Web Audio)", !/graph|cycle|undo|redo|history|snapshot|localStorage|JSON\.|fetch|AudioContext|gainNode|latency|Float32Array|ArrayBuffer|Blob|decode/i.test(M) && (M.match(/sampleRate/g) ?? []).length === 1);
 
 // --- 2. The store. ------------------------------------------------------------------------
-check("ONE authoritative store: a single module-level `$state` tree opened with the session; nothing else in src creates project state", /const state: Project = \$state\(createSessionProject\(\)\);/.test(ST) && count(ST, /\$state\(/g) === 1 && /import \{ createSessionProject \} from "\.\/session";/.test(ST) && FILES.store.endsWith(".svelte.ts"));
+check("ONE authoritative store: a single module-level `$state` tree, booted as an EMPTY project (Task 9.1.2: a new user importing stems must not lose them to a fixture solo); nothing else in src creates project state", /const state: Project = \$state\(createEmptyProject\([^)]*\)\);/ .test(ST) && count(ST, /\$state\(/g) === 1 && /import \{ createEmptyProject \} from "\.\/templates";/.test(ST) && FILES.store.endsWith(".svelte.ts"));
 check("unknown ids are programming errors, never silent no-ops (mustTrack / mustReturn / mustBus / mustSlot throw)", /function mustTrack\(id: TrackId\): Track \{[\s\S]*?throw new Error\(`unknown track: \$\{id\}`\);/.test(ST) && /function mustReturn\(id: ReturnBusId\): ReturnBus \{[\s\S]*?throw new Error\(`unknown Return bus: \$\{id\}`\);/.test(ST) && /function mustBus\(id: BusId\): Bus \{[\s\S]*?throw new Error\(`unknown bus: \$\{id\}`\);/.test(ST) && /function mustSlot\(track: Track, slot: number\): number/.test(ST));
 check("reads: tracks · returns · buses · arrangement · channels (Mixer order) · lookups by id · tierOf · sendsInto (live selector) · sendReturns · outputLabel", /export const project = \{/.test(ST) && /get tracks\(\): readonly Track\[\] \{\s*return state\.tracks;/.test(ST) && /get returns\(\): readonly ReturnBus\[\]/.test(ST) && /get buses\(\): readonly Bus\[\]/.test(ST) && /get arrangement\(\) \{\s*return state\.arrangement;/.test(ST) && /get channels\(\): readonly Channel\[\] \{\s*return \[\.\.\.state\.tracks, \.\.\.state\.returns, \.\.\.state\.buses\];/.test(ST) && /channel\(id: string\): Channel \| undefined \{\s*if \(isTrackId\(id\)\) return project\.track\(id\);\s*if \(isReturnBusId\(id\)\) return project\.returnBus\(id\);\s*if \(isBusId\(id\)\) return project\.bus\(id\);\s*return undefined;/.test(ST) && /tierOf\(track: Track\): ProminenceTier \{\s*return tierOfPriority\(track\.priority\);/.test(ST) && /sendsInto\(returnId: ReturnBusId\): SendInto\[\]/.test(ST) && /get sendReturns\(\): readonly SendReturnOption\[\] \{\s*return state\.returns\.map\(\(r\) => \(\{ id: r\.id, name: r\.name, short: r\.short \}\)\);/.test(ST) && /outputLabel\(ref: OutputRef\): string \{\s*return outputLabel\(ref, state\.buses\);/.test(ST));
 // Task 3.2 added setSendMode (send ownership, plan §5) and the two routing writes (no control binds them yet).
@@ -198,7 +198,9 @@ const pinned = {
   // added in Task 3.1, as reviewed
   "src/lib/project/model.ts": "7df7e5b93e21573d82f022ad46ab46245db01d9ba9e00ce780cb8ab27f4bc541",
   "src/lib/project/session.ts": "079a77226200f30858f9588aafa0cb50b30b5c182b8e15a63f0fe9231a4736d5",
-  "src/lib/project/store.svelte.ts": "350d510d6d43fe679680731f1b5b11668fa5bbc065c51f781b624873fb2aaec2",
+    // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
+  // development session. Nothing was deleted from it; see the decision log (D9.1.2).
+  "src/lib/project/store.svelte.ts": "034ff8091b56cc350cb396cfdda6ef1926d2ad15a400ad2ede3807189d87f36c",
   "src/components/channel-strip/strip-live.ts": "99603dc16c898e0887c24b5f821b8547ee747342138e8a8b0ebc63e48fa66c7b",
   "src/components/arrange-row-live.ts": "662d88b7d08f9fed17e36296434a48889ca511ac7d608848bd156ca9e63cc1f7",
   // touched in Task 3.1, as reviewed
@@ -211,8 +213,26 @@ const pinned = {
   "src/components/channel-strip/BusMasterStrip.svelte": "0b2187e0ffa445aabd372d5fc65e083016123c7667bc4fb34083d1162e5b1dd4",
   "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
-  "src/rooms/ArrangeRoom.svelte": "151201bade03fb614483c92b3d0b55d25e8ecea67f25ee9166521858fa0de273",
-  "src/rooms/MixerRoom.svelte": "837061893411c069d3546f7f7ef7f9d0a837673d47249e28ecbe43108f058b61",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/ArrangeRoom.svelte": "6e276cdccbbc9273228a224ecbbd3e4c39c7938aecfdaf6f2cddb09b9ce2949c",
+    // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
+  // part of the approved removals/additions — see decisions-log D9.2.1 — and the
+  // checks around this pin still assert the file's real contract.
+
+    // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
+  // The change to this file is the approved restyle — see decisions-log D9.3.1 —
+  // and the checks around this pin still assert the file's real contract.
+
+
+  "src/rooms/MixerRoom.svelte": "b6a73be6e10e2c5c63308477342f8cf3b312a971790c3251ac78fa73233f2c6b",
   "src/components/mixer/MixerBank.svelte": "4f81961d110de391d5eed77ac3b033bcb0894b306975cef7e3137d22b81359d5",
   "src/components/mixer/MixerTrackStrip.svelte": "b5107fb09a39d9516ae57ca4254465d45cca2c4c6aaa4868fbb87917f1a36122",
   "src/components/mixer/MixerReturnStrip.svelte": "b9041f86f91553ecc9afe61dc5daa596eb28c81be2f2892c2c2e320254809109",

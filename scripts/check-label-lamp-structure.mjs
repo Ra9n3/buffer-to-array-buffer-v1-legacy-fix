@@ -212,10 +212,11 @@ check(
   // ChannelBank.svelte left this list in Task 2.2: the skinned bank prints its legends with EngravedLabel.
   // ArrangeRoom.svelte left in Task 2.5: the track list's header prints its legends with EngravedLabel.
   // MixerDetailPanel.svelte left in Task 2.8: the processing-chain detail panel prints its legends with EngravedLabel.
-  // ConsoleRoom.svelte, MixerRoom.svelte and MixerChannelStrip.svelte left
-  // with the approved-layout recovery: their skinned faces print their
-  // legends with EngravedLabel.
-  ["src/components/ChannelStrip.svelte", "src/components/MiniTransport.svelte", "src/lib/mixer.ts", "src/lib/arrange.ts", "src/lib/rooms.ts"]
+  // MixerRoom.svelte and MixerChannelStrip.svelte left in the approved-layout
+  // recovery: their faces print their legends with EngravedLabel. ConsoleRoom
+  // did NOT leave: it renders no legend of its own (its zones' headings belong
+  // to the bridge, the deck and the bank), so this guard keeps it honest.
+  ["src/rooms/ConsoleRoom.svelte", "src/components/ChannelStrip.svelte", "src/components/MiniTransport.svelte", "src/lib/mixer.ts", "src/lib/arrange.ts", "src/lib/rooms.ts"]
     .filter(exists)
     .every((rel) => !/EngravedLabel|hardware\/Lamp|<Lamp\b/.test(read(rel))),
 );
