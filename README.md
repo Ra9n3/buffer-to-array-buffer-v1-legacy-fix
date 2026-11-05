@@ -71,6 +71,26 @@ There is no per-room copy of a track, a level, a mute, a solo or a name: a chang
 made in the Console is what the Mixer and the Arrange rows read on their next
 render. Cross-room consistency is structural, not synchronised after the fact.
 
+### Starting state
+
+ALLOY opens an **empty project** — no tracks, no Returns, no buses — and every room shows its
+empty state. Import stems to begin. (Until Task 9.1.2 it opened the 20-track development
+fixture, which ships a solo on "Lead Vocal"; a user who imported 11 stems heard silence and had
+no way to know why. The fixture is now development/test data only, available in the private
+`#/dev/components` playground.)
+
+### Automatic mix
+
+MIX renders the whole session through the mix engine and plays the result. When it finishes the
+deck's status display reads **Mixed** — with the time it was made and **Rerun available** — and the
+button returns to `ready` for another run. The listening source stays on RENDER, so pressing PLAY
+plays the mix you just made; RAW and PREVIEW remain selectable at any time.
+
+A finished mix is forgotten only when the project changes underneath it (an import, a project
+switch, an undo past one). Moving the playhead, stopping, or listening to RAW does not discard it.
+The mix is streamed to the output as it is produced — nothing is written to disk, and there is no
+export UI yet.
+
 ### Import
 
 Drag or choose WAV files in the Arrange room's import band.
@@ -192,18 +212,22 @@ tests/                            36 suites, 425 tests, no browser required
 
 Full detail in `task-reports/9.1-stabilization.md`. In short:
 
-1. **Nothing about the listening source is outstanding** — it was the last functional hole
+1. **There is no on-screen playhead.** The only position feedback is the numeric
+   `POSITION / TIME` readout in the mini transport. Nothing moves on the timeline during
+   playback, and the Arrange timeline is not clickable to seek. Recorded rather than
+   papered over; not yet scheduled.
+2. **Nothing about the listening source is outstanding** — it was the last functional hole
    in the transport and it is closed. RAW / PREVIEW / RENDER are all selectable from the
    source selector in the mini transport, the active mode is shown in
    `Stopped — RAW / PREVIEW / RENDER`, and RAW is reachable again after MIX. The selector is
    **not saved with the project**: a reload starts at RAW.
-2. **MIX does not resolve masking**, so the Auto-vs-Manual and rerun semantics of
+3. **MIX does not resolve masking**, so the Auto-vs-Manual and rerun semantics of
    plan §10/§15 are verified in the engine, not in the integrated path.
-3. **No export UI and no open-project UI.**
-4. **None of the UI has been exercised in a browser here.** This environment has no
+4. **No export UI and no open-project UI.**
+5. **None of the UI has been exercised in a browser here.** This environment has no
    browser, so all browser-level behaviour is verified only through the logic the
    components call. A manual pass is still required.
-5. **There is no Tauri shell** — the native port has not started; see the
+6. **There is no Tauri shell** — the native port has not started; see the
    native-port section of the 9.1 report for what it requires.
 
 ## Retired documentation site

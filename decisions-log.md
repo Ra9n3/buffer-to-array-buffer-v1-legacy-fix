@@ -4670,3 +4670,108 @@ on an unsanctioned addition, naming the offending file. No other guard was relax
 pass, 2 562 checks, and the count is unchanged.
 
 **Reversible.** Yes: the check is one expression in one guard.
+
+### D9.1.2a — The app boots an EMPTY project; the development session is dev/test data (owner, 2026-11-05)
+
+**Context — a user-facing defect found in the browser, after 9.1 shipped.** A user imported
+11 stems (48 kHz, 32-bit float) and heard nothing, while the transport reported
+`Playing — RAW` and the clock advanced. The chain was sound: the fixture session ships
+**track 15 "Lead Vocal" SOLOED** (and two tracks muted), solo silences every other track
+(`computeAudibility` → `outputPasses` false), and the 11 imported stems became tracks 21–31.
+Nothing in the UI said a fixture track the user had never touched was silencing them. The
+solo is real fixture data, not a bug in the mixer.
+
+**Owner decision.** Remove the mock project as the starting point: ALLOY must open an EMPTY
+project. Keep the fixture session as development/test data.
+
+**What changed.**
+
+- `store.svelte.ts` boots `createEmptyProject(...)` instead of `createSessionProject()`.
+  It is still the one `$state` tree — the guard for that is unchanged in substance and now
+  asserts the empty boot.
+- `lifecycle.restoreLast()` reports `outcome: "empty"` when nothing is restored, because the
+  project it keeps is the empty one. `"fixture"` stays in the union for saved manifests that
+  still name the development session; `bootOutcome()` reads the open project's template so the
+  report is true rather than assumed.
+- **New `tests/fixture-session.mjs`**: `loadFixtureSession()` replaces the open project with the
+  development session *and* retargets autosave to that project's key, exactly as the lifecycle
+  does on a switch. Four suites (`store`, `editing`, `shell`) and the parts of `lifecycle` that
+  test fixture behaviour now load it **explicitly** instead of inheriting it from a default.
+  That is the honest form: those tests are about the fixture, so they say so.
+- The fixture modules themselves are **untouched**, and the dev playground still shows them.
+
+**Guards: 4 re-pins, 3 checks rewritten, none weakened.** `store.svelte.ts`, `lifecycle.ts` and
+`tests/store.test.mjs` are hash-pinned in four guards; each re-pinned with the reason inline.
+Three checks changed subject rather than being deleted: the store guard now asserts the empty
+boot (still one `$state` tree), the mixer-chain guard accepts the empty boot while still
+requiring the Return fixtures to build the chain when the session is loaded, and the
+`restoreLast` guard now requires `bootOutcome()` and the `empty` outcome.
+
+**Tests: 2 added** to `tests/integration.test.mjs` — the app boots empty, and the fixture
+session really does silence its other tracks (so the reason for this change cannot quietly
+outlive its cause). Total 444 → 446.
+
+**Deliberately not done.** The fixture-drawn timeline waveforms still exist *in the fixture*;
+a new empty project draws nothing, which is the correct outcome for an empty project. Removing
+the fixture drawing code outright was offered and declined in favour of this narrower change.
+
+**Reversible.** Yes: one line in the store, the `bootOutcome` helper, the helper module and the
+test wiring.
+
+### D9.1.3 — A finished mix is a recorded fact, not a reading of the live progress gauge (owner, 2026-11-05)
+
+**Context — a second browser defect, reported alongside the first.** The owner pressed MIX, watched
+it run to completion, and nothing changed: the deck fell back to `Ready`, and the status display
+never reported a mix. The three listening sources (RAW / PREVIEW / RENDER) worked; the *completion*
+of an automatic mix was simply never shown, and nothing distinguished a mixed session from an
+unmixed one.
+
+**Root cause.** `ConsoleTransport` decided completion with
+`transport.source === "render" && transport.renderProgress === 1`.
+`renderProgress` is a **live gauge**: it is 0–1 while a render runs and `null` at every other
+moment, and every path that ends a run clears it — including the render's *own* completion
+(`controller.ts`, end of `runRender`: `renderProgress: null`). The `finish()` callback that set
+`renderProgress` to 1 is immediately undone by the transport state that follows it. So the
+expression could not be true at any moment a component could observe, and the "complete" branch of
+the Mix button, its lit lamp, the `Mixed` status word and `Rerun available` were all unreachable.
+
+This is a **state-modelling** defect, not a display one: the engine rendered correctly throughout
+(verified: a one-track project renders 48 000 frames at peak 0.3536 and streams them to the
+output), and the deck was honest about the state it was given. There was no fact to display.
+
+**Fix.** Completion becomes its own recorded state, in the controller that owns transport state:
+
+- `PlaybackState.renderProgress` is unchanged and still means the live gauge.
+- New `PlaybackState.mixRevision: number | null` and `mixedAt: string | null`. Both are set at the
+  very end of `runRender`, **after** the gauge is cleared, so the record and the gauge cannot
+  contradict each other.
+- `mixRevision` is **monotonic** (`private mixRevisions`), so a rerun after a cleared mix gets a new
+  number rather than reusing the previous one. `clearMix()` sets the *state* to null; it does not
+  rewind the counter.
+- It survives `pause`, `stop`, `seek` and `setSource` — moving the playhead or choosing to listen
+  to RAW does not discard a mix the user still has, and RAW → RENDER after a MIX finds it there.
+- It is dropped by `clearMix()`, which `installPlaybackShell` calls on the same project-history
+  `clear` events that already trigger a duration refresh: import, project switch, undo past one. A
+  mix that no longer describes the open project stops claiming to.
+- A **failed** render never records one; the error path leaves `mixRevision` null.
+
+**Clock.** `mixedAt` needs a wall clock, and the controller reads no globals, so `PlaybackClock`
+gains `now(): string` (HH:MM). The shell supplies `new Date()`; tests supply a fixed `"14:02"`, so
+the "Mixed — at …" detail is assertable instead of raced.
+
+**Guards.** 7 checks added to `check-playback-structure` pinning all of the above, including the
+*ordering* (the record is written after the gauge is cleared) and the monotonicity. Two guards that
+hash-pin `ConsoleTransport.svelte` were re-pinned: the change there is two expressions in the
+script block, with no markup, class, style or DOM contract touched — the approved visual structure
+is intact and the rest of those guards still assert it. **Mutation-checked:** reverting the record
+makes 3 of the new tests fail.
+
+**Tests: 4 added** (446 → 450) — a completed mix is reported complete; pause/stop/seek/source
+changes keep it; a project change drops it and a rerun is numbered onwards; a failed render records
+nothing.
+
+**Not done, deliberately.** The deck does not count "manual edits since the mix" (`editsSince`), and
+MIX still does not resolve masking (D9.1.2 / Task 10). Both are separate scoped work.
+
+**Reversible.** Yes: the two state fields, one `set` block, `clearMix()`, one `now()` on the clock,
+and the Console's `complete` expression.

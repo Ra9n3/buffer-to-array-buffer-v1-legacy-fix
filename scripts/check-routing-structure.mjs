@@ -200,11 +200,15 @@ const pinned = {
   "src/lib/project/routing.ts": "f5479a9e7013514fdfbc09ba1914cc88f78fdfa6f146c3773d1d5eb7a0740588",
   "src/lib/project/model.ts": "7df7e5b93e21573d82f022ad46ab46245db01d9ba9e00ce780cb8ab27f4bc541",
   "src/lib/project/session.ts": "079a77226200f30858f9588aafa0cb50b30b5c182b8e15a63f0fe9231a4736d5",
-  "src/lib/project/store.svelte.ts": "350d510d6d43fe679680731f1b5b11668fa5bbc065c51f781b624873fb2aaec2",
+    // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
+  // development session. Nothing was deleted from it; see the decision log (D9.1.2).
+  "src/lib/project/store.svelte.ts": "034ff8091b56cc350cb396cfdda6ef1926d2ad15a400ad2ede3807189d87f36c",
   "tests/loader.mjs": "51a401d95b0f35584ca7bce2dd564346ba6c1c2c066eeffa51ebd1ad5da15451",
   "tests/register.mjs": "80ef952e463fa5bf7eb9bf1b0a11dcbe5fe32e3a86391c2d596f6f41a8de7b56",
   "tests/routing.test.mjs": "bc389e8869b20fb0dc98ffa77e88d67c7c4c959622669fc7db7b7be96b37676d",
-  "tests/store.test.mjs": "fa8e95472b1bdd2af0d7094093cf4ed970a032d07c6d68ea971824bb65b61103",
+    // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
+  // development session. Nothing was deleted from it; see the decision log (D9.1.2).
+  "tests/store.test.mjs": "2d7601d8a63de01a8f2861d2ce97322fbd481688e31f13183bf0d18e7008aacf",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

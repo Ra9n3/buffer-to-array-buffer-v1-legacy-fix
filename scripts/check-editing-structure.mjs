@@ -218,7 +218,9 @@ const pinned = {
   "src/lib/project/persistence.ts": "8d1468e910b39f3c1fba424d01a5c4ccaa09419c0a758e2dc3291473ca2a99e9",
   "src/lib/project/clipboard.ts": "2ede55922707193602770c893042f4a84af4f761426ed71a6fc2476279532d25",
   "src/lib/project/shell.ts": "90cee1809c81cea24049717ce2329b3c2ef29eced0bfb6740606d98b62218f86",
-  "src/lib/project/store.svelte.ts": "350d510d6d43fe679680731f1b5b11668fa5bbc065c51f781b624873fb2aaec2",
+    // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
+  // development session. Nothing was deleted from it; see the decision log (D9.1.2).
+  "src/lib/project/store.svelte.ts": "034ff8091b56cc350cb396cfdda6ef1926d2ad15a400ad2ede3807189d87f36c",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
   "src/App.svelte": "cb25f4501c516ebd86c960938c9e79778c5ed9b61d5a64603a9a4a7d037f4d84",
 };

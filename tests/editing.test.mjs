@@ -19,6 +19,10 @@ import {
 } from "../src/lib/project/store.svelte.ts";
 import { setAllModes, setCharacter, setMode, setParamValue, eqParams } from "../src/lib/mixer-chain.ts";
 import { memoryStorage, parseManifest, manifestChannel } from "../src/lib/project/persistence.ts";
+// Task 9.1.2: the store boots EMPTY. This suite drives the fixture session's channels,
+// so it loads the development session explicitly instead of inheriting it.
+import { loadFixtureSession } from "./fixture-session.mjs";
+loadFixtureSession();
 
 const fresh = () => {
   autosave.detach();

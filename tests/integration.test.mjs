@@ -533,3 +533,31 @@ test("9.1.1 · RAW and RENDER really are different signals — §10's comparison
   // fader, so the two modes must not produce the same audio.
   assert.ok(peaks.render < peaks.raw, "the fader is applied in the rendered path, not in raw playback");
 });
+
+/* --- 9. A new project must not silence what the user imports ------------------------- */
+
+test("9.1.2 · the app boots an EMPTY project, not the development session", async () => {
+  // The bug this fixes: ALLOY booted the 20-track fixture session, which ships a SOLO on
+  // track 15 "Lead Vocal". Solo silences everything else, so a user who imported 11 stems
+  // heard nothing and had no way to guess why. A new project must start empty.
+  const { createEmptyProject } = await import("../src/lib/project/templates.ts");
+  const fresh = createEmptyProject("fresh", "Fresh");
+  assert.equal(fresh.tracks.length, 0);
+  assert.equal(fresh.returns.length, 0);
+  assert.equal(fresh.buses.length, 0);
+  assert.equal(fresh.template, "empty");
+});
+
+test("9.1.2 · the fixture session really does silence other tracks, which is why it is not the default", async () => {
+  // Kept as a guard on the fixture itself: if someone removes the solo this test fails and
+  // the reason for booting empty gets re-examined rather than silently outliving its cause.
+  const { createSessionProject } = await import("../src/lib/project/session.ts");
+  const { computeAudibility } = await import("../src/lib/engine/audibility.ts");
+  const session = createSessionProject();
+  const soloed = session.tracks.filter((t) => t.channel.solo);
+  assert.equal(soloed.length, 1, "the fixture ships exactly one soloed track");
+  assert.equal(soloed[0].name, "Lead Vocal");
+  const audibility = computeAudibility(session);
+  const ordinary = session.tracks.find((t) => !t.channel.solo);
+  assert.equal(audibility.outputPasses(ordinary.id), false, "and it silences every other track");
+});
