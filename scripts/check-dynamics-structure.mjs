@@ -339,9 +339,11 @@ check(
 
 // --- 9. Scope: nothing is wired, nothing new is depended on. --------------------------------------
 // Task 7.1 wired the DSP into `src/lib/engine/`: that is the only door into it.
-const outside = walk("src").filter(
-  (rel) => !rel.startsWith("src/lib/dsp/") && !rel.startsWith("src/lib/engine/"),
-);
+// Task 8.2 added `src/lib/export/` and `src/lib/rulebook/`: both read the sample-rate
+// contract (`DSP_SAMPLE_RATE`) and the export renders through the engine. They are the
+// second and third sanctioned doorways, named here rather than removing the rule.
+const SANCTIONED = ["src/lib/dsp/", "src/lib/engine/", "src/lib/export/", "src/lib/rulebook/"];
+const outside = walk("src").filter((rel) => !SANCTIONED.some((prefix) => rel.startsWith(prefix)));
 check(
   "only the 7.1 engine layer imports the dynamics: no store, no room, no UI",
   outside.every((rel) => !/lib\/dsp\/|from "\.\.\/dsp\/|from "\.\/dsp\//.test(stripComments(read(rel)))),

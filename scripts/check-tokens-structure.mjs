@@ -244,6 +244,16 @@ check(
 check("tokens.css is loaded by the app", /import "\.\/lib\/tokens\.css"/.test(main));
 
 // --- 7. No Phase 2 skinning. ----------------------------------------------
+/*
+  Task 9.3 (owner): this list exists to stop Phase 0 PLACEHOLDERS being skinned
+  before their own task arrives. RoomNav and MiniTransport are no longer
+  placeholders — the owner has since skinned the app's chrome deliberately, and
+  both now use the material tokens by instruction. They therefore leave this
+  list, exactly as ChannelBank, ArrangeRoom, ArrangeTrackRow, ArrangeTimelineLane,
+  MixerRoom and MixerDetailPanel left it in Tasks 2.2–2.8. ChannelStrip.svelte
+  stays: it is genuinely dead (nothing imports it) and remains pinned
+  byte-identical by check-channel-strip.
+*/
 const roomSources = [
   "src/rooms/ConsoleRoom.svelte",
   // ChannelBank.svelte left this list in Task 2.2 (the bank is skinned);
@@ -258,9 +268,7 @@ const roomSources = [
   // MixerDetailPanel.svelte left in Task 2.8 (the processing-chain detail
   // panel is skinned).
   "src/components/ChannelStrip.svelte",
-  "src/components/RoomNav.svelte",
   "src/components/RoomShell.svelte",
-  "src/components/MiniTransport.svelte",
 ];
 for (const rel of roomSources) {
   check(

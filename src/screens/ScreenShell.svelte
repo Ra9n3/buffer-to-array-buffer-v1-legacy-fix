@@ -48,8 +48,8 @@
   .screen__header {
     min-width: 0;
     padding: 0.375rem 0.75rem;
-    border: 1px solid #a3a3a3;
-    background: #efefef;
+    border: 1px solid var(--al-bevel-shadow);
+    background: var(--al-material-surface);
   }
 
   .screen__title {

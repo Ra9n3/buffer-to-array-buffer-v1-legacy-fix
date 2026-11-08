@@ -35,6 +35,7 @@
   roomId="mixer"
   title="Mixer"
   purpose="Inspect and edit processing in detail."
+  hideHeader
 >
   <div class="mixer-room" data-mixer-room data-selected-channel={selectedId}>
     <div class="mixer-layout" class:mixer-layout--empty={project.isEmpty} data-mixer-layout>

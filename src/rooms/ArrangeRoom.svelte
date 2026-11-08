@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ArrangeImportBand from "../components/ArrangeImportBand.svelte";
   import ArrangeTimelineHeader from "../components/ArrangeTimelineHeader.svelte";
   import ArrangeTimelineLane from "../components/ArrangeTimelineLane.svelte";
   import ArrangeTrackRow from "../components/ArrangeTrackRow.svelte";
@@ -38,7 +37,10 @@
   hideHeader
 >
   <div class="arrange-room" style:--arrange-bar-count={arrangement.barCount} data-arrange-room>
-    <ArrangeImportBand />
+    <!-- Task 9.2 (owner): the dark IMPORT STEMS band is gone from this room.
+         Importing is now the top toolbar's primary action and File > Import
+         stems…, both reaching the one picker in the shell. The band's own
+         per-file report went with it; App reports a failed batch instead. -->
     {#if project.isEmpty}
       <div class="arrange-empty">
         <EmptyProjectNotice headingId="arrange-empty-title" room="arrange" />
