@@ -301,9 +301,9 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "d136a20c27985b4fc9a8b8122632f8f5f6c97d5b88878ea0d3ad0b391d810b43",
-  "src/components/ChannelBank.svelte": "d0a4927831028dc060323316b31eb93eca0d78c2448d303ad08da0c3420557b0",
-  "src/components/channel-strip/TrackStrip.svelte": "9bec44cb6809ef09aa086604f6098ea601edaf9984aa02e6e65ccb93f01c2045",
+  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
+  "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
+  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/channel-strip/StripModule.svelte": "d302bbbcfb2be1538f19bc43284cffafe25a121ab4e0b2759838e5aa76cce75f",

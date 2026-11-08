@@ -206,7 +206,7 @@ const pinned = {
   "src/components/mixer/EqSection.svelte": "1618e2fcf2f2f32a4385bf2836b46b6f7c1edec36d9f8e60a4fe00f053a03162",
   "src/components/mixer/CompressorSection.svelte": "00d46e4e9990e6e1eff93e9f3d06a30a4def499e07a5491278c2e0b7227769cc",
   "src/components/mixer/WhatChanged.svelte": "07ae383c56611fdf69080a0878e38b02c20afe0b2f8860a78aba883148b1eda7",
-  "src/components/mixer/MixerBank.svelte": "23224a25ef0a57831ca7682d4d7327477a6618c7f1fa6edb7e62324ea6a4d93c",
+  "src/components/mixer/MixerBank.svelte": "4f81961d110de391d5eed77ac3b033bcb0894b306975cef7e3137d22b81359d5",
   "src/components/mixer/MixerIdentity.svelte": "d6165febdfb805db7b067f6dc01bb89f34195a2035fa916984dec401e5a9b781",
   "src/components/mixer/MixerTrackStrip.svelte": "b5107fb09a39d9516ae57ca4254465d45cca2c4c6aaa4868fbb87917f1a36122",
   "src/components/mixer/MixerBusStrip.svelte": "99da173205061bb936eb0053ec5bd94f8ad51ec2b96cf289f042e7e9351dabaf",

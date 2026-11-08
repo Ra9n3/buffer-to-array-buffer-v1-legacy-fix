@@ -95,23 +95,18 @@ const displayTemplate = templateOf(display);
 const displayStyle = styleOf(display);
 const allTransportSource = [deck, mix, display, fixtures].join("\n");
 
-// --- 1. The deck; the room's zones. -------------------------------------------
-/* Task 9.4 (owner, D9.4.1) reverses D2.3.1: ConsoleRoom mounts two zones and
-   no deck, because the persistent shared strip already carries every transport
-   control and the deck's 210 px were being paid for out of the bank's height.
-   The deck file is unchanged and still mounted by /dev, so every assertion
-   below about its internals still runs against the same source. */
+// --- 1. Three zones; the deck between bridge and bank; READY by default. ------
 check(
-  "ConsoleRoom has exactly two zones, in order: meter-bridge, channel-bank (Task 9.4 replaced D2.3.1)",
+  "ConsoleRoom has exactly three zones, in order: meter-bridge, transport, channel-bank (D2.3.1)",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="channel-bank"',
+    'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"',
 );
-check("the room no longer mounts a transport zone or a deck (Task 9.4): one transport, the shared strip", !/console-zone--transport|data-console-zone="transport"/.test(consoleRoom) && !/import ConsoleTransport/.test(consoleRoom) && !/<ConsoleTransport\b/.test(consoleRoom));
-check("the approved deck is kept on disk and still mounted by the /dev playground, so it is not lost", /import ConsoleTransport from "\.\.\/components\/console-transport\/ConsoleTransport\.svelte"/.test(read("src/dev/TransportFixture.svelte")));
-check("the deck still renders itself once, live, from its own heading", /headingId = "console-transport-title"/.test(deck) && /<EngravedLabel as="h2" id={headingId} text="Transport"/.test(deck));
-check("the bridge and the bank are still rendered, once each, bridge first", count(consoleRoom, /<ConsoleMeterBridge\b/g) === 1 && count(consoleRoom, /<ChannelBank\b/g) === 1 && consoleRoom.indexOf("<ConsoleMeterBridge") < consoleRoom.indexOf("<ChannelBank"));
-check("the room's grid gives the bank every freed pixel: two rows, the bank the 1fr (Task 9.4)", /grid-template-rows:\s*max-content\s+minmax\(max-content, 1fr\)/.test(consoleRoom));
-check("the two remaining zones, like the bank, wear no Phase 0 frame", /\.console-zone--meter,\s*\.console-zone--channels\s*{/.test(consoleRoom));
+check("the transport zone is a section labelled by the deck's own engraved heading", /<section[^>]*class="console-zone console-zone--transport"[^>]*aria-labelledby="console-transport-title"/.test(consoleRoom) && /headingId = "console-transport-title"/.test(deck));
+check("ConsoleRoom imports the deck from its own folder", /import ConsoleTransport from "\.\.\/components\/console-transport\/ConsoleTransport\.svelte"/.test(consoleRoom));
+check("ConsoleRoom renders the deck once, live: the shared transport (Task 8.1)", count(consoleRoom, /<ConsoleTransport\b/g) === 1 && /<ConsoleTransport live \/>/.test(consoleRoom));
+check("the bridge and the bank are still rendered, once each, around it", count(consoleRoom, /<ConsoleMeterBridge\b/g) === 1 && count(consoleRoom, /<ChannelBank\b/g) === 1 && consoleRoom.indexOf("<ConsoleMeterBridge") < consoleRoom.indexOf("<ConsoleTransport") && consoleRoom.indexOf("<ConsoleTransport") < consoleRoom.indexOf("<ChannelBank"));
+check("the room's grid gives the deck a content-sized row between the bridge and the bank (never compressed)", /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content, 1fr\)/.test(consoleRoom));
+check("the transport zone, like the bridge and bank, wears no Phase 0 frame (the deck is its own housing)", /\.console-zone--meter,\s*\.console-zone--transport,\s*\.console-zone--channels\s*{/.test(consoleRoom) || /\.console-zone--transport[^{]*{[^}]*border:\s*0/.test(consoleRoom));
 check("the deck is a full-width housing: the bridge recipe (cheeks + deck), width 100%", /\.transport\s*{[^}]*grid-template-columns:\s*var\(--b-cheek\) minmax\(0, 1fr\) var\(--b-cheek\)/s.test(deckStyle) && /\.transport\s*{[^}]*width:\s*100%/s.test(deckStyle) && count(deckTemplate, /transport__cheek--(left|right)/g) === 2);
 check("the deck does not change shape by viewport: no media or container query in it (the body wraps instead)", !/@media|@container/.test(deckStyle) && /\.transport__body\s*{[^}]*flex-wrap:\s*wrap/s.test(deckStyle));
 
@@ -221,9 +216,9 @@ const pinned = {
   // Task 2.4 re-pinned the bank: its pinned area now renders the Return and
   // bus-master strips (the deck above it is untouched; check-bus-return guards
   // the bank's new structure).
-  "src/components/ChannelBank.svelte": "d0a4927831028dc060323316b31eb93eca0d78c2448d303ad08da0c3420557b0",
+  "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
-  "src/components/channel-strip/TrackStrip.svelte": "9bec44cb6809ef09aa086604f6098ea601edaf9984aa02e6e65ccb93f01c2045",
+  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",

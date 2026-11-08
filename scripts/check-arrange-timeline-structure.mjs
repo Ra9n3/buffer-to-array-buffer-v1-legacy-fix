@@ -170,7 +170,7 @@ const pinned = {
   "src/dev/ArrangeRowFixture.svelte": "facc39b60df21345ee4671e5bbbaa8d961bb2fb94501ad4d6e265e1843b6c642",
   // (Task 2.7: ScribbleSelect gained the optional `onchoose` callback, TrackStrip the optional `identity` snippet, MixerRoom its strips, app.css two comments — re-pinned at that state.)
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
-  "src/components/channel-strip/TrackStrip.svelte": "9bec44cb6809ef09aa086604f6098ea601edaf9984aa02e6e65ccb93f01c2045",
+  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
@@ -203,7 +203,7 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "d136a20c27985b4fc9a8b8122632f8f5f6c97d5b88878ea0d3ad0b391d810b43",
+  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   const actual = sha(rel);

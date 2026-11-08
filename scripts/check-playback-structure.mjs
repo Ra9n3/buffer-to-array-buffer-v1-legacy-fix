@@ -85,12 +85,7 @@ check("Web Audio is confined to the playback backend", /AudioContext/.test(W) &&
 
 // --- 6. Room integration ------------------------------------------------------
 check("the mini transport drives the shared facade", /transport\.togglePlay\(\)/.test(mini) && /transport\.stop\(\)/.test(mini) && /transport\.seek/.test(mini));
-/* Task 9.4 (D9.4.1): the Console no longer mounts its own deck. The intent —
-   that the mix control runs the REAL render through the shared facade rather
-   than a fixture — now lives in the pinned MIX panel, so the assertion follows
-   the control that actually carries MIX on screen. */
-check("MIX on screen is live and drives the same facade", /<MixPanel live \/>/.test(read("src/components/ChannelBank.svelte")) && /transport\.render\(\)/.test(read("src/components/channel-strip/MixPanel.svelte")));
-check("the approved deck is still live when the playground mounts it", /transport\.togglePlay\(\)/.test(deck) && /transport\.render\(\)/.test(deck));
+check("the Console deck is live and drives the same facade", /<ConsoleTransport live \/>/.test(consoleRoom) && /transport\.togglePlay\(\)/.test(deck) && /transport\.render\(\)/.test(deck));
 check("MIX starts the rendered path through a callback, not a navigation", /onPress\?: \(\(\) => void\) \| undefined/.test(mix) && /onclick=\{press\}/.test(mix));
 check("the playground deck can still run simulated", /live = false/.test(deck) && /data-simulated={simulated}/.test(deck));
 

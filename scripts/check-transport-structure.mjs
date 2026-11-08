@@ -105,9 +105,9 @@ check(
   !/transportVisible|addEventListener\("scroll"/.test(consoleRoom + arrangeRoom + mixerRoom),
 );
 check(
-  "Console has exactly its two zones, bridge over bank (Task 9.4 removed the transport zone)",
+  "Console has exactly its three zones, bridge over transport over bank (Task 2.3)",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="channel-bank"',
+    'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"',
 );
 check(
   "all three rooms are bounded to the viewport (no page-level scroll)",

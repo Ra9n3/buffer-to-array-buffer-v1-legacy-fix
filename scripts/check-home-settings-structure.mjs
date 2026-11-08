@@ -181,11 +181,7 @@ check("the store: loadProject replaces the whole project in the one tree — obs
 // --- 4. The empty project and the rooms' empty states. -------------------------------------
 check("the empty project is Master only: no tracks, Returns or buses (the plan's default Returns are not invented), an empty arrangement, template `empty`; the fixture template exists under its one id only", /template: "empty",\s*tracks: \[\],\s*returns: \[\],\s*buses: \[\],\s*arrangement: \{\s*barCount: 0,\s*timeSignature: EMPTY_TIME_SIGNATURE,\s*sections: \[\],\s*tempoMarkers: \[\],\s*clips: \{\},\s*\},/.test(T) && /if \(id !== SESSION_PROJECT_ID\) return null;/.test(T) && /export const PROJECT_TEMPLATES: readonly ProjectTemplateId\[\] = \["session-fixture", "empty"\];/.test(T) && /export type ProjectTemplateId = "session-fixture" \| "empty";/.test(C.model));
 check("the empty-project notice: the room's heading id, what is missing in that room, where tracks come from (import in Arrange, Task 5.1), a link Home; nothing drawn that is not there", /<div class="empty" data-empty-project=\{room\}>/.test(S.notice) && /<EngravedLabel as="h2" id=\{headingId\} text="Empty project" size="sm" \/>/.test(S.notice) && /\{WHAT\[room\]\.toLowerCase\(\)\}\. \{HOW\[room\]\}<\/p>/.test(S.notice) && /arrange: "Import stems above to add tracks\.",/.test(S.notice) && /console: "Import stems in Arrange to add tracks\.",/.test(S.notice) && /<a href=\{HOME_HREF\} data-empty-project-home>/.test(S.notice) && /room: "console" \| "arrange" \| "mixer";/.test(S.notice));
-/* Task 9.4 (D9.4.1) removes the Console's transport zone, so "the transport
-   zone is untouched" is no longer an assertion that can hold. Its intent was
-   that the empty state replaces ONLY the bank, leaving the bridge alone — that
-   is unchanged and still asserted, plus the absence of the zone. */
-check("Console: the channel-bank zone shows the notice instead of the bank for an empty project; the bridge zone is untouched", /\{#if project\.isEmpty\}\s*<EmptyProjectNotice headingId="console-channels-title" room="console" \/>\s*\{:else\}\s*<ChannelBank \/>\s*\{\/if\}/.test(S.consoleRoom) && count(S.consoleRoom, /project\.isEmpty/g) === 1 && /data-console-zone="meter-bridge"/.test(S.consoleRoom) && !/data-console-zone="transport"/.test(S.consoleRoom));
+check("Console: the channel-bank zone shows the notice instead of the bank for an empty project; the bridge and transport zones are untouched", /\{#if project\.isEmpty\}\s*<EmptyProjectNotice headingId="console-channels-title" room="console" \/>\s*\{:else\}\s*<ChannelBank \/>\s*\{\/if\}/.test(S.consoleRoom) && count(S.consoleRoom, /project\.isEmpty/g) === 1 && /data-console-zone="meter-bridge"/.test(S.consoleRoom) && /data-console-zone="transport"/.test(S.consoleRoom));
 check("Arrange: the notice replaces the scroller and grid for an empty project (the fixture timeline header is never drawn for it)", /\{#if project\.isEmpty\}\s*<div class="arrange-empty">\s*<EmptyProjectNotice headingId="arrange-empty-title" room="arrange" \/>\s*<\/div>\s*\{:else\}/.test(S.arrangeRoom) && count(S.arrangeRoom, /project\.isEmpty/g) === 1 && S.arrangeRoom.indexOf("{:else}") < S.arrangeRoom.indexOf("<ArrangeTimelineHeader"));
 check("Mixer: the layout holds the notice alone for an empty project, the compact column + detail otherwise", /\{#if project\.isEmpty\}\s*<section\s*class="mixer-zone mixer-zone--channels"\s*data-mixer-region="channel-column"\s*aria-labelledby="mixer-channels-title"\s*>\s*<EmptyProjectNotice headingId="mixer-channels-title" room="mixer" \/>/.test(S.mixerRoom) && count(S.mixerRoom, /project\.isEmpty/g) === 2 && /<MixerChannelStrip/.test(S.mixerRoom) && /<MixerDetailPanel/.test(S.mixerRoom));
 
@@ -333,7 +329,7 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "d136a20c27985b4fc9a8b8122632f8f5f6c97d5b88878ea0d3ad0b391d810b43",
+  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.

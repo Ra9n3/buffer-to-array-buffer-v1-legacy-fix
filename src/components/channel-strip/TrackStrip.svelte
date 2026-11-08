@@ -118,42 +118,35 @@
       </div>
     {/if}
 
-    <!-- TRIM · PAN: one row (Task 9.4, owner). Two 40 px dials side by side
-         instead of stacked is ~50 px back per strip with no control lost and
-         no control moved in the tab order — trim still precedes pan. The two
-         sections keep their own hooks and their own knobs; only the row they
-         sit on is shared. -->
-    <div
-      class="strip__section strip__section--knob strip__section--dials"
-      data-strip-section="dials"
-    >
-      <div class="strip__dial" data-strip-section="trim">
-        <Knob
-          label="Trim"
-          family="cream"
-          min={TRIM_RANGE.min}
-          max={TRIM_RANGE.max}
-          step={TRIM_RANGE.step}
-          bind:value={() => track.trim, (v) => (track.trim = v)}
-          unit="dB"
-          decimals={1}
-          extremes={["−20", "+20"]}
-          format={trimFormat}
-        />
-      </div>
-      <div class="strip__dial" data-strip-section="pan">
-        <Knob
-          label="Pan"
-          family="bluegrey"
-          min={PAN_RANGE.min}
-          max={PAN_RANGE.max}
-          step={PAN_RANGE.step}
-          bind:value={() => track.pan, (v) => (track.pan = v)}
-          decimals={0}
-          extremes={["L", "R"]}
-          format={formatPan}
-        />
-      </div>
+    <!-- TRIM -->
+    <div class="strip__section strip__section--knob" data-strip-section="trim">
+      <Knob
+        label="Trim"
+        family="cream"
+        min={TRIM_RANGE.min}
+        max={TRIM_RANGE.max}
+        step={TRIM_RANGE.step}
+        bind:value={() => track.trim, (v) => (track.trim = v)}
+        unit="dB"
+        decimals={1}
+        extremes={["−20", "+20"]}
+        format={trimFormat}
+      />
+    </div>
+
+    <!-- PAN -->
+    <div class="strip__section strip__section--knob" data-strip-section="pan">
+      <Knob
+        label="Pan"
+        family="bluegrey"
+        min={PAN_RANGE.min}
+        max={PAN_RANGE.max}
+        step={PAN_RANGE.step}
+        bind:value={() => track.pan, (v) => (track.pan = v)}
+        decimals={0}
+        extremes={["L", "R"]}
+        format={formatPan}
+      />
     </div>
 
     <!-- SENDS: one recessed bay, two configurable slots -->
@@ -173,9 +166,9 @@
       </div>
     </div>
 
-    <!-- LEVEL: the approved fader, 110 px travel (Task 9.4) -->
+    <!-- LEVEL: the approved fader, 1x, 160 px travel -->
     <div class="strip__section strip__section--fader" data-strip-section="fader">
-      <Fader label="Level" travel={110} bind:value={() => track.level, (v) => (track.level = v)} />
+      <Fader label="Level" bind:value={() => track.level, (v) => (track.level = v)} />
     </div>
 
     <!-- MUTE · SOLO · PEAK (the owner's order, D2.2.3) -->
@@ -314,32 +307,10 @@
     padding: var(--al-space-2xs) var(--al-space-3xs);
   }
 
-  /* --- TRIM · PAN on one row (Task 9.4): the two dials share the face's width
-     instead of each taking a full section of their own. The row is a section
-     so it keeps the machined division line above it; each dial keeps its own
-     data-strip-section hook inside it. */
-  .strip__section--dials {
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--al-space-2xs);
-    padding: var(--al-space-3xs) var(--al-space-2xs);
-  }
-
-  /* The knob section's top padding. Trim and pan share one row, so this rule
-     lives on their row; StripModule's .module__section--knob is pinned to it
-     value for value, which is why the row still carries the class. */
+  /* --- knob sections ------------------------------------------------------ */
   .strip__section--knob {
     padding-top: var(--al-space-3xs);
   }
-
-  .strip__dial {
-    display: flex;
-    flex: 0 0 auto;
-    flex-direction: column;
-    align-items: center;
-    min-width: 0;
-  }
-
 
   /* The sends bay: a shallow recess milled into the face (the same recipe as
      the bridge's spectrum bay) holding the two send slots side by side. */
@@ -362,12 +333,7 @@
       0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  /* --- the fader ---------------------------------------------------------
-     Task 9.4: the throw is 110 px, not the Fader's 160 px 1x default. The 1x
-     throw made one strip 600 px tall — taller than a 1080p window's channel
-     area — so the bank could never show a whole strip. The fader keeps its
-     approved width, cap, taper and law; only the distance the cap travels is
-     shorter, passed through the prop the fader already had. */
+  /* --- the fader --------------------------------------------------------- */
   .strip__section--fader {
     flex: 1 0 auto;
     padding-top: var(--al-space-2xs);

@@ -217,12 +217,7 @@ check("the pinned rail is outside the tracks scroller and shares its recess reci
 check("in row mode the tracks rail is the only horizontal scroller", count(bankStyle.replace(/@media[\s\S]*$/, ""), /overflow-x:\s*auto/g) === 1 && /\.bank__tracks \{[^}]*overflow-x:\s*auto/s.test(bankStyle));
 check("column mode under 68.75rem = 1100 px (D2.4.2): legend / tracks / pinned legend / pinned, the pinned rail scrolling on its own, contained", /@media \(width < 68\.75rem\) \{[\s\S]*"legend"\s*"tracks"\s*"pinned-legend"\s*"pinned"/s.test(bankStyle) && /@media \(width < 68\.75rem\) \{[\s\S]*\.bank__pinned \{[^}]*overflow-x:\s*auto[^}]*overscroll-behavior-x:\s*contain/s.test(bankStyle));
 check("the breakpoint is explained in the source as the sum of the parts", /pinned rail 668 \+ gap 12 \+ two strips and their rail 336 =\s*1016 px of deck, plus the deck's and the cheeks' 84 px = 1100/.test(bankStyle));
-/* Task 9.4 (D9.4.2): the pinned column now carries the MIX panel above the
-   modules' row, so the row must still stretch its modules to one another while
-   the COLUMN owns the leftover height and hands it down. The assertion keeps
-   its original subject — modules stretch, they are not given fixed heights —
-   and adds the one property the panel needs. */
-check("the pinned row stretches the modules to one another and hands the slack down from the column", /\.bank__pinned-row \{[^}]*flex:\s*1 1 auto/s.test(bankStyle) && /\.bank__pinned-row \{[^}]*align-items:\s*stretch/s.test(bankStyle) && /\.bank__pinned-row \{[^}]*min-height:\s*0/s.test(bankStyle) && /\.bank__pinned \{[^}]*flex-direction:\s*column/s.test(bankStyle) && /\.bank__pinned \{[^}]*gap:\s*var\(--al-space-2xs\)/s.test(bankStyle));
+check("the pinned row keeps the modules' own height and stretches them to one another", /\.bank__pinned-row \{[^}]*flex:\s*0 0 auto/s.test(bankStyle) && /\.bank__pinned-row \{[^}]*align-items:\s*stretch/s.test(bankStyle) && /\.bank__pinned \{[^}]*align-items:\s*flex-start/s.test(bankStyle));
 
 // --- 7. Scope. -------------------------------------------------------------------
 check("no screw heads in any new file (owner's standing rule, D2.1.9)", !/(class=["'{][^"'}]*screw|\.[\w-]*screw[\w-]*\s*[{,:]|data-[\w-]*screw|__screw)/i.test(newSource + devFixture + bank));
@@ -242,7 +237,7 @@ const pinned = {
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
   "src/components/meter-bridge/ConsoleMeterBridge.svelte": "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
-  "src/components/channel-strip/TrackStrip.svelte": "9bec44cb6809ef09aa086604f6098ea601edaf9984aa02e6e65ccb93f01c2045",
+  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",
@@ -264,7 +259,7 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "d136a20c27985b4fc9a8b8122632f8f5f6c97d5b88878ea0d3ad0b391d810b43",
+  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

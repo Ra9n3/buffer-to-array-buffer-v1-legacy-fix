@@ -1,5 +1,6 @@
 <script lang="ts">
   import ChannelBank from "../components/ChannelBank.svelte";
+  import ConsoleTransport from "../components/console-transport/ConsoleTransport.svelte";
   import EmptyProjectNotice from "../components/EmptyProjectNotice.svelte";
   import ConsoleMeterBridge from "../components/meter-bridge/ConsoleMeterBridge.svelte";
   import RoomShell from "../components/RoomShell.svelte";
@@ -25,17 +26,14 @@
      only); the pinned Bus / Returns strips stay Phase 0 placeholders until
      Task 2.4. Both zones keep their data-console-zone hooks and names.
 
-     Task 9.4 (owner, D9.4.1) REMOVES the transport zone again, reversing
-     D2.3.1. The deck existed to give the Console its own full-size transport;
-     the persistent shared strip (Task 0.6) already does that job in every
-     room, so the deck was a second transport 210 px tall sitting directly
-     above it — and, because the room's grid gives the bank only what is left,
-     the cost of those 210 px was paid by the channel bank, which could not
-     show one whole strip. ConsoleTransport.svelte is kept on disk, still
-     rendered by /dev, so the approved deck is not lost.
-
-     Task 9.4 also gives the bank the freed height: the room's grid is two
-     rows (bridge, bank) and the bank's row takes everything left.
+     Task 2.3 restores the transport as a zone of its own — the Phase 0.2
+     skeleton had one; 0.6 removed its scroll-revealed placeholder — as the
+     ConsoleTransport deck between the bridge and the bank (owner, D2.3.1):
+     the four transport keys, the lamp-lit time and status windows and the
+     dominant MIX button, fixtures only. It renders the
+     <h2 id="console-transport-title"> as its engraved legend. The shell's
+     persistent mini transport (Task 0.6) is untouched and still the only
+     transport outside this room.
 
      Task 4.1: when the open project has no channels (an empty project,
      owner D4.1.2) the channel-bank zone shows the explicit empty state in
@@ -58,6 +56,14 @@
         aria-labelledby="console-meter-title"
       >
         <ConsoleMeterBridge />
+      </section>
+
+      <section
+        class="console-zone console-zone--transport"
+        data-console-zone="transport"
+        aria-labelledby="console-transport-title"
+      >
+        <ConsoleTransport live />
       </section>
 
       <section
@@ -100,6 +106,7 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows:
       max-content
+      max-content
       minmax(max-content, 1fr);
     gap: 1rem;
     min-width: 0;
@@ -119,6 +126,7 @@
   /* The skinned zones are their own housings: no placeholder frame round
      them (Task 2.1 the bridge, Task 2.2 the bank, Task 2.3 the transport). */
   .console-zone--meter,
+  .console-zone--transport,
   .console-zone--channels {
     padding: 0;
     border: 0;
