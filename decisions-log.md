@@ -4945,3 +4945,83 @@ cheek (`--al-material-wood`) are actually in the shipped CSS, and that the old `
 verification. The live preview is running for exactly this check.
 
 **Reversible.** Yes: two components, one shared band, and a set of token substitutions.
+
+### D9.4.1 — The Console gives its height back to the channels (owner, 2026-11-05)
+
+> "the console tab is awful now, you have to scroll to find the channels which are the coolest
+> thing in the whole program … I just want a way that the whole channel would be appear on the
+> screen or as much as we can, so that, a track with less than 30 tracks, does not has to scroll
+> as he is seeing just five fucking tracks, and he has to even scroll to see the first 5"
+
+Measured before changing anything, at the owner's 1920×1080 (15.6"):
+
+| | px |
+|---|---|
+| top bar + room padding | ~65 |
+| meter bridge (VU face 106×68, module legends) | ~190 |
+| **Console transport deck** | **~210** |
+| mini transport strip | ~44 |
+| **left for the channel bank** | **~446** |
+| **one `TrackStrip`** | **600** |
+
+The bank was being handed 446 px of space for 600 px of channel. The room scrolls, so the owner
+was not even seeing the first five strips whole — they were seeing about three quarters of a strip
+per screenful, under two decorative decks. **This was a layout failure of my own making, and the
+measurement is the record of it.**
+
+**Three changes, in order of payoff:**
+
+1. **The Console's transport deck is removed (D2.3.1 reversed).** The deck existed so the Console
+   could own a full-size transport. Task 0.6's persistent shared strip already does that job in
+   every room, so the deck was a *second* transport 210 px tall sitting directly above the first.
+   `ConsoleTransport.svelte` is **not deleted** — it is unchanged on disk and still mounted by
+   `/dev/TransportFixture.svelte`, and its guard still runs every internal assertion against it.
+   Only the room stops mounting it.
+2. **The fader throw is 110 px, not the Fader's 160 px 1× default.** The Fader takes `travel` as a
+   prop and its own default is untouched (`check-fader` still pins 160). Trim and pan also share one
+   row: two 40 px dials side by side, no control lost, trim still precedes pan. A strip drops from
+   600 px to about 430 and shows a whole module.
+3. **MIX moves to where the owner asked (D9.4.2): above the bus master**, in the bank's pinned
+   column — not the shared top bar.
+
+**Result at 1080p:** ~446 → ~846 px for the bank, and ~13 strips fit across the width beside the
+pinned block, with whole strips vertically instead of a clipped fragment.
+
+**Not done, and deliberately:** the bridge (~190 px) is still the tall thing it was. Slimming the
+meter bridge means shrinking the VU faces the owner approved by size at Task 2.1, which is a
+different decision from "the channels get the room" and wants its own review. It is the obvious
+next ~100 px if the owner wants it.
+
+**Not achievable:** 30 strips visible at once. At 160 px per strip and 1920 px of screen the
+ceiling with the pinned block is about 13. Thirty would need ~55 px strips — a row of sliders, not a
+console. The owner was told this before the work started and chose to proceed.
+
+**Honest limit:** the numbers above are computed from the real token and component sizes, not
+screenshotted — there is still no browser in this environment. The live preview is the check.
+
+### D9.4.2 — A prominent MIX that does not mix, on purpose (owner, 2026-11-05)
+
+> "for the mix knob, we will not laying to anyone more than now, we are putting a prominent mix
+> button that does nothing, the app is only for me now anyway under development"
+
+I had argued against putting a prominent MIX control on screen while MIX applies no mixing
+decisions. The owner overruled that, and the reasoning is sound for a development build: the app
+already ships a MIX key that does not mix, so deferring the *placement* until the rulebook exists
+defers the layout work for no benefit.
+
+**So: `MixPanel.svelte` sits above the bus master in the bank's pinned column**, in a raised
+face-plate housing, with the approved `MixButton` (**reused, not rebuilt** — same cream key, same
+MIX print, same lamp, same `state` prop, so there is one mix key in the app and not two) and a line
+printing the state it genuinely holds: READY / MIXING / MIXED.
+
+**What it does:** `transport.render()` — the real render path through the shared playback facade,
+the same call the Console deck made. **What it does not do:** apply any mixing decisions. The
+mixing rulebook remains deferred ("let's hold on writing the mixing rules for now").
+
+**The state is not invented.** `mixRevision` is non-null only while a finished mix still describes
+the project (Task 9.1.3), so a stale mix cannot report MIXED; progress below 1 reports MIXING. That
+logic already lived in the transport store and the panel reads it rather than re-deriving it.
+
+**Where it is not:** on the shared top bar. The bar is deliberately thin (D9.3.1, the owner's own
+"thin not taking a huge chunk of the window"), and a 56 px rotary would have made it taller in all
+three rooms. Above the bus keeps the bar thin and puts the control with the bus it feeds.

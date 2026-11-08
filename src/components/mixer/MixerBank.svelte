@@ -282,6 +282,7 @@
     grid-area: pinned;
     flex-direction: column;
     align-items: flex-start;
+    gap: var(--al-space-2xs);
   }
 
   /* The pinned modules on their rail: the track rail's row, the same gap.
@@ -290,11 +291,12 @@
      master's blank panel takes up the difference. */
   .mbank__pinned-row {
     display: flex;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     align-items: stretch;
     gap: var(--al-space-2xs);
     width: max-content;
     min-width: 100%;
+    min-height: 0;
     margin: 0;
     padding: 0;
     list-style: none;

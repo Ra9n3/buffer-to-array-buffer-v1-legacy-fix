@@ -104,11 +104,18 @@ check("the TrackStrip is rendered exactly once in the bank's template", count(ba
   check("track ids are unique and sequential", ids.join(",") === Array.from({ length: 20 }, (_, i) => String(i + 1).padStart(2, "0")).join(","));
 }
 check("the strip is a list item that names itself by its track name (role=group, aria-labelledby)", /<li\s+class="strip"\s+role="group"\s+aria-labelledby=\{`\$\{uid\}-name`\}/.test(stripTemplate) && /id=\{`\$\{uid\}-name`\} text=\{track\.name\}/.test(stripTemplate));
-check("the strip carries its hooks: data-track-strip, data-track-org, data-simulated, data-strip-section", /data-track-strip=\{track\.code\}/.test(stripTemplate) && /data-track-org=/.test(stripTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate) && count(stripTemplate, /data-strip-section="/g) === 7);
+/* Task 9.4 (owner): trim and pan share one row, so the strip has 8 hooks —
+   the added one is the row that holds the pair. Each control keeps its own
+   hook, which is what the count is really protecting. */
+check("the strip carries its hooks: data-track-strip, data-track-org, data-simulated, data-strip-section", /data-track-strip=\{track\.code\}/.test(stripTemplate) && /data-track-org=/.test(stripTemplate) && /data-simulated=\{SIMULATED\}/.test(stripTemplate) && count(stripTemplate, /data-strip-section="/g) === 8);
 // Task 2.7: one OPTIONAL section, `identity`, sits between the head and TRIM —
 // rendered only when a room passes the `identity` snippet (the Mixer does, the
 // Console does not), so the Console strip is still the six approved sections.
-check("the six sections are head, trim, pan, sends, fader, switches — in that order, with the optional Task 2.7 identity section between head and trim", (stripTemplate.match(/data-strip-section="([a-z]+)"/g) ?? []).map((m) => m.slice(20, -1)).join(",") === "head,identity,trim,pan,sends,fader,switches");
+/* Task 9.4: trim and pan sit on one shared row, so the sequence reads
+   head, identity, dials, trim, pan, sends, fader, switches. The assertion is
+   the same intent — trim before pan, both before the sends, the level, the
+   switches — expressed over the one row that now contains the pair. */
+check("the sections are head, dials (trim then pan), sends, fader, switches — in that order, with the optional Task 2.7 identity section between head and trim", (stripTemplate.match(/data-strip-section="([a-z]+)"/g) ?? []).map((m) => m.slice(20, -1)).join(",") === "head,identity,dials,trim,pan,sends,fader,switches" && stripTemplate.indexOf('data-strip-section="trim"') < stripTemplate.indexOf('data-strip-section="pan"') && stripTemplate.indexOf('data-strip-section="pan"') < stripTemplate.indexOf('data-strip-section="sends"'));
 check("the identity section is optional: guarded by {#if identity}, rendering the snippet and nothing else; the Console bank passes none", /\{#if identity\}\s*(<!--[\s\S]*?-->\s*)?<div class="strip__section strip__section--identity" data-strip-section="identity">\s*\{@render identity\(\)\}\s*<\/div>\s*\{\/if\}/.test(stripTemplate) && /<TrackStrip track=\{trackStrip\(track\.id\)\} \/>/.test(bankTemplate) && !/identity/.test(bank));
 check("the pinned area renders the Task 2.4 strips: one ReturnStrip per fixture return, then the BusMasterStrip (the bus master farthest right, 0.3)", /<aside[\s\S]*\{#each returns as ret \(ret\.id\)\}\s*<ReturnStrip ret=\{returnStripOf\(ret\.id\)\} live=\{returnLive\(ret\.id\)\} \/>\s*\{\/each\}\s*\{#each buses as bus \(bus\.id\)\}\s*<BusMasterStrip bus=\{busStripOf\(bus\.id\)\} live=\{busLive\(bus\.id\)\} \/>\s*\{\/each\}/.test(bankTemplate) && count(bankTemplate, /<ReturnStrip\b/g) === 1 && count(bankTemplate, /<BusMasterStrip\b/g) === 1);
 check("the bank no longer renders or imports the Phase 0 ChannelStrip placeholder", !/ChannelStrip\b/.test(bank));
@@ -151,7 +158,10 @@ check("the slot carries its hooks: data-send-slot, data-send-state, data-send-to
 check("the slot's state type is two fields only: the Return's id (or null) and a level — id-agnostic since Task 3.1 (the project's kind-prefixed Return ids)", /export interface SlotState \{\s*(\/\*\*[^*]*\*\/\s*)?to: string \| null;\s*level: number;\s*\}/.test(sendSlot) && !/ReturnId/.test(sendSlot));
 check("the slot does not override the approved Knob's internals", !/:global|\.knob/.test(slotStyle));
 
-check("one fader, labelled Level, at its approved defaults (console taper, 160 travel, −60…+10 dB)", count(stripTemplate, /<Fader\b/g) === 1 && /<Fader label="Level" bind:value=\{\(\) => track\.level, \(v\) => \(track\.level = v\)\} \/>/.test(stripTemplate));
+/* Task 9.4: the throw is passed explicitly. The Fader's own 1× default is
+   still 160 px (check-fader pins it); the strip asks for the shorter 110 px
+   throw so a whole module fits a 1080p window's channel area (D9.4.1). */
+check("one fader, labelled Level, at its approved defaults (console taper, 110 travel, −60…+10 dB)", count(stripTemplate, /<Fader\b/g) === 1 && /<Fader label="Level" travel=\{110\} bind:value=\{\(\) => track\.level, \(v\) => \(track\.level = v\)\} \/>/.test(stripTemplate));
 check("two panel-labelled switches: Mute (red lamp) and Solo (amber lamp), named per track", /<TactileSwitch variant="panel" label="Mute" lamp="red" bind:engaged=\{\(\) => track\.mute, \(on\) => \(track\.mute = on\)\} name=\{`Mute \$\{track\.name\}`\} \/>/.test(stripTemplate) && /<TactileSwitch variant="panel" label="Solo" lamp="amber" bind:engaged=\{\(\) => track\.solo, \(on\) => \(track\.solo = on\)\} name=\{`Solo \$\{track\.name\}`\} \/>/.test(stripTemplate) && count(stripTemplate, /<TactileSwitch\b/g) === 2);
 check("one red peak lamp, named per track", count(stripTemplate, /<Lamp\b/g) === 1 && /<Lamp lit=\{track\.peak\} color="red" name=\{`Peak, \$\{track\.name\}`\} \/>/.test(stripTemplate));
 check("the footer order is mute, solo, peak", /label="Mute"[\s\S]*label="Solo"[\s\S]*data-strip-peak/.test(stripTemplate));
@@ -234,7 +244,13 @@ check("the strip and bank do not import the bridge or its fixtures", !/meter-bri
 check("the strip and slot do not import the Phase 0 placeholder or the mixer/arrange fixtures", !/ChannelStrip\.svelte|MixerChannelStrip|lib\/mixer|lib\/arrange/.test(strip + sendSlot));
 check("the bank imports the pinned strips from the channel-strip folder (Task 2.4) and reads their entities from the store (Task 3.1)", /import BusMasterStrip from "\.\/channel-strip\/BusMasterStrip\.svelte"/.test(bank) && /import ReturnStrip from "\.\/channel-strip\/ReturnStrip\.svelte"/.test(bank) && /const returns = \$derived\(project\.returns\);/.test(bank) && /const buses = \$derived\(project\.buses\);/.test(bank));
 check("no instrument combobox: the send menu is a menu, not a combobox or select", !/combobox|<select|<datalist/.test(sendSlot));
-check("ConsoleRoom keeps the bridge over the bank (Task 2.3 added its transport zone between them), and no Phase 0 bank frame", (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") === 'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"' && !/console-bank\b|console-zone__header/.test(consoleRoom));
+/* Task 9.4 (owner, D9.4.1) reverses D2.3.1: the Console's own transport zone
+   is gone, because the persistent shared strip already carries every transport
+   control in every room and the deck's 210 px were being paid for out of the
+   bank's height. The zone order that remains is bridge over bank, which is what
+   this assertion has always been protecting — now with the absence of a
+   transport zone asserted explicitly rather than merely implied. */
+check("ConsoleRoom keeps the bridge over the bank with no transport zone between them (Task 9.4), and no Phase 0 bank frame", (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") === 'data-console-zone="meter-bridge",data-console-zone="channel-bank"' && !/console-zone--transport|data-console-zone="transport"/.test(consoleRoom) && !/console-bank\b|console-zone__header/.test(consoleRoom));
 check("the approved bridge is byte-identical to Task 2.1's approved file", sha256(read("src/components/meter-bridge/ConsoleMeterBridge.svelte")) === "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002");
 check("the Phase 0 ChannelStrip placeholder is byte-identical to its Phase 0 file", sha256(placeholder) === "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58");
 check(

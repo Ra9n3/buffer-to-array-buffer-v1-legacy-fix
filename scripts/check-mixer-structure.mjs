@@ -227,7 +227,7 @@ check("check:mixer is wired into package.json", pkg.scripts?.["check:mixer"] ===
 // and the select changed by exactly the additions above and are pinned at
 // their Task 2.7 state by this and the other guards.
 const pinned = {
-  "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
+  "src/components/ChannelBank.svelte": "d0a4927831028dc060323316b31eb93eca0d78c2448d303ad08da0c3420557b0",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.
@@ -237,7 +237,7 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
+  "src/rooms/ConsoleRoom.svelte": "d136a20c27985b4fc9a8b8122632f8f5f6c97d5b88878ea0d3ad0b391d810b43",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is

@@ -1,5 +1,6 @@
 <script lang="ts">
   import BusMasterStrip from "./channel-strip/BusMasterStrip.svelte";
+  import MixPanel from "./channel-strip/MixPanel.svelte";
   import ReturnStrip from "./channel-strip/ReturnStrip.svelte";
   import TrackStrip from "./channel-strip/TrackStrip.svelte";
   import EngravedLabel from "./hardware/EngravedLabel.svelte";
@@ -94,6 +95,11 @@
       data-pinned-count={pinnedCount}
       aria-label="Pinned bus and Return channels"
     >
+      <!-- Task 9.4 (owner, D9.4.2): the MIX panel sits directly ABOVE the bus
+           master — the mix control belongs to the bus it feeds. It is a
+           sibling of the modules' row, in the pinned column, so the bus keeps
+           the bank's full height and the panel takes only its own. -->
+      <MixPanel live />
       <ul class="bank__pinned-row" aria-label="Return buses, then the bus master">
         {#each returns as ret (ret.id)}
           <ReturnStrip ret={returnStripOf(ret.id)} live={returnLive(ret.id)} />
@@ -276,6 +282,10 @@
     grid-area: pinned;
     flex-direction: column;
     align-items: flex-start;
+    /* Task 9.4: the MIX panel sits above the modules' row, so the column owns
+       the leftover height and hands it to the row — the bus keeps the bank's
+       full height and the panel takes only what it needs. */
+    gap: var(--al-space-2xs);
   }
 
   /* The pinned modules on their rail: the track rail's row, the same gap.
@@ -284,11 +294,12 @@
      master's blank panel takes up the difference. */
   .bank__pinned-row {
     display: flex;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     align-items: stretch;
     gap: var(--al-space-2xs);
     width: max-content;
     min-width: 100%;
+    min-height: 0;
     margin: 0;
     padding: 0;
     list-style: none;

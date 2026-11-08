@@ -89,9 +89,9 @@ check(
   /<EngravedLabel as="h2" id="console-meter-title" text="Meter bridge"/.test(bridge),
 );
 check(
-  "Console keeps the bridge as its first zone, over the transport deck (Task 2.3) and the bank, in order",
+  "Console keeps the bridge as its first zone, over the bank, in order (Task 9.4 removed the transport zone)",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"',
+    'data-console-zone="meter-bridge",data-console-zone="channel-bank"',
 );
 
 // The channel-bank zone: Task 2.2 replaced its Phase 0 header and frame with
@@ -123,14 +123,14 @@ check(
 {
   const layout = consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "";
   check(
-    "console layout rows: max-content bridge over a max-content transport deck (Task 2.3) over the minmax(max-content, 1fr) bank",
-    /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content,\s*1fr\)/.test(layout),
+    "console layout rows: max-content bridge over the minmax(max-content, 1fr) bank, the bank taking all freed height (Task 9.4)",
+    /grid-template-rows:\s*max-content\s+minmax\(max-content,\s*1fr\)/.test(layout),
     layout.trim().slice(0, 200),
   );
   check("console layout scrolls vertically inside the room only", /overflow-y:\s*auto/.test(layout) && /overflow-x:\s*hidden/.test(layout));
-  // Since Task 2.2 the skinned zones share one reset rule; Task 2.3 added the
-  // transport deck to it.
-  const meterZone = consoleRoom.match(/\.console-zone--meter,\s*\.console-zone--transport,\s*\.console-zone--channels\s*{([^}]*)}/s)?.[1] ?? "";
+  // Since Task 2.2 the skinned zones share one reset rule; Task 9.4 removed the
+  // transport deck from it along with the zone (D9.4.1).
+  const meterZone = consoleRoom.match(/\.console-zone--meter,\s*\.console-zone--channels\s*{([^}]*)}/s)?.[1] ?? "";
   check(
     "the meter and channel zones drop the placeholder frame (no padding, border or background)",
     /padding:\s*0/.test(meterZone) && /border:\s*0/.test(meterZone) && /background:\s*none/.test(meterZone),
@@ -156,7 +156,7 @@ check(
 );
 check(
   "the bank's row keeps a content floor, so nothing above it can crush the strips",
-  /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content,\s*1fr\)/.test(
+  /grid-template-rows:\s*max-content\s+minmax\(max-content,\s*1fr\)/.test(
     consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "",
   ),
 );
