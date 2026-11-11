@@ -382,7 +382,10 @@ const pinned = {
   "src/components/hardware/Fader.svelte": "b46e55ec95f4ddbe544175f7e0a340e7378a8cff3af674e431aad2a08d5be372",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
-  "src/components/hardware/VUMeter.svelte": "c3d850c80d9d53c70ed31c603fe23c011402f813e56bce963494086466347394",
+  // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
+  // white phase meter off the row, the correlation strip restored and stretched,
+  // the VU cards extended horizontally with their content).
+  "src/components/hardware/VUMeter.svelte": "a11dc02daada4c685f9ff91b9acf5bbf9d2196c0fa3b4fed345646f3080e2492",
   "src/components/hardware/LedLadder.svelte": "d09d6f36455731128c7f32189b8e641686f603c293968b5629f55fb61f1628b7",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
@@ -397,7 +400,10 @@ const pinned = {
   // real contract.
   // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
   // the paging rails, the bare scope, the re-spread bridge, the contained windows).
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "e3d006b6a939c177f1598b12afeae7fed0bed6cde7677fa8b82fb040e9d5aeed",
+  // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
+  // white phase meter off the row, the correlation strip restored and stretched,
+  // the VU cards extended horizontally with their content).
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "179044f74a4775f0d5fb8e378ce77e3a27cf5a7010ff5469f580e451c7240b10",
   // Task 9.1.3 re-pinned this file. Two lines changed, both in the *state the deck
   // reads* — the MIX state now asks `mixRevision` instead of the live `renderProgress
   // === 1` gauge that a finished render always clears, and the completed mix passes

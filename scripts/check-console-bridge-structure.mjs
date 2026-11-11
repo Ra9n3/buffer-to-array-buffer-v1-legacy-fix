@@ -31,13 +31,14 @@
  */
 
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(resolve(root, rel), "utf8");
 const sha256 = (text) => createHash("sha256").update(text.replace(/\r\n/g, "\n")).digest("hex");
+const exists = (rel) => existsSync(resolve(root, rel));
 
 const failures = [];
 const passes = [];
@@ -51,12 +52,11 @@ const consoleRoom = read("src/rooms/ConsoleRoom.svelte");
 const bridge = read("src/components/meter-bridge/ConsoleMeterBridge.svelte");
 const spectrum = read("src/components/meter-bridge/SpectrumLadder.svelte");
 const gonio = read("src/components/meter-bridge/Goniometer.svelte");
-const correlation = read("src/components/meter-bridge/CorrelationMeter.svelte"); // Task 9.5: the phase module's instrument
 const fixtures = read("src/components/meter-bridge/bridge-fixtures.ts");
 const appCss = read("src/app.css");
 const pkg = JSON.parse(read("package.json"));
 
-const bridgeFiles = { bridge, spectrum, gonio, fixtures };
+const bridgeFiles = { bridge, spectrum, gonio, fixtures }; // Task 9.8: the needle meter's file left with its module
 const allBridgeSource = Object.values(bridgeFiles).join("\n");
 
 /** The CSS of a Svelte component (the single <style> block). */
@@ -173,7 +173,7 @@ check(
   /import LedLadder from "\.\.\/hardware\/LedLadder\.svelte"/.test(spectrum) &&
     /import EngravedLabel from "\.\.\/hardware\/EngravedLabel\.svelte"/.test(spectrum),
 );
-check("the goniometer imports nothing but the bridge fixtures (Task 9.7, D9.7.2: the strip's EngravedLabel and CORRELATION_FIXTURE imports left with the strip — the scope prints nothing)", /import \{[\s\S]*?GONIOMETER_TRACE[\s\S]*?\} from "\.\/bridge-fixtures";/.test(gonio) && !/EngravedLabel|CORRELATION_FIXTURE/.test(gonio));
+check("the goniometer imports EngravedLabel from the approved library and the bridge fixtures — the correlation strip is BACK on its plate (Task 9.8, D9.8.2: the owner's 'return the correlation meter'; the 9.7 reading had the owner's 'phase meter' backwards — the white needle meter was the one to go)", /import EngravedLabel from "\.\.\/hardware\/EngravedLabel\.svelte"/.test(gonio) && /CORRELATION_FIXTURE/.test(gonio) && /GONIOMETER_TRACE/.test(gonio));
 check(
   "the fixture file takes its ladder scale from the approved ladder",
   /import { LED_LADDER_SCALE, type LedSegment } from "\.\.\/hardware\/LedLadder\.svelte"/.test(fixtures),
@@ -191,14 +191,13 @@ check(
     "master: independent fixture values",
     /level={MASTER_FIXTURE\.left}/.test(masterBlock) && /level={MASTER_FIXTURE\.right}/.test(masterBlock),
   );
-  const corrBlock = tpl.slice(tpl.indexOf("<!-- CORRELATION"), tpl.indexOf("<!-- MASTER"));
   check(
-    "correlation: one CorrelationMeter on the fixture's correlation value, named as simulated, third from the left and BARE — no legend (Task 9.6, D9.6.3: the PHASE box left the row's left end, the needle stayed as the correlation meter)",
-    /<CorrelationMeter value=\{CORRELATION_FIXTURE\} name=\{`Stereo correlation, \$\{SIMULATED\}`\} legend=\{false\} \/>/.test(corrBlock),
+    "the white needle PHASE meter is off the row and its component deleted (Task 9.8, D9.8.1, the owner: 'you should remove the phase meter not the correlation meter' — the needle meter that sat between the goniometer and the VUs since 9.5; the 9.7 pass had it backwards)",
+    !exists("src/components/meter-bridge/CorrelationMeter.svelte") && !/CorrelationMeter/.test(bridge) && !/data-bridge-module="correlation"/.test(bridge),
   );
   check("the per-channel VU row is gone (Task 9.5): every channel strip carries its own LED meter beside its fader", !/BANK_FIXTURE/.test(bridge) && !/data-bridge-module="channels"/.test(bridge));
   check("the bridge renders the two sub-displays, the spectrum SPREAD across the width it is allowed (Task 9.7, D9.7.3: capped under half the deck, still the biggest — the owner's boxes)", /<SpectrumLadder spread \/>/.test(tpl) && /<Goniometer \/>/.test(tpl));
-  check("every module heading is an engraved h3", (tpl.match(/<EngravedLabel as="h3"/g) ?? []).length === 4);
+  check("every module heading is an engraved h3 (three modules since Task 9.8: spectrum, goniometer, master)", (tpl.match(/<EngravedLabel as="h3"/g) ?? []).length === 3);
 }
 {
   const tpl = templateOf(spectrum);
@@ -213,7 +212,7 @@ check(
   "the spectrum scale is the approved ladder scale with the numerals stripped",
   /SPECTRUM_SEGMENTS[^=]*=\s*LED_LADDER_SCALE\.map\(\(\{ db, band \}\) => \(\{\s*db,\s*band,?\s*\}\)\)/s.test(fixtures),
 );
-check("no bridge file draws a VU meter or a ladder of its own (the phase meter's needle is its own approved instrument, Task 9.5 — as the goniometer's scope is)", !/vu__|data-vu|led__|data-led|VU_MARKS/i.test(bridge + spectrum + correlation + gonio.replace(/goniometer/gi, "")));
+check("no bridge file draws a VU meter or a ladder of its own (the instruments are the approved components; the needle meter left with its file, Task 9.8)", !/vu__|data-vu|led__|data-led|VU_MARKS/i.test(bridge + spectrum + gonio.replace(/goniometer/gi, "")));
 check("only the goniometer contains SVG", !/<svg/.test(bridge) && !/<svg/.test(spectrum) && /<svg/.test(gonio));
 
 // --- the goniometer's own contract (provisional treatment, D2.1.4) ----------
@@ -224,8 +223,12 @@ check("only the goniometer contains SVG", !/<svg/.test(bridge) && !/<svg/.test(s
   check("goniometer: a graticule group and a three-pass trace (bloom, body, core)", /data-part="graticule"/.test(tpl) && /gonio__trace-bloom/.test(tpl) && /gonio__trace-body/.test(tpl) && /gonio__trace-core/.test(tpl));
   check("goniometer: the trace is the fixture's point list", /trace\.map\(\(\[x, y\]\)/.test(gonio) && /GONIOMETER_TRACE/.test(gonio));
   check(
-    "goniometer: the correlation strip is GONE (Task 9.7, D9.7.2, the owner: 'first remove the phase meter') — no slot, no index, no −1 · 0 · +1 print, no meter role, no strip width; it read the same fixture the needle meter reads, and the scope is the whole plate now",
-    !/gonio__correlation|corr__|data-goniometer-correlation|role="meter"|gonio-strip-width|EngravedLabel|text="Correlation"/.test(gonio),
+    "goniometer: the correlation strip is BACK and is the row's one correlation reading (Task 9.8, D9.8.2) — a −1 … +1 meter with the standard print, reading the fixture the needle meter used to read",
+    /data-goniometer-correlation/.test(tpl) && /role="meter"[\s\S]*?aria-valuemin="-1"[\s\S]*?aria-valuemax="1"/.test(tpl) && /text="−1"/.test(tpl) && /text="0"/.test(tpl) && /text="\+1"/.test(tpl) && /CORRELATION_FIXTURE/.test(gonio),
+  );
+  check(
+    "goniometer: the strip takes the plate's leftover width (Task 9.8, D9.8.4, the owner: 'extend them horizontally') — flex-grow, floored at its 1× width — and its legend stays clipped out of the face, in the accessibility tree (D9.6.3)",
+    /\.gonio__correlation\s*{[\s\S]*?flex:\s*1 1 auto;[\s\S]*?min-width:\s*var\(--gonio-strip-width, 6rem\);/.test(css) && /gonio__legend--hidden/.test(css) && /text="Correlation"/.test(tpl),
   );
   check("goniometer: the trace is the lamp / amber family, never green", /--g-trace:\s*var\(--al-material-lamp\)/.test(css) && /--g-trace-core:\s*var\(--al-function-amber-hi\)/.test(css) && !/green/i.test(css));
   check("goniometer: the window floor is the recess token", /--g-floor-centre:\s*color-mix\(in srgb, var\(--al-material-recess\)/.test(css));
@@ -243,7 +246,10 @@ const FROZEN = {
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
   "src/components/hardware/LedLadder.svelte": "d09d6f36455731128c7f32189b8e641686f603c293968b5629f55fb61f1628b7",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
-  "src/components/hardware/VUMeter.svelte": "c3d850c80d9d53c70ed31c603fe23c011402f813e56bce963494086466347394",
+  // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
+  // white phase meter off the row, the correlation strip restored and stretched,
+  // the VU cards extended horizontally with their content).
+  "src/components/hardware/VUMeter.svelte": "a11dc02daada4c685f9ff91b9acf5bbf9d2196c0fa3b4fed345646f3080e2492",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
 };
@@ -268,7 +274,7 @@ check("no FFT or correlation algorithm (no such call anywhere in the bridge)", !
 // Fixture variety: the review must see varied needles, a red channel, a quiet one.
 {
   check("the per-channel bank fixture is gone with the channel VU row (Task 9.5): the strips' own meters carry the per-channel readings now", !/BANK_FIXTURE/.test(fixtures));
-  check("the needle correlation meter reads the one correlation fixture (D2.1.4's value, unchanged; the goniometer's duplicate strip is gone, D9.7.2)", /CORRELATION_FIXTURE = 0\.62/.test(fixtures));
+  check("the goniometer's strip reads the one correlation fixture (D2.1.4's value, unchanged — the row's one correlation reading since the needle left, D9.8.1/D9.8.2)", /CORRELATION_FIXTURE = 0\.62/.test(fixtures));
   check("master fixture: left and right differ", /left: (-?[\d.]+),\s*right: (-?[\d.]+)/.test(fixtures) && RegExp.$1 !== RegExp.$2);
   const bands = [...fixtures.matchAll(/{ hz: (\d+), label: "([^"]+)", level: (-?[\d.]+) }/g)].map(([, hz, label, level]) => ({ hz: Number(hz), label, level: Number(level) }));
   check("spectrum fixture: fifteen bands, 25 Hz to 16 kHz, ascending", bands.length === 15 && bands[0].hz === 25 && bands[14].hz === 16000 && bands.every((b, i) => i === 0 || b.hz > bands[i - 1].hz));
@@ -293,9 +299,9 @@ check(
   check("the deck is a named inline-size container", /container-type:\s*inline-size/.test(css) && /container-name:\s*bridge/.test(css));
   check(
     "desktop arrangement: one row of instruments spread edge to edge — the reference console's strip uses its whole width (Task 9.5, D9.5.5)",
-    /@container bridge \(min-width: 900px\)[\s\S]*?justify-content:\s*space-between/.test(css),
+    /\.module--spectrum\s*{[^}]*flex:\s*3 1 auto/s.test(css) && /\.module--stereo\s*{[^}]*flex:\s*1 1 auto/s.test(css) && /\.module--master\s*{[^}]*flex:\s*2 1 auto/s.test(css),
   );
-  check("below desktop the modules wrap in the owner's order: spectrum, goniometer, correlation, master (D9.6.3)", /flex-wrap:\s*wrap/.test(css) && /\.module--spectrum\s*{\s*order:\s*1;/.test(css) && /\.module--stereo\s*{\s*order:\s*2;/.test(css) && /\.module--correlation\s*{\s*order:\s*3;/.test(css) && /\.module--master\s*{\s*order:\s*4;/.test(css) && !/module--phase/.test(css));
+  check("below desktop the modules wrap in the owner's order: spectrum, goniometer, master (D9.6.3; the needle module left the row, Task 9.8)", /flex-wrap:\s*wrap/.test(css) && /\.module--spectrum\s*{\s*order:\s*1;/.test(css) && /\.module--stereo\s*{\s*order:\s*2;/.test(css) && /\.module--master\s*{\s*order:\s*3;/.test(css) && !/module--phase|module--correlation/.test(css));
   {
     const rule = css.match(new RegExp(`\\n  ${".master".replace(".", "\\.")}\\s*{([^}]*)}`))?.[1] ?? "";
     check("master row scrolls inside its own module (overflow-x auto, max-width 100%)", /overflow-x:\s*auto/.test(rule) && /max-width:\s*100%/.test(rule), rule.trim().slice(0, 120));
@@ -305,20 +311,22 @@ check(
   check("modules can never exceed the deck (max-width 100%, min-width 0)", /\.module\s*{[^}]*max-width:\s*100%/s.test(css) && /\.module\s*{[^}]*min-width:\s*0/s.test(css));
   check("master pair is centred with auto margins (no unreachable overflow)", /\.master__pair\s*{[^}]*margin-inline:\s*auto/s.test(css));
 check(
-    "the spread is the owner's boxes (Task 9.7, D9.7.3): the spectrum — still the biggest — is capped under half the row (max-width 45%, on the spread row only, one written-down number) and the correlation card is centred at 4:3, so every VU card outsizes it and the square scope",
+    "the spread is the owner's instruction (Task 9.8, D9.8.3/D9.8.4): the spectrum stays capped under half the row (max-width 45%, one written-down number, spread row only), the VU cards are EXTENDED WITH THEIR CONTENT — the meters run the `fill` mode at the row's one height, the 1× card's width the floor — and the pair fills the module so the two meters share its width",
     (() => {
       const at = css.indexOf("@container bridge (min-width: 900px)");
       const cap = css.indexOf("max-width: 45%");
       return (
         at >= 0 && cap > at && (css.match(/max-width:\s*45%/g) ?? []).length === 1 &&
-        /\.module--correlation\s*{[^}]*justify-content:\s*center/s.test(css)
+        (templateOf(bridge).match(/<VUMeter label=\{null\} fill /g) ?? []).length === 2 &&
+        /--vu-fill-height:\s*var\(--b-inst-height\)/.test(css) &&
+        /--vu-fill-min:\s*calc\(var\(--b-inst-height\) \* 10 \/ 7\)/.test(css) &&
+        /\.master__pair\s*{[^}]*flex:\s*1 1 auto/s.test(css)
       );
     })(),
   );
-  check("every instrument is drawn from the row's ONE height (D9.6.3; the card's ratio re-cut in D9.7.3): --b-inst-height drives the VUs' width (120/84) and the correlation card's (96/57.6 — 4:3, the row's smallest card, every VU outsizes it), the scope IS the height, and no size steps remain", /--b-inst-height:\s*4\.5rem/.test(css) && /--vu-width:\s*calc\(var\(--b-inst-height\) \* 10 \/ 7\)/.test(css) && /--phase-width:\s*calc\(var\(--b-inst-height\) \* 4 \/ 3\)/.test(css) && /--gonio-size:\s*var\(--b-inst-height\)/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
-  check("no legends print on the row (D9.6.3): the module headings are clipped out of the face and stay in the accessibility tree", /\.module__title\s*{[^}]*clip-path:\s*inset\(50%\)/s.test(css) && /aria-labelledby=\{`\$\{uid\}-correlation`\}/.test(templateOf(bridge)));
+  check("every instrument is drawn from the row's ONE height (D9.6.3; re-cut in D9.8.3): --b-inst-height drives the scope (--gonio-size) and the VUs' FILL height (--vu-fill-height, their width flexing with the row at the 1× card's width as the floor), nothing else sizes an instrument, and no size steps remain", /--b-inst-height:\s*4\.5rem/.test(css) && /--gonio-size:\s*var\(--b-inst-height\)/.test(css) && /--vu-fill-height:\s*var\(--b-inst-height\)/.test(css) && !/--vu-width:|--phase-width:/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
+  check("no legends print on the row (D9.6.3): the module headings are clipped out of the face and stay in the accessibility tree", /\.module__title\s*{[^}]*clip-path:\s*inset\(50%\)/s.test(css) && /aria-labelledby=\{`\$\{uid\}-master`\}/.test(templateOf(bridge)));
   check("the spectrum spreads by a prop, its 1x bay unchanged (D9.6.3)", /spread = false/.test(spectrum) && /spectrum--spread/.test(styleOf(spectrum)) && /justify-content:\s*space-between/.test(styleOf(spectrum)));
-  check("the correlation meter's legend is a prop, hidden without being dropped (D9.6.3)", /legend = true/.test(correlation) && /phase__legend--hidden/.test(styleOf(correlation)));
   check("the goniometer is host-sized the VU's way: fallbacks at the use site, never declared at the root (D9.6.3)", /width: var\(--gonio-size, 6\.25rem\)/.test(styleOf(gonio)) && !/--gonio-size:\s*[0-9.]/.test(styleOf(gonio)));
   check("no bridge file animates anything of its own", !/@keyframes|animation:/.test(css + styleOf(spectrum) + styleOf(gonio)));
 }

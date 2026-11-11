@@ -187,7 +187,10 @@ const pinned = {
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
   "src/components/hardware/Fader.svelte": "b46e55ec95f4ddbe544175f7e0a340e7378a8cff3af674e431aad2a08d5be372",
-  "src/components/hardware/VUMeter.svelte": "c3d850c80d9d53c70ed31c603fe23c011402f813e56bce963494086466347394",
+  // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
+  // white phase meter off the row, the correlation strip restored and stretched,
+  // the VU cards extended horizontally with their content).
+  "src/components/hardware/VUMeter.svelte": "a11dc02daada4c685f9ff91b9acf5bbf9d2196c0fa3b4fed345646f3080e2492",
   // Task 3.1 UI and shapes this task leaves alone (no UI in 3.2)
   "src/components/channel-strip/strip-live.ts": "99603dc16c898e0887c24b5f821b8547ee747342138e8a8b0ebc63e48fa66c7b",
   "src/components/channel-strip/return-live.ts": "837066bc8807932864997db3853d94c70eb6f3f23ec15c15efdb5526f46dfdab",

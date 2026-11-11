@@ -110,10 +110,10 @@ check("the VU meter carries no colour of its own: tokens and neutral alphas only
 check("the ladder carries no colour of its own: tokens and neutral alphas only", foreignHex(led).length === 0, foreignHex(led).join(" "));
 check("no new design token was added for either meter", !/--al-(vu|meter|led|ladder|needle)/.test(css) && !/--al-(vu|meter|led|ladder|needle)/.test(vu) && !/--al-(vu|meter|led|ladder|needle)/.test(led));
 check(
-  "each scales as a whole from one host-settable width, like the fader",
-  /width: var\(--vu-width, 7\.5rem\)/.test(V.style) && /width: var\(--ladder-width, 3rem\)/.test(L.style) && !/--vu-width:/.test(V.style) && !/--ladder-width:/.test(L.style),
+  "each scales as a whole from one host-settable width, like the fader (the VU's window also writes its 1\u00d7 card's ratio down, and gains a fill mode — Task 9.8, D9.8.3: the host's width and height, the drawing re-cut to the measured box — with the --vu-width path unchanged)",
+  /width: var\(--vu-width, 7\.5rem\)/.test(V.style) && /aspect-ratio: 120 \/ 84;/.test(V.style) && /\.vu\.is-fill \{/.test(V.style) && /\.vu\.is-fill \.vu__window \{[\s\S]*?height: var\(--vu-fill-height, auto\);[\s\S]*?aspect-ratio: auto;/.test(V.style) && /width: var\(--ladder-width, 3rem\)/.test(L.style) && !/--vu-width:/.test(V.style) && !/--ladder-width:/.test(L.style),
 );
-check("both draw one SVG at 1 px = 1 unit", /viewBox=\{`0 0 \$\{W\} \$\{H\}`\}/.test(V.markup) && /viewBox=\{`0 0 \$\{W\} \$\{H\}`\}/.test(L.markup));
+check("both draw one SVG at 1 px = 1 unit (the VU's drawing width SW is the window's measured box re-cut in units — Task 9.8, D9.8.3 — while every unit stays 1 px; at the 1\u00d7 box SW is exactly W, the approved face)", /viewBox=\{`0 0 \$\{SW\} \$\{H\}`\}/.test(V.markup) && /viewBox=\{`0 0 \$\{W\} \$\{H\}`\}/.test(L.markup) && /const SW = \$derived\(winW > 0 && winH > 0 \? Math\.max\(W, \(winW \* H\) \/ winH\) : W\);/.test(V.script) && /bind:clientWidth=\{winW\}/.test(V.markup) && /bind:clientHeight=\{winH\}/.test(V.markup));
 
 // --- 2. The analog meter: housing, card, scale, needle. -------------------------------
 check(
@@ -148,8 +148,8 @@ const PIVOT_Y = num(V.script, "PIVOT_Y");
 const PIVOT_X = num(V.script, "PIVOT_X");
 const W = num(V.script, "W");
 check(
-  "the needle's pivot is below the centre of the card and on its axis",
-  PIVOT_Y > FACE_Y + FACE_H / 2 && PIVOT_Y < FACE_Y + FACE_H && PIVOT_X === W / 2,
+  "the needle's pivot is below the centre of the card and on its axis (and rides the centre line at any stretch: S_PIVOT_X is the 1\u00d7 pivot translated by half the extra width — Task 9.8)",
+  PIVOT_Y > FACE_Y + FACE_H / 2 && PIVOT_Y < FACE_Y + FACE_H && PIVOT_X === W / 2 && /const S_PIVOT_X = \$derived\(PIVOT_X \+ \(SW - W\) \/ 2\);/.test(V.script) && /const S_FACE_W = \$derived\(FACE_W \+ \(SW - W\)\);/.test(V.script),
   `pivot y ${PIVOT_Y}, card centre ${FACE_Y + FACE_H / 2}`,
 );
 check("the scale is an arc about that pivot, with ticks radiating from it", /const arc = \(r: number, fromDb: number, toDb: number\)/.test(V.script) && /polar\(ARC_R, a\)/.test(V.script) && /polar\(ARC_R \+ TICK\[mark\.weight\], a\)/.test(V.script) && /class="vu__arc"/.test(V.markup));
@@ -175,10 +175,10 @@ check(
     /--v-ink: var\(--al-text-on-cream\)/.test(V.style) &&
     /\.vu__numeral\.is-red \{[^}]*fill: var\(--v-red\)/.test(V.style),
 );
-check('"VU" is printed at the bottom centre of the arc, above the hub (Task 2.8: "GR" on the gain-reduction face)', /data-part="legend" x=\{PIVOT_X\} y=\{PIVOT_Y - 15\.5\}>(?:VU|\{isGr \? "GR" : "VU"\})</.test(V.markup));
+check('"VU" is printed at the bottom centre of the arc, above the hub (Task 2.8: "GR" on the gain-reduction face; x rides the stretched pivot since Task 9.8)', /data-part="legend" x=\{S_PIVOT_X\} y=\{PIVOT_Y - 15\.5\}>(?:VU|\{isGr \? "GR" : "VU"\})</.test(V.markup));
 check(
   "the needle is a thin tapered black blade pivoting on a small circular hub",
-  /const NEEDLE_TIP_W = 0\.5;/.test(V.script) && /const NEEDLE_BASE_W = 1\.7;/.test(V.script) && /--v-needle: color-mix\(in srgb, var\(--al-text-on-cream\) \d+%, black\)/.test(V.style) && /class="vu__hub" data-part="hub" cx=\{PIVOT_X\} cy=\{PIVOT_Y\} r=\{HUB_R\}/.test(V.markup) && num(V.script, "HUB_R") <= 4,
+  /const NEEDLE_TIP_W = 0\.5;/.test(V.script) && /const NEEDLE_BASE_W = 1\.7;/.test(V.script) && /--v-needle: color-mix\(in srgb, var\(--al-text-on-cream\) \d+%, black\)/.test(V.style) && /class="vu__hub" data-part="hub" cx=\{S_PIVOT_X\} cy=\{PIVOT_Y\} r=\{HUB_R\}/.test(V.markup) && num(V.script, "HUB_R") <= 4,
 );
 check(
   "the needle has a soft drop shadow on the card: the same blade, blurred, offset down and right, under the needle in paint order",
@@ -192,7 +192,7 @@ check(
   "the needle rotates about the pivot — origin given as fractions of the drawing against the viewBox — with a smooth, slightly overshooting transition",
   /transform-box: view-box;/.test(V.style) && /transform-origin: var\(--vu-pivot\);/.test(V.style) && /style:--vu-pivot=\{pivotOrigin\}/.test(V.markup) && /transition: transform 360ms cubic-bezier\(0\.22, 1\.16, 0\.4, 1\);/.test(V.style),
 );
-check("the needle never leaves the scale: the position function clamps to the end stops", /const clamped = Math\.min\(VU_MAX, Math\.max\(VU_MIN, db\)\);/.test(V.moduleScript) && /vuAngle\(level\)/.test(V.script));
+check("the needle never leaves the scale: the position law clamps to the end stops, and the drawing's angle rides it (Task 9.8: angleOf spreads the sweep with the card — capped at +24\u00b0 — but keeps the approved position law, clamped, unchanged)", /const clamped = Math\.min\(VU_MAX, Math\.max\(VU_MIN, db\)\);/.test(V.moduleScript) && /const S_SWEEP = \$derived\(VU_SWEEP \+ Math\.min\(24, Math\.max\(0, \(stretch - 1\) \* 18\)\)\);/.test(V.script) && /const angleOf = \(db: number\): number => -S_SWEEP \/ 2 \+ S_SWEEP \* \(isGr \? grPosition\(db\) : vuPosition\(db\)\);/.test(V.script) && /angleOf\(level\)/.test(V.script));
 check("the needle's tip stays inside the card at both stops", (() => {
   const tip = num(V.script, "NEEDLE_TIP_R");
   const half = Math.SQRT1_2;

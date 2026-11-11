@@ -7,46 +7,43 @@
    * ALLOY Console meter bridge — Task 2.1 (plan §3 "Console room", §14 2.1;
    * hardware spec §4a / §4b / §6), rebuilt as the owner's reference
    * console's one compact instrument strip (Task 9.5), re-laid for the
-   * owner's annotated photographs (Task 9.6, D9.6.3; re-spread to the
-   * owner's boxes, Task 9.7, D9.7.3):
+   * owner's annotated photographs (Task 9.6, D9.6.3; Task 9.7, D9.7.3; the
+   * owner's correction pass, Task 9.8, D9.8.1–D9.8.4):
    *
    * One long bevelled warm-charcoal deck between two walnut end-cheeks,
-   * carrying four instruments on ONE row, left to right in the owner's
-   * order — the PHASE box is off the left end, and the strip now opens
-   * with the spectrum:
+   * carrying THREE modules on ONE row, left to right in the owner's order:
    *
    *   SPECTRUM     a recessed bay of approved LED ladders, one per band —
    *               the crisp segmented language of spec §4b, visibly not a
    *               VU. The row's biggest module, but capped under half the
-   *               deck (D9.7.3, the owner's boxes: "it still should be the
-   *               biggest, but not that big").
-   *   GONIOMETER   the dark recessed scope with a warm trace — the scope
-   *               alone since Task 9.7: the correlation strip that shared
-   *               its plate read the same fixture the needle meter reads
-   *               (D9.7.2, the owner: "remove the phase meter").
-   *   CORRELATION  the needle meter (Task 9.5's `CorrelationMeter`): −1 · 0 ·
-   *               +1 on a cream card — the reference console's PHASE LEVEL,
-   *               moved from the left end to third (D9.6.3). The row's one
-   *               correlation reading, and its smallest card (4:3 of the
-   *               row's height, D9.7.3 — every VU outsizes it, as the
-   *               owner's boxes draw it).
-   *   MASTER       the two approved analog VU meters, LEFT and RIGHT, at the
-   *               right end — each card wider than the correlation card and
-   *               the square scope (D9.7.3, the owner's boxes).
+   *               deck (D9.7.3, the owner: "the spectrum now is good
+   *               enough").
+   *   GONIOMETER   the dark recessed scope with a warm trace and, on the
+   *               same plate, the CORRELATION STRIP — the owner's
+   *               "correlation meter", restored (D9.8.2): the strip is the
+   *               row's one correlation reading, and the plate takes its
+   *               module's leftover width so the instrument extends
+   *               horizontally with the row (D9.8.4).
+   *   MASTER       the two approved analog VU meters, LEFT and RIGHT, at
+   *               the right end — their cards EXTENDED HORIZONTALLY WITH
+   *               THEIR CONTENT (D9.8.3, the owner: the VU meter's `fill`
+   *               mode — the drawing is re-cut to the measured box so the
+   *               card, its print and its needle fill the module's share of
+   *               the row, the height fixed, the sweep widening, capped).
    *
-   * The spread is the owner's photograph (D9.7.3): spectrum, goniometer,
-   * correlation, master in that order with clear panel between them, edge
-   * to edge — the leftover width the capped spectrum no longer eats becomes
-   * the space between modules (space-between), not a wider analyzer.
+   * The white needle "Phase" meter that sat between the goniometer and the
+   * VUs since Task 9.5 left the row at the owner's direction (D9.8.1: "you
+   * should remove the phase meter not the correlation meter" — the 9.7
+   * reading had it backwards); its component is deleted with its module.
    *
    * No legends print on the row (D9.6.3, the owner: "people will know what
    * they are once they see them") — the module headings stay in the DOM,
    * clipped out of the face, so every instrument keeps its accessible name;
-   * the VUs print no LEFT/RIGHT line and the correlation meter runs bare.
-   * The space those rows used to take is the instruments' now: every
-   * instrument is drawn from ONE height (--b-inst-height), so each fills the
-   * row top to bottom with no dead band above or below it — the wasted
-   * space the owner marked in red on the photograph.
+   * the VUs print no LEFT/RIGHT line and the strip's legend runs hidden.
+   * Every instrument is drawn from ONE height (--b-inst-height) and the row's
+   * leftover width is carried by the instruments themselves (D9.8.4: the
+   * goniometer and master modules flex-grow — the master the bigger share —
+   * so no dead panel sits between them).
    *
    * The per-channel VU row of Task 2.1 is gone (D9.5.5): every channel strip
    * carries its own LED meter beside its fader now.
@@ -64,10 +61,9 @@
    */
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import VUMeter from "../hardware/VUMeter.svelte";
-  import CorrelationMeter from "./CorrelationMeter.svelte";
   import Goniometer from "./Goniometer.svelte";
   import SpectrumLadder from "./SpectrumLadder.svelte";
-  import { CORRELATION_FIXTURE, MASTER_FIXTURE, SIMULATED } from "./bridge-fixtures";
+  import { MASTER_FIXTURE, SIMULATED } from "./bridge-fixtures";
 
   const uid = `bridge${++nextId}`;
 </script>
@@ -99,7 +95,10 @@
         <SpectrumLadder spread />
       </section>
 
-      <!-- GONIOMETER -->
+      <!-- GONIOMETER — the scope and, on the same plate, the CORRELATION
+           STRIP: the owner's "correlation meter", restored (D9.8.2). The
+           plate takes its module's leftover width, the strip stretching
+           with it (D9.8.4) -->
       <section class="module module--stereo" aria-labelledby={`${uid}-stereo`} data-bridge-module="goniometer">
         <div class="module__title">
           <EngravedLabel as="h3" id={`${uid}-stereo`} text="Goniometer" size="xs" />
@@ -107,26 +106,19 @@
         <Goniometer />
       </section>
 
-      <!-- CORRELATION — the needle meter, third from the left (D9.6.3:
-           removed from the left end as the "phase box", kept as the
-           correlation meter; runs bare, no legend) -->
-      <section class="module module--correlation" aria-labelledby={`${uid}-correlation`} data-bridge-module="correlation">
-        <div class="module__title">
-          <EngravedLabel as="h3" id={`${uid}-correlation`} text="Correlation" size="xs" />
-        </div>
-        <CorrelationMeter value={CORRELATION_FIXTURE} name={`Stereo correlation, ${SIMULATED}`} legend={false} />
-      </section>
-
-      <!-- MASTER — the VU pair prints no LEFT/RIGHT line on this row (D9.6.3);
-           the meters' own faces and the accessible names carry them -->
+      <!-- MASTER — the VU pair, no LEFT/RIGHT print on this row (D9.6.3);
+           the meters' own faces and the accessible names carry them. The
+           cards are EXTENDED with their content (D9.8.3, the owner): each
+           meter fills its share of the module's width at the row's one
+           height — the VUMeter `fill` mode, the drawing re-cut to the box -->
       <section class="module module--master" aria-labelledby={`${uid}-master`} data-bridge-module="master">
         <div class="module__title">
           <EngravedLabel as="h3" id={`${uid}-master`} text="Master" size="xs" />
         </div>
         <div class="master" data-master-meters>
           <div class="master__pair">
-            <VUMeter label={null} level={MASTER_FIXTURE.left} name={`Master left, ${SIMULATED}`} />
-            <VUMeter label={null} level={MASTER_FIXTURE.right} name={`Master right, ${SIMULATED}`} />
+            <VUMeter label={null} fill level={MASTER_FIXTURE.left} name={`Master left, ${SIMULATED}`} />
+            <VUMeter label={null} fill level={MASTER_FIXTURE.right} name={`Master right, ${SIMULATED}`} />
           </div>
         </div>
       </section>
@@ -286,12 +278,14 @@
       0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  /* The owner's order (D9.6.3): the spectrum opens the row, the needle
-     meter is third, the master pair closes it. */
+  /* The owner's order (D9.6.3; the needle module left the row in 9.8):
+     the spectrum opens the row, the master pair closes it. Since 9.8 the
+     goniometer and master modules GROW (D9.8.4) — the leftover width the
+     capped spectrum leaves is carried by the instruments (the strip
+     stretching, the VU cards filling), never by dead panel. */
   .module--spectrum { order: 1; }
   .module--stereo { order: 2; }
-  .module--correlation { order: 3; }
-  .module--master { order: 4; }
+  .module--master { order: 3; }
 
   /* No legends print on the row (D9.6.3): the module headings are clipped
      out of the face and stay in the accessibility tree, the room's own
@@ -311,32 +305,35 @@
   /* --- the instruments, each drawn from the row's one height (D9.6.3) ---- */
   .module--spectrum {
     /* the row's biggest module, but capped under half the deck (D9.7.3,
-       the owner's boxes): the bay pitches its columns across the width it
-       is allowed (SpectrumLadder `spread`), no longer across everything */
-    flex: 1 1 auto;
+       the owner's boxes; "the spectrum now is good enough"): the bay
+       pitches its columns across the width it is allowed (SpectrumLadder
+       `spread`). It grows first (D9.8.4) — the larger grow — so it reaches
+       its cap before the others take what is left */
+    flex: 3 1 auto;
     /* 20 px columns: the bay's ladders + their frequency print land the
        column at the row height (measured; tuned with the fixtures) */
     --ladder-width: 1.25rem;
   }
 
   .module--stereo {
+    /* grows for its share of the row's leftover width (D9.8.4) — the
+       scope stays the row's height, the strip stretches */
+    flex: 1 1 auto;
     --gonio-size: var(--b-inst-height); /* the square scope IS the row's height */
   }
 
-  .module--correlation {
-    /* the row's smallest card (D9.7.3, the owner's boxes): 4:3 of the
-       height — 96 × 57.6 at 4.5rem — so every VU card (10:7, wider) and
-       the cream pair as a whole outsizes it; centered on the row's line */
-    --phase-width: calc(var(--b-inst-height) * 4 / 3);
-    justify-content: center;
-  }
-
   .module--master {
-    /* the VU card is 120 × 84: width = height × 120/84 */
-    --vu-width: calc(var(--b-inst-height) * 10 / 7);
+    /* grows the bigger share after the spectrum's cap (D9.8.4): the
+       owner's order — spectrum, then the VU pair, then the goniometer
+       plate. The meters fill the module's width at the row's one height
+       (the `fill` mode, D9.8.3): the host writes the height and the 1×
+       card's width as the floor */
+    flex: 2 1 auto;
+    --vu-fill-height: var(--b-inst-height);
+    --vu-fill-min: calc(var(--b-inst-height) * 10 / 7); /* the 1× card, 120/84 */
   }
 
-  /* --- master: the two VUs, at the right end ------------------------------- */
+  /* --- master: the two VUs, filling the module (D9.8.3) -------------------- */
   .master {
     display: flex;
     align-items: stretch;
@@ -349,29 +346,27 @@
     scrollbar-color: var(--al-material-metal-shadow) var(--al-material-recess);
   }
 
-  /* Auto margins centre the pair and collapse to zero when the pair is wider
-     than the module, so the left meter is never scrolled out of reach. */
+  /* The pair fills the module so the two meters share its width (the
+     meters flex inside it); the auto margins stand for the day the module
+     is wider than the pair's floors, so the left meter is never scrolled
+     out of reach. */
   .master__pair {
     display: flex;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     gap: var(--al-space-sm);
     align-items: flex-start;
+    min-width: 0;
     margin-inline: auto;
   }
 
   /* =======================================================================
-     RESPONSIVE: the deck is the container. From 900 px up the instruments
-     spread edge to edge across the deck — the reference console's strip
-     uses its whole width, no dead panel at one end — and the spectrum's
-     cap holds (D9.7.3): the width it no longer eats becomes the clear
-     panel between modules. Below 900 px the modules wrap in prominence
-     order, the spectrum taking its whole row uncapped.
+     RESPONSIVE: the deck is the container. The modules GROW into the row's
+     width (D9.8.4) — the goniometer and master shares flexing, the
+     instruments themselves stretching — so the spread needs no justify
+     rule: no dead panel collects between them. The spectrum's cap holds on
+     the spread row only (a wrapped spectrum takes its own row whole).
      ======================================================================= */
   @container bridge (min-width: 900px) {
-    .bridge__modules {
-      justify-content: space-between;
-    }
-
     /* the cap lives here, on the spread row only: a wrapped spectrum takes
        its own row's full width (D9.7.3) */
     .module--spectrum {

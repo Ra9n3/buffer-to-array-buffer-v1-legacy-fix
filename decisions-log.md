@@ -5223,3 +5223,85 @@ the five edited source files re-cut with this note; new assertions cover the pag
 the bare scope, the spectrum cap, the 4:3 card, the centred windows); production build
 inlines clean. Two VLM passes over the screenshots (1920 and 1536) confirmed all six visual
 points, including that no instrument prints a label.
+
+---
+
+## Task 9.8 — the owner's correction: the white phase meter off, the correlation strip back, the VU cards extended (2026-11-12)
+
+The owner, reviewing the 9.7 screenshots:
+
+> i have to tell that you removed the wrong meter, you should remove the phase meter not
+> the correlation meter, the phase meter now located between the two vu meters and the
+> goniometer, also, why did you not extend the two vu meters horizontally the same with
+> the goniometer and the correlation meter, there is too much empty space, and I don't
+> want it to be occupied by the spectrum alone, the spectrum now is good enough, but the
+> other are really small, we do not want to do anything for them vertically so we should
+> extend them horizontally, the vu meters should be extended with their content. get
+> advantage of the upper space horizontally, and please return the correlation meter and
+> remove the white phase meter.
+
+### D9.8.1 — The white needle "Phase" meter is off the row (owner, 2026-11-12)
+
+**Decision.** The 9.7 reading of "remove the phase meter" had it backwards. The owner's
+"phase meter" is the white cream-card NEEDLE meter that sat between the goniometer and the
+VUs since Task 9.5 (its own engraved legend says "Phase" — the reference console's PHASE
+LEVEL); the owner's "correlation meter" is the −1 · 0 · +1 STRIP that shares the
+goniometer's plate. The needle meter's module is deleted from the bridge and its component
+(`CorrelationMeter.svelte`) is deleted from the tree — nothing else ever rendered it. The
+row is three modules now: spectrum · goniometer · master pair.
+
+### D9.8.2 — The correlation strip is back, and it is the row's one correlation reading (owner, 2026-11-12)
+
+**Decision.** The goniometer's correlation strip is restored to its plate (the 9.6
+instrument: the recessed slot with the lit amber index, the standard −1 · 0 · +1 print,
+the legend clipped out of the face and kept in the accessibility tree), reading the same
+`CORRELATION_FIXTURE` it always read. With the needle meter gone it is the row's ONE
+correlation reading — no duplicate anywhere on the bridge.
+
+### D9.8.3 — The VU cards are extended horizontally WITH their content (owner, 2026-11-12)
+
+**Decision.** The approved VU meter gains a `fill` mode: the host sets the card's height
+(`--vu-fill-height`, the row's one height) and a floor (`--vu-fill-min`, the 1× card's
+120/84 width); the window takes its host's width, MEASURES its own box
+(`bind:clientWidth/clientHeight`), and the drawing is re-cut to it — the viewBox widens to
+exactly the box's shape (SW = winW · 84 / winH), so the card, its print and its needle
+fill the box edge to edge at any width, nothing letterboxed, nothing distorted. The
+approved 1× face is untouched: at the default box (`--vu-width`, the window's 120/84
+aspect) SW is exactly 120 and the drawing is the approved face value for value; the
+playground and the mixer's GR meters render exactly as before (pins re-cut, every meter
+guard assertion about the 1× face still passes). The scale spreads with the card — the
+sweep widens from 90° up to a capped 114° (±57°; wider would read as a tuning meter), the
+pivot rides the re-centred axis (the 1× pivot translated by half the extra width), the
+radii, ticks and numerals keep their approved 1× spacing so the print never crowds the
+card's fixed height, and the needle's position law (linear in modulation, clamped to the
+end stops) is unchanged — only its angular spread widens. One trap found and closed in the
+browser: the SVG's intrinsic ratio fed the measured width back through the ancestors'
+intrinsic sizing (a self-consistent loop that let the master module's flex base swallow
+the row) — broken with `contain: inline-size` on the fill window: the drawing is sized
+top-down only.
+
+### D9.8.4 — The row's leftover width is carried by the instruments, not by panel (owner, 2026-11-12)
+
+**Decision.** The modules now GROW (D9.6's space-between spread retired): the spectrum
+grows first (flex 3) and stops at its kept 45% cap ("the spectrum now is good enough"),
+the goniometer plate and the master pair take what is left (flex 1 / 2 — the VU pair the
+bigger share, the owner's order: spectrum > VUs > goniometer). Inside the plates the
+instruments stretch: the correlation strip takes its plate's leftover width (flex, floored
+at its 1× width), and the two VU meters fill the master module, sharing its width
+(the pair flexing, the meters at their floors when the deck is narrow). Measured at
+1920×1080: spectrum 837 px (45%, at its cap), goniometer 384 (scope 72 + strip 296),
+master 619 (two 303 × 72 VU cards — the cards nearly 3× their 9.7 width); the gaps
+between modules are the row's own 10 px. At 1536×864: 660 / 315 / 481 (VUs 234 px); at
+1366×768: 575 / 287 / 424 (VUs 206 px). Nothing grows vertically anywhere.
+
+**Verification.** Measured in a real browser (the production build served, the 20-track
+fixture session through the project store): zero vertical room scroll at all three sizes,
+both transport windows inside the bar, the needle meter absent from the DOM, three bridge
+modules. svelte-check clean; tests 459/459; all 32 structural guards re-pointed and
+passing (the meter guard's 1×-face assertions untouched and green; new assertions cover
+the fill mode, the measured drawing, the sweep cap, the strip's restoration and growth,
+the VU fill pair, and the needle's departure; the pins of VUMeter — nine guards — and
+ConsoleMeterBridge re-cut with this note); production build clean. Two VLM passes over
+the screenshots (1920 and 1536) confirmed: three groups, no standalone needle meter, the
+VU cards wide with their scale spread across them, the strip much wider than the scope,
+the spectrum under half the row, the row filled edge to edge, nothing cut off.

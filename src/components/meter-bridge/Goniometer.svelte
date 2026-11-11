@@ -4,15 +4,16 @@
 </script>
 <script lang="ts">
   /**
-   * ALLOY stereo goniometer — Task 2.1 (provisional treatment, decisions-log
-   * D2.1.4), the scope alone since Task 9.7 (D9.7.2).
+   * ALLOY stereo correlation / goniometer — Task 2.1 (provisional treatment,
+   * decisions-log D2.1.4), the strip the owner's "correlation meter" since
+   * Task 9.8 (D9.8.2): the white needle "Phase" meter that sat between this
+   * plate and the VUs left the row at the owner's direction, and this strip
+   * — the row's one correlation reading, restored — is what fills the plate.
    *
-   * One instrument, one plate, and nothing printed on it: the scope. The
-   * correlation STRIP that shared this plate until 9.6 read the same
-   * fixture value the row's needle correlation meter reads — the owner
-   * asked for the phase meter's removal, and the duplicate is the one that
-   * went ("first remove the phase meter"). The needle meter third from the
-   * left is the row's one correlation reading now.
+   * Two things on one plate, neither a VU nor a ladder — and neither titled
+   * on the face (D9.6.3, the owner: "people will know what they are once
+   * they see them"; the strip's legend is clipped out of the face and kept
+   * in the accessibility tree):
    *
    *   THE SCOPE    a dark recessed window — the recess token behind a thin
    *                metal frame, a shadowed lip, a weak glass sheen — with a
@@ -22,11 +23,19 @@
    *                and a thin hot core, all from the lamp / amber family, so
    *                it reads as a warm phosphor behind glass and never as a
    *                cold green VFD (plan §4).
+   *   THE STRIP    a recessed slot with a lit amber index at the correlation
+   *                value and the standard −1 · 0 · +1 print — the simplest
+   *                illustrative reading, not a scale of our own. Since Task
+   *                9.8 it takes the plate's leftover width (flex, floored at
+   *                its 1× width): the instrument extends horizontally with
+   *                the row, the way the owner asked the bridge to (D9.8.4).
    *
    * Nothing here measures anything: the trace is a fixed set of fixture
-   * points (bridge-fixtures).
+   * points and the correlation value is a typed-in number (bridge-fixtures).
    */
+  import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import {
+    CORRELATION_FIXTURE,
     GONIOMETER_TRACE,
     SIMULATED,
     type GoniometerPoint,
@@ -35,8 +44,11 @@
   let {
     /** The trace, in goniometer space (x = side, y = mid, −1 … +1). Fixture by default. */
     trace = GONIOMETER_TRACE,
+    /** Correlation, −1 … +1. Fixture by default. */
+    correlation = CORRELATION_FIXTURE,
   }: {
     trace?: readonly GoniometerPoint[];
+    correlation?: number;
   } = $props();
   const uid = `gonio${++nextId}`;
 
@@ -52,6 +64,13 @@
 
   const points = $derived(
     trace.map(([x, y]) => `${f(CENTRE + x * TRACE_SCALE)},${f(CENTRE - y * TRACE_SCALE)}`).join(" "),
+  );
+
+  const clampedCorrelation = $derived(Math.min(1, Math.max(-1, correlation)));
+  /** Where the index sits along the slot: 0 at −1, 1 at +1. */
+  const indexPosition = $derived((clampedCorrelation + 1) / 2);
+  const correlationText = $derived(
+    `${clampedCorrelation > 0 ? "+" : clampedCorrelation < 0 ? "\u2212" : ""}${Math.abs(clampedCorrelation).toFixed(2)}`,
   );
 </script>
 
@@ -103,6 +122,33 @@
       </g>
     </svg>
   </div>
+
+  <!-- The correlation strip. -->
+  <div class="gonio__correlation" data-goniometer-correlation>
+    <!-- The strip's legend. Clipped out of the face, kept in the
+         accessibility tree (D9.6.3, the owner: "people will know what they
+         are once they see them") — the same recipe as the phase legend. -->
+    <span class="gonio__legend gonio__legend--hidden">
+      <EngravedLabel text="Correlation" size="xs" />
+    </span>
+    <div
+      class="corr__slot"
+      role="meter"
+      aria-label={`Stereo correlation, ${SIMULATED}`}
+      aria-valuemin="-1"
+      aria-valuemax="1"
+      aria-valuenow={clampedCorrelation}
+      aria-valuetext={correlationText}
+      data-correlation={f(clampedCorrelation)}
+    >
+      <span class="corr__index" style:--corr-index={f(indexPosition)} aria-hidden="true"></span>
+    </div>
+    <div class="corr__scale" aria-hidden="true">
+      <EngravedLabel text="−1" size="xs" kind="value" tone="muted" />
+      <EngravedLabel text="0" size="xs" kind="value" tone="muted" />
+      <EngravedLabel text="+1" size="xs" kind="value" tone="muted" />
+    </div>
+  </div>
 </div>
 
 <style>
@@ -110,8 +156,9 @@
     /* The instrument is host-sized, the VU's pattern (Task 9.6, D9.6.3): the
        scope's edge is read with its 1× fallback at the USE SITE, never
        declared here, so a host's value always wins — the bridge drives the
-       instrument from one height. Since Task 9.7 (D9.7.2) the scope is the
-       whole instrument: it centres in the host's box. */
+       instrument from one height. Since Task 9.8 (D9.8.4) the plate also
+       takes its module's leftover width (flex), the strip stretching with
+       it — the owner's "extend them horizontally". */
 
     /* --- materials, from the tokens -------------------------------------- */
     --g-floor-centre: color-mix(in srgb, var(--al-material-recess) 84%, var(--al-material-surface));
@@ -122,7 +169,9 @@
     --g-trace-core: var(--al-function-amber-hi);
 
     display: flex;
-    justify-content: center;
+    flex: 1 1 auto;
+    align-items: flex-start;
+    gap: var(--al-space-md);
     min-width: 0;
     user-select: none;
     -webkit-user-select: none;
@@ -198,5 +247,78 @@
     stroke: var(--g-trace-core);
     stroke-width: 0.5;
     stroke-opacity: 0.92;
+  }
+
+  /* --- the correlation strip ---------------------------------------------- */
+  .gonio__correlation {
+    display: flex;
+    /* Task 9.8 (D9.8.4): the strip takes the plate's leftover width — the
+       instrument extends horizontally with the row — floored at its 1×
+       width (6rem) so it never collapses under its own print. */
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: var(--al-space-2xs);
+    min-width: var(--gonio-strip-width, 6rem); /* 96 px = 1× */
+    padding-top: var(--al-space-3xs);
+  }
+
+  /* The strip's legend: clipped out of the face, kept for the accessibility
+     tree (D9.6.3) — the sr-only recipe the phase legend uses. */
+  .gonio__legend--hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .corr__slot {
+    position: relative;
+    height: 8px;
+    margin-top: var(--al-space-3xs);
+    border-radius: 2px;
+    background: var(--al-material-recess);
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.85),
+      inset 0 0 0 1px var(--al-border-strong),
+      0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* the centre mark cut into the panel above the slot */
+  .corr__slot::before {
+    content: "";
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    width: 1px;
+    height: 3px;
+    background: var(--al-material-metal);
+    opacity: 0.7;
+    transform: translateX(-0.5px);
+  }
+
+  /* the index: a small lit amber block riding in the slot */
+  .corr__index {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+    left: calc(var(--corr-index, 0.5) * 100%);
+    width: 4px;
+    border-radius: 1px;
+    background: linear-gradient(180deg, var(--al-function-amber-hi), var(--al-material-lamp) 55%, var(--al-function-amber-base));
+    box-shadow:
+      0 0 3px color-mix(in srgb, var(--al-material-lamp) 70%, transparent),
+      inset 0 0 0 0.5px rgba(0, 0, 0, 0.35);
+    transform: translateX(-50%);
+  }
+
+  .corr__scale {
+    display: flex;
+    justify-content: space-between;
+    min-width: 0;
   }
 </style>

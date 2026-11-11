@@ -142,6 +142,14 @@
     lampDrift = true,
     /** Accessible name when `label` is absent or too terse. */
     name = null,
+    /** Task 9.8 (D9.8.3, the owner: "the vu meters should be extended with
+     *  their content"): stretch the card horizontally to fill its host's
+     *  box. The window takes the host's width and height, the drawing is
+     *  re-cut to the measured box so the card fills it exactly and the
+     *  scale spreads with it — the sweep widening, capped, everything else
+     *  keeping the approved 1× spacing. Off (the default everywhere else)
+     *  the meter keeps its one written-down size, `--vu-width`. */
+    fill = false,
   }: {
     label?: string | null;
     level?: number;
@@ -149,6 +157,7 @@
     lamp?: boolean;
     lampDrift?: boolean;
     name?: string | null;
+    fill?: boolean;
   } = $props();
   const uid = `vu${++nextId}`;
 
@@ -185,21 +194,45 @@
   const faceMin = $derived(isGr ? GR_MIN : VU_MIN);
   const faceMax = $derived(isGr ? GR_MAX : VU_MAX);
   const clampedLevel = $derived(Math.min(faceMax, Math.max(faceMin, level)));
-  const angle = $derived(isGr ? grAngle(level) : vuAngle(level));
   /** The red zone belongs to the VU face only. */
   const overload = $derived(!isGr && clampedLevel >= VU_RED_FROM);
+
+  /* --- the horizontal stretch (Task 9.8, D9.8.3) --------------------------
+     The window's measured box, in px. The drawing is re-cut to it so the
+     card fills its box exactly at any width: the height sets the unit scale
+     (px per unit = winH / H), the width sets the drawing's width in units.
+     At the default box (`--vu-width`, the 1× card's 120/84 ratio) SW is
+     exactly W and the drawing is the approved face, value for value. */
+  let winW = $state(0);
+  let winH = $state(0);
+  const SW = $derived(winW > 0 && winH > 0 ? Math.max(W, (winW * H) / winH) : W);
+  /** How far the card has been stretched: 1 = the approved face. */
+  const stretch = $derived(SW / W);
+  /** The stretched face: the pivot and the window keep to the card's centre
+      line; the sweep widens with the card, capped at +24° (±57° — wider
+      would read as a tuning meter, not a VU); the radii stay the approved
+      ones so the print keeps its 1× spacing and never crowds the card's
+      fixed height. */
+  const S_PIVOT_X = $derived(PIVOT_X + (SW - W) / 2);
+  const S_FACE_W = $derived(FACE_W + (SW - W));
+  const S_SWEEP = $derived(VU_SWEEP + Math.min(24, Math.max(0, (stretch - 1) * 18)));
+  /** The drawing angle of a dB value on the (possibly widened) sweep. The
+      position law is the approved one — linear in modulation, clamped to
+      the end stops — only its angular spread widens. */
+  const angleOf = (db: number): number => -S_SWEEP / 2 + S_SWEEP * (isGr ? grPosition(db) : vuPosition(db));
+  const angle = $derived(angleOf(level));
 
   /** Point at radius r from the pivot, deg clockwise from straight up. */
   const polar = (r: number, deg: number): [number, number] => {
     const a = (deg * Math.PI) / 180;
-    return [PIVOT_X + r * Math.sin(a), PIVOT_Y - r * Math.cos(a)];
+    return [S_PIVOT_X + r * Math.sin(a), PIVOT_Y - r * Math.cos(a)];
   };
   const f = (n: number): string => n.toFixed(2).replace(/\.?0+$/, "");
 
   /** Arc from one dB value to another at radius r (clockwise, never more than the sweep). */
   const arc = (r: number, fromDb: number, toDb: number): string => {
-    const [x0, y0] = polar(r, vuAngle(fromDb));
-    const [x1, y1] = polar(r, vuAngle(toDb));
+    const [x0, y0] = polar(r, angleOf(fromDb));
+    const [x1, y1] = polar(r, angleOf(toDb));
     return `M ${f(x0)} ${f(y0)} A ${f(r)} ${f(r)} 0 0 1 ${f(x1)} ${f(y1)}`;
   };
 
@@ -225,17 +258,17 @@
     }),
   );
 
-  const needlePoints = [
-    [PIVOT_X - NEEDLE_BASE_W / 2, PIVOT_Y + NEEDLE_TAIL],
-    [PIVOT_X - NEEDLE_TIP_W / 2, PIVOT_Y - NEEDLE_TIP_R],
-    [PIVOT_X + NEEDLE_TIP_W / 2, PIVOT_Y - NEEDLE_TIP_R],
-    [PIVOT_X + NEEDLE_BASE_W / 2, PIVOT_Y + NEEDLE_TAIL],
+  const needlePoints = $derived([
+    [S_PIVOT_X - NEEDLE_BASE_W / 2, PIVOT_Y + NEEDLE_TAIL],
+    [S_PIVOT_X - NEEDLE_TIP_W / 2, PIVOT_Y - NEEDLE_TIP_R],
+    [S_PIVOT_X + NEEDLE_TIP_W / 2, PIVOT_Y - NEEDLE_TIP_R],
+    [S_PIVOT_X + NEEDLE_BASE_W / 2, PIVOT_Y + NEEDLE_TAIL],
   ]
     .map(([x, y]) => `${f(x)},${f(y)}`)
-    .join(" ");
+    .join(" "));
 
   /** The pivot as a transform origin, as fractions of the drawing so it survives any scale. */
-  const pivotOrigin = `${f((PIVOT_X / W) * 100)}% ${f((PIVOT_Y / H) * 100)}%`;
+  const pivotOrigin = $derived(`${f((S_PIVOT_X / SW) * 100)}% ${f((PIVOT_Y / H) * 100)}%`);
 
   const valueText = $derived(
     isGr
@@ -250,6 +283,7 @@
   class:is-unlit={!lamp}
   class:is-drifting={lamp && lampDrift}
   class:is-overload={overload}
+  class:is-fill={fill}
   style:--vu-angle={`${f(angle)}deg`}
   style:--vu-pivot={pivotOrigin}
   style:--vu-shadow-dx={`${SHADOW_DX}px`}
@@ -270,8 +304,10 @@
     aria-valuenow={clampedLevel}
     aria-valuetext={valueText}
     data-vu-meter
+    bind:clientWidth={winW}
+    bind:clientHeight={winH}
   >
-    <svg class="vu__surface" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
+    <svg class="vu__surface" viewBox={`0 0 ${SW} ${H}`} aria-hidden="true">
       <defs>
         <!-- The walnut frame: lit from above, darker toward its foot. -->
         <linearGradient id={`${uid}-housing`} x1="0" y1="0" x2="0" y2="1">
@@ -286,7 +322,7 @@
         </linearGradient>
 
         <clipPath id={`${uid}-face-clip`}>
-          <rect x={FACE_X} y={FACE_Y} width={FACE_W} height={FACE_H} rx={FACE_RX} />
+          <rect x={FACE_X} y={FACE_Y} width={S_FACE_W} height={FACE_H} rx={FACE_RX} />
         </clipPath>
 
         <!-- ==============================================================
@@ -351,14 +387,14 @@
            THE HOUSING: walnut frame, bevel, brass bead, black inner bezel.
            ================================================================ -->
       <g class="vu__housing" data-part="housing">
-        <rect x="0" y="0" width={W} height={H} rx="3.5" fill={`url(#${uid}-housing)`} />
-        <rect class="vu__housing-bevel" x="0.5" y="0.5" width={W - 1} height={H - 1} rx="3" fill="none" stroke={`url(#${uid}-bevel)`} />
+        <rect x="0" y="0" width={SW} height={H} rx="3.5" fill={`url(#${uid}-housing)`} />
+        <rect class="vu__housing-bevel" x="0.5" y="0.5" width={SW - 1} height={H - 1} rx="3" fill="none" stroke={`url(#${uid}-bevel)`} />
         <!-- the bead's own shadow, then the bead -->
         <rect
           class="vu__trim-shadow"
           x={TRIM + 0.4}
           y={TRIM + 0.6}
-          width={W - 2 * TRIM}
+          width={SW - 2 * TRIM}
           height={H - 2 * TRIM}
           rx="2.6"
         />
@@ -367,7 +403,7 @@
           data-part="trim"
           x={TRIM}
           y={TRIM}
-          width={W - 2 * TRIM}
+          width={SW - 2 * TRIM}
           height={H - 2 * TRIM}
           rx="2.6"
         />
@@ -376,7 +412,7 @@
           data-part="bezel"
           x={TRIM + 1.2}
           y={TRIM + 1.2}
-          width={W - 2 * TRIM - 2.4}
+          width={SW - 2 * TRIM - 2.4}
           height={H - 2 * TRIM - 2.4}
           rx="2.2"
         />
@@ -387,13 +423,15 @@
            ================================================================ -->
       <g clip-path={`url(#${uid}-face-clip)`}>
         <!-- The card with the bulb off: cream in shadow. -->
-        <rect class="vu__card" data-part="card" x={FACE_X} y={FACE_Y} width={FACE_W} height={FACE_H} />
+        <rect class="vu__card" data-part="card" x={FACE_X} y={FACE_Y} width={S_FACE_W} height={FACE_H} />
 
-        <!-- The bulb behind it. -->
+        <!-- The bulb behind it. The whole lamp assembly rides the card's
+             centre line: translated by half the stretch so the one bulb
+             keeps its place under the (re-centred) pivot (Task 9.8). -->
         <g class="vu__lamp" data-part="lamp">
           <!-- light reaching every part of the translucent card -->
-          <rect class="vu__wash" x={FACE_X} y={FACE_Y} width={FACE_W} height={FACE_H} />
-          <g class="vu__bulb">
+          <rect class="vu__wash" x={FACE_X} y={FACE_Y} width={S_FACE_W} height={FACE_H} />
+          <g class="vu__bulb" transform={`translate(${f((SW - W) / 2)} 0)`}>
             <!-- the pool of light from the bulb at the lower centre -->
             <path
               class="vu__glow-pool"
@@ -420,14 +458,14 @@
             </g>
           </g>
           <!-- the frosted grain of the card -->
-          <rect class="vu__grain" x={FACE_X} y={FACE_Y} width={FACE_W} height={FACE_H} filter={`url(#${uid}-grain)`} />
+          <rect class="vu__grain" x={FACE_X} y={FACE_Y} width={S_FACE_W} height={FACE_H} filter={`url(#${uid}-grain)`} />
         </g>
 
         <!-- The vignette and the bezel's lip shadow: on the card, lit or not. -->
-        <rect class="vu__vignette" data-part="vignette" x={FACE_X} y={FACE_Y} width={FACE_W} height={FACE_H} fill={`url(#${uid}-vignette)`} />
-        <rect class="vu__lip" x={FACE_X} y={FACE_Y} width={FACE_W} height="10" fill={`url(#${uid}-lip-top)`} />
+        <rect class="vu__vignette" data-part="vignette" x={FACE_X} y={FACE_Y} width={S_FACE_W} height={FACE_H} fill={`url(#${uid}-vignette)`} />
+        <rect class="vu__lip" x={FACE_X} y={FACE_Y} width={S_FACE_W} height="10" fill={`url(#${uid}-lip-top)`} />
         <rect class="vu__lip" x={FACE_X} y={FACE_Y} width="7" height={FACE_H} fill={`url(#${uid}-lip-left)`} />
-        <rect class="vu__lip" x={FACE_X + FACE_W - 4} y={FACE_Y} width="4" height={FACE_H} fill={`url(#${uid}-lip-right)`} />
+        <rect class="vu__lip" x={FACE_X + S_FACE_W - 4} y={FACE_Y} width="4" height={FACE_H} fill={`url(#${uid}-lip-right)`} />
 
         <!-- ==============================================================
              THE PRINT: arc, ticks radiating from the pivot, numerals at
@@ -456,7 +494,7 @@
           {#each marks.filter((m) => m.numeral) as mark (mark.db)}
             <text class="vu__numeral" class:is-red={mark.red} x={f(mark.nx)} y={f(mark.ny)}>{mark.text}</text>
           {/each}
-          <text class="vu__legend" data-part="legend" x={PIVOT_X} y={PIVOT_Y - 15.5}>{isGr ? "GR" : "VU"}</text>
+          <text class="vu__legend" data-part="legend" x={S_PIVOT_X} y={PIVOT_Y - 15.5}>{isGr ? "GR" : "VU"}</text>
         </g>
 
         <!-- ==============================================================
@@ -469,18 +507,18 @@
         <g class="vu__needle" data-part="needle">
           <polygon points={needlePoints} />
         </g>
-        <circle class="vu__hub-shadow" cx={PIVOT_X + 0.8} cy={PIVOT_Y + 1.1} r={HUB_R} />
-        <circle class="vu__hub" data-part="hub" cx={PIVOT_X} cy={PIVOT_Y} r={HUB_R} />
-        <circle class="vu__hub-pin" cx={PIVOT_X} cy={PIVOT_Y} r="1.1" />
+        <circle class="vu__hub-shadow" cx={S_PIVOT_X + 0.8} cy={PIVOT_Y + 1.1} r={HUB_R} />
+        <circle class="vu__hub" data-part="hub" cx={S_PIVOT_X} cy={PIVOT_Y} r={HUB_R} />
+        <circle class="vu__hub-pin" cx={S_PIVOT_X} cy={PIVOT_Y} r="1.1" />
 
         <!-- The glass. -->
-        <rect class="vu__sheen" data-part="sheen" x={FACE_X} y={FACE_Y} width={FACE_W} height={FACE_H} fill={`url(#${uid}-sheen)`} />
+        <rect class="vu__sheen" data-part="sheen" x={FACE_X} y={FACE_Y} width={S_FACE_W} height={FACE_H} fill={`url(#${uid}-sheen)`} />
       </g>
 
       <!-- Where the glass meets the bezel: a dark seam, and a thread of light
            along the lower edge where the room catches it. -->
-      <rect class="vu__seam" x={FACE_X} y={FACE_Y} width={FACE_W} height={FACE_H} rx={FACE_RX} />
-      <path class="vu__glint" d={`M ${FACE_X + 4} ${FACE_Y + FACE_H + 0.6} H ${FACE_X + FACE_W - 4}`} />
+      <rect class="vu__seam" x={FACE_X} y={FACE_Y} width={S_FACE_W} height={FACE_H} rx={FACE_RX} />
+      <path class="vu__glint" d={`M ${FACE_X + 4} ${FACE_Y + FACE_H + 0.6} H ${FACE_X + S_FACE_W - 4}`} />
     </svg>
   </div>
 
@@ -525,13 +563,38 @@
   .vu__window {
     display: block;
     width: var(--vu-width, 7.5rem);
+    /* the 1× card's shape: the drawing is 120 × 84, so the window's height
+       follows its width and the svg fills it exactly. Written down here
+       (Task 9.8) so the fill mode below can override it. */
+    aspect-ratio: 120 / 84;
     min-width: 0;
+  }
+
+  /* Task 9.8 (D9.8.3, the owner: "the vu meters should be extended with
+     their content"): the fill mode. The meter takes its share of the host's
+     width and the host's written-down height; the drawing is re-cut to the
+     measured box (see SW in the script) so the card — housing, print, needle
+     and all — fills the box exactly, nothing letterboxed, nothing distorted. */
+  .vu.is-fill {
+    flex: 1 1 0;
+    min-width: var(--vu-fill-min, 7.5rem);
+  }
+
+  .vu.is-fill .vu__window {
+    width: 100%;
+    height: var(--vu-fill-height, auto);
+    aspect-ratio: auto;
+    /* the window's width is the host's business, never its content's: the
+       drawing is sized top-down from the measured box, so it must not feed
+       its own width back through the ancestors' intrinsic sizing (size
+       containment on the inline axis breaks that loop) */
+    contain: inline-size;
   }
 
   .vu__surface {
     display: block;
     width: 100%;
-    height: auto;
+    height: 100%;
     overflow: visible;
   }
 
