@@ -213,6 +213,7 @@ check("spacing comes from the spacing tokens", count(newStyles, /var\(--al-space
 
 // --- 6. The bank's pinned rail and column mode. ---------------------------------
 check("the three rails share one recess recipe, and the tracks rail holds no Return or bus strip", /\.bank__rail-region \{[^}]*background-color:\s*color-mix\(in srgb, var\(--al-material-recess\) 55%, var\(--al-material-panel\)\)/s.test(bankStyle) && !/data-channel-bank-tracks[\s\S]*<ReturnStrip/.test(bankTemplate.slice(0, bankTemplate.indexOf("bank__returns"))) && !/data-channel-bank-tracks[\s\S]*<BusMasterStrip/.test(bankTemplate.slice(0, bankTemplate.indexOf("bank__returns"))));
+check("no CSS snap anywhere in the bank or the strip files (Task 9.7, D9.7.1: the rails page whole channels through the railPager action — one gesture, one module, instant; the 9.6 mandatory snap is retired)", !/scroll-snap/.test(bank + module_ + ret + bus));
 check("the tracks and the returns each scroll on their own; the bus rail never scrolls (owner, D9.5.4)", count(bankStyle, /overflow-x:\s*auto/g) === 2 && /\.bank__tracks \{[^}]*overflow-x:\s*auto/s.test(bankStyle) && /\.bank__returns \{[^}]*overflow-x:\s*auto/s.test(bankStyle) && /\.bank__bus \{[^}]*overflow:\s*hidden/s.test(bankStyle) && /\.bank__returns \{[^}]*overscroll-behavior-x:\s*contain/s.test(bankStyle));
 check("no column mode: with two independent scrollers there is no width at which anything moves under anything else (Task 9.5 retires D2.4.2); the walnut divider column between tracks and Returns (D9.6.4)", !/@media/.test(bankStyle) && /grid-template-areas:\s*"tracks split returns bus"/.test(bankStyle));
 check("the rails stretch their modules to one another and to the rail's full height", /\.bank__rail \{[^}]*align-items:\s*stretch/s.test(bankStyle) && /\.bank__rail \{[^}]*width:\s*max-content/s.test(bankStyle));
@@ -242,7 +243,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "fa0a228a86ebb75df5388ab485b9af1a8c36af7f9e0d252093f9ab56a104e172",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "e3d006b6a939c177f1598b12afeae7fed0bed6cde7677fa8b82fb040e9d5aeed",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
@@ -253,7 +256,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/channel-strip/TrackStrip.svelte": "d57cab962a57d0efd5e798be98325c4ef79f68590c198592bdb3a2fe2a9c276f",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/channel-strip/TrackStrip.svelte": "2a9434fbd1bd46d6e026d8ea26b2d4d30ce90227fb62a1f6a777fbaf32627333",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
@@ -275,7 +280,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/console-transport/ConsoleTransport.svelte": "4cacb4367dabad252401d2e6b473a18961c7c48a0c206124fc83996d4cd478e9",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/console-transport/ConsoleTransport.svelte": "e54a710218e8fda0e9d620770aac1c967265cdc74ba67499263441bd18b2102b",
 // Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
   // changed with the owner's density pass — the room's 0.8x scope, the bare
   // height-driven bridge, the halved transport bar, the walnut divider and

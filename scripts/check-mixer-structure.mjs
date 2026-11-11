@@ -239,7 +239,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/ChannelBank.svelte": "f6876c0e896c2b49e9bd0e248a50ec0cdfefadbed9054a0b01a2cd3fd632aca4",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/ChannelBank.svelte": "a7f40216d590e15fb0a5cea7f3ce7745b145b810f21f94acd6465a15b17e0d84",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.

@@ -220,8 +220,6 @@
     width: var(--strip-width);
     min-width: var(--strip-width);
     max-width: var(--strip-width);
-    /* a snap point of the bank's rail: scrolling lands on whole modules */
-    scroll-snap-align: start;
     margin: 0;
     padding: 0;
     list-style: none;

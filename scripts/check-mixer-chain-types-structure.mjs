@@ -229,7 +229,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/channel-strip/StripModule.svelte": "4a18526b15b6f7a1188e94545fc4b4f3833b65d27bba3bfe5d305d964466c614",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/channel-strip/StripModule.svelte": "09a89e4c37683fafcf1c2d3d17d9a7f8e759f632a19360263404529b213e712e",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the

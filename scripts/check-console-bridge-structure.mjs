@@ -173,7 +173,7 @@ check(
   /import LedLadder from "\.\.\/hardware\/LedLadder\.svelte"/.test(spectrum) &&
     /import EngravedLabel from "\.\.\/hardware\/EngravedLabel\.svelte"/.test(spectrum),
 );
-check("the goniometer imports EngravedLabel from the approved library", /import EngravedLabel from "\.\.\/hardware\/EngravedLabel\.svelte"/.test(gonio));
+check("the goniometer imports nothing but the bridge fixtures (Task 9.7, D9.7.2: the strip's EngravedLabel and CORRELATION_FIXTURE imports left with the strip — the scope prints nothing)", /import \{[\s\S]*?GONIOMETER_TRACE[\s\S]*?\} from "\.\/bridge-fixtures";/.test(gonio) && !/EngravedLabel|CORRELATION_FIXTURE/.test(gonio));
 check(
   "the fixture file takes its ladder scale from the approved ladder",
   /import { LED_LADDER_SCALE, type LedSegment } from "\.\.\/hardware\/LedLadder\.svelte"/.test(fixtures),
@@ -197,7 +197,7 @@ check(
     /<CorrelationMeter value=\{CORRELATION_FIXTURE\} name=\{`Stereo correlation, \$\{SIMULATED\}`\} legend=\{false\} \/>/.test(corrBlock),
   );
   check("the per-channel VU row is gone (Task 9.5): every channel strip carries its own LED meter beside its fader", !/BANK_FIXTURE/.test(bridge) && !/data-bridge-module="channels"/.test(bridge));
-  check("the bridge renders the two sub-displays, the spectrum SPREAD across the deck's free width (D9.6.3)", /<SpectrumLadder spread \/>/.test(tpl) && /<Goniometer \/>/.test(tpl));
+  check("the bridge renders the two sub-displays, the spectrum SPREAD across the width it is allowed (Task 9.7, D9.7.3: capped under half the deck, still the biggest — the owner's boxes)", /<SpectrumLadder spread \/>/.test(tpl) && /<Goniometer \/>/.test(tpl));
   check("every module heading is an engraved h3", (tpl.match(/<EngravedLabel as="h3"/g) ?? []).length === 4);
 }
 {
@@ -224,9 +224,8 @@ check("only the goniometer contains SVG", !/<svg/.test(bridge) && !/<svg/.test(s
   check("goniometer: a graticule group and a three-pass trace (bloom, body, core)", /data-part="graticule"/.test(tpl) && /gonio__trace-bloom/.test(tpl) && /gonio__trace-body/.test(tpl) && /gonio__trace-core/.test(tpl));
   check("goniometer: the trace is the fixture's point list", /trace\.map\(\(\[x, y\]\)/.test(gonio) && /GONIOMETER_TRACE/.test(gonio));
   check(
-    "goniometer: the correlation strip is a −1 … +1 meter with the standard print",
-    /role="meter"[\s\S]*?aria-valuemin="-1"[\s\S]*?aria-valuemax="1"/.test(tpl) &&
-      /text="−1"/.test(tpl) && /text="0"/.test(tpl) && /text="\+1"/.test(tpl),
+    "goniometer: the correlation strip is GONE (Task 9.7, D9.7.2, the owner: 'first remove the phase meter') — no slot, no index, no −1 · 0 · +1 print, no meter role, no strip width; it read the same fixture the needle meter reads, and the scope is the whole plate now",
+    !/gonio__correlation|corr__|data-goniometer-correlation|role="meter"|gonio-strip-width|EngravedLabel|text="Correlation"/.test(gonio),
   );
   check("goniometer: the trace is the lamp / amber family, never green", /--g-trace:\s*var\(--al-material-lamp\)/.test(css) && /--g-trace-core:\s*var\(--al-function-amber-hi\)/.test(css) && !/green/i.test(css));
   check("goniometer: the window floor is the recess token", /--g-floor-centre:\s*color-mix\(in srgb, var\(--al-material-recess\)/.test(css));
@@ -269,7 +268,7 @@ check("no FFT or correlation algorithm (no such call anywhere in the bridge)", !
 // Fixture variety: the review must see varied needles, a red channel, a quiet one.
 {
   check("the per-channel bank fixture is gone with the channel VU row (Task 9.5): the strips' own meters carry the per-channel readings now", !/BANK_FIXTURE/.test(fixtures));
-  check("the phase module reads the one correlation fixture the goniometer's strip already reads (D2.1.4's value, unchanged)", /CORRELATION_FIXTURE = 0\.62/.test(fixtures));
+  check("the needle correlation meter reads the one correlation fixture (D2.1.4's value, unchanged; the goniometer's duplicate strip is gone, D9.7.2)", /CORRELATION_FIXTURE = 0\.62/.test(fixtures));
   check("master fixture: left and right differ", /left: (-?[\d.]+),\s*right: (-?[\d.]+)/.test(fixtures) && RegExp.$1 !== RegExp.$2);
   const bands = [...fixtures.matchAll(/{ hz: (\d+), label: "([^"]+)", level: (-?[\d.]+) }/g)].map(([, hz, label, level]) => ({ hz: Number(hz), label, level: Number(level) }));
   check("spectrum fixture: fifteen bands, 25 Hz to 16 kHz, ascending", bands.length === 15 && bands[0].hz === 25 && bands[14].hz === 16000 && bands.every((b, i) => i === 0 || b.hz > bands[i - 1].hz));
@@ -305,11 +304,21 @@ check(
   check("spectrum bay scrolls inside its own module", /overflow-x:\s*auto/.test(spectrumRoot) && /max-width:\s*100%/.test(spectrumRoot));
   check("modules can never exceed the deck (max-width 100%, min-width 0)", /\.module\s*{[^}]*max-width:\s*100%/s.test(css) && /\.module\s*{[^}]*min-width:\s*0/s.test(css));
   check("master pair is centred with auto margins (no unreachable overflow)", /\.master__pair\s*{[^}]*margin-inline:\s*auto/s.test(css));
-  check("every instrument is drawn from the row's ONE height (D9.6.3): --b-inst-height drives the VUs' width (120/84) and the correlation card's (120/72), the scope IS the height, and no size steps remain", /--b-inst-height:\s*4\.5rem/.test(css) && /--vu-width:\s*calc\(var\(--b-inst-height\) \* 10 \/ 7\)/.test(css) && /--phase-width:\s*calc\(var\(--b-inst-height\) \* 5 \/ 3\)/.test(css) && /--gonio-size:\s*var\(--b-inst-height\)/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
+check(
+    "the spread is the owner's boxes (Task 9.7, D9.7.3): the spectrum — still the biggest — is capped under half the row (max-width 45%, on the spread row only, one written-down number) and the correlation card is centred at 4:3, so every VU card outsizes it and the square scope",
+    (() => {
+      const at = css.indexOf("@container bridge (min-width: 900px)");
+      const cap = css.indexOf("max-width: 45%");
+      return (
+        at >= 0 && cap > at && (css.match(/max-width:\s*45%/g) ?? []).length === 1 &&
+        /\.module--correlation\s*{[^}]*justify-content:\s*center/s.test(css)
+      );
+    })(),
+  );
+  check("every instrument is drawn from the row's ONE height (D9.6.3; the card's ratio re-cut in D9.7.3): --b-inst-height drives the VUs' width (120/84) and the correlation card's (96/57.6 — 4:3, the row's smallest card, every VU outsizes it), the scope IS the height, and no size steps remain", /--b-inst-height:\s*4\.5rem/.test(css) && /--vu-width:\s*calc\(var\(--b-inst-height\) \* 10 \/ 7\)/.test(css) && /--phase-width:\s*calc\(var\(--b-inst-height\) \* 4 \/ 3\)/.test(css) && /--gonio-size:\s*var\(--b-inst-height\)/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
   check("no legends print on the row (D9.6.3): the module headings are clipped out of the face and stay in the accessibility tree", /\.module__title\s*{[^}]*clip-path:\s*inset\(50%\)/s.test(css) && /aria-labelledby=\{`\$\{uid\}-correlation`\}/.test(templateOf(bridge)));
   check("the spectrum spreads by a prop, its 1x bay unchanged (D9.6.3)", /spread = false/.test(spectrum) && /spectrum--spread/.test(styleOf(spectrum)) && /justify-content:\s*space-between/.test(styleOf(spectrum)));
   check("the correlation meter's legend is a prop, hidden without being dropped (D9.6.3)", /legend = true/.test(correlation) && /phase__legend--hidden/.test(styleOf(correlation)));
-  check("the goniometer's strip legend is clipped out of the face and stays in the accessibility tree (D9.6.3: no legend prints on the row, the owner's \"people will know what they are once they see them\")", /gonio__legend--hidden/.test(styleOf(gonio)) && /text="Correlation"/.test(templateOf(gonio)));
   check("the goniometer is host-sized the VU's way: fallbacks at the use site, never declared at the root (D9.6.3)", /width: var\(--gonio-size, 6\.25rem\)/.test(styleOf(gonio)) && !/--gonio-size:\s*[0-9.]/.test(styleOf(gonio)));
   check("no bridge file animates anything of its own", !/@keyframes|animation:/.test(css + styleOf(spectrum) + styleOf(gonio)));
 }

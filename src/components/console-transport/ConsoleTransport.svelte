@@ -204,33 +204,28 @@
         </div>
       </div>
 
-      <!-- TIME — a window column built like a key column: a cap-high seat the
-           glass is centred on, over a label line, so the body's centring lands
-           the glass on the key caps (owner, 2026-11-01). The halved bar runs
-           the windows bare — no floating legend (D9.6.2); the clock's own
-           print is its label. -->
+      <!-- TIME — the window column is one line tall, the bar's own line:
+           the frame centers in it, fully inside the bar (owner, 2026-11-12,
+           D9.7.4 — the seat-and-shim column used to stand the glass proud
+           of the bar's top edge). The halved bar runs the windows bare — no
+           floating legend (D9.6.2); the clock's own print is its label. -->
       <div class="transport__time" data-transport-time>
-        <div class="window__seat" data-window-seat>
-          <LampDisplay kind="clock" legend={null} primary={clock} secondary={beatPrint} name={timeName} />
-        </div>
-        <span class="window__shim" aria-hidden="true"><EngravedLabel text="Time" size="xs" tone="muted" /></span>
+        <LampDisplay kind="clock" legend={null} primary={clock} secondary={beatPrint} name={timeName} />
       </div>
 
-      <!-- STATUS — bare with the bar (D9.6.2): the state word is its label -->
+      <!-- STATUS — bare with the bar (D9.6.2), contained in it (D9.7.4):
+           the state word is its label -->
       <div class="transport__status" data-transport-status-display>
-        <div class="window__seat" data-window-seat>
-          <LampDisplay
-            kind="status"
-            legend={null}
-            primary={word}
-            secondary={details}
-            {progress}
-            warning={fixture.mix.warnings > 0}
-            name={statusName}
-            id={`${uid}-status`}
-          />
-        </div>
-        <span class="window__shim" aria-hidden="true"><EngravedLabel text="Status" size="xs" tone="muted" /></span>
+        <LampDisplay
+          kind="status"
+          legend={null}
+          primary={word}
+          secondary={details}
+          {progress}
+          warning={fixture.mix.warnings > 0}
+          name={statusName}
+          id={`${uid}-status`}
+        />
       </div>
 
       <!-- MIX — the label prints no "Automatic mix" line on the halved bar
@@ -364,12 +359,13 @@
   .transport__body {
     --switch-size: 1.6rem; /* 25.6 px key caps — the bar's own 0.8×-then-halved
                               scale (Task 9.6, D9.6.2: the owner cut the bar's
-                              height nearly in half; 40 px × 0.8 × 0.8). Set
-                              here, once, because the windows' seats are the
-                              caps' height too. */
-    --window-height: 2.75rem; /* 44 px: the windows' frame height, the keys'
-                                 column height (cap + word) — the bar is one
-                                 line tall (D9.6.2 — down from 72.5 px). */
+                              height nearly in half; 40 px × 0.8 × 0.8). The
+                              keys' caps read it. */
+    --window-height: 2.75rem; /* 44 px: the windows' frame height — the bar is
+                                 one line tall (D9.6.2) and the frame sits
+                                 wholly inside it, centered (D9.7.4: the
+                                 screens no longer bleed out of the bar's
+                                 top). */
 
     display: flex;
     flex-wrap: wrap;
@@ -416,29 +412,16 @@
     max-width: 22.5rem;
   }
 
-  /* each window column is a key column's shape — a seat the caps' height,
-     the keys' gap, a label line — so the body's align-items: center puts the
-     seat where the switches' seats are; the glass is centred on the seat and
-     stands over it. Nothing here is measured or offset by hand. */
+  /* --- the windows: one line tall and wholly inside the bar (D9.7.4). The
+     column IS the frame — no seat, no shim, nothing that stands the glass
+     proud of the bar's edges; the body's align-items: center centers the
+     frame on the same line as the keys, and the frame's own height
+     (44 px, under the body's line) keeps it clear of both deck edges. */
   .transport__time,
   .transport__status {
     display: flex;
-    flex-direction: column;
-    gap: var(--al-space-2xs);
-  }
-
-  .window__seat {
-    display: flex;
     align-items: center;
-    height: var(--switch-size);
     min-width: 0;
-  }
-
-  /* the label line beneath the seat, mirroring the keys' words: it keeps the
-     column's shape and is never seen or read */
-  .window__shim {
-    display: flex;
-    visibility: hidden;
   }
 
   /* --- MIX: at the right end of its row — halved with the bar (D9.6.2),

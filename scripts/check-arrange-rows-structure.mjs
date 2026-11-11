@@ -329,7 +329,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/ChannelBank.svelte": "f6876c0e896c2b49e9bd0e248a50ec0cdfefadbed9054a0b01a2cd3fd632aca4",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/ChannelBank.svelte": "a7f40216d590e15fb0a5cea7f3ce7745b145b810f21f94acd6465a15b17e0d84",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
@@ -339,7 +341,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/channel-strip/TrackStrip.svelte": "d57cab962a57d0efd5e798be98325c4ef79f68590c198592bdb3a2fe2a9c276f",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/channel-strip/TrackStrip.svelte": "2a9434fbd1bd46d6e026d8ea26b2d4d30ce90227fb62a1f6a777fbaf32627333",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
@@ -355,7 +359,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/channel-strip/StripModule.svelte": "4a18526b15b6f7a1188e94545fc4b4f3833b65d27bba3bfe5d305d964466c614",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/channel-strip/StripModule.svelte": "09a89e4c37683fafcf1c2d3d17d9a7f8e759f632a19360263404529b213e712e",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
@@ -389,7 +395,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "fa0a228a86ebb75df5388ab485b9af1a8c36af7f9e0d252093f9ab56a104e172",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "e3d006b6a939c177f1598b12afeae7fed0bed6cde7677fa8b82fb040e9d5aeed",
   // Task 9.1.3 re-pinned this file. Two lines changed, both in the *state the deck
   // reads* — the MIX state now asks `mixRevision` instead of the live `renderProgress
   // === 1` gauge that a finished render always clears, and the completed mix passes
@@ -404,7 +412,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/console-transport/ConsoleTransport.svelte": "4cacb4367dabad252401d2e6b473a18961c7c48a0c206124fc83996d4cd478e9",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/console-transport/ConsoleTransport.svelte": "e54a710218e8fda0e9d620770aac1c967265cdc74ba67499263441bd18b2102b",
   // Task 9.1.1 re-pinned the strip (owner decision D9.1.2 option a): it now mounts the
   // listening-source selector beside the keys, in its own component. The strip's layout,
   // the four Phase 0 keys and their functions are unchanged; what moved the hash is one

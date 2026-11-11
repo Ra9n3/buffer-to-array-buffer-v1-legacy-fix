@@ -128,7 +128,7 @@ check("PLAY and STOP drive the shared transport when live and keep the fixture l
 check("PREVIOUS and NEXT are momentary: they locate when live and release themselves", /function onPrev\(\)[\s\S]*?transport\.seek\(transport\.startFrame\)[\s\S]*?prevOn = false;/.test(deck) && /function onNext\(\)[\s\S]*?transport\.seek\(transport\.durationFrames\)[\s\S]*?nextOn = false;/.test(deck));
 check("the keys' state is seeded once from the fixture (playing lights PLAY, otherwise STOP) and lives in the deck only", /playOn = \$state\(fixture\.transport === "playing"\)/.test(deck) && /stopOn = \$state\(fixture\.transport !== "playing"\)/.test(deck) && !/export let|\$store|writable|readable/.test(deck));
 check("the engaged lamp is the switch's own: the deck binds engaged and adds no lamp of its own", count(deckTemplate, /bind:engaged={(prevOn|playOn|stopOn|nextOn)}/g) === 4 && !/<Lamp\b/.test(deckTemplate));
-check("the key caps are the switch at the halved bar's written-down size (--switch-size: 1.6rem = 25.6 px, Task 9.6 D9.6.2), set once on the body (the windows' seats share it), never scaled down by transform or zoom", /\.transport__body\s*{[^}]*--switch-size:\s*1\.6rem/s.test(deckStyle) && count(deckStyle, /--switch-size:/g) === 1 && !/transform:\s*scale|zoom:/.test(deckStyle));
+check("the key caps are the switch at the halved bar's written-down size (--switch-size: 1.6rem = 25.6 px, Task 9.6 D9.6.2), set once on the body (the keys' caps read it), never scaled down by transform or zoom", /\.transport__body\s*{[^}]*--switch-size:\s*1\.6rem/s.test(deckStyle) && count(deckStyle, /--switch-size:/g) === 1 && !/transform:\s*scale|zoom:/.test(deckStyle));
 check("no part of the deck shrinks: keys, time and MIX are flex 0 0 auto; only the status window flexes, from a floor at the bar's 0.8x scale (D9.6.1)", /\.transport__keys\s*{[^}]*flex:\s*0 0 auto/s.test(deckStyle) && /\.transport__time\s*{[^}]*flex:\s*0 0 auto/s.test(deckStyle) && /\.transport__mix\s*{[^}]*flex:\s*0 0 auto/s.test(deckStyle) && /\.transport__status\s*{[^}]*flex:\s*1 1 11\.5rem;[^}]*min-width:\s*11\.5rem/s.test(deckStyle));
 
 // --- 4. Time and status: the owner's formats; one fixture file. --------------
@@ -178,11 +178,11 @@ check("the print is set at the face's own weight through the medium token and th
 check("the separator between details is the owner's middle dot; the text content itself is untouched", /const SEPARATOR = "\\u00B7";/.test(display) && /<span class="display__dot" aria-hidden="true">{SEPARATOR}<\/span>/.test(displayTemplate) && /<span class="display__primary" data-part="primary">{primary}<\/span>/.test(displayTemplate) && /<span class="display__part" class:is-warning={warning && i === secondary\.length - 1}>{part}<\/span>/.test(displayTemplate));
 check("the screens are clean: no ghost print of any kind — no ghost function, markup, class or opacity variable, and no all-segments glyph behind the live print", !/ghost/i.test(display) && !/--dp-ghost/.test(displayStyle) && !/display__line|display__cell/.test(display) && !/[•\u2022]/.test(displayTemplate));
 check("the print is the VU face's ink (black on cream) for every line, its red for a warning, and no text or number has a glow, ever: no text-shadow other than none anywhere in the window", /--dp-ink:\s*var\(--al-text-on-cream\)/.test(displayStyle) && /--dp-warn:\s*color-mix\(in srgb, var\(--al-function-red-base\) 85%, var\(--al-function-red-lo\)\)/.test(displayStyle) && /\.display__primary\s*{[^}]*color:\s*var\(--dp-ink\)/s.test(displayStyle) && /\.display__secondary\s*{[^}]*color:\s*var\(--dp-ink\)/s.test(displayStyle) && !/text-shadow:(?!\s*none;)/.test(displayStyle) && count(displayStyle, /text-shadow:\s*none;/g) === 2 && !/--dp-glow|--dp-dim/.test(displayStyle));
-check("the window's height is the deck's one written-down number (--window-height, 44 px — the keys' column height, the bar one line tall), read by the frame; the deck declares it once (D9.6.2)", /\.transport__body\s*{[^}]*--window-height:\s*2\.75rem/s.test(deckStyle) && count(deckStyle, /--window-height:/g) === 1 && /\.display__frame\s*{[^}]*height:\s*var\(--window-height, auto\)/s.test(displayStyle) && /\.display__frame\s*{[^}]*box-sizing:\s*border-box/s.test(displayStyle));
+check("the window's height is the deck's one written-down number (--window-height, 44 px — the bar one line tall, the frame wholly inside it, D9.7.4), read by the frame; the deck declares it once (D9.6.2)", /\.transport__body\s*{[^}]*--window-height:\s*2\.75rem/s.test(deckStyle) && count(deckStyle, /--window-height:/g) === 1 && /\.display__frame\s*{[^}]*height:\s*var\(--window-height, auto\)/s.test(displayStyle) && /\.display__frame\s*{[^}]*box-sizing:\s*border-box/s.test(displayStyle));
 check("the legend floats above the frame and moves with it: absolutely positioned at bottom 100% with the keys' gap beneath it", /\.display\s*{[^}]*position:\s*relative/s.test(displayStyle) && /\.display__legend\s*{[^}]*position:\s*absolute;\s*bottom:\s*100%;\s*left:\s*0;/s.test(displayStyle) && /\.display__legend\s*{[^}]*margin-bottom:\s*var\(--al-space-2xs\)/s.test(displayStyle));
 check("the halved bar runs bare (D9.6.2): both windows pass legend={null} — the legend is optional in the component and prints only in the playground — and the legend markup is guarded by {#if legend}", /legend=\{null\}/.test(deckTemplate) && /\{#if legend\}/.test(displayTemplate) && /legend\?: string \| null/.test(display));
 check("the MIX column's 'Automatic mix' line is clipped out of the halved bar's face and kept for the accessibility tree (D9.6.2)", /transport__mix-note/.test(deckTemplate) && /\.transport__mix-note\s*{[^}]*clip-path:\s*inset\(50%\)/s.test(deckStyle));
-check("each window column is a key column's shape — a cap-high seat (align-items: center) over a hidden label line — and no longer stretches; nothing is offset by hand", /\.window__seat\s*{[^}]*display:\s*flex;\s*align-items:\s*center;\s*height:\s*var\(--switch-size\)/s.test(deckStyle) && /\.window__shim\s*{[^}]*visibility:\s*hidden/s.test(deckStyle) && !/align-self:\s*stretch/.test(deckStyle) && count(deckTemplate, /<div class="window__seat" data-window-seat>/g) === 2 && count(deckTemplate, /<span class="window__shim" aria-hidden="true"><EngravedLabel text="(Time|Status)" size="xs" tone="muted" \/><\/span>/g) === 2 && !/margin-top:\s*-|translateY\(/.test(rule(deckStyle, ".transport__time") + rule(deckStyle, ".transport__status") + rule(deckStyle, ".window__seat")));
+check("the windows sit wholly inside the bar, centred on its one line (owner, D9.7.4: 'these screens bleeding out from the upper part from the transport bar — fix that'): the seat-and-shim column is retired — the window column IS the frame, no markup under it, nothing standing the glass proud of the deck's edges, nothing offset by hand", !/window__seat|window__shim/.test(deckTemplate + deckStyle) && count(deckTemplate, /<div class="transport__time" data-transport-time>\s*<LampDisplay/g) === 1 && count(deckTemplate, /<div class="transport__status" data-transport-status-display>\s*<LampDisplay/g) === 1 && /\.transport__time,\s*\.transport__status\s*{\s*display:\s*flex;\s*align-items:\s*center;\s*min-width:\s*0;\s*}/s.test(deckStyle) && !/margin-top:\s*-|translateY\(/.test(rule(deckStyle, ".transport__time") + rule(deckStyle, ".transport__status")));
 check("the keys and MIX columns are untouched by the change: the key column recipe and the MIX column rules read as before", /\.key\s*{\s*display:\s*flex;\s*flex-direction:\s*column;\s*gap:\s*var\(--al-space-2xs\);\s*align-items:\s*center;\s*}/s.test(deckStyle) && /\.transport__mix\s*{[^}]*margin-left:\s*auto/s.test(deckStyle) && /\.transport__keys\s*{\s*display:\s*flex;\s*flex:\s*0 0 auto;\s*gap:\s*var\(--al-space-sm\);\s*align-items:\s*flex-start;\s*}/s.test(deckStyle));
 
 // --- 7. Fixture honesty; nothing wired. --------------------------------------
@@ -223,7 +223,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "fa0a228a86ebb75df5388ab485b9af1a8c36af7f9e0d252093f9ab56a104e172",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "e3d006b6a939c177f1598b12afeae7fed0bed6cde7677fa8b82fb040e9d5aeed",
   // Task 2.4 re-pinned the bank: its pinned area now renders the Return and
   // bus-master strips (the deck above it is untouched; check-bus-return guards
   // the bank's new structure).
@@ -232,14 +234,18 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/ChannelBank.svelte": "f6876c0e896c2b49e9bd0e248a50ec0cdfefadbed9054a0b01a2cd3fd632aca4",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/ChannelBank.svelte": "a7f40216d590e15fb0a5cea7f3ce7745b145b810f21f94acd6465a15b17e0d84",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
 // Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
   // changed with the owner's density pass — the room's 0.8x scope, the bare
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/components/channel-strip/TrackStrip.svelte": "d57cab962a57d0efd5e798be98325c4ef79f68590c198592bdb3a2fe2a9c276f",
+  // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
+  // the paging rails, the bare scope, the re-spread bridge, the contained windows).
+  "src/components/channel-strip/TrackStrip.svelte": "2a9434fbd1bd46d6e026d8ea26b2d4d30ce90227fb62a1f6a777fbaf32627333",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   "src/components/channel-strip/track-strip-fixtures.ts": "e891099def6abe69fd2d4558ba2f9f0542a9c4f123d871c2147447e27afab3e5",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",

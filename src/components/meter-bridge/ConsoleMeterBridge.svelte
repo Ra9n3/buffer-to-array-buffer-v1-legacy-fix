@@ -7,7 +7,8 @@
    * ALLOY Console meter bridge — Task 2.1 (plan §3 "Console room", §14 2.1;
    * hardware spec §4a / §4b / §6), rebuilt as the owner's reference
    * console's one compact instrument strip (Task 9.5), re-laid for the
-   * owner's annotated photograph (Task 9.6, D9.6.3):
+   * owner's annotated photographs (Task 9.6, D9.6.3; re-spread to the
+   * owner's boxes, Task 9.7, D9.7.3):
    *
    * One long bevelled warm-charcoal deck between two walnut end-cheeks,
    * carrying four instruments on ONE row, left to right in the owner's
@@ -16,14 +17,27 @@
    *
    *   SPECTRUM     a recessed bay of approved LED ladders, one per band —
    *               the crisp segmented language of spec §4b, visibly not a
-   *               VU.
-   *   GONIOMETER   the dark recessed scope with a warm trace and the −1 · 0 ·
-   *               +1 correlation strip (provisional, D2.1.4).
+   *               VU. The row's biggest module, but capped under half the
+   *               deck (D9.7.3, the owner's boxes: "it still should be the
+   *               biggest, but not that big").
+   *   GONIOMETER   the dark recessed scope with a warm trace — the scope
+   *               alone since Task 9.7: the correlation strip that shared
+   *               its plate read the same fixture the needle meter reads
+   *               (D9.7.2, the owner: "remove the phase meter").
    *   CORRELATION  the needle meter (Task 9.5's `CorrelationMeter`): −1 · 0 ·
    *               +1 on a cream card — the reference console's PHASE LEVEL,
-   *               moved from the left end to third (D9.6.3).
+   *               moved from the left end to third (D9.6.3). The row's one
+   *               correlation reading, and its smallest card (4:3 of the
+   *               row's height, D9.7.3 — every VU outsizes it, as the
+   *               owner's boxes draw it).
    *   MASTER       the two approved analog VU meters, LEFT and RIGHT, at the
-   *               right end.
+   *               right end — each card wider than the correlation card and
+   *               the square scope (D9.7.3, the owner's boxes).
+   *
+   * The spread is the owner's photograph (D9.7.3): spectrum, goniometer,
+   * correlation, master in that order with clear panel between them, edge
+   * to edge — the leftover width the capped spectrum no longer eats becomes
+   * the space between modules (space-between), not a wider analyzer.
    *
    * No legends print on the row (D9.6.3, the owner: "people will know what
    * they are once they see them") — the module headings stay in the DOM,
@@ -74,9 +88,10 @@
     </header>
 
     <div class="bridge__modules">
-      <!-- SPECTRUM — the row now opens with it, and eats the deck's free
-           width (owner, D9.6.3): the analyzer spans the space the three fixed
-           instruments leave, as the reference's does -->
+      <!-- SPECTRUM — the row opens with it and it stays the biggest module,
+           but capped under half the deck (owner, D9.7.3, the boxes on the
+           photograph): the analyzer spreads across the width it is allowed,
+           no longer across everything the other instruments leave -->
       <section class="module module--spectrum" aria-labelledby={`${uid}-spectrum`} data-bridge-module="spectrum">
         <div class="module__title">
           <EngravedLabel as="h3" id={`${uid}-spectrum`} text="Spectrum" size="xs" />
@@ -295,8 +310,9 @@
 
   /* --- the instruments, each drawn from the row's one height (D9.6.3) ---- */
   .module--spectrum {
-    /* the row's width-eater: the module takes the deck's free width and the
-       bay pitches its columns across it (SpectrumLadder `spread`) */
+    /* the row's biggest module, but capped under half the deck (D9.7.3,
+       the owner's boxes): the bay pitches its columns across the width it
+       is allowed (SpectrumLadder `spread`), no longer across everything */
     flex: 1 1 auto;
     /* 20 px columns: the bay's ladders + their frequency print land the
        column at the row height (measured; tuned with the fixtures) */
@@ -305,13 +321,14 @@
 
   .module--stereo {
     --gonio-size: var(--b-inst-height); /* the square scope IS the row's height */
-    --gonio-strip-width: 4.8rem; /* 6 × 0.8 — the strip at the room's density */
   }
 
   .module--correlation {
-    /* the card is 120 × 72: width = height × 120/72 for a card as tall as
-       the row */
-    --phase-width: calc(var(--b-inst-height) * 5 / 3);
+    /* the row's smallest card (D9.7.3, the owner's boxes): 4:3 of the
+       height — 96 × 57.6 at 4.5rem — so every VU card (10:7, wider) and
+       the cream pair as a whole outsizes it; centered on the row's line */
+    --phase-width: calc(var(--b-inst-height) * 4 / 3);
+    justify-content: center;
   }
 
   .module--master {
@@ -345,12 +362,20 @@
   /* =======================================================================
      RESPONSIVE: the deck is the container. From 900 px up the instruments
      spread edge to edge across the deck — the reference console's strip
-     uses its whole width, no dead panel at one end. Below that the modules
-     wrap in prominence order.
+     uses its whole width, no dead panel at one end — and the spectrum's
+     cap holds (D9.7.3): the width it no longer eats becomes the clear
+     panel between modules. Below 900 px the modules wrap in prominence
+     order, the spectrum taking its whole row uncapped.
      ======================================================================= */
   @container bridge (min-width: 900px) {
     .bridge__modules {
       justify-content: space-between;
+    }
+
+    /* the cap lives here, on the spread row only: a wrapped spectrum takes
+       its own row's full width (D9.7.3) */
+    .module--spectrum {
+      max-width: 45%;
     }
   }
 

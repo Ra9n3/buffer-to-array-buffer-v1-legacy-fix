@@ -5142,3 +5142,84 @@ dsp-delay timing flake, unchanged from 9.5); all 32 structural guards re-pointed
 contract and passing (none weakened — each moved value keeps its "one written-down number"
 assertion, and new assertions cover the density scope, the bare bridge, the halved bar's bare
 print, the divider and the snapping); production build inlines clean.
+
+---
+
+## Task 9.7 — the owner's third Console pass: paging rails, the bare scope, the re-spread bridge, the contained windows (2026-11-12)
+
+The owner's second annotated photograph (yellow boxes over the bridge instruments, yellow
+arrows at the transport screens) and their words:
+
+> first remove the phase meter, second please fix the snap scroll, it is too buggy and
+> confusing, it has like two movements now, it is cool yes but not for this, just scroll a
+> channel must snap, with out fancy animation. then take a look at the photo, first the
+> transport bar, the yellow arrows, see how these screens bleeding out from the upper part
+> from the transport bar. fix that, also, I have drawn some boxes for the two vu meters, the
+> correlation meter, the goniometer, and the spectrum analyzer, these shapes represent how
+> the meters spread horizontally, because now, the spectrum takes more than half of the
+> space, it still should be the biggest, but not that big. so the spectrum the biggest, the
+> vu meters bigger than the correlation and goniometer but smaller than the spectrum, just
+> understand the photo.
+
+### D9.7.1 — The rails page whole channels; the CSS snap is retired (owner, 2026-11-12)
+
+**Decision.** D9.6.5's `scroll-snap-type: x mandatory` is deleted — its feel (the free scroll
+decelerating, then the snap re-accelerating onto a module edge) is exactly the "two
+movements" the owner flagged. Both scrolling rails now carry a `railPager` Svelte action:
+one wheel gesture, one arrow keypress or one swipe moves EXACTLY one channel, jumped
+instantly (`scrollTo` with `behavior: "auto"` — no animation of any kind, no corrective
+second movement). A gesture is bounded by the wheel events' own timestamps (a run of events
+no two further apart than 160 ms; a trackpad's momentum is one gesture, a mouse's notches
+are separate ones), so there is no timer in the bank — the channel-strip guard forbids
+timers there, and the pager respects it by construction. Deltas accumulate to a 36 px
+threshold before the page fires, so a slow trackpad drift does not twitch the rail; arrows,
+PageUp/PageDown page, Home/End land on the ends, and a touch release re-lands the nearest
+whole module. The `scroll-snap-align` declarations left the strip files with the snap
+(their pins re-cut), and both facts are guarded: `use:railPager` twice, no `scroll-snap`
+anywhere in the bank or strip files, no smooth scrolling.
+
+### D9.7.2 — The phase meter off the bridge: the goniometer's correlation strip (owner, 2026-11-12)
+
+**Decision.** The owner's "remove the phase meter" is the goniometer's correlation STRIP —
+the small −1 · 0 · +1 slot that shared the scope's plate and read the same
+`CORRELATION_FIXTURE` the needle correlation meter (third from left) reads. The photograph
+settles it: five boxes, one over the needle meter — the needle STAYS; the strip was the
+duplicate. The goniometer is the scope alone now (centred in its module), its `correlation`
+prop, its EngravedLabel import and every strip rule deleted; the needle meter is the row's
+one correlation reading. Guarded: no `gonio__correlation`, no `corr__`, no meter role, no
+strip width, no label anywhere in the goniometer file.
+
+### D9.7.3 — The bridge re-spread to the owner's boxes (owner, 2026-11-12)
+
+**Decision.** The spectrum is capped under half the row — `max-width: 45%`, inside the
+≥900 px container query so a wrapped spectrum still takes its own row whole — while keeping
+`flex: 1 1 auto`, so it remains the row's biggest module by a wide margin (measured 837 of
+1859 px at 1920; 71% before). The width it no longer eats becomes the clear panel between
+modules (`space-between`, edge to edge, as D9.5.5 keeps). The correlation card is re-cut to
+4:3 of the row's height (`--phase-width: calc(var(--b-inst-height) * 4 / 3)` — 96 × 57.6 at
+4.5rem, centred on the row's line), so each VU card (10:7 — 120 × 84 proportions, the
+approved component untouched) outsizes both it and the square scope: the owner's order,
+spectrum > VU pair > correlation ≈ goniometer. All one written-down number each, guarded.
+
+### D9.7.4 — The transport screens sit wholly inside the bar (owner, 2026-11-12)
+
+**Decision.** The TIME and STATUS windows no longer stand proud of the bar's top edge. The
+seat-and-shim column (a cap-high seat the 44 px frame was centred on, over a hidden label
+line — a D2.3 shape for the tall bar that the halved bar outgrew) is retired: the window
+column IS the frame now, centred on the body's one line. Measured: the frames' tops moved
+from 2 px ABOVE the transport's top edge to 4 px below it, both windows fully inside the
+53 px bar. Guarded: no `window__seat` or `window__shim` in template or style, the centring
+rule pinned, nothing offset by hand.
+
+**Verification.** Measured in a real browser (the production build served, the 20-track
+fixture session through the project store): zero vertical room scroll at 1920×1080,
+1536×864 and 1366×768, the transport fully visible at each; both windows inside the bar at
+all three; `scroll-snap-type: none` computed on the rails; the pager measured with
+dispatched gestures — a 12-event trackpad-style burst lands exactly one stride (118 px),
+a mouse notch one more (236), ArrowLeft one back (118). svelte-check clean; tests 446/447
+(the one failure the pre-existing `dsp-delay` timing flake — it passes in isolation, no DSP
+file touched); all 32 structural guards re-pointed to this contract and passing (the pins of
+the five edited source files re-cut with this note; new assertions cover the paging rails,
+the bare scope, the spectrum cap, the 4:3 card, the centred windows); production build
+inlines clean. Two VLM passes over the screenshots (1920 and 1536) confirmed all six visual
+points, including that no instrument prints a label.
