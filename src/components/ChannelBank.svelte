@@ -13,8 +13,9 @@
    * The Console's lower section, one recessed rail row of three regions:
    *
    *   TRACKS    the regular track channel strips (the skinned `TrackStrip`)
-   *             in a horizontally scrolling rail — as many complete 8rem
-   *             modules as the window holds, the rest one scroll away.
+   *             in a horizontally scrolling rail — as many complete 7.2rem
+   *             modules (D9.6.1, the room's 0.8× density) as the window
+   *             holds, the rest one snap away (D9.6.5).
    *   RETURNS   one `ReturnStrip` per Return, in its OWN horizontally
    *             scrolling rail, decoupled from the tracks' scroll (owner,
    *             D9.5.4: the returns scroll on their own, never connected to
@@ -86,6 +87,10 @@
       </ol>
     </div>
 
+    <!-- THE DIVIDER (D9.6.4): the owner's green line — a thin walnut bar
+         between the tracks and the Returns/Bus group -->
+    <div class="bank__split" aria-hidden="true"></div>
+
     <!-- RETURNS: their own rail, their own scroll — never connected to the
          tracks' (owner, D9.5.4) -->
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
@@ -128,7 +133,7 @@
      ======================================================================= */
   .bank {
     /* --- geometry ------------------------------------------------------- */
-    --b-cheek: 0.875rem;
+    --b-cheek: 0.7rem; /* 0.875 × 0.8 — the room's density (D9.6.1) */
     --b-radius: 4px;
     /* --- materials, from the tokens ------------------------------------- */
     --b-wood-light: color-mix(in srgb, var(--al-material-wood) 78%, var(--al-material-metal));
@@ -183,13 +188,16 @@
       inset -1px -1px 0 rgba(0, 0, 0, 0.55);
   }
 
-  /* --- the deck: the legend (hidden) over the three rails ----------------- */
+  /* --- the deck: the legend (hidden) over the three rails and the walnut
+     divider between them (D9.6.4). The divider is the owner's green line:
+     a thin bar of the cheeks' own walnut standing between the tracks and
+     the Returns/Bus group, the full height of the rails. */
   .bank__deck {
     position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(6.5rem, max-content) max-content;
+    grid-template-columns: minmax(0, 1fr) 0.4375rem minmax(5.2rem, max-content) max-content;
     grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: "tracks returns bus";
+    grid-template-areas: "tracks split returns bus";
     gap: var(--al-space-2xs);
     align-items: stretch;
     min-width: 0;
@@ -256,19 +264,19 @@
 
   /* --- TRACKS: the session's tracks, the rail that takes the free width,
          scrolling sideways through them (the only width-flexible rail).
-         Snap: the rail lands on whole modules, so the strip at the edge is
-         never left half-seen after a scroll (Task 9.5). The edge fade says
-         "the rail continues" — a partial strip at the fold reads as a
-         scroller's edge, never as a broken module. */
+         Snap (D9.6.5, the owner: "actually just snap to the next channel",
+         replacing the edge fade): the scroll is MANDATORY — it always
+         releases on a whole module, never halfway through one — and there
+         is no fade: a strip is either fully in the rail or fully past its
+         edge, the way a real console's modules sit in their frame. */
   .bank__tracks {
     grid-area: tracks;
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
-    scroll-snap-type: x proximity;
+    scroll-snap-type: x mandatory;
     scrollbar-width: thin;
     scrollbar-color: var(--al-material-metal-shadow) var(--al-material-recess);
-    mask-image: linear-gradient(to right, rgb(0 0 0) 0, rgb(0 0 0) calc(100% - 2.5rem), transparent 100%);
   }
 
   .bank__tracks:focus-visible {
@@ -278,16 +286,15 @@
 
   /* --- RETURNS: their own scroller, decoupled from the tracks (D9.5.4).
      Sized by its content when there is room, giving way (and scrolling on
-     its own) when there is not. */
+     its own) when there is not. The same mandatory snap, no fade (D9.6.5). */
   .bank__returns {
     grid-area: returns;
     overflow-x: auto;
     overflow-y: hidden;
     overscroll-behavior-x: contain;
-    scroll-snap-type: x proximity;
+    scroll-snap-type: x mandatory;
     scrollbar-width: thin;
     scrollbar-color: var(--al-material-metal-shadow) var(--al-material-recess);
-    mask-image: linear-gradient(to right, rgb(0 0 0) 0, rgb(0 0 0) calc(100% - 2.5rem), transparent 100%);
   }
 
   .bank__returns:focus-visible {
@@ -300,6 +307,30 @@
   .bank__bus {
     grid-area: bus;
     overflow: hidden;
+  }
+
+  /* --- THE DIVIDER (D9.6.4): a thin bar of the cheeks' own walnut between
+     the tracks and the Returns — the owner's green line on the annotated
+     photograph. The same figured grain as the end-cheeks, running top to
+     bottom, standing the full height of the rails. */
+  .bank__split {
+    grid-area: split;
+    align-self: stretch;
+    border-radius: 2px;
+    background-color: var(--b-wood);
+    background-image:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0) 30%, rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.32) 100%),
+      repeating-linear-gradient(
+        93deg,
+        var(--b-wood-light) 0 1px,
+        var(--b-wood) 1px 3px,
+        var(--b-wood-dark) 3px 4px,
+        var(--b-wood) 4px 7px
+      );
+    box-shadow:
+      inset 1px 0 0 rgba(255, 255, 255, 0.14),
+      inset -1px 0 0 rgba(0, 0, 0, 0.5),
+      0 1px 2px rgba(0, 0, 0, 0.4);
   }
 
   .bank__rail {

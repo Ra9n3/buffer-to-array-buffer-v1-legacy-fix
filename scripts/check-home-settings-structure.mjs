@@ -248,7 +248,12 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/app.css": "8ebd8999021fe7da5f6e44c433ea19e050c8fd78bf6fc450bd8afb01c987d4b3",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/app.css": "fcefcc5cae66ff67ea3d87cb11f31a6a90e561e248912bad0a97e59a061bb027",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
@@ -337,7 +342,12 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/rooms/ConsoleRoom.svelte": "a74c2df5d2943f3944271b00e9e8a1ab71d95ce1b8475e4ba44777f8648f18ef",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.

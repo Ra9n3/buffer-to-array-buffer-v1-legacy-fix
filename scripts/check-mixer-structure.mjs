@@ -234,7 +234,12 @@ check("check:mixer is wired into package.json", pkg.scripts?.["check:mixer"] ===
 // their Task 2.7 state by this and the other guards.
 const pinned = {
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log D9.5.x): the three-rail bank, the compact strips and their meters changed these files. The checks around each pin still assert the file's real contract.
-  "src/components/ChannelBank.svelte": "03c3c042040a958415be80adcdce5e13ee745bb26f9909303a0346e87f7cd64e",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/ChannelBank.svelte": "f6876c0e896c2b49e9bd0e248a50ec0cdfefadbed9054a0b01a2cd3fd632aca4",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.
@@ -245,7 +250,12 @@ const pinned = {
 
 
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log D9.5.x): the three-rail bank, the compact strips and their meters changed these files. The checks around each pin still assert the file's real contract.
-  "src/rooms/ConsoleRoom.svelte": "a74c2df5d2943f3944271b00e9e8a1ab71d95ce1b8475e4ba44777f8648f18ef",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is

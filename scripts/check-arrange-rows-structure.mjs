@@ -295,7 +295,12 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/app.css": "8ebd8999021fe7da5f6e44c433ea19e050c8fd78bf6fc450bd8afb01c987d4b3",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/app.css": "fcefcc5cae66ff67ea3d87cb11f31a6a90e561e248912bad0a97e59a061bb027",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.
@@ -309,17 +314,32 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/rooms/ConsoleRoom.svelte": "a74c2df5d2943f3944271b00e9e8a1ab71d95ce1b8475e4ba44777f8648f18ef",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/ChannelBank.svelte": "03c3c042040a958415be80adcdce5e13ee745bb26f9909303a0346e87f7cd64e",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/ChannelBank.svelte": "f6876c0e896c2b49e9bd0e248a50ec0cdfefadbed9054a0b01a2cd3fd632aca4",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/channel-strip/TrackStrip.svelte": "c7cdc817b55bc2bb891cb9a76b2399f705430311765db7743c4c5152aac888af",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/channel-strip/TrackStrip.svelte": "d57cab962a57d0efd5e798be98325c4ef79f68590c198592bdb3a2fe2a9c276f",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
@@ -330,7 +350,12 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/channel-strip/StripModule.svelte": "41b901bac2a5116ce42bf8cc859a4bc14c2ce6b776e25ad8faf049580755c463",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/channel-strip/StripModule.svelte": "4a18526b15b6f7a1188e94545fc4b4f3833b65d27bba3bfe5d305d964466c614",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
@@ -359,7 +384,12 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "b5fba4b44e3587c79be78b572e6c00dfa5ccbe3c0f6ae892cd93a185ea537a32",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "fa0a228a86ebb75df5388ab485b9af1a8c36af7f9e0d252093f9ab56a104e172",
   // Task 9.1.3 re-pinned this file. Two lines changed, both in the *state the deck
   // reads* — the MIX state now asks `mixRevision` instead of the live `renderProgress
   // === 1` gauge that a finished render always clears, and the completed mix passes
@@ -369,7 +399,12 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/console-transport/ConsoleTransport.svelte": "05f01bb6ea3430ab96a7c0d97f0d2580300830a8ae8d30404c918570cabe1b48",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/console-transport/ConsoleTransport.svelte": "4cacb4367dabad252401d2e6b473a18961c7c48a0c206124fc83996d4cd478e9",
   // Task 9.1.1 re-pinned the strip (owner decision D9.1.2 option a): it now mounts the
   // listening-source selector beside the keys, in its own component. The strip's layout,
   // the four Phase 0 keys and their functions are unchanged; what moved the hash is one

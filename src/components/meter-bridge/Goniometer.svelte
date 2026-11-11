@@ -7,8 +7,10 @@
    * ALLOY stereo correlation / goniometer — Task 2.1 (provisional treatment,
    * decisions-log D2.1.4).
    *
-   * Two things on one plate, both clearly labelled and neither a VU nor a
-   * ladder:
+   * Two things on one plate, neither a VU nor a ladder — and, on the
+   * 9.6 bridge, neither titled on the face (D9.6.3, the owner: "people
+   * will know what they are once they see them"; the strip's legend is
+   * clipped out of the face and kept in the accessibility tree):
    *
    *   THE SCOPE    a dark recessed window — the recess token behind a thin
    *                metal frame, a shadowed lip, a weak glass sheen — with a
@@ -117,7 +119,12 @@
 
   <!-- The correlation strip. -->
   <div class="gonio__correlation" data-goniometer-correlation>
-    <EngravedLabel text="Correlation" size="xs" />
+    <!-- The strip's legend. Clipped out of the face, kept in the
+         accessibility tree (D9.6.3, the owner: "people will know what they
+         are once they see them") — the same recipe as the phase legend. -->
+    <span class="gonio__legend gonio__legend--hidden">
+      <EngravedLabel text="Correlation" size="xs" />
+    </span>
     <div
       class="corr__slot"
       role="meter"
@@ -140,8 +147,10 @@
 
 <style>
   .gonio {
-    /* The window's edge, set by the host; 6.25rem = 100 px = 1×. */
-    --gonio-size: 6.25rem;
+    /* The instrument is host-sized, the VU's pattern (Task 9.6, D9.6.3): the
+       scope's edge and the correlation strip's width are read with their 1×
+       fallbacks at the USE SITE, never declared here, so a host's value
+       always wins — the bridge drives the whole instrument from one height. */
 
     /* --- materials, from the tokens -------------------------------------- */
     --g-floor-centre: color-mix(in srgb, var(--al-material-recess) 84%, var(--al-material-surface));
@@ -162,8 +171,8 @@
   /* --- the scope window ----------------------------------------------------- */
   .gonio__scope {
     flex: 0 0 auto;
-    width: var(--gonio-size);
-    height: var(--gonio-size);
+    width: var(--gonio-size, 6.25rem); /* 100 px = 1× */
+    height: var(--gonio-size, 6.25rem);
     padding: 1px;
     border-radius: 3.5px;
     /* a thin metal frame round a recess: the frame's top edge lit, its
@@ -237,9 +246,23 @@
     flex: 0 0 auto;
     flex-direction: column;
     gap: var(--al-space-2xs);
-    width: 6rem;
+    width: var(--gonio-strip-width, 6rem); /* 96 px = 1× */
     min-width: 0;
     padding-top: var(--al-space-3xs);
+  }
+
+  /* The strip's legend: clipped out of the face, kept for the accessibility
+     tree (D9.6.3) — the sr-only recipe the phase legend uses. */
+  .gonio__legend--hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .corr__slot {

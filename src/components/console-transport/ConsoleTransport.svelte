@@ -206,21 +206,22 @@
 
       <!-- TIME — a window column built like a key column: a cap-high seat the
            glass is centred on, over a label line, so the body's centring lands
-           the glass on the key caps (owner, 2026-11-01). The legend floats
-           above the glass and moves with it. -->
+           the glass on the key caps (owner, 2026-11-01). The halved bar runs
+           the windows bare — no floating legend (D9.6.2); the clock's own
+           print is its label. -->
       <div class="transport__time" data-transport-time>
         <div class="window__seat" data-window-seat>
-          <LampDisplay kind="clock" legend="Time" primary={clock} secondary={beatPrint} name={timeName} />
+          <LampDisplay kind="clock" legend={null} primary={clock} secondary={beatPrint} name={timeName} />
         </div>
         <span class="window__shim" aria-hidden="true"><EngravedLabel text="Time" size="xs" tone="muted" /></span>
       </div>
 
-      <!-- STATUS -->
+      <!-- STATUS — bare with the bar (D9.6.2): the state word is its label -->
       <div class="transport__status" data-transport-status-display>
         <div class="window__seat" data-window-seat>
           <LampDisplay
             kind="status"
-            legend="Status"
+            legend={null}
             primary={word}
             secondary={details}
             {progress}
@@ -232,10 +233,15 @@
         <span class="window__shim" aria-hidden="true"><EngravedLabel text="Status" size="xs" tone="muted" /></span>
       </div>
 
-      <!-- MIX -->
+      <!-- MIX — the label prints no "Automatic mix" line on the halved bar
+           (D9.6.2): the button's own MIX face carries it, and the line under
+           it was the bar's tallest print. Kept in the DOM for the
+           accessibility tree, clipped out of the face. -->
       <div class="transport__mix" data-transport-mix>
         <MixButton state={view.mix.state} describedBy={`${uid}-status ${uid}-note`} onPress={live ? onMix : undefined} />
-        <EngravedLabel text="Automatic mix" size="xs" tone="muted" />
+        <span class="transport__mix-note">
+          <EngravedLabel text="Automatic mix" size="xs" tone="muted" />
+        </span>
       </div>
     </div>
   </div>
@@ -251,7 +257,7 @@
      ======================================================================= */
   .transport {
     /* --- geometry ------------------------------------------------------- */
-    --b-cheek: 0.875rem;
+    --b-cheek: 0.7rem; /* 0.875 × 0.8 — the room's density (D9.6.1) */
     --b-radius: 4px;
     /* --- materials, from the tokens ------------------------------------- */
     --b-wood-light: color-mix(in srgb, var(--al-material-wood) 78%, var(--al-material-metal));
@@ -356,13 +362,14 @@
      is the one flexible part), never shrinking a control.
      ======================================================================= */
   .transport__body {
-    --switch-size: 2.5rem; /* 40 px key caps; the strips' MUTE / SOLO are 28.
-                              Set here, once, because the windows' seats are
-                              the caps' height too. */
-    --window-height: 4.53125rem; /* 72.5 px: the windows' frame height, the one
-                                    size written down (owner, 2026-11-01) —
-                                    what the frames measured when they still
-                                    stretched to the MIX column's row. */
+    --switch-size: 1.6rem; /* 25.6 px key caps — the bar's own 0.8×-then-halved
+                              scale (Task 9.6, D9.6.2: the owner cut the bar's
+                              height nearly in half; 40 px × 0.8 × 0.8). Set
+                              here, once, because the windows' seats are the
+                              caps' height too. */
+    --window-height: 2.75rem; /* 44 px: the windows' frame height, the keys'
+                                 column height (cap + word) — the bar is one
+                                 line tall (D9.6.2 — down from 72.5 px). */
 
     display: flex;
     flex-wrap: wrap;
@@ -397,16 +404,16 @@
   /* --- the windows ----------------------------------------------------------- */
   .transport__time {
     flex: 0 0 auto;
-    min-width: 11.5rem;
+    min-width: 10rem; /* the clock's bar · beat line prints whole (D9.6.2) */
   }
 
   .transport__status {
-    /* keys 291 + time 184 + this + MIX with its lamp 157 + three 24-px gaps
-       fit a 1024 window (940 px) in one row; the floor came down from 16rem
-       when the lamp arrived (D2.3.12) */
-    flex: 1 1 14.5rem;
-    min-width: 14.5rem;
-    max-width: 28rem;
+    /* keys + time + this + MIX with its lamp fit a 1024 window (940 px) in
+       one row at the bar's 0.8× scale; the floor came down from 14.5rem with
+       the density (D9.6.1) */
+    flex: 1 1 11.5rem;
+    min-width: 11.5rem;
+    max-width: 22.5rem;
   }
 
   /* each window column is a key column's shape — a seat the caps' height,
@@ -434,10 +441,11 @@
     visibility: hidden;
   }
 
-  /* --- MIX: at the right end of its row ------------------------------------- */
+  /* --- MIX: at the right end of its row — halved with the bar (D9.6.2),
+     still the one button that stands over the keys --------------------- */
   .transport__mix {
-    --mix-width: 7.5rem;
-    --mix-height: 3.5rem;
+    --mix-width: 5rem;
+    --mix-height: 1.9rem;
 
     display: flex;
     flex: 0 0 auto;
@@ -445,5 +453,19 @@
     gap: var(--al-space-2xs);
     align-items: center;
     margin-left: auto;
+  }
+
+  /* The "Automatic mix" line, clipped out of the halved bar's face and kept
+     for the accessibility tree (D9.6.2) — the room's hidden-heading recipe. */
+  .transport__mix-note {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 </style>

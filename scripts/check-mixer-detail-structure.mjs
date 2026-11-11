@@ -243,7 +243,12 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/app.css": "8ebd8999021fe7da5f6e44c433ea19e050c8fd78bf6fc450bd8afb01c987d4b3",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/app.css": "fcefcc5cae66ff67ea3d87cb11f31a6a90e561e248912bad0a97e59a061bb027",
   "src/components/mixer/MixerBank.svelte": "4f81961d110de391d5eed77ac3b033bcb0894b306975cef7e3137d22b81359d5",
   "src/components/mixer/MixerIdentity.svelte": "d6165febdfb805db7b067f6dc01bb89f34195a2035fa916984dec401e5a9b781",
   "src/components/mixer/MixerTrackStrip.svelte": "b5107fb09a39d9516ae57ca4254465d45cca2c4c6aaa4868fbb87917f1a36122",

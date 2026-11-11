@@ -224,7 +224,12 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/channel-strip/StripModule.svelte": "41b901bac2a5116ce42bf8cc859a4bc14c2ce6b776e25ad8faf049580755c463",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/channel-strip/StripModule.svelte": "4a18526b15b6f7a1188e94545fc4b4f3833b65d27bba3bfe5d305d964466c614",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the

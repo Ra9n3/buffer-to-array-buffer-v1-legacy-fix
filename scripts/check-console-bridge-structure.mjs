@@ -185,19 +185,19 @@ check(
 
 {
   const tpl = templateOf(bridge);
-  const masterBlock = tpl.slice(tpl.indexOf('data-master-meters'), tpl.indexOf("<!-- CHANNELS -->"));
-  check("master: exactly two VUMeters, LEFT and RIGHT", (masterBlock.match(/<VUMeter /g) ?? []).length === 2 && /label="Left"/.test(masterBlock) && /label="Right"/.test(masterBlock));
+  const masterBlock = tpl.slice(tpl.indexOf('data-master-meters'), tpl.lastIndexOf("</section>"));
+  check("master: exactly two VUMeters, bare — no LEFT/RIGHT print on the row (D9.6.3, the owner: people know a VU when they see one), named as simulated", (masterBlock.match(/<VUMeter /g) ?? []).length === 2 && (masterBlock.match(/<VUMeter label=\{null\}/g) ?? []).length === 2 && /name=\{`Master left, \$\{SIMULATED\}`\}/.test(masterBlock) && /name=\{`Master right, \$\{SIMULATED\}`\}/.test(masterBlock));
   check(
     "master: independent fixture values",
     /level={MASTER_FIXTURE\.left}/.test(masterBlock) && /level={MASTER_FIXTURE\.right}/.test(masterBlock),
   );
-  const phaseBlock = tpl.slice(tpl.indexOf("<!-- PHASE -->"), tpl.indexOf("<!-- GONIOMETER -->"));
+  const corrBlock = tpl.slice(tpl.indexOf("<!-- CORRELATION"), tpl.indexOf("<!-- MASTER"));
   check(
-    "phase: one CorrelationMeter on the fixture's correlation value, named as simulated (Task 9.5, D9.5.5)",
-    /<CorrelationMeter value=\{CORRELATION_FIXTURE\} name=\{`Stereo correlation, \$\{SIMULATED\}`\} \/>/.test(phaseBlock),
+    "correlation: one CorrelationMeter on the fixture's correlation value, named as simulated, third from the left and BARE — no legend (Task 9.6, D9.6.3: the PHASE box left the row's left end, the needle stayed as the correlation meter)",
+    /<CorrelationMeter value=\{CORRELATION_FIXTURE\} name=\{`Stereo correlation, \$\{SIMULATED\}`\} legend=\{false\} \/>/.test(corrBlock),
   );
   check("the per-channel VU row is gone (Task 9.5): every channel strip carries its own LED meter beside its fader", !/BANK_FIXTURE/.test(bridge) && !/data-bridge-module="channels"/.test(bridge));
-  check("the bridge renders the two sub-displays", /<SpectrumLadder \/>/.test(tpl) && /<Goniometer \/>/.test(tpl));
+  check("the bridge renders the two sub-displays, the spectrum SPREAD across the deck's free width (D9.6.3)", /<SpectrumLadder spread \/>/.test(tpl) && /<Goniometer \/>/.test(tpl));
   check("every module heading is an engraved h3", (tpl.match(/<EngravedLabel as="h3"/g) ?? []).length === 4);
 }
 {
@@ -296,7 +296,7 @@ check(
     "desktop arrangement: one row of instruments spread edge to edge — the reference console's strip uses its whole width (Task 9.5, D9.5.5)",
     /@container bridge \(min-width: 900px\)[\s\S]*?justify-content:\s*space-between/.test(css),
   );
-  check("below desktop the modules wrap in the reference's order: phase, goniometer, spectrum, master", /flex-wrap:\s*wrap/.test(css) && /\.module--phase\s*{\s*order:\s*1;/.test(css) && /\.module--stereo\s*{\s*order:\s*2;/.test(css) && /\.module--spectrum\s*{\s*order:\s*3;/.test(css) && /\.module--master\s*{\s*order:\s*4;/.test(css));
+  check("below desktop the modules wrap in the owner's order: spectrum, goniometer, correlation, master (D9.6.3)", /flex-wrap:\s*wrap/.test(css) && /\.module--spectrum\s*{\s*order:\s*1;/.test(css) && /\.module--stereo\s*{\s*order:\s*2;/.test(css) && /\.module--correlation\s*{\s*order:\s*3;/.test(css) && /\.module--master\s*{\s*order:\s*4;/.test(css) && !/module--phase/.test(css));
   {
     const rule = css.match(new RegExp(`\\n  ${".master".replace(".", "\\.")}\\s*{([^}]*)}`))?.[1] ?? "";
     check("master row scrolls inside its own module (overflow-x auto, max-width 100%)", /overflow-x:\s*auto/.test(rule) && /max-width:\s*100%/.test(rule), rule.trim().slice(0, 120));
@@ -305,7 +305,12 @@ check(
   check("spectrum bay scrolls inside its own module", /overflow-x:\s*auto/.test(spectrumRoot) && /max-width:\s*100%/.test(spectrumRoot));
   check("modules can never exceed the deck (max-width 100%, min-width 0)", /\.module\s*{[^}]*max-width:\s*100%/s.test(css) && /\.module\s*{[^}]*min-width:\s*0/s.test(css));
   check("master pair is centred with auto margins (no unreachable overflow)", /\.master__pair\s*{[^}]*margin-inline:\s*auto/s.test(css));
-  check("the master pair is the compact 6.75rem face on every deck wide enough for the row (D9.5.5: one row tall, no size steps)", /--vu-width:\s*6\.75rem/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
+  check("every instrument is drawn from the row's ONE height (D9.6.3): --b-inst-height drives the VUs' width (120/84) and the correlation card's (120/72), the scope IS the height, and no size steps remain", /--b-inst-height:\s*4\.5rem/.test(css) && /--vu-width:\s*calc\(var\(--b-inst-height\) \* 10 \/ 7\)/.test(css) && /--phase-width:\s*calc\(var\(--b-inst-height\) \* 5 \/ 3\)/.test(css) && /--gonio-size:\s*var\(--b-inst-height\)/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
+  check("no legends print on the row (D9.6.3): the module headings are clipped out of the face and stay in the accessibility tree", /\.module__title\s*{[^}]*clip-path:\s*inset\(50%\)/s.test(css) && /aria-labelledby=\{`\$\{uid\}-correlation`\}/.test(templateOf(bridge)));
+  check("the spectrum spreads by a prop, its 1x bay unchanged (D9.6.3)", /spread = false/.test(spectrum) && /spectrum--spread/.test(styleOf(spectrum)) && /justify-content:\s*space-between/.test(styleOf(spectrum)));
+  check("the correlation meter's legend is a prop, hidden without being dropped (D9.6.3)", /legend = true/.test(correlation) && /phase__legend--hidden/.test(styleOf(correlation)));
+  check("the goniometer's strip legend is clipped out of the face and stays in the accessibility tree (D9.6.3: no legend prints on the row, the owner's \"people will know what they are once they see them\")", /gonio__legend--hidden/.test(styleOf(gonio)) && /text="Correlation"/.test(templateOf(gonio)));
+  check("the goniometer is host-sized the VU's way: fallbacks at the use site, never declared at the root (D9.6.3)", /width: var\(--gonio-size, 6\.25rem\)/.test(styleOf(gonio)) && !/--gonio-size:\s*[0-9.]/.test(styleOf(gonio)));
   check("no bridge file animates anything of its own", !/@keyframes|animation:/.test(css + styleOf(spectrum) + styleOf(gonio)));
 }
 

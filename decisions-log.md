@@ -4946,6 +4946,8 @@ verification. The live preview is running for exactly this check.
 
 **Reversible.** Yes: two components, one shared band, and a set of token substitutions.
 
+## Task 9.5 — The one-window Console, the reference layout (2026-11-12)
+
 ### D9.5.1 — The Console is one window: meters above, channels in the middle, transport at the bottom (owner, 2026-11-12)
 
 **Owner's instruction**, with a reference photograph of a vintage console (12 channels, a one-row
@@ -5041,3 +5043,102 @@ bridge that had room to be 293 px tall; the owner chose the compact row knowingl
 - `SpectrumLadder`'s `--ladder-width` becomes **host-settable** (read with a fallback, not
   declared on its own root) — the same pattern as the fader's `--fader-width` and the VU's
   `--vu-width`, so the bridge can compact its columns without touching the component.
+
+## Task 9.6 — The 0.8× Console: the owner's annotated photograph (2026-11-12)
+
+The owner marked up a screenshot of the Task 9.5 Console (red lines round the dead bands above
+and below the bridge's instruments, a green line between the last track strip and the first
+Return) and asked for five things at once: "get everything smaller just like you are zooming
+out to 80%" — they had been running the browser at 80% zoom to see the transport bar — the
+transport bar "almost cut in half (height wise)", the PHASE box off the bridge's left end with
+the row reading spectrum · goniometer · correlation meter · the two VUs and "remove their
+labels, people will know what they are once they see them", a thin walnut bar on the green
+line, and the rails' fading replaced with "actually just snap to the next channel, if you can,
+do it."
+
+Measurement first: at 1920×1080 the Task 9.5 room already fit (transport bottom at 1072 px);
+at 1536×864 — the laptop class the owner is evidently on — the transport was 34 px under the
+fold, which is exactly the "zoom out to 80%" symptom. Task 9.6 makes the room carry that
+density itself at 100%, verified down to 1366×768.
+
+### D9.6.1 — The room carries the owner's 80% itself: one scoped density, not a zoom (owner, 2026-11-12)
+
+**Decision.** Every token the room reads is rescaled by 0.8 in ONE place — the spacing steps
+and the type ramp, re-declared on `.console-room` (ConsoleRoom.svelte). `tokens.css` is the
+untouched 1× authority; nothing above the room — the shell, the header, the other rooms — sees
+any of it. The fixed geometries the room's own components declare are written at their 0.8×
+value beside each component: the strip 9→7.2rem, knobs 2.5→2rem, faders 4.5→3.6rem, switches
+1.75→1.4rem, the strip meter 0.75→0.6rem, the decks' walnut cheeks 0.875→0.7rem, the room's
+gaps likewise.
+
+No `zoom:` and no `transform: scale(` anywhere — the strip guard's standing rule against both
+is kept and still passes; this is a density, not a scale hack, and every value stays written
+down and guarded.
+
+### D9.6.2 — The transport bar is nearly half its height, and it runs bare (owner, 2026-11-12)
+
+**Decision.** Key caps 2.5→1.6rem (25.6 px — 40 px × 0.8 × 0.8: the density, then the halving),
+the windows' one written-down height 4.53125→2.75rem (44 px — the keys' column height, so the
+bar reads one line tall), MIX 7.5×3.5→5×1.9rem. The bar prints no legends: the windows pass
+`legend={null}` (the LampDisplay legend becomes optional), the MIX column's "Automatic mix"
+line is clipped out of the face and kept for the accessibility tree, and the windows' glass
+type comes down with the frame (clock 1.75→1.0625rem, status word 1.125→0.8rem). Measured:
+the bar 99→53 px at 100% zoom — "almost cut in half" — with both windows' print fitting their
+glass exactly (scrollHeight === clientHeight, verified in the browser).
+
+### D9.6.3 — The bridge: the owner's order, no legends, every instrument from one height (owner, 2026-11-12)
+
+**Decision.** The row is **spectrum · goniometer · correlation meter · master VU pair** — the
+PHASE box is off the left end, and the needle meter stays as the correlation meter, third from
+the left, bare (`legend={false}`, a new prop; the VUs print no LEFT/RIGHT line). The module
+headings are clipped out of the face and stay in the DOM as the aria-labelledby names.
+
+The space those rows used to take is the instruments' now: every instrument is drawn from one
+height — `--b-inst-height: 4.5rem` — with the VUs' width `× 10/7` (card 120×84), the
+correlation card's `× 5/3` (120×72), the scope square, and the ladder columns at 1.25rem so
+the bay with its frequency print lands the same height. Measured: the bridge 138→83 px with
+every instrument exactly filling its module — the red-marked dead bands are gone, and the
+meters keep their 9.5 rendered size while the row gives up a third of its height. The spectrum
+is the row's width-eater: a new `spread` prop pitches its columns across the deck's free
+width (the reference's long analyzer bay), and the goniometer becomes host-sized the VU's way
+— fallbacks at the use site, never declared at its root (its own `--gonio-size` declaration
+was overriding the host's value; found and fixed in the browser).
+
+One label survived the first pass and left with the delivery re-check: the goniometer's
+correlation STRIP still printed its "Correlation" legend between the scope and the needle
+meter. It is clipped out of the face with the same sr-only recipe as the phase legend and
+stays in the accessibility tree; a bridge guard now pins it (the strip's −1 · 0 · +1 print
+stays — that is the instrument's scale, not a title).
+
+### D9.6.4 — The walnut divider on the green line (owner, 2026-11-12)
+
+**Decision.** A thin bar of the end-cheeks' own walnut — 0.4375rem, the same figured grain,
+bevelled — stands between the tracks rail and the Returns, the full height of the rails, in
+its own grid column (`"tracks split returns bus"`). It is the owner's green line: the
+separation between the normal channels and the Returns/Bus group.
+
+### D9.6.5 — Snap, not fade (owner: "if you can, do it" — it can)
+
+**Decision.** Both scrolling rails are `scroll-snap-type: x mandatory` (never `proximity`) and
+the edge fades are deleted. A scroll always releases on a whole module; a strip is fully in
+the rail or fully past its edge. Both facts are now guarded (the channel-strip guard asserts
+two `mandatory` rules, no `proximity`, no `mask-image`).
+
+### D9.6.6 — The fold at rest shows a partial strip; that stays (builder, 2026-11-12)
+
+**Context.** At rest (`scrollLeft = 0`) the last strip before the fold is still cut mid-module
+when the session has more tracks than the window holds — mandatory snapping cannot quantize a
+fluid viewport width, and the pure-CSS escape hatches (rounding the rail's width against the
+strip pitch) break on the scrollbar's platform-dependent width. Every DAW folds channels this
+way; the owner's own sessions (their screenshot: eight tracks, three Returns, one bus) fit
+whole with room to spare, so they will not meet the fold at all. If whole-strips-only at rest
+is ever wanted, it is a small resize-time quantizer action — recorded here so the follow-up
+does not have to rediscover the scrollbar problem.
+
+**Verification.** Measured in a real browser (Vite dev, 20-track fixture session):
+zero vertical room scroll at 1920×1080, 1536×864 and 1366×768, transport fully visible at each
+(1074 / 858 / 762 px); svelte-check clean; tests 446/447 (the one failure the pre-existing
+dsp-delay timing flake, unchanged from 9.5); all 32 structural guards re-pointed to this
+contract and passing (none weakened — each moved value keeps its "one written-down number"
+assertion, and new assertions cover the density scope, the bare bridge, the halved bar's bare
+print, the divider and the snapping); production build inlines clean.

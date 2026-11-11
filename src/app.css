@@ -317,7 +317,9 @@ a {
 
 [data-active-room="console"] .room-host {
   min-height: 0;
-  padding: 0.5rem 0.75rem;
+  /* 0.5 / 0.75 × 0.8 — the Console's density starts at the host's frame
+     (Task 9.6, D9.6.1): the room carries the owner's 80%-zoom scale at 100%. */
+  padding: 0.4rem 0.6rem;
 }
 
 [data-active-room="console"] .room {

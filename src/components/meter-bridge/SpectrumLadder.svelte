@@ -33,15 +33,23 @@
     bands = SPECTRUM_FIXTURE,
     /** The ladder scale every column uses. Defaults to the approved ladder scale, unprinted. */
     segments = SPECTRUM_SEGMENTS,
+    /** Fill the host's width, the columns pitched across the whole bay
+     *  instead of hugging at their natural pitch — the Console bridge's wide
+     *  deck (Task 9.6, D9.6.3: the spectrum is the row's width-eater; the
+     *  reference console's analyzer spans the space the fixed instruments
+     *  leave). Default false: the tight, content-sized bay. */
+    spread = false,
   }: {
     bands?: readonly SpectrumBandFixture[];
     segments?: readonly LedSegment[];
+    spread?: boolean;
   } = $props();
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="spectrum"
+  class:spectrum--spread={spread}
   role="region"
   tabindex="0"
   aria-label={`Spectrum ladder, ${bands.length} bands, ${SIMULATED} readings; scrolls sideways when narrow`}
@@ -153,5 +161,24 @@
     padding-left: var(--al-space-2xs);
     /* sits on the label row, the ladders are above it */
     padding-bottom: 1px;
+  }
+
+  /* --- spread (D9.6.3): the bridge's wide deck ------------------------------
+     The bay fills the width the host gives it and the columns pitch across
+     the whole of it — the analyzer as the row's width-eater, the reference
+     console's long spectrum bay. The columns themselves, their wells and
+     their prints are unchanged; only the space between them grows. */
+  .spectrum--spread {
+    width: 100%;
+  }
+
+  .spectrum--spread .spectrum__bay {
+    display: flex;
+    width: 100%;
+  }
+
+  .spectrum--spread .spectrum__columns {
+    flex: 1 1 auto;
+    justify-content: space-between;
   }
 </style>

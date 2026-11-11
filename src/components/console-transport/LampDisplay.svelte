@@ -31,7 +31,7 @@
 
   let {
     kind,
-    legend,
+    legend = null,
     primary,
     secondary = [],
     progress = null,
@@ -40,8 +40,10 @@
     id = null,
   }: {
     kind: "clock" | "status";
-    /** The engraved legend on the panel above the glass. */
-    legend: string;
+    /** The engraved legend on the panel above the glass — null prints none
+     *  (the halved transport bar runs bare, D9.6.2: the keys' words and the
+     *  windows' own print carry the bar; the legend line no longer fits). */
+    legend?: string | null;
     /** The big print: the clock, or the state word. */
     primary: string;
     /** The small print beneath it, separated by dots. */
@@ -63,9 +65,11 @@
 </script>
 
 <div class={`display display--${kind}`} role="group" aria-label={name} {id} data-lamp-display={kind}>
-  <div class="display__legend">
-    <EngravedLabel text={legend} size="xs" tone="muted" />
-  </div>
+  {#if legend}
+    <div class="display__legend">
+      <EngravedLabel text={legend} size="xs" tone="muted" />
+    </div>
+  {/if}
   <div class="display__frame" data-part="frame">
     <div class="display__glass" data-part="glass">
       <span class="display__primary" data-part="primary">{primary}</span>
@@ -197,12 +201,15 @@
   }
 
   .display--clock .display__primary {
-    font-size: 1.75rem;
+    /* 1.0625rem — the halved bar's clock print (Task 9.6, D9.6.2: the
+       window's frame is 39.2 px now; 28 px digits no longer fit it) */
+    font-size: 1.0625rem;
     font-variant-numeric: tabular-nums;
   }
 
   .display--status .display__primary {
-    font-size: 1.125rem;
+    /* 0.8rem — the status word at the same density (D9.6.2) */
+    font-size: 0.8rem;
     text-transform: uppercase;
   }
 
@@ -245,7 +252,7 @@
     position: relative;
     display: block;
     width: 100%;
-    height: 4px;
+    height: 3px; /* the halved bar's slot (D9.6.2) */
     margin: var(--al-space-3xs) 0;
     border-radius: 2px;
     overflow: hidden;

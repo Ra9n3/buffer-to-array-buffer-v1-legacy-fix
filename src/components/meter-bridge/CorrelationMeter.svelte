@@ -24,9 +24,14 @@
     value = 0,
     /** Accessible name; says the reading is simulated when it is. */
     name,
+    /** Print the “Phase” legend under the card? The bridge runs bare — no
+     *  legends, the owner's call (Task 9.6, D9.6.3): people who know consoles
+     *  know the needle. The legend stays in the accessibility tree. */
+    legend = true,
   }: {
     value?: number;
     name: string;
+    legend?: boolean;
   } = $props();
 
   const uid = `phase${++nextId}`;
@@ -102,7 +107,15 @@
       <circle class="phase__pin" cx={PIVOT_X} cy={PIVOT_Y} r="2.6" />
     </svg>
   </div>
-  <EngravedLabel text="Phase" size="xs" tone="muted" title={`Stereo correlation, ${name}`} />
+  <!-- The legend prints on the standalone meter; on the bridge it is hidden
+       from the face but stays in the accessibility tree (D9.6.3). -->
+  {#if legend}
+    <EngravedLabel text="Phase" size="xs" tone="muted" title={`Stereo correlation, ${name}`} />
+  {:else}
+    <span class="phase__legend phase__legend--hidden">
+      <EngravedLabel text="Phase" size="xs" tone="muted" title={`Stereo correlation, ${name}`} />
+    </span>
+  {/if}
 </div>
 
 <style>
@@ -140,6 +153,21 @@
     display: block;
     width: 100%;
     height: auto;
+  }
+
+  /* The bridge's bare mode (D9.6.3): the legend is clipped out of the face
+     but never out of the accessibility tree — the room's own hidden-heading
+     recipe (ConsoleRoom, Task 9.5). */
+  .phase__legend--hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   /* --- the card: the approved VU cream, lit from the top-left -------------- */

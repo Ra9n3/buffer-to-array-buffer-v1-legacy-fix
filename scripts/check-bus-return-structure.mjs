@@ -118,7 +118,7 @@ check("the bus master is a list too (BUS_MASTERS), with at least one entry", /ex
 // --- 2. The module is the track strip's chassis, value for value. -------------
 {
   const host = ruleBody(moduleStyle, ".module");
-  check("the module declares the track strip's fixed width and component sizes (Task 9.5: 9rem, the strip meter's column, no lamp)", /--strip-width: 9rem;/.test(host) && /--knob-size: 2\.5rem;/.test(host) && /--fader-width: 4\.5rem;/.test(host) && /--switch-size: 1\.75rem;/.test(host) && /--meter-width: 0\.75rem;/.test(host) && !/--lamp-size/.test(host));
+  check("the module declares the track strip's fixed width and component sizes (Task 9.6, D9.6.1: the room's 0.8x density — 7.2rem, the strip meter's column, no lamp)", /--strip-width: 7\.2rem;/.test(host) && /--knob-size: 2rem;/.test(host) && /--fader-width: 3\.6rem;/.test(host) && /--switch-size: 1\.4rem;/.test(host) && /--meter-width: 0\.6rem;/.test(host) && !/--lamp-size/.test(host));
   check("the module never shrinks: flex 0 0, width, min- and max-width all the same variable", /flex: 0 0 var\(--strip-width\);/.test(host) && /\swidth: var\(--strip-width\);/.test(host) && /min-width: var\(--strip-width\);/.test(host) && /max-width: var\(--strip-width\);/.test(host));
   const pairs = [
     [".strip", ".module"],
@@ -214,7 +214,7 @@ check("spacing comes from the spacing tokens", count(newStyles, /var\(--al-space
 // --- 6. The bank's pinned rail and column mode. ---------------------------------
 check("the three rails share one recess recipe, and the tracks rail holds no Return or bus strip", /\.bank__rail-region \{[^}]*background-color:\s*color-mix\(in srgb, var\(--al-material-recess\) 55%, var\(--al-material-panel\)\)/s.test(bankStyle) && !/data-channel-bank-tracks[\s\S]*<ReturnStrip/.test(bankTemplate.slice(0, bankTemplate.indexOf("bank__returns"))) && !/data-channel-bank-tracks[\s\S]*<BusMasterStrip/.test(bankTemplate.slice(0, bankTemplate.indexOf("bank__returns"))));
 check("the tracks and the returns each scroll on their own; the bus rail never scrolls (owner, D9.5.4)", count(bankStyle, /overflow-x:\s*auto/g) === 2 && /\.bank__tracks \{[^}]*overflow-x:\s*auto/s.test(bankStyle) && /\.bank__returns \{[^}]*overflow-x:\s*auto/s.test(bankStyle) && /\.bank__bus \{[^}]*overflow:\s*hidden/s.test(bankStyle) && /\.bank__returns \{[^}]*overscroll-behavior-x:\s*contain/s.test(bankStyle));
-check("no column mode: with two independent scrollers there is no width at which anything moves under anything else (Task 9.5 retires D2.4.2)", !/@media/.test(bankStyle) && /grid-template-areas:\s*"tracks returns bus"/.test(bankStyle));
+check("no column mode: with two independent scrollers there is no width at which anything moves under anything else (Task 9.5 retires D2.4.2); the walnut divider column between tracks and Returns (D9.6.4)", !/@media/.test(bankStyle) && /grid-template-areas:\s*"tracks split returns bus"/.test(bankStyle));
 check("the rails stretch their modules to one another and to the rail's full height", /\.bank__rail \{[^}]*align-items:\s*stretch/s.test(bankStyle) && /\.bank__rail \{[^}]*width:\s*max-content/s.test(bankStyle));
 
 // --- 7. Scope. -------------------------------------------------------------------
@@ -237,13 +237,23 @@ const pinned = {
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
   // fader, the three-rail bank and the bottom transport bar changed these
   // files. The checks around each pin still assert the file's real contract.
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "b5fba4b44e3587c79be78b572e6c00dfa5ccbe3c0f6ae892cd93a185ea537a32",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "fa0a228a86ebb75df5388ab485b9af1a8c36af7f9e0d252093f9ab56a104e172",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
   // fader, the three-rail bank and the bottom transport bar changed these
   // files. The checks around each pin still assert the file's real contract.
-  "src/components/channel-strip/TrackStrip.svelte": "c7cdc817b55bc2bb891cb9a76b2399f705430311765db7743c4c5152aac888af",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/channel-strip/TrackStrip.svelte": "d57cab962a57d0efd5e798be98325c4ef79f68590c198592bdb3a2fe2a9c276f",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
@@ -260,8 +270,18 @@ const pinned = {
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
   // fader, the three-rail bank and the bottom transport bar changed these
   // files. The checks around each pin still assert the file's real contract.
-  "src/components/console-transport/ConsoleTransport.svelte": "05f01bb6ea3430ab96a7c0d97f0d2580300830a8ae8d30404c918570cabe1b48",
-  "src/components/console-transport/LampDisplay.svelte": "19634fdde214a7d571ed2a28271064c0d34604a7acf7910cf8f97f3a960dea9d",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/console-transport/ConsoleTransport.svelte": "4cacb4367dabad252401d2e6b473a18961c7c48a0c206124fc83996d4cd478e9",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/components/console-transport/LampDisplay.svelte": "294915bff2ca270c6015e7d67b66f990100ee5cdac1c5cda6bf0884b0ec3e882",
   "src/components/console-transport/MixButton.svelte": "0486c92b90ac5fb571320600fea474ed4ab8e25a5d17e60b181e734360eb3f8b",
   "src/components/console-transport/transport-fixtures.ts": "0333ddc273f3cd1eb6576126dc74aa917741f7f15cd35ab18ecd729a6aba9806",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
@@ -277,7 +297,12 @@ const pinned = {
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
   // fader, the three-rail bank and the bottom transport bar changed these
   // files. The checks around each pin still assert the file's real contract.
-  "src/rooms/ConsoleRoom.svelte": "a74c2df5d2943f3944271b00e9e8a1ab71d95ce1b8475e4ba44777f8648f18ef",
+// Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
+  // changed with the owner's density pass — the room's 0.8x scope, the bare
+  // height-driven bridge, the halved transport bar, the walnut divider and
+  // the snapping rails. The checks around this pin still assert the file's
+  // real contract.
+  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

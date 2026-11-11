@@ -177,17 +177,17 @@
 
 <style>
   /* =======================================================================
-     THE MODULE — the Task 9.5 track strip's chassis (TrackStrip.svelte),
-     value for value: a fixed-width physical module, 9rem = 144 px (owner,
-     Task 9.5), that never shrinks.
+     THE MODULE — the track strip's chassis (TrackStrip.svelte), value for
+     value: a fixed-width physical module, 7.2rem = 115.2 px at the room's
+     0.8× density (Task 9.6, D9.6.1 — 9rem × 0.8), that never shrinks.
      ======================================================================= */
   .module {
-    --strip-width: 9rem;
-    /* the approved components, at the sizes the owner fixed for the strip */
-    --knob-size: 2.5rem; /* 40 px dials; legends and value windows keep their type sizes */
-    --fader-width: 4.5rem; /* the fader's approved 1x: 72 px wide, 160 px travel */
-    --switch-size: 1.75rem; /* the switch's approved 1x: 28 px caps */
-    --meter-width: 0.75rem; /* the strip meter's column: 12 px of glass */
+    --strip-width: 7.2rem;
+    /* the approved components, at the room's 0.8× density (D9.6.1) */
+    --knob-size: 2rem; /* 32 px dials — 2.5rem × 0.8 */
+    --fader-width: 3.6rem; /* 57.6 px wide — 4.5rem × 0.8 */
+    --switch-size: 1.4rem; /* 22.4 px caps — 1.75rem × 0.8 */
+    --meter-width: 0.6rem; /* 9.6 px of glass — 0.75rem × 0.8 */
     --strip-section-pad: var(--al-space-3xs);
 
     display: flex;

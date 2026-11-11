@@ -62,11 +62,10 @@
    * session (SIMULATED): no audio, no routing, no mute/solo bus logic; the
    * meter's reading is the fixture table's (`meterLevelOf`), never measured.
    *
-   * The strip is a fixed-width physical module: 8rem = 128 px (owner, Task
-   * 9.5 — narrowed from Task 2.2's 10rem so more channels stand in one
-   * window; every approved component keeps its approved size, only the
-   * module's own padding shrank). It never shrinks to fit a viewport; the
-   * bank scrolls instead.
+   * The strip is a fixed-width physical module: 7.2rem at the Console's 0.8×
+   * density (Task 9.6, D9.6.1 — 9rem × 0.8, the reference's channel pitch at
+   * the scale the owner runs the room at). It never shrinks to fit a
+   * viewport; the bank scrolls instead.
    *
    * `identity` (Task 2.7, optional, default none): a room may extend the
    * head with one more section of its own — the Mixer puts its instrument
@@ -198,18 +197,19 @@
 <style>
   /* =======================================================================
      THE MODULE
-     A fixed-width physical channel module: 9rem = 144 px (owner, Task 9.5 —
-     the one-window Console; the reference's channel pitch, and wide enough
-     that the knob row's two legends — "Pre-delay", "Bus trim" — print whole
-     beside their dials). It never shrinks; the bank scrolls.
+     A fixed-width physical channel module: 7.2rem = 115.2 px (Task 9.6,
+     D9.6.1 — the owner's "80% zoom" density: 9rem × 0.8; the reference's
+     channel pitch at the scale the owner runs the room at). Every control
+     keeps its approved proportions, drawn from its own 0.8× size below.
+     It never shrinks; the bank scrolls.
      ======================================================================= */
   .strip {
-    --strip-width: 9rem;
-    /* the approved components, at the sizes the owner fixed for the strip */
-    --knob-size: 2.5rem; /* 40 px dials; legends and value windows keep their type sizes */
-    --fader-width: 4.5rem; /* the fader's approved 1x: 72 px wide, 160 px travel */
-    --switch-size: 1.75rem; /* the switch's approved 1x: 28 px caps */
-    --meter-width: 0.75rem; /* the strip meter's column: 12 px of glass */
+    --strip-width: 7.2rem;
+    /* the approved components, at the room's 0.8× density (D9.6.1) */
+    --knob-size: 2rem; /* 32 px dials — 2.5rem × 0.8 */
+    --fader-width: 3.6rem; /* 57.6 px wide — 4.5rem × 0.8 */
+    --switch-size: 1.4rem; /* 22.4 px caps — 1.75rem × 0.8 */
+    --meter-width: 0.6rem; /* 9.6 px of glass — 0.75rem × 0.8 */
     /* the strip's vertical rhythm: sections divided by machined rules with
        the minimum air the controls need — compact, like the reference */
     --strip-section-pad: var(--al-space-3xs);

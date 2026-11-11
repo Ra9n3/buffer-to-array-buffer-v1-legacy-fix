@@ -6,33 +6,43 @@
   /**
    * ALLOY Console meter bridge — Task 2.1 (plan §3 "Console room", §14 2.1;
    * hardware spec §4a / §4b / §6), rebuilt as the owner's reference
-   * console's one compact instrument strip (Task 9.5).
+   * console's one compact instrument strip (Task 9.5), re-laid for the
+   * owner's annotated photograph (Task 9.6, D9.6.3):
    *
    * One long bevelled warm-charcoal deck between two walnut end-cheeks,
-   * carrying four engraved-outlined instruments on ONE row, left to right
-   * in the reference's order:
+   * carrying four instruments on ONE row, left to right in the owner's
+   * order — the PHASE box is off the left end, and the strip now opens
+   * with the spectrum:
    *
-   *   PHASE       the correlation needle meter (Task 9.5's
-   *               `CorrelationMeter`): −1 · 0 · +1 on a cream card — the
-   *               reference console's PHASE LEVEL.
-   *   GONIOMETER  the dark recessed scope with a warm trace and the −1 · 0 ·
+   *   SPECTRUM     a recessed bay of approved LED ladders, one per band —
+   *               the crisp segmented language of spec §4b, visibly not a
+   *               VU.
+   *   GONIOMETER   the dark recessed scope with a warm trace and the −1 · 0 ·
    *               +1 correlation strip (provisional, D2.1.4).
-   *   SPECTRUM    a recessed bay of approved LED ladders, one per band —
-   *               the crisp segmented language of spec §4b, visibly not a VU.
-   *   MASTER      the two approved analog VU meters, LEFT and RIGHT, at the
-   *               right end — compact (D9.5.5: the strip is one row tall,
-   *               ~130 px, so every instrument on it is the smaller of its
-   *               approved sizes).
+   *   CORRELATION  the needle meter (Task 9.5's `CorrelationMeter`): −1 · 0 ·
+   *               +1 on a cream card — the reference console's PHASE LEVEL,
+   *               moved from the left end to third (D9.6.3).
+   *   MASTER       the two approved analog VU meters, LEFT and RIGHT, at the
+   *               right end.
+   *
+   * No legends print on the row (D9.6.3, the owner: "people will know what
+   * they are once they see them") — the module headings stay in the DOM,
+   * clipped out of the face, so every instrument keeps its accessible name;
+   * the VUs print no LEFT/RIGHT line and the correlation meter runs bare.
+   * The space those rows used to take is the instruments' now: every
+   * instrument is drawn from ONE height (--b-inst-height), so each fills the
+   * row top to bottom with no dead band above or below it — the wasted
+   * space the owner marked in red on the photograph.
    *
    * The per-channel VU row of Task 2.1 is gone (D9.5.5): every channel strip
-   * carries its own LED meter beside its fader now, and the channel bank
-   * needs the room the second row was taking.
+   * carries its own LED meter beside its fader now.
    *
    * Everything on the bridge is fixture data from `bridge-fixtures.ts` —
-   * SIMULATED, static, labelled — and nothing is wired to audio, playback,
-   * analysis or project state (plan §14: Phases 3, 5 and 8). The modules
-   * wrap in prominence order on a narrow deck; the free panel between the
-   * spectrum and the master pair stays clear, as the reference's does.
+   * SIMULATED, static, labelled so in the DOM — and nothing is wired to
+   * audio, playback, analysis or project state (plan §14: Phases 3, 5 and
+   * 8). The modules wrap in prominence order on a narrow deck; on a wide
+   * one they spread edge to edge with clear panel between, as the
+   * reference's do.
    *
    * Materials: tokens only — the panel, bevel, recess, metal, wood and text
    * tokens, with neutral black/white alphas for light and shade (spec §6:
@@ -64,12 +74,14 @@
     </header>
 
     <div class="bridge__modules">
-      <!-- PHASE -->
-      <section class="module module--phase" aria-labelledby={`${uid}-phase`} data-bridge-module="phase">
+      <!-- SPECTRUM — the row now opens with it, and eats the deck's free
+           width (owner, D9.6.3): the analyzer spans the space the three fixed
+           instruments leave, as the reference's does -->
+      <section class="module module--spectrum" aria-labelledby={`${uid}-spectrum`} data-bridge-module="spectrum">
         <div class="module__title">
-          <EngravedLabel as="h3" id={`${uid}-phase`} text="Phase" size="xs" />
+          <EngravedLabel as="h3" id={`${uid}-spectrum`} text="Spectrum" size="xs" />
         </div>
-        <CorrelationMeter value={CORRELATION_FIXTURE} name={`Stereo correlation, ${SIMULATED}`} />
+        <SpectrumLadder spread />
       </section>
 
       <!-- GONIOMETER -->
@@ -80,23 +92,26 @@
         <Goniometer />
       </section>
 
-      <!-- SPECTRUM -->
-      <section class="module module--spectrum" aria-labelledby={`${uid}-spectrum`} data-bridge-module="spectrum">
+      <!-- CORRELATION — the needle meter, third from the left (D9.6.3:
+           removed from the left end as the "phase box", kept as the
+           correlation meter; runs bare, no legend) -->
+      <section class="module module--correlation" aria-labelledby={`${uid}-correlation`} data-bridge-module="correlation">
         <div class="module__title">
-          <EngravedLabel as="h3" id={`${uid}-spectrum`} text="Spectrum" size="xs" />
+          <EngravedLabel as="h3" id={`${uid}-correlation`} text="Correlation" size="xs" />
         </div>
-        <SpectrumLadder />
+        <CorrelationMeter value={CORRELATION_FIXTURE} name={`Stereo correlation, ${SIMULATED}`} legend={false} />
       </section>
 
-      <!-- MASTER -->
+      <!-- MASTER — the VU pair prints no LEFT/RIGHT line on this row (D9.6.3);
+           the meters' own faces and the accessible names carry them -->
       <section class="module module--master" aria-labelledby={`${uid}-master`} data-bridge-module="master">
         <div class="module__title">
           <EngravedLabel as="h3" id={`${uid}-master`} text="Master" size="xs" />
         </div>
         <div class="master" data-master-meters>
           <div class="master__pair">
-            <VUMeter label="Left" level={MASTER_FIXTURE.left} name={`Master left, ${SIMULATED}`} />
-            <VUMeter label="Right" level={MASTER_FIXTURE.right} name={`Master right, ${SIMULATED}`} />
+            <VUMeter label={null} level={MASTER_FIXTURE.left} name={`Master left, ${SIMULATED}`} />
+            <VUMeter label={null} level={MASTER_FIXTURE.right} name={`Master right, ${SIMULATED}`} />
           </div>
         </div>
       </section>
@@ -112,7 +127,7 @@
      ======================================================================= */
   .bridge {
     /* --- geometry ------------------------------------------------------- */
-    --b-cheek: 0.875rem;
+    --b-cheek: 0.7rem; /* 0.875 × 0.8 — the room's density (D9.6.1) */
     --b-radius: 4px;
     /* --- materials, from the tokens ------------------------------------- */
     --b-wood-light: color-mix(in srgb, var(--al-material-wood) 78%, var(--al-material-metal));
@@ -218,15 +233,22 @@
   }
 
   /* =======================================================================
-     THE MODULES — one row, the reference's order: phase, goniometer,
-     spectrum, then the master pair at the right end with clear panel
-     between. Every instrument at its compact size (D9.5.5): the strip is
-     one row tall.
+     THE MODULES — one row, the owner's order (D9.6.3): spectrum, goniometer,
+     correlation, then the master pair at the right end. No legends print
+     (the titles are clipped out of the face, kept for the accessibility
+     tree), and every instrument is drawn from ONE height so it fills the
+     row top to bottom — no dead band above or below any meter.
      ======================================================================= */
   .bridge__modules {
+    /* The row's one height: every instrument's card is this tall (D9.6.3).
+       4.5rem = 72 px — the meters keep their Task 9.5 rendered size while
+       the row itself gives up the title and label bands, so the bridge is
+       shorter AND the instruments bigger, both at once. */
+    --b-inst-height: 4.5rem;
+
     display: flex;
     flex-wrap: wrap;
-    align-items: flex-start;
+    align-items: stretch;
     gap: var(--al-space-sm) var(--al-space-md);
     min-width: 0;
   }
@@ -236,10 +258,10 @@
     display: flex;
     flex: 0 0 auto;
     flex-direction: column;
-    gap: var(--al-space-2xs);
+    gap: var(--al-space-3xs);
     min-width: 0;
     max-width: 100%;
-    padding: var(--al-space-2xs) var(--al-space-sm);
+    padding: var(--al-space-3xs) var(--al-space-2xs);
     border-radius: 3px;
     /* an engraved outline round the module: a dark line with its lit lower
        wall, the same light as every engraved legend (top-left) */
@@ -249,33 +271,58 @@
       0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  .module--phase { order: 1; }
+  /* The owner's order (D9.6.3): the spectrum opens the row, the needle
+     meter is third, the master pair closes it. */
+  .module--spectrum { order: 1; }
   .module--stereo { order: 2; }
-  .module--spectrum { order: 3; }
+  .module--correlation { order: 3; }
   .module--master { order: 4; }
 
+  /* No legends print on the row (D9.6.3): the module headings are clipped
+     out of the face and stay in the accessibility tree, the room's own
+     hidden-heading recipe (Task 9.5). */
   .module__title {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    min-height: 0.875rem;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
-  /* --- the compact instruments (D9.5.5) ----------------------------------- */
-  .module--stereo {
-    --gonio-size: 4.5rem; /* the scope and its correlation strip, compact */
-  }
-
+  /* --- the instruments, each drawn from the row's one height (D9.6.3) ---- */
   .module--spectrum {
-    --ladder-width: 1.875rem; /* the ladder columns, compact — wide enough that the three-character band prints never collide */
+    /* the row's width-eater: the module takes the deck's free width and the
+       bay pitches its columns across it (SpectrumLadder `spread`) */
+    flex: 1 1 auto;
+    /* 20 px columns: the bay's ladders + their frequency print land the
+       column at the row height (measured; tuned with the fixtures) */
+    --ladder-width: 1.25rem;
   }
 
-  /* --- master: the two VUs, compact, at the right end ---------------------- */
-  .master {
-    --vu-width: 6.75rem;
+  .module--stereo {
+    --gonio-size: var(--b-inst-height); /* the square scope IS the row's height */
+    --gonio-strip-width: 4.8rem; /* 6 × 0.8 — the strip at the room's density */
+  }
 
+  .module--correlation {
+    /* the card is 120 × 72: width = height × 120/72 for a card as tall as
+       the row */
+    --phase-width: calc(var(--b-inst-height) * 5 / 3);
+  }
+
+  .module--master {
+    /* the VU card is 120 × 84: width = height × 120/84 */
+    --vu-width: calc(var(--b-inst-height) * 10 / 7);
+  }
+
+  /* --- master: the two VUs, at the right end ------------------------------- */
+  .master {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     min-width: 0;
     max-width: 100%;
     overflow-x: auto;
@@ -307,13 +354,9 @@
     }
   }
 
-  /* Very narrow: the masters stay at their 1× so the pair still fits a
-     phone-width deck before the row has to scroll. */
+  /* Very narrow: the pair keeps its height-driven width and the row
+     scrolls inside the module, as every wide module does. */
   @container bridge (max-width: 420px) {
-    .master {
-      --vu-width: 7.5rem;
-    }
-
     .master__pair {
       gap: var(--al-space-sm);
     }
