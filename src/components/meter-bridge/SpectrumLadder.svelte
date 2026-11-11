@@ -71,10 +71,11 @@
 <style>
   .spectrum {
     /* One width scales every column: the approved ladder reads it. 2.25rem
-       = 36 px = 0.75× the playground's 1× ladder. */
-    --ladder-width: 2.25rem;
+       = 36 px = 0.75× the playground's 1× ladder. Host-settable (Task 9.5):
+       read, not declared, so the bridge can compact its columns the way the
+       strip sizes its fader — the default is unchanged. */
     /* The ladder's well, lip to lip, is the left 30 of its 48 units. */
-    --spectrum-well: calc(var(--ladder-width) * 30 / 48);
+    --spectrum-well: calc(var(--ladder-width, 2.25rem) * 30 / 48);
     --spectrum-pitch-gap: var(--al-space-2xs);
 
     display: block;

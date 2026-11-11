@@ -93,6 +93,7 @@
   {identity}
   baySection="effect"
   bayLabel={`Effect, ${ret.name}`}
+  meterLevel={ret.meter}
   faderLabel="Return"
   bind:faderValue={() => model.level, (v) => (model.level = v)}
   bind:mute={() => model.mute, (on) => (model.mute = on)}

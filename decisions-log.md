@@ -4945,3 +4945,99 @@ cheek (`--al-material-wood`) are actually in the shipped CSS, and that the old `
 verification. The live preview is running for exactly this check.
 
 **Reversible.** Yes: two components, one shared band, and a set of token substitutions.
+
+### D9.5.1 — The Console is one window: meters above, channels in the middle, transport at the bottom (owner, 2026-11-12)
+
+**Owner's instruction**, with a reference photograph of a vintage console (12 channels, a one-row
+meter strip, a bottom transport bar): "redesign the console tab … I want to make it fit one window
+… what concern us is the layout itself and the sizes of the channels and the upper meters." Of the
+previous state the owner had already said (2026-11-08, the 9.4 report): "the console tab is awful
+now, you have to scroll to find the channels which are the coolest thing in the whole program";
+of the 9.4 attempt: "it is still awful" — reverted in full at b988358.
+
+This task supersedes that revert with the reference's own layout, on the owner's answers to the
+builder's six questions (branch, transport placement, strip geometry, overflow, meter contents,
+MIX's place):
+
+- The room is a three-row grid: a **max-content meter bridge** on top, the **channel bank taking
+  every free row**, and the **transport deck as the room's bottom bar** — reversing D2.3.1 (deck
+  between bridge and bank) and retiring the 9.4 finding that the deck had to be *removed* to give
+  the bank room. It does not: at the reference's proportions (~17% / ~60% / ~13%) all three fit
+  1920×1080 with the strips' minimum height, and 1600×900 exactly.
+- The shell's persistent mini transport is **not displayed in this room** (app.css, scoped to
+  `[data-active-room="console"]`; the strip stays mounted — the shell renders it outside the room
+  switch — so the never-remounted rule holds). The room's own bottom bar is the transport here;
+  every other room keeps the shared strip.
+- The zones' engraved h2 legends (bridge, bank, transport) are **kept in the DOM and visually
+  hidden** — the same treatment the 9.2 overhaul gave the room headers. The strips' heads, the
+  instruments' titles and the keys' words carry every visible name.
+
+### D9.5.2 — The channel strip is the reference's compact module (owner, 2026-11-12)
+
+The strip is narrowed from D2.2.1's 150–165 px band to a fixed **9rem = 144 px** — the reference
+photo's channel pitch (12 channels across a 1843 px console ≈ 150 px each), and the width at which
+the knob row's two legends print whole. Every **approved component keeps its approved size**:
+40 px dials, the 1× 72 px fader with its 160 px travel, 1× 28 px switch caps — only the module's
+own padding shrank.
+
+- **TRIM and PAN share one row** (trim first), as the reference's channel does; the two send slots
+  keep their bay beneath them; the fader section takes all the strip's free length, so the strips
+  stand full-height in the bank like a real console's channels.
+- The pinned module (`StripModule`) copies the same geometry value for value, so Returns and the
+  bus master still line up control for control with the tracks.
+- Two legends were compacted with the fixtures, because the knob column is 67 px and a longer word
+  truncates: `PREDELAY_PARAM` prints **"Pre-dly"**, `FEEDBACK_PARAM` prints **"Feedbk"**
+  (bus-return-fixtures, Task 9.5). The full words live in the fixtures' comments and the Mixer's
+  chain detail.
+
+### D9.5.3 — Every channel carries its own meter; PEAK is the meter's top segment (owner, 2026-11-12)
+
+A new approved hardware component, **`StripMeter.svelte`**: the thin column of discrete LED
+segments beside each fader that the reference photo shows on every channel — the ladder's language
+(green → amber → red, lit cumulatively from the bottom) drawn in CSS so the column stretches with
+the fader section, which a fixed SVG drawing cannot. Its scale is a compact twelve steps
+(`STRIP_METER_SCALE`), its reading a typed fixture (`METER_LEVELS` / `meterLevelOf` in
+track-strip-fixtures; `meter` on the Return and bus fixtures), SIMULATED like every other reading.
+
+**The footer's PEAK lamp is gone**: the meter's top red segment latches while `peak` is true — one
+red lens doing the lamp's job on the line the eye already watches (the reference's channels have
+no footer peak lamp either). The guard re-points from "one red peak lamp" to "one strip meter, its
+top segment the peak indicator".
+
+### D9.5.4 — Three rails: the tracks scroll, the Returns scroll on their own, the bus never moves (owner, 2026-11-12)
+
+The owner's own words, in the question round's remarks: "the normal track channels will be
+horizontally scrollable, the return channels will also be horizontally scrollable, but not
+connected to the normal tracks, the bus should be static in it's place all the time."
+
+The bank's deck is a three-column grid: **tracks** (`minmax(0, 1fr)`, the one width-flexible
+rail), **Returns** (`minmax(6.5rem, max-content)`, their own scroller, never synced to the
+tracks'), and the **bus master** (`max-content`, `overflow: hidden` — outside every scroller,
+always in place at the right end). Both scrolling rails snap to whole modules and fade at the
+fold, so a partial strip at the edge reads as a scroller's edge, never a broken module.
+
+This **retires D2.4.2's column mode** (and its 68.75rem breakpoint): with two independent
+scrollers there is no width at which anything needs to move under anything else, and the bank's
+one `@media` query is gone. The Mixer bank keeps its own two-rail arrangement — its room scrolls
+vertically beside a detail panel — so check-mixer's "housing value for value" pin is re-pointed at
+what is actually shared: the cheeks, the deck recipe, the rail recess (D9.5.4 note in the guard).
+
+### D9.5.5 — The bridge is the reference's one-row instrument strip (owner, 2026-11-12)
+
+Four instruments on one compact row, the reference's order: **PHASE** (a new
+`CorrelationMeter.svelte` — the cream-face needle meter the reference calls PHASE LEVEL, −1 · 0 ·
++1), **GONIOMETER**, **SPECTRUM**, and the **master L/R VU pair** at the right end. The row is
+~134 px; every instrument is the smaller of its approved sizes (the master pair at 6.75rem, the
+ladder columns at 1.875rem, the scope at 4.5rem) — D2.1.x approved the master VUs "by size" on a
+bridge that had room to be 293 px tall; the owner chose the compact row knowingly ("one compact
+~130px row like the photo").
+
+- The **per-channel VU row is gone**: every channel strip carries its own LED meter beside its
+  fader now (D9.5.3), so a second row of channel meters would only duplicate them and cost the
+  bank its room. `BANK_FIXTURE` is deleted with it.
+- From 900 px of deck up the instruments **spread edge to edge** (`justify-content:
+  space-between`) — the reference's strip uses its whole width; below that they wrap in the
+  reference's order.
+- `SpectrumLadder`'s `--ladder-width` becomes **host-settable** (read with a fallback, not
+  declared on its own root) — the same pattern as the fader's `--fader-width` and the VU's
+  `--vu-width`, so the bridge can compact its columns without touching the component.

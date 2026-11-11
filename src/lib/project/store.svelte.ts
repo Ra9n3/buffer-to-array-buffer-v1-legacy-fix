@@ -64,6 +64,8 @@
 import {
   RETURN_PARAMS,
   TONE_PARAM,
+  busMeterOf,
+  returnMeterOf,
   type BusMasterFixture,
   type ReturnStripFixture,
 } from "../../components/channel-strip/bus-return-fixtures";
@@ -798,6 +800,10 @@ export function returnStripOf(id: ReturnBusId): ReturnStripFixture {
     get peak() {
       return r.display.peak;
     },
+    get meter() {
+      /* Task 9.5: the strip meter's fixture reading — typed, not measured. */
+      return returnMeterOf(r.id.slice("return-".length) as ReturnId);
+    },
     get org() {
       return r.org;
     },
@@ -838,6 +844,10 @@ export function busStripOf(id: BusId): BusMasterFixture {
     },
     get peak() {
       return b.display.peak;
+    },
+    get meter() {
+      /* Task 9.5: the strip meter's fixture reading — typed, not measured. */
+      return busMeterOf();
     },
     get org() {
       return b.org;

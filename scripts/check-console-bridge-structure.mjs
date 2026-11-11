@@ -51,6 +51,7 @@ const consoleRoom = read("src/rooms/ConsoleRoom.svelte");
 const bridge = read("src/components/meter-bridge/ConsoleMeterBridge.svelte");
 const spectrum = read("src/components/meter-bridge/SpectrumLadder.svelte");
 const gonio = read("src/components/meter-bridge/Goniometer.svelte");
+const correlation = read("src/components/meter-bridge/CorrelationMeter.svelte"); // Task 9.5: the phase module's instrument
 const fixtures = read("src/components/meter-bridge/bridge-fixtures.ts");
 const appCss = read("src/app.css");
 const pkg = JSON.parse(read("package.json"));
@@ -89,9 +90,9 @@ check(
   /<EngravedLabel as="h2" id="console-meter-title" text="Meter bridge"/.test(bridge),
 );
 check(
-  "Console keeps the bridge as its first zone, over the transport deck (Task 2.3) and the bank, in order",
+  "Console keeps the bridge as its first zone, over the bank, with the transport deck as the room's bottom bar (Task 9.5, D9.5.1)",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"',
+    'data-console-zone="meter-bridge",data-console-zone="channel-bank",data-console-zone="transport"',
 );
 
 // The channel-bank zone: Task 2.2 replaced its Phase 0 header and frame with
@@ -123,8 +124,8 @@ check(
 {
   const layout = consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "";
   check(
-    "console layout rows: max-content bridge over a max-content transport deck (Task 2.3) over the minmax(max-content, 1fr) bank",
-    /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content,\s*1fr\)/.test(layout),
+    "console layout rows: max-content bridge over the minmax(max-content, 1fr) bank over a max-content transport bar at the foot (Task 9.5, D9.5.1)",
+    /grid-template-rows:\s*max-content\s+minmax\(max-content,\s*1fr\)\s+max-content/.test(layout),
     layout.trim().slice(0, 200),
   );
   check("console layout scrolls vertically inside the room only", /overflow-y:\s*auto/.test(layout) && /overflow-x:\s*hidden/.test(layout));
@@ -156,7 +157,7 @@ check(
 );
 check(
   "the bank's row keeps a content floor, so nothing above it can crush the strips",
-  /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content,\s*1fr\)/.test(
+  /grid-template-rows:\s*max-content\s+minmax\(max-content,\s*1fr\)\s+max-content/.test(
     consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "",
   ),
 );
@@ -190,13 +191,12 @@ check(
     "master: independent fixture values",
     /level={MASTER_FIXTURE\.left}/.test(masterBlock) && /level={MASTER_FIXTURE\.right}/.test(masterBlock),
   );
-  const channelsBlock = tpl.slice(tpl.indexOf("<!-- CHANNELS -->"), tpl.indexOf("<!-- SPECTRUM -->"));
+  const phaseBlock = tpl.slice(tpl.indexOf("<!-- PHASE -->"), tpl.indexOf("<!-- GONIOMETER -->"));
   check(
-    "channels: one VUMeter per bank channel, labelled by its id",
-    /{#each BANK_FIXTURE as channel \(channel\.id\)}/.test(channelsBlock) &&
-      /<VUMeter label={channel\.id} level={channel\.level}/.test(channelsBlock),
+    "phase: one CorrelationMeter on the fixture's correlation value, named as simulated (Task 9.5, D9.5.5)",
+    /<CorrelationMeter value=\{CORRELATION_FIXTURE\} name=\{`Stereo correlation, \$\{SIMULATED\}`\} \/>/.test(phaseBlock),
   );
-  check("channels: the row is a focusable scroll region", /class="channels"[\s\S]*?role="region"[\s\S]*?tabindex="0"/.test(channelsBlock));
+  check("the per-channel VU row is gone (Task 9.5): every channel strip carries its own LED meter beside its fader", !/BANK_FIXTURE/.test(bridge) && !/data-bridge-module="channels"/.test(bridge));
   check("the bridge renders the two sub-displays", /<SpectrumLadder \/>/.test(tpl) && /<Goniometer \/>/.test(tpl));
   check("every module heading is an engraved h3", (tpl.match(/<EngravedLabel as="h3"/g) ?? []).length === 4);
 }
@@ -213,7 +213,7 @@ check(
   "the spectrum scale is the approved ladder scale with the numerals stripped",
   /SPECTRUM_SEGMENTS[^=]*=\s*LED_LADDER_SCALE\.map\(\(\{ db, band \}\) => \(\{\s*db,\s*band,?\s*\}\)\)/s.test(fixtures),
 );
-check("no bridge file draws a VU meter or a ladder of its own", !/vu__|data-vu|led__|data-led|VU_MARKS|needle|segment--/i.test(bridge + spectrum + gonio.replace(/goniometer/gi, "")));
+check("no bridge file draws a VU meter or a ladder of its own (the phase meter's needle is its own approved instrument, Task 9.5 — as the goniometer's scope is)", !/vu__|data-vu|led__|data-led|VU_MARKS/i.test(bridge + spectrum + correlation + gonio.replace(/goniometer/gi, "")));
 check("only the goniometer contains SVG", !/<svg/.test(bridge) && !/<svg/.test(spectrum) && /<svg/.test(gonio));
 
 // --- the goniometer's own contract (provisional treatment, D2.1.4) ----------
@@ -268,9 +268,8 @@ check("no FFT or correlation algorithm (no such call anywhere in the bridge)", !
 
 // Fixture variety: the review must see varied needles, a red channel, a quiet one.
 {
-  const bank = [...fixtures.matchAll(/{ id: "(\d\d)", level: (-?[\d.]+) }/g)].map(([, id, level]) => ({ id, level: Number(level) }));
-  check("bank fixture: eight channels 01–08 (owner's choice)", bank.length === 8 && bank.map((c) => c.id).join(",") === "01,02,03,04,05,06,07,08");
-  check("bank fixture: varied readings, one in the red, one near silence", new Set(bank.map((c) => c.level)).size >= 6 && bank.some((c) => c.level >= 0) && bank.some((c) => c.level <= -12));
+  check("the per-channel bank fixture is gone with the channel VU row (Task 9.5): the strips' own meters carry the per-channel readings now", !/BANK_FIXTURE/.test(fixtures));
+  check("the phase module reads the one correlation fixture the goniometer's strip already reads (D2.1.4's value, unchanged)", /CORRELATION_FIXTURE = 0\.62/.test(fixtures));
   check("master fixture: left and right differ", /left: (-?[\d.]+),\s*right: (-?[\d.]+)/.test(fixtures) && RegExp.$1 !== RegExp.$2);
   const bands = [...fixtures.matchAll(/{ hz: (\d+), label: "([^"]+)", level: (-?[\d.]+) }/g)].map(([, hz, label, level]) => ({ hz: Number(hz), label, level: Number(level) }));
   check("spectrum fixture: fifteen bands, 25 Hz to 16 kHz, ascending", bands.length === 15 && bands[0].hz === 25 && bands[14].hz === 16000 && bands.every((b, i) => i === 0 || b.hz > bands[i - 1].hz));
@@ -294,19 +293,19 @@ check(
   const css = styleOf(bridge);
   check("the deck is a named inline-size container", /container-type:\s*inline-size/.test(css) && /container-name:\s*bridge/.test(css));
   check(
-    "desktop arrangement is a named-area grid (channels over spectrum + goniometer, masters at the end)",
-    /@container bridge \(min-width: 1150px\)[\s\S]*?grid-template-areas:\s*"channels channels \. master"\s*"spectrum stereo\s+\. master"/.test(css),
+    "desktop arrangement: one row of instruments spread edge to edge — the reference console's strip uses its whole width (Task 9.5, D9.5.5)",
+    /@container bridge \(min-width: 900px\)[\s\S]*?justify-content:\s*space-between/.test(css),
   );
-  check("below desktop the modules wrap in prominence order", /flex-wrap:\s*wrap/.test(css) && /\.module--master\s*{\s*order:\s*1;/.test(css) && /\.module--channels\s*{\s*order:\s*4;/.test(css));
-  for (const [name, selector] of [["master", ".master"], ["channels", ".channels"]]) {
-    const rule = css.match(new RegExp(`\\n  ${selector.replace(".", "\\.")}\\s*{([^}]*)}`))?.[1] ?? "";
-    check(`${name} row scrolls inside its own module (overflow-x auto, max-width 100%)`, /overflow-x:\s*auto/.test(rule) && /max-width:\s*100%/.test(rule), rule.trim().slice(0, 120));
+  check("below desktop the modules wrap in the reference's order: phase, goniometer, spectrum, master", /flex-wrap:\s*wrap/.test(css) && /\.module--phase\s*{\s*order:\s*1;/.test(css) && /\.module--stereo\s*{\s*order:\s*2;/.test(css) && /\.module--spectrum\s*{\s*order:\s*3;/.test(css) && /\.module--master\s*{\s*order:\s*4;/.test(css));
+  {
+    const rule = css.match(new RegExp(`\\n  ${".master".replace(".", "\\.")}\\s*{([^}]*)}`))?.[1] ?? "";
+    check("master row scrolls inside its own module (overflow-x auto, max-width 100%)", /overflow-x:\s*auto/.test(rule) && /max-width:\s*100%/.test(rule), rule.trim().slice(0, 120));
   }
   const spectrumRoot = styleOf(spectrum).match(/\n  \.spectrum\s*{([^}]*)}/)?.[1] ?? "";
   check("spectrum bay scrolls inside its own module", /overflow-x:\s*auto/.test(spectrumRoot) && /max-width:\s*100%/.test(spectrumRoot));
   check("modules can never exceed the deck (max-width 100%, min-width 0)", /\.module\s*{[^}]*max-width:\s*100%/s.test(css) && /\.module\s*{[^}]*min-width:\s*0/s.test(css));
   check("master pair is centred with auto margins (no unreachable overflow)", /\.master__pair\s*{[^}]*margin-inline:\s*auto/s.test(css));
-  check("the master pair steps up in size by container width", (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length >= 4);
+  check("the master pair is the compact 6.75rem face on every deck wide enough for the row (D9.5.5: one row tall, no size steps)", /--vu-width:\s*6\.75rem/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
   check("no bridge file animates anything of its own", !/@keyframes|animation:/.test(css + styleOf(spectrum) + styleOf(gonio)));
 }
 

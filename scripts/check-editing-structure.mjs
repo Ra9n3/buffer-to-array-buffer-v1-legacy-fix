@@ -250,7 +250,11 @@ const pinned = {
   "src/lib/project/shell.ts": "90cee1809c81cea24049717ce2329b3c2ef29eced0bfb6740606d98b62218f86",
     // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
   // development session. Nothing was deleted from it; see the decision log (D9.1.2).
-  "src/lib/project/store.svelte.ts": "034ff8091b56cc350cb396cfdda6ef1926d2ad15a400ad2ede3807189d87f36c",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/lib/project/store.svelte.ts": "babbe46c6bf16f7ba5b0c16e016b1f321f5f8ed41b6cef6ddc282689bb3e39c9",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the

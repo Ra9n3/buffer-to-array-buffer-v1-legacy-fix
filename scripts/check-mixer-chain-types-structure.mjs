@@ -210,9 +210,21 @@ const pinned = {
   "src/components/mixer/MixerIdentity.svelte": "d6165febdfb805db7b067f6dc01bb89f34195a2035fa916984dec401e5a9b781",
   "src/components/mixer/MixerTrackStrip.svelte": "b5107fb09a39d9516ae57ca4254465d45cca2c4c6aaa4868fbb87917f1a36122",
   "src/components/mixer/MixerBusStrip.svelte": "99da173205061bb936eb0053ec5bd94f8ad51ec2b96cf289f042e7e9351dabaf",
-  "src/components/channel-strip/bus-return-fixtures.ts": "551fa3fc978362f3f7e48cb1a81110fa2b2ba09d4a3886630a02dc3594df1b1e",
-  "src/components/channel-strip/BusMasterStrip.svelte": "0b2187e0ffa445aabd372d5fc65e083016123c7667bc4fb34083d1162e5b1dd4",
-  "src/components/channel-strip/StripModule.svelte": "d302bbbcfb2be1538f19bc43284cffafe25a121ab4e0b2759838e5aa76cce75f",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/components/channel-strip/bus-return-fixtures.ts": "a72eb75ff0f929dcc78fea7714b6bbcaf0e998d0e2850d43d83a8fe85e0c8101",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/components/channel-strip/BusMasterStrip.svelte": "09c7673329ce60d3b86859845fb3592527e9a1bae5c50e5e78b41a374e9f9826",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/components/channel-strip/StripModule.svelte": "41b901bac2a5116ce42bf8cc859a4bc14c2ce6b776e25ad8faf049580755c463",
   "src/lib/mixer.ts": "0ceea310a923f03ec526e842807220e75667b247facdc3ae7804a5495c1359a0",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
@@ -228,7 +240,11 @@ const pinned = {
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/mixer/ProcessingChain.svelte": "ac74ed271a024c5f8f0ba3fae3460f346cdfa484696b1197fe4d44ea39a9f559",
   "src/components/mixer/MixerReturnStrip.svelte": "b9041f86f91553ecc9afe61dc5daa596eb28c81be2f2892c2c2e320254809109",
-  "src/components/channel-strip/ReturnStrip.svelte": "2ef1efc0f5debe7ccaabf7ee04e7f3ac8b7b2f9eea500f600da798e27c83f2af",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/components/channel-strip/ReturnStrip.svelte": "d5240fa41c0a0057fcf4ed8de7c0239a6cb4f9633aa127d9eb8187c2950dcb0c",
   "src/components/channel-strip/return-live.ts": "837066bc8807932864997db3853d94c70eb6f3f23ec15c15efdb5526f46dfdab",
   "src/components/mixer/ReturnDetail.svelte": "93780c268e6c428110acc0595186e0871d062ba5a4653584da4eba87500ab628",
   "src/components/mixer/BusDetail.svelte": "71c5ca0d04290da8b23f919fd1af00818adaf3617e34589524d4fb222ea5e77f",

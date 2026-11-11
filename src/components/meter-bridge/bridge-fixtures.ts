@@ -23,30 +23,9 @@ export const MASTER_FIXTURE = {
   right: -1.4,
 } as const;
 
-/* --- channel meters for the current bank --------------------------------- */
-
-export interface ChannelMeterFixture {
-  /** The compact engraved identifier, matching the bank's two-digit track codes. */
-  readonly id: string;
-  /** dB VU. */
-  readonly level: number;
-}
-
-/**
- * Eight channels (owner's choice for the fixture bank; the real bank size is
- * a deferred plan decision). Varied on purpose: one in the red, one near
- * silence, the rest spread across the face.
- */
-export const BANK_FIXTURE: readonly ChannelMeterFixture[] = [
-  { id: "01", level: -7.5 },
-  { id: "02", level: -2 },
-  { id: "03", level: 1 },
-  { id: "04", level: -12 },
-  { id: "05", level: -4.5 },
-  { id: "06", level: -18 },
-  { id: "07", level: -0.5 },
-  { id: "08", level: -9 },
-];
+/* The per-channel VU row is gone (Task 9.5): every channel strip now carries
+   its own LED meter beside its fader, so a second row of channel meters on
+   the bridge would only duplicate them and cost the channel bank its room. */
 
 /* --- spectrum ladder ----------------------------------------------------- */
 

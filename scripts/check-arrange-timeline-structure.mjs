@@ -170,8 +170,16 @@ const pinned = {
   "src/dev/ArrangeRowFixture.svelte": "facc39b60df21345ee4671e5bbbaa8d961bb2fb94501ad4d6e265e1843b6c642",
   // (Task 2.7: ScribbleSelect gained the optional `onchoose` callback, TrackStrip the optional `identity` snippet, MixerRoom its strips, app.css two comments — re-pinned at that state.)
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
-  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
-  "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/components/channel-strip/TrackStrip.svelte": "c7cdc817b55bc2bb891cb9a76b2399f705430311765db7743c4c5152aac888af",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/components/channel-strip/track-strip-fixtures.ts": "e891099def6abe69fd2d4558ba2f9f0542a9c4f123d871c2147447e27afab3e5",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
@@ -183,7 +191,11 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/app.css": "4fca6f9b62c55b0d7f0d27b550a5870693d5c84a92e0620e0dc3b1364e6bdda8",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/app.css": "8ebd8999021fe7da5f6e44c433ea19e050c8fd78bf6fc450bd8afb01c987d4b3",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.
@@ -203,7 +215,11 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "a74c2df5d2943f3944271b00e9e8a1ab71d95ce1b8475e4ba44777f8648f18ef",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   const actual = sha(rel);

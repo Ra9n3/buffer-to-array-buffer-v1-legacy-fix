@@ -295,30 +295,38 @@ a {
 }
 
 /* ---------------------------------------------------------------------------
-   Console room shell bounding — Task 0.6.
+   Console room shell bounding — Task 0.6, reworked for the one-window
+   Console (Task 9.5).
 
-   The Console's scroll-revealed transport placeholder was removed when the
-   shared persistent mini transport arrived, so the Console no longer needs the
-   page to scroll in order to reveal anything. Its two remaining zones now fill
-   the space between the app header and the transport strip.
+   The Console now carries its own full transport as the room's bottom bar
+   (the owner's reference layout), so the shell's persistent mini transport
+   is not displayed in this room and the space it reserves is given back.
+   The strip itself is never unmounted — the shell renders it outside the
+   room switch — it is only not displayed here; every other room keeps it.
    --------------------------------------------------------------------------- */
-[data-active-room="console"] .room {
-  height: 100%;
-  max-height: 100%;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-[data-active-room="console"] .room__canvas {
-  min-height: 0;
-}
-
 .app-shell[data-active-room="console"] {
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
+  padding-bottom: 0;
+}
+
+.app-shell[data-active-room="console"] .mini-transport {
+  display: none;
 }
 
 [data-active-room="console"] .room-host {
+  min-height: 0;
+  padding: 0.5rem 0.75rem;
+}
+
+[data-active-room="console"] .room {
+  height: 100%;
+  max-height: 100%;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+[data-active-room="console"] .room__canvas {
   min-height: 0;
 }
 

@@ -69,6 +69,7 @@
   sectionA="trim"
   sectionB="balance"
   {identity}
+  meterLevel={bus.meter}
   faderLabel="Master"
   bind:faderValue={() => model.level, (v) => (model.level = v)}
   bind:mute={() => model.mute, (on) => (model.mute = on)}

@@ -7,12 +7,14 @@
   /**
    * ALLOY Console transport deck — Task 2.3 (plan §3 "Console room":
    * transport, status and estimated processing time, large illuminated MIX
-   * button; §6 playback modes; §10 MIX button behaviour; §14 2.3).
+   * button; §6 playback modes; §10 MIX button behaviour; §14 2.3), moved to
+   * the foot of the room as the Console's bottom bar (Task 9.5, D9.5.1 —
+   * the owner's reference console's layout: meters above, channels in the
+   * middle, transport at the bottom).
    *
    * One full-width housing — the approved meter bridge's recipe, the same
    * walnut cheeks and bevelled warm-charcoal deck the channel bank already
-   * wears — sitting between the bridge and the bank (owner, D2.3.1), carrying
-   * from left to right:
+   * wears — carrying from left to right:
    *
    *   TRANSPORT  the four keys Phase 0 fixed as the product's transport
    *              conventions (Task 0.6): PREVIOUS · PLAY · STOP · NEXT, each
@@ -30,11 +32,14 @@
    *   MIX        the dominant button, in the keys' cream with its mixing
    *              lamp beside it, at the right end (owner, D2.3.12).
    *
-   * Everything is fixture data (`transport-fixtures.ts`), SIMULATED and
-   * labelled so: nothing plays, locates, renders or persists. The only
-   * behaviour is the keys' own: PLAY / STOP swap their lamps locally, the
-   * momentary keys release, MIX sinks under the finger. No audio, no
-   * timeline, no project state (plan §14: Phases 3, 5 and 8).
+   * The deck's engraved legend is visually hidden (Task 9.5): the keys,
+   * windows and MIX are labelled by their own print, and the bar keeps the
+   * reference's hardware face; the heading stays in the DOM as the zone's
+   * accessible name.
+   *
+   * Everything is fixture data (`transport-fixtures.ts`) or the one shared
+   * transport (`live`), SIMULATED and labelled so: nothing plays, locates,
+   * renders or persists beyond what the shared transport already does.
    */
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
@@ -164,7 +169,9 @@
     <!-- No screw heads here or anywhere else (D2.1.9). -->
 
     <!-- The zone's heading. ConsoleRoom's transport <section> is labelled by
-         this id; the legend is the deck's own engraved print. -->
+         this id. Visually hidden (Task 9.5): the keys, windows and MIX are
+         labelled by their own print; the heading stays in the DOM as the
+         zone's accessible name. -->
     <header class="transport__legend">
       <EngravedLabel as="h2" id={headingId} text="Transport" size="sm" />
       <EngravedLabel id={`${uid}-note`} text={note} size="xs" tone="muted" />
@@ -306,7 +313,7 @@
     flex-direction: column;
     gap: var(--al-space-2xs);
     min-width: 0;
-    padding: var(--al-space-xs) var(--al-space-md) var(--al-space-sm);
+    padding: var(--al-space-2xs) var(--al-space-md);
     background-color: var(--al-material-panel);
     background-image:
       linear-gradient(180deg, rgba(0, 0, 0, 0) 1px, var(--b-trim) 1px, var(--b-trim) 2px, rgba(0, 0, 0, 0.5) 2px, rgba(0, 0, 0, 0) 3px),
@@ -330,12 +337,17 @@
   }
 
   .transport__legend {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--al-space-md);
-    min-width: 0;
-    padding: 0 var(--al-space-md);
+    /* The zone's heading, kept for the accessibility tree and the zone's
+       name, hidden from the bar's face (Task 9.5). */
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   /* =======================================================================
@@ -357,7 +369,7 @@
     align-items: center;
     gap: var(--al-space-sm) var(--al-space-lg);
     min-width: 0;
-    padding: var(--al-space-2xs) var(--al-space-md) 0;
+    padding: 0 var(--al-space-md);
   }
 
   /* --- the keys: approved switches at a transport key's size --------------- */

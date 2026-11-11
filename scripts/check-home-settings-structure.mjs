@@ -244,7 +244,11 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/app.css": "4fca6f9b62c55b0d7f0d27b550a5870693d5c84a92e0620e0dc3b1364e6bdda8",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/app.css": "8ebd8999021fe7da5f6e44c433ea19e050c8fd78bf6fc450bd8afb01c987d4b3",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
@@ -329,7 +333,11 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "a74c2df5d2943f3944271b00e9e8a1ab71d95ce1b8475e4ba44777f8648f18ef",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.

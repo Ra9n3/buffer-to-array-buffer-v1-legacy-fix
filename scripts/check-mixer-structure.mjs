@@ -143,9 +143,15 @@ check("the bus channel is the approved BusMasterStrip (Task 2.4), rendered once 
 check("no Mixer file recreates a control: no Knob, Fader, meter or send slot is imported or drawn by the Mixer", !/hardware\/(Knob|Fader|VUMeter|LedLadder)|SendSlot|<Knob\b|<Fader\b|data-knob|data-fader/.test(mixerSources));
 check("the Mixer files draw only through approved components: EngravedLabel, TactileSwitch, Lamp, ScribbleSelect", /import EngravedLabel from "\.\.\/hardware\/EngravedLabel\.svelte"/.test(identity) && /import TactileSwitch from "\.\.\/hardware\/TactileSwitch\.svelte"/.test(identity) && /import Lamp from "\.\.\/hardware\/Lamp\.svelte"/.test(trackCh) && /import ScribbleSelect from "\.\.\/hardware\/ScribbleSelect\.svelte"/.test(trackCh));
 check("the Mixer does not override the strips' own CSS (no :global reach into .strip / .module / .switch / .knob / .fader)", !/:global\(\s*\.(strip|module|switch|knob|fader|lamp)\b/.test(mixerSources));
-check("the Mixer bank's housing is the Console bank's, value for value (the style blocks are identical but for the class names and the heading comment)", (() => {
-  const norm = (css) => stripComments(css).replace(/\s+/g, " ").trim();
-  return norm(styleOf(bank).replace(/\.mbank/g, ".bank").replace(/--mb-/g, "--b-")) === norm(styleOf(consoleBank));
+check("the Mixer bank's housing keeps the Console bank's recipe — walnut cheeks, the deck and its trim line, the rail recess (the rail ARRANGEMENT is the Mixer's own two-rail layout since the Console moved to three, Task 9.5 / D9.5.4)", (() => {
+  const mb = styleOf(bank);
+  return [
+    /--mb-wood:\s*var\(--al-material-wood\)/,
+    /grid-template-columns:\s*var\(--mb-cheek\) minmax\(0, 1fr\) var\(--mb-cheek\)/,
+    /background-color:\s*var\(--al-material-panel\)/,
+    /var\(--mb-trim\) 1px, var\(--mb-trim\) 2px/,
+    /color-mix\(in srgb, var\(--al-material-recess\) 55%, var\(--al-material-panel\)\)/,
+  ].every((re) => re.test(mb));
 })());
 check("the Console bank is neither imported nor changed by the Mixer", !/import [^;]*ChannelBank/.test(mixerSources));
 
@@ -153,7 +159,7 @@ check("the Console bank is neither imported nor changed by the Mixer", !/import 
 const extensionOk = (src, cls) =>
   new RegExp(`\\{#if identity\\}\\s*(<!--[\\s\\S]*?-->\\s*)?<div class="${cls}__section ${cls}__section--identity" data-strip-section="identity">\\s*\\{@render identity\\(\\)\\}\\s*<\\/div>\\s*\\{\\/if\\}`).test(src);
 check("TrackStrip takes an OPTIONAL identity snippet (no default needed; absent = the approved strip)", /let \{ track, identity \}: \{ track: TrackStripLive; identity\?: Snippet \} = \$props\(\);/.test(trackStrip) && /import type \{ Snippet \} from "svelte"/.test(trackStrip));
-check("TrackStrip renders it only when given, as one more section between the head and TRIM, divided by the same rule", extensionOk(trackStrip, "strip") && (() => { const t = templateOf(trackStrip); return t.indexOf("</header>") < t.indexOf("{#if identity}") && t.indexOf("{/if}") < t.indexOf('data-strip-section="trim"'); })() && /\.strip__head \+ \.strip__section \{/.test(trackStrip));
+check("TrackStrip renders it only when given, as one more section between the head and TRIM, divided by the same rule", extensionOk(trackStrip, "strip") && (() => { const t = templateOf(trackStrip); return t.indexOf("</header>") < t.indexOf("{#if identity}") && t.indexOf("{/if}") < t.indexOf('data-strip-section="trim-pan"'); })() && /\.strip__head \+ \.strip__section \{/.test(trackStrip));
 check("StripModule takes the same optional snippet (default null) and renders it the same way, before the first knob", /identity = null,/.test(stripModule) && /identity\?: Snippet \| null;/.test(stripModule) && extensionOk(stripModule, "module") && (() => { const t = templateOf(stripModule); return t.indexOf("</header>") < t.indexOf("{#if identity}") && t.indexOf("{/if}") < t.indexOf("{@render knobA()}"); })());
 check("ReturnStrip and BusMasterStrip only forward it (optional, default null) to the module", /let \{\s*ret,\s*identity = null,\s*live = null,\s*\}: \{ ret: ReturnStripFixture; identity\?: Snippet \| null; live\?: ReturnLive \| null \} = \$props\(\);/.test(returnStrip) && /\r?\n  \{identity\}\r?\n/.test(returnStrip) && /let \{\s*bus,\s*identity = null,\s*live = null,\s*\}: \{ bus: BusMasterFixture; identity\?: Snippet \| null; live\?: BusLive \| null \} = \$props\(\);/.test(busStrip) && /\r?\n  \{identity\}\r?\n/.test(busStrip));
 check("the extension's own CSS is one rule in each strip (column, stretched, the head's paddings) and nothing else about the strips changed", /\.strip__section--identity \{\s*flex-direction: column;\s*align-items: stretch;\s*padding: var\(--al-space-2xs\) var\(--al-space-3xs\);\s*\}/.test(trackStrip) && /\.module__section--identity \{\s*flex-direction: column;\s*align-items: stretch;\s*padding: var\(--al-space-2xs\) var\(--al-space-3xs\);\s*\}/.test(stripModule));
@@ -227,7 +233,8 @@ check("check:mixer is wired into package.json", pkg.scripts?.["check:mixer"] ===
 // and the select changed by exactly the additions above and are pinned at
 // their Task 2.7 state by this and the other guards.
 const pinned = {
-  "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log D9.5.x): the three-rail bank, the compact strips and their meters changed these files. The checks around each pin still assert the file's real contract.
+  "src/components/ChannelBank.svelte": "03c3c042040a958415be80adcdce5e13ee745bb26f9909303a0346e87f7cd64e",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.
@@ -237,7 +244,8 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log D9.5.x): the three-rail bank, the compact strips and their meters changed these files. The checks around each pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "a74c2df5d2943f3944271b00e9e8a1ab71d95ce1b8475e4ba44777f8648f18ef",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
@@ -251,8 +259,10 @@ const pinned = {
 
   "src/rooms/ArrangeRoom.svelte": "6e276cdccbbc9273228a224ecbbd3e4c39c7938aecfdaf6f2cddb09b9ce2949c",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
-  "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
-  "src/components/channel-strip/bus-return-fixtures.ts": "551fa3fc978362f3f7e48cb1a81110fa2b2ba09d4a3886630a02dc3594df1b1e",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log D9.5.x): the three-rail bank, the compact strips and their meters changed these files. The checks around each pin still assert the file's real contract.
+  "src/components/channel-strip/track-strip-fixtures.ts": "e891099def6abe69fd2d4558ba2f9f0542a9c4f123d871c2147447e27afab3e5",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log D9.5.x): the three-rail bank, the compact strips and their meters changed these files. The checks around each pin still assert the file's real contract.
+  "src/components/channel-strip/bus-return-fixtures.ts": "a72eb75ff0f929dcc78fea7714b6bbcaf0e998d0e2850d43d83a8fe85e0c8101",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",

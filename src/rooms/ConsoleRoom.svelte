@@ -6,40 +6,36 @@
   import RoomShell from "../components/RoomShell.svelte";
   import { project } from "../lib/project/store.svelte";
 
-  /* The Console's own scroll-revealed transport placeholder was removed in
-     Task 0.6: the persistent mini transport is now rendered once by the shell
-     and is visible in every room, so a second, page-scroll-dependent transport
-     placeholder here would duplicate it and could not be shown at the same time
-     as the shared strip without overlapping it. The Console's full vintage
-     transport, status/time display and MIX button are scheduled as Task 2.3 in
-     the product plan.
+  /* Task 9.5 — the one-window Console, the owner's reference console's
+     layout (owner decision D9.5.1, 2026-11-12, with the reference
+     photograph):
 
-     Task 2.1 replaced the meter-bridge zone's gray placeholder with the
-     skinned ConsoleMeterBridge (fixture data only, nothing wired). The zone
-     keeps its data-console-zone hook and its accessible name — the bridge
-     renders the <h2 id="console-meter-title"> as its engraved legend.
+       METER BRIDGE   one compact instrument strip across the top — phase,
+                      goniometer, spectrum, the master VU pair (~17% of the
+                      reference's face).
+       CHANNEL BANK   the three rails — scrolling tracks, independently
+                      scrolling Returns, the static bus master — taking all
+                      the room that is left (~60%): the channels are the
+                      coolest thing in the whole program, and they are the
+                      first thing on screen, whole, never scrolled away to
+                      reach (the 9.4 report's words for the failure this
+                      layout fixes).
+       TRANSPORT      the full deck at the very BOTTOM, like the reference's
+                      (~13%): the four keys, the lamp-lit time and status
+                      windows and the dominant MIX button at the right end.
 
-     Task 2.2 did the same for the channel-bank zone: the Phase 0 grey header
-     and frame are gone and the ChannelBank is its own bridge-matching
-     housing, rendering the <h2 id="console-channels-title"> as its engraved
-     legend. The 20 regular track strips are skinned (TrackStrip, fixtures
-     only); the pinned Bus / Returns strips stay Phase 0 placeholders until
-     Task 2.4. Both zones keep their data-console-zone hooks and names.
+     The shell's persistent mini transport does not show in this room
+     (app.css): the room's own bottom bar IS the transport here, and two
+     bars at one foot would be one too many. It stays mounted — the shell
+     renders it outside the room switch — it is only not displayed.
 
-     Task 2.3 restores the transport as a zone of its own — the Phase 0.2
-     skeleton had one; 0.6 removed its scroll-revealed placeholder — as the
-     ConsoleTransport deck between the bridge and the bank (owner, D2.3.1):
-     the four transport keys, the lamp-lit time and status windows and the
-     dominant MIX button, fixtures only. It renders the
-     <h2 id="console-transport-title"> as its engraved legend. The shell's
-     persistent mini transport (Task 0.6) is untouched and still the only
-     transport outside this room.
-
-     Task 4.1: when the open project has no channels (an empty project,
-     owner D4.1.2) the channel-bank zone shows the explicit empty state in
-     place of the bank; the zone, its hook and its accessible name stay (the
-     notice renders the <h2 id="console-channels-title">). The bridge and the
-     transport are fixture surfaces and stay as approved. */
+     The room never scrolls vertically on a normal desktop window: the
+     bridge and the bar hold their compact heights and the bank takes the
+     rest. On a window too short for the strip's minimum, the layout scrolls
+     inside the room — never the page, and never sideways. The zone hooks
+     and their accessible names (the bridge's, the bank's, the transport's)
+     are unchanged: the bridge, the bank and the transport still render the
+     <h2>s their zones are labelled by (visually hidden now, Task 9.5). */
 </script>
 
 <RoomShell
@@ -59,14 +55,6 @@
       </section>
 
       <section
-        class="console-zone console-zone--transport"
-        data-console-zone="transport"
-        aria-labelledby="console-transport-title"
-      >
-        <ConsoleTransport live />
-      </section>
-
-      <section
         class="console-zone console-zone--channels"
         data-console-zone="channel-bank"
         aria-labelledby="console-channels-title"
@@ -77,6 +65,14 @@
           <ChannelBank />
         {/if}
       </section>
+
+      <section
+        class="console-zone console-zone--transport"
+        data-console-zone="transport"
+        aria-labelledby="console-transport-title"
+      >
+        <ConsoleTransport live />
+      </section>
     </div>
   </div>
 </RoomShell>
@@ -86,29 +82,27 @@
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
-    gap: 1rem;
     min-width: 0;
     min-height: 0;
     height: 100%;
   }
 
-  /* Task 2.1: the meter bridge row is sized by the bridge itself (its meters
-     have fixed physical sizes and must not stretch with the window), and the
-     channel bank takes the rest but never less than its own content. Both
-     minimums are max-content rather than auto on purpose: with a definite
-     layout height and no free space, an auto row collapses below its content
-     and the two zones overlap. On a window too short for both, the layout
-     scrolls vertically inside the room — never the page, and never sideways.
-     Task 2.3: the transport deck is a second max-content row between them. */
+  /* Task 9.5: the bridge holds its compact height, the bank takes everything
+     between the two decks but never less than its own content, and the
+     transport deck is the room's bottom bar. The minimums are max-content
+     rather than auto on purpose: with a definite layout height and no free
+     space, an auto row collapses below its content and the zones overlap.
+     On a window too short for all three, the layout scrolls vertically
+     inside the room — never the page, and never sideways. */
   .console-layout {
     display: grid;
     flex: 1 1 auto;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows:
       max-content
-      max-content
-      minmax(max-content, 1fr);
-    gap: 1rem;
+      minmax(max-content, 1fr)
+      max-content;
+    gap: 0.375rem;
     min-width: 0;
     min-height: 0;
     overflow-x: hidden;
@@ -123,8 +117,17 @@
     min-height: 0;
   }
 
+  /* The bank's zone is a grid of one row: the bank FILLS the zone's height
+     (Task 9.5), so the strips stretch to the window and their fader
+     sections take the free length — a console's channels stand full-height,
+     with no dead band under them. */
+  .console-zone--channels {
+    display: grid;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
   /* The skinned zones are their own housings: no placeholder frame round
-     them (Task 2.1 the bridge, Task 2.2 the bank, Task 2.3 the transport). */
+     them (the bridge, the bank, the transport). */
   .console-zone--meter,
   .console-zone--transport,
   .console-zone--channels {

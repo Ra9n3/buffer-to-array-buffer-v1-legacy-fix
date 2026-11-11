@@ -192,7 +192,11 @@ const pinned = {
   "src/components/channel-strip/strip-live.ts": "99603dc16c898e0887c24b5f821b8547ee747342138e8a8b0ebc63e48fa66c7b",
   "src/components/channel-strip/return-live.ts": "837066bc8807932864997db3853d94c70eb6f3f23ec15c15efdb5526f46dfdab",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
-  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/components/channel-strip/TrackStrip.svelte": "c7cdc817b55bc2bb891cb9a76b2399f705430311765db7743c4c5152aac888af",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/mixer/BusDetail.svelte": "71c5ca0d04290da8b23f919fd1af00818adaf3617e34589524d4fb222ea5e77f",
   "src/lib/mixer-chain.ts": "818fb94f4560f173819dacb76bf42726db67b28a18eb7288dacdba74f67919d2",
@@ -202,7 +206,11 @@ const pinned = {
   "src/lib/project/session.ts": "079a77226200f30858f9588aafa0cb50b30b5c182b8e15a63f0fe9231a4736d5",
     // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
   // development session. Nothing was deleted from it; see the decision log (D9.1.2).
-  "src/lib/project/store.svelte.ts": "034ff8091b56cc350cb396cfdda6ef1926d2ad15a400ad2ede3807189d87f36c",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.x): this file changed with the approved layout — the compact strip,
+  // its meter, the three-rail bank, the bottom transport bar. The checks
+  // around this pin still assert the file's real contract.
+  "src/lib/project/store.svelte.ts": "babbe46c6bf16f7ba5b0c16e016b1f321f5f8ed41b6cef6ddc282689bb3e39c9",
   "tests/loader.mjs": "51a401d95b0f35584ca7bce2dd564346ba6c1c2c066eeffa51ebd1ad5da15451",
   "tests/register.mjs": "80ef952e463fa5bf7eb9bf1b0a11dcbe5fe32e3a86391c2d596f6f41a8de7b56",
   "tests/routing.test.mjs": "bc389e8869b20fb0dc98ffa77e88d67c7c4c959622669fc7db7b7be96b37676d",

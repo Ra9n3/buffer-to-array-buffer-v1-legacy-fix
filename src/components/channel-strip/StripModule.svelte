@@ -6,32 +6,39 @@
   import type { Snippet } from "svelte";
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import Fader from "../hardware/Fader.svelte";
-  import Lamp from "../hardware/Lamp.svelte";
+  import StripMeter from "../hardware/StripMeter.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
   import { SIMULATED, orgToken, type OrgSwatch } from "./track-strip-fixtures";
   import type { PinnedType } from "./bus-return-fixtures";
 
   /**
-   * ALLOY Console pinned channel module — Task 2.4.
+   * ALLOY Console pinned channel module — Task 2.4, rebuilt compact for the
+   * one-window Console (Task 9.5).
    *
-   * The physical module the pinned strips are built on: the Task 2.2 track
-   * strip's chassis — the same 10rem width, panel face, bevel and seam, the
+   * The physical module the pinned strips are built on: the Task 9.5 track
+   * strip's chassis — the same 8rem width, panel face, bevel and seam, the
    * same identity head (number, type, organisational tab, engraved name),
-   * the same six sections divided by the same machined rules, the approved
-   * Fader in the fifth and the MUTE · SOLO · PEAK footer in the sixth — so
-   * that a Return strip or the bus master lines up control for control with
-   * the twenty track strips beside it (prompt: match the established
-   * styling, sizing, spacing and control alignment). The approved
-   * `TrackStrip` is not changed and not extended: its CSS values are copied
-   * here value for value, the way the bank copied the bridge's housing
-   * (D2.2.5), and its file hash stays pinned by the guards.
+   * the same sections divided by the same machined rules — so that a Return
+   * strip or the bus master lines up control for control with the track
+   * strips beside it. The approved `TrackStrip` is not changed and not
+   * extended: its CSS values are copied here value for value, the way the
+   * bank copied the bridge's housing (D2.2.5), and its file hash stays
+   * pinned by the guards.
    *
    * What differs between a track, a Return and the bus master is what sits
-   * in the two knob sections and the bay. Those come in as snippets from the
-   * strip that owns the module (`ReturnStrip`, `BusMasterStrip`); a module
-   * given no bay renders a blank panel there instead — an unpopulated slot
-   * that keeps the fader and the footer on the tracks' lines by absorbing
-   * the height (owner, D2.4.4).
+   * in the knob row and the bay. Those come in as snippets from the strip
+   * that owns the module (`ReturnStrip`, `BusMasterStrip`); a module given
+   * no bay renders a blank panel there instead — an unpopulated slot that
+   * keeps the fader and the footer on the tracks' lines by absorbing the
+   * height (owner, D2.4.4).
+   *
+   * Sections, top to bottom (Task 9.5 geometry): HEAD; the two knob
+   * snippets on ONE row (the first section's hook joined to the second's,
+   * "decay-predelay", "trim-balance" — as the track strip's "trim-pan");
+   * the bay, or its blank; the fader with the strip's own LED meter beside
+   * it (`StripMeter`, its top segment the module's PEAK indicator,
+   * D9.5.3 — the footer lamp moved onto the line the eye watches); and the
+   * MUTE · SOLO footer.
    *
    * Fixtures only (SIMULATED): the controls keep their approved behaviour.
    * Since Task 3.1 the fader, MUTE and SOLO are bindable, so the strip that
@@ -42,9 +49,8 @@
    * `identity` (Task 2.7, optional, default none): the same optional section
    * under the head that the track strip has — a room's own content (the
    * Mixer's channel identity print and controls), rendered between the head
-   * and the first knob, divided by the same machined rule. Without it the
-   * module is exactly the approved Task 2.4 module: the Console passes
-   * nothing and renders byte-for-byte the same.
+   * and the knob row, divided by the same machined rule. Without it the
+   * module is exactly the Console's pinned module.
    */
   let {
     id,
@@ -60,6 +66,7 @@
     bay = null,
     baySection = "bay",
     bayLabel = "",
+    meterLevel,
     faderLabel,
     faderValue = $bindable(0),
     mute = $bindable(false),
@@ -88,6 +95,8 @@
     bay?: Snippet | null;
     baySection?: string;
     bayLabel?: string;
+    /** The strip meter's fixture reading, dB (Task 9.5). */
+    meterLevel: number;
     faderLabel: string;
     /** Fader, MUTE and SOLO are bindable (Task 3.1): a caller that binds them owns them; a plain value still draws as before. */
     faderValue?: number;
@@ -130,13 +139,10 @@
       </div>
     {/if}
 
-    <!-- first knob -->
-    <div class="module__section module__section--knob" data-strip-section={sectionA}>
+    <!-- the knob row: the strip's two knobs side by side, the first's hook
+         joined to the second's ("decay-predelay", "trim-balance") -->
+    <div class="module__section module__section--knobs" data-strip-section={`${sectionA}-${sectionB}`}>
       {@render knobA()}
-    </div>
-
-    <!-- second knob -->
-    <div class="module__section module__section--knob" data-strip-section={sectionB}>
       {@render knobB()}
     </div>
 
@@ -151,38 +157,38 @@
       <div class="module__section module__section--blank" data-strip-section="blank" data-blank-panel></div>
     {/if}
 
-    <!-- the approved fader, 1x, 160 px travel -->
+    <!-- the approved fader, 1x, 160 px travel, with the strip's own meter
+         beside it (Task 9.5); the top segment is the module's PEAK -->
     <div class="module__section module__section--fader" data-strip-section="fader">
-      <Fader label={faderLabel} bind:value={faderValue} />
+      <div class="module__level">
+        <Fader label={faderLabel} bind:value={faderValue} />
+        <StripMeter level={meterLevel} {peak} name={`Level and peak, ${name}, ${SIMULATED}`} />
+      </div>
     </div>
 
-    <!-- MUTE · SOLO · PEAK (the track strips' order, D2.2.3) -->
+    <!-- MUTE · SOLO (the track strips' order, D2.2.3); PEAK lives in the
+         meter's top segment now (D9.5.3) -->
     <footer class="module__section module__section--switches" data-strip-section="switches">
       <TactileSwitch variant="panel" label="Mute" lamp="red" bind:engaged={mute} name={`Mute ${name}`} />
       <TactileSwitch variant="panel" label="Solo" lamp="amber" bind:engaged={solo} name={`Solo ${name}`} />
-      <div class="module__peak" data-strip-peak>
-        <EngravedLabel text="Peak" size="xs" />
-        <span class="module__peak-lamp">
-          <Lamp lit={peak} color="red" name={`Peak, ${name}`} />
-        </span>
-      </div>
     </footer>
   </div>
 </li>
 
 <style>
   /* =======================================================================
-     THE MODULE — the track strip's chassis (TrackStrip.svelte, Task 2.2),
-     value for value: a fixed-width physical module (D2.2.1), 10rem = 160 px,
-     that never shrinks.
+     THE MODULE — the Task 9.5 track strip's chassis (TrackStrip.svelte),
+     value for value: a fixed-width physical module, 9rem = 144 px (owner,
+     Task 9.5), that never shrinks.
      ======================================================================= */
   .module {
-    --strip-width: 10rem;
+    --strip-width: 9rem;
     /* the approved components, at the sizes the owner fixed for the strip */
     --knob-size: 2.5rem; /* 40 px dials; legends and value windows keep their type sizes */
     --fader-width: 4.5rem; /* the fader's approved 1x: 72 px wide, 160 px travel */
     --switch-size: 1.75rem; /* the switch's approved 1x: 28 px caps */
-    --lamp-size: 0.75rem; /* 12 px glass for the peak lamp — compact but visible */
+    --meter-width: 0.75rem; /* the strip meter's column: 12 px of glass */
+    --strip-section-pad: var(--al-space-3xs);
 
     display: flex;
     flex: 0 0 var(--strip-width);
@@ -190,6 +196,8 @@
     width: var(--strip-width);
     min-width: var(--strip-width);
     max-width: var(--strip-width);
+    /* a snap point of the bank's rail: scrolling lands on whole modules */
+    scroll-snap-align: start;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -203,7 +211,7 @@
     flex: 1 1 auto;
     flex-direction: column;
     min-width: 0;
-    padding: var(--al-space-2xs) var(--al-space-xs) var(--al-space-2xs);
+    padding: var(--al-space-3xs) var(--al-space-2xs) var(--al-space-3xs);
     border-radius: 2px;
     background-color: var(--al-material-panel);
     background-image:
@@ -238,7 +246,7 @@
     align-items: flex-start;
     justify-content: center;
     min-width: 0;
-    padding: var(--al-space-3xs) 0;
+    padding: var(--strip-section-pad) 0;
   }
 
   .module__section + .module__section,
@@ -269,14 +277,14 @@
   .module__name-row {
     display: flex;
     align-items: center;
-    gap: var(--al-space-xs);
+    gap: var(--al-space-2xs);
     min-width: 0;
     min-height: 1.125rem;
   }
 
   /* The organisational colour tab (spec §7): a small flat tab of the swatch
-     colour beside the name — no gloss, no highlight, no shadow (D2.2.13).
-     The colour never touches the panel. */
+     colour beside the name — no gloss, no highlight, no shadow (owner,
+     2026-10-31, D2.2.13). The colour never touches the panel. */
   .module__tab {
     flex: 0 0 auto;
     width: 0.375rem;
@@ -285,20 +293,24 @@
     background-color: var(--org);
   }
 
-  /* --- the optional identity extension (Task 2.7; the track strip's values) */
+  /* --- the optional identity extension (Task 2.7) ------------------------ */
   .module__section--identity {
     flex-direction: column;
     align-items: stretch;
     padding: var(--al-space-2xs) var(--al-space-3xs);
   }
 
-  /* --- knob sections ------------------------------------------------------ */
-  .module__section--knob {
+  /* --- the knob row: the two knob snippets side by side (Task 9.5) -------- */
+  .module__section--knobs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--al-space-3xs);
+    align-items: start;
     padding-top: var(--al-space-3xs);
   }
 
-  /* The bay: the track strip's sends bay — a shallow recess milled into the
-     face holding two slots side by side — with this module's own content. */
+  /* The bay: a shallow recess milled into the face — the track strip's sends
+     bay, value for value. */
   .module__section--bay {
     padding: var(--al-space-3xs) 0;
   }
@@ -309,7 +321,7 @@
     grid-template-columns: 1fr 1fr;
     gap: var(--al-space-3xs);
     min-width: 0;
-    padding: var(--al-space-2xs) var(--al-space-3xs) var(--al-space-3xs);
+    padding: var(--al-space-3xs);
     border-radius: 3px;
     background-color: color-mix(in srgb, var(--al-material-recess) 72%, var(--al-material-panel));
     box-shadow:
@@ -318,53 +330,50 @@
       0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  /* A blank panel where a bay would be: nothing is milled into it. It takes
-     whatever height the row gives the module, so the fader below it stands
-     on the same line as the faders of the modules beside it. */
+  /* The blank panel (owner, D2.4.4): a bus has no bay, so the module leaves
+     an unpopulated slot that keeps the fader and the footer on the tracks'
+     lines by absorbing the height. */
   .module__section--blank {
-    flex: 1 1 auto;
-    padding: var(--al-space-3xs) 0;
+    flex: 0 0 auto;
+    min-height: 5.5rem;
+    margin: 0 var(--al-space-xs);
+    border-radius: 3px;
+    background-color: color-mix(in srgb, var(--al-material-recess) 55%, var(--al-material-panel));
+    box-shadow:
+      inset 0 2px 3px rgba(0, 0, 0, 0.5),
+      inset 0 0 0 1px var(--al-border-strong);
   }
 
-  /* --- the fader --------------------------------------------------------- */
+  /* --- the level row: the fader and its meter ------------------------------ */
   .module__section--fader {
-    flex: 1 0 auto;
-    padding-top: var(--al-space-2xs);
-    padding-bottom: var(--al-space-2xs);
+    flex: 1 1 auto;
+    min-height: 0;
+    /* the row stretches the section's full height, so the meter column
+       spans it — the fader centres in it, the meter runs the whole line */
+    align-items: stretch;
+    padding-top: var(--al-space-3xs);
+    padding-bottom: var(--al-space-3xs);
   }
 
-  /* With a blank panel absorbing the slack, the fader section keeps its own
-     height only. */
-  .module__section--blank ~ .module__section--fader {
-    flex: 0 0 auto;
-  }
-
-  /* --- mute · solo · peak -------------------------------------------------- */
-  .module__section--switches {
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--al-space-2xs);
-    padding: var(--al-space-2xs) var(--al-space-3xs) var(--al-space-3xs);
-  }
-
-  /* The peak lamp is laid out like the panel switches beside it: the legend
-     printed above, the lamp centred on the same line as the switch caps. */
-  .module__peak {
+  /* The fader centres in whatever height the section holds; the meter
+     stretches with the section, spanning the fader's line like a console's
+     meter column. */
+  .module__level {
     display: flex;
-    flex: 0 0 auto;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--al-space-xs);
-    min-width: 0;
-  }
-
-  .module__peak-lamp {
-    display: flex;
+    flex: 1 1 auto;
     align-items: center;
     justify-content: center;
-    /* the switch's button row (1.25 x the cap); the cap's face sits 4 px
-       above the row's centre, above its own travel shadow */
-    height: calc(var(--switch-size) * 1.25);
-    padding-bottom: 4px;
+    gap: var(--al-space-2xs);
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+  }
+
+  /* --- mute · solo --------------------------------------------------------- */
+  .module__section--switches {
+    align-items: flex-start;
+    justify-content: space-evenly;
+    gap: var(--al-space-2xs);
+    padding: var(--al-space-3xs) var(--al-space-3xs) var(--al-space-3xs);
   }
 </style>

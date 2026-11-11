@@ -107,8 +107,8 @@ check("ReturnStrip and BusMasterStrip are built on the shared StripModule", /imp
 // Task 3.1: the bank iterates the project store's Returns and buses (keyed by
 // their stable ids) and binds each strip to the store's view of its entity.
 check("the bank renders one ReturnStrip per project Return, keyed by the Return's id and bound to the store, then one BusMasterStrip per bus, bound the same way (Task 3.1)", /\{#each returns as ret \(ret\.id\)\}\s*<ReturnStrip ret=\{returnStripOf\(ret\.id\)\} live=\{returnLive\(ret\.id\)\} \/>/.test(bankTemplate) && /\{#each buses as bus \(bus\.id\)\}\s*<BusMasterStrip bus=\{busStripOf\(bus\.id\)\} live=\{busLive\(bus\.id\)\} \/>/.test(bankTemplate) && /const returns = \$derived\(project\.returns\);/.test(bank) && /const buses = \$derived\(project\.buses\);/.test(bank));
-check("the Returns come before the bus master in the pinned row (the bus master farthest right, 0.3)", bankTemplate.indexOf("<ReturnStrip") < bankTemplate.indexOf("<BusMasterStrip") && /<ul class="bank__pinned-row"[\s\S]*<ReturnStrip[\s\S]*<BusMasterStrip[\s\S]*<\/ul>/.test(bankTemplate));
-check("the pinned legend's range and count are derived from the store's lists (printed codes), not typed in", /firstPinned = \$derived\(returns\[0\]\?\.code/.test(bank) && /lastPinned = \$derived\(buses\[buses\.length - 1\]\?\.code/.test(bank) && /pinnedCount = \$derived\(returns\.length \+ buses\.length\)/.test(bank) && /data-pinned-count=\{pinnedCount\}/.test(bankTemplate));
+check("the Returns have their own rail and the bus master its own, after it — the bus static at the right end (owner, D9.5.4)", bankTemplate.indexOf("<ReturnStrip") < bankTemplate.indexOf("<BusMasterStrip") && /class="bank__rail-region bank__returns"[^>]*data-channel-bank-returns[\s\S]*?<ReturnStrip[\s\S]*?<\/ol>[\s\S]*?<aside[\s\S]*?class="bank__rail-region bank__bus"[\s\S]*?data-channel-bank-bus[\s\S]*?<BusMasterStrip[\s\S]*?<\/aside>/.test(bankTemplate));
+check("the returns rail's range is derived from the store's list (printed codes), not typed in", /firstReturn = \$derived\(returns\[0\]\?\.code/.test(bank) && /lastReturn = \$derived\(returns\[returns\.length - 1\]\?\.code/.test(bank) && /aria-label=\{`Return channel strips \$\{firstReturn\} to \$\{lastReturn\}/.test(bankTemplate));
 check("the Return strips are DERIVED from the shared return list: one per EFFECT_RETURNS entry, numbered in its order, named from it", /export const RETURN_STRIPS: readonly ReturnStripFixture\[\] = EFFECT_RETURNS\.map\(\(ret, i\) => \(\{\s*returnId: ret\.id,\s*id: `R\$\{i \+ 1\}`,\s*type: "RET",\s*name: effectReturn\(ret\.id\)\.name,\s*\.\.\.RETURN_SETTINGS\[ret\.id\],\s*\}\)\);/.test(fixtures));
 check("the per-return settings are keyed by the shared ReturnId (every return must have settings; the type checker enforces it)", /const RETURN_SETTINGS: Readonly<Record<ReturnId, Omit<ReturnStripFixture, "returnId" \| "id" \| "type" \| "name">>> = \{/.test(fixtures) && /\n  room: \{/.test(fixtures) && /\n  plate: \{/.test(fixtures) && /\n  delay1: \{/.test(fixtures));
 const uncommented = (text) => text.replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/(^|\s)\/\/.*$/gm, "$1");
@@ -118,7 +118,7 @@ check("the bus master is a list too (BUS_MASTERS), with at least one entry", /ex
 // --- 2. The module is the track strip's chassis, value for value. -------------
 {
   const host = ruleBody(moduleStyle, ".module");
-  check("the module declares the track strip's fixed width and component sizes", /--strip-width: 10rem;/.test(host) && /--knob-size: 2\.5rem;/.test(host) && /--fader-width: 4\.5rem;/.test(host) && /--switch-size: 1\.75rem;/.test(host) && /--lamp-size: 0\.75rem;/.test(host));
+  check("the module declares the track strip's fixed width and component sizes (Task 9.5: 9rem, the strip meter's column, no lamp)", /--strip-width: 9rem;/.test(host) && /--knob-size: 2\.5rem;/.test(host) && /--fader-width: 4\.5rem;/.test(host) && /--switch-size: 1\.75rem;/.test(host) && /--meter-width: 0\.75rem;/.test(host) && !/--lamp-size/.test(host));
   check("the module never shrinks: flex 0 0, width, min- and max-width all the same variable", /flex: 0 0 var\(--strip-width\);/.test(host) && /\swidth: var\(--strip-width\);/.test(host) && /min-width: var\(--strip-width\);/.test(host) && /max-width: var\(--strip-width\);/.test(host));
   const pairs = [
     [".strip", ".module"],
@@ -129,28 +129,27 @@ check("the bus master is a list too (BUS_MASTERS), with at least one entry", /ex
     [".strip__ident", ".module__ident"],
     [".strip__name-row", ".module__name-row"],
     [".strip__tab", ".module__tab"],
-    [".strip__section--knob", ".module__section--knob"],
+    [".strip__section--knobs", ".module__section--knobs"],
     [".strip__section--sends", ".module__section--bay"],
     [".strip__bay", ".module__bay"],
     [".strip__section--fader", ".module__section--fader"],
+    [".strip__level", ".module__level"],
     [".strip__section--switches", ".module__section--switches"],
-    [".strip__peak", ".module__peak"],
-    [".strip__peak-lamp", ".module__peak-lamp"],
   ];
   for (const [trackSel, moduleSel] of pairs) {
     const a = ruleBody(trackStyle, trackSel);
     const b = ruleBody(moduleStyle, moduleSel);
     check(`module rule ${moduleSel.replace(/\s+/g, " ")} is the track strip's ${trackSel.replace(/\s+/g, " ")}, value for value`, a !== null && a === b, a === null ? "track rule not found" : b === null ? "module rule not found" : "bodies differ");
   }
-  check("the blank panel absorbs the slack and hands the fader section its own height only", /\.module__section--blank \{[^}]*flex:\s*1 1 auto/s.test(moduleStyle) && /\.module__section--blank ~ \.module__section--fader \{[^}]*flex:\s*0 0 auto/s.test(moduleStyle));
+  check("the blank panel holds the bay's line at a fixed height while the fader section takes the strip's free length (Task 9.5)", /\.module__section--blank \{[^}]*flex:\s*0 0 auto/s.test(moduleStyle) && /\.module__section--blank \{[^}]*min-height:\s*5\.5rem/s.test(moduleStyle) && /\.module__section--fader \{[^}]*flex:\s*1 1 auto/s.test(moduleStyle));
   check("a module without a bay renders the blank panel; with one, the bay recess", /\{#if bay\}[\s\S]*<div class="module__section module__section--bay" data-strip-section=\{baySection\}>\s*<div class="module__bay" role="group" aria-label=\{bayLabel\}>\s*\{@render bay\(\)\}/.test(moduleTemplate) && /\{:else\}\s*<div class="module__section module__section--blank" data-strip-section="blank" data-blank-panel><\/div>/.test(moduleTemplate));
-  check("the module's six sections are head, the two knob sections, the bay or blank, fader, switches — in that order", /data-strip-section="head"[\s\S]*data-strip-section=\{sectionA\}[\s\S]*data-strip-section=\{sectionB\}[\s\S]*data-strip-section=\{baySection\}[\s\S]*data-strip-section="blank"[\s\S]*data-strip-section="fader"[\s\S]*data-strip-section="switches"/.test(moduleTemplate));
+  check("the module's sections are head, the joined knob row, the bay or blank, fader, switches — in that order (Task 9.5)", /data-strip-section="head"[\s\S]*data-strip-section=\{`\$\{sectionA\}-\$\{sectionB\}`\}[\s\S]*data-strip-section=\{baySection\}[\s\S]*data-strip-section="blank"[\s\S]*data-strip-section="fader"[\s\S]*data-strip-section="switches"/.test(moduleTemplate));
   check("the module uses no @container or @media query and scales nothing down", !/@container|@media|transform:\s*scale|zoom:/.test(newStyles));
   check("the new styles do not override the approved components' internals", !/:global|\.knob|\.fader|\.switch|\.lamp\b|\.label\b/.test(newStyles));
 }
 
 // --- 3. Composition. -----------------------------------------------------------
-for (const name of ["EngravedLabel", "Fader", "Lamp", "TactileSwitch"]) {
+for (const name of ["EngravedLabel", "Fader", "StripMeter", "TactileSwitch"]) {
   check(`the module imports the approved ${name}`, new RegExp(`import ${name} from "\\.\\./hardware/${name}\\.svelte"`).test(module_));
 }
 check("the Return strip imports the approved Knob and TactileSwitch; the bus strip the Knob", /import Knob from "\.\.\/hardware\/Knob\.svelte"/.test(ret) && /import TactileSwitch from "\.\.\/hardware\/TactileSwitch\.svelte"/.test(ret) && /import Knob from "\.\.\/hardware\/Knob\.svelte"/.test(bus));
@@ -158,7 +157,7 @@ check("no new file draws a control of its own: no <svg>, <canvas>, <input> or <b
 check("the module's head is the track strip's: number, type (titled), the org tab, the engraved truncating name", /<EngravedLabel text=\{id\} size="sm" kind="value" tone="bright" title=\{`Channel \$\{id\}`\} \/>/.test(moduleTemplate) && /<EngravedLabel text=\{type\} size="xs" tone="muted" title=\{typeTitle\} \/>/.test(moduleTemplate) && /<span class="module__tab" style:--org=\{orgToken\(org\)\} data-org-tab=\{String\(org\)\} aria-hidden="true"><\/span>/.test(moduleTemplate) && /<EngravedLabel id=\{`\$\{uid\}-name`\} text=\{name\} size="sm" kind="value" truncate \/>/.test(moduleTemplate));
 check("the module is a list item naming itself by its name label, with its hooks", /<li\s+class="module"\s+role="group"\s+aria-labelledby=\{`\$\{uid\}-name`\}\s+data-pinned-strip=\{hook\}\s+data-pinned-kind=\{kind\}\s+data-simulated=\{SIMULATED\}/.test(moduleTemplate));
 check("one approved Fader per module, legend and value from the strip, at its approved defaults", count(moduleTemplate, /<Fader\b/g) === 1 && /<Fader label=\{faderLabel\} bind:value=\{faderValue\} \/>/.test(moduleTemplate) && !/<Fader\b/.test(retTemplate + busTemplate));
-check("the footer is the track strip's: Mute (red lamp), Solo (amber lamp), then the red Peak lamp, each named per channel", /<TactileSwitch variant="panel" label="Mute" lamp="red" bind:engaged=\{mute\} name=\{`Mute \$\{name\}`\} \/>\s*<TactileSwitch variant="panel" label="Solo" lamp="amber" bind:engaged=\{solo\} name=\{`Solo \$\{name\}`\} \/>\s*<div class="module__peak" data-strip-peak>\s*<EngravedLabel text="Peak" size="xs" \/>\s*<span class="module__peak-lamp">\s*<Lamp lit=\{peak\} color="red" name=\{`Peak, \$\{name\}`\} \/>/.test(moduleTemplate));
+check("the footer is the track strip's: Mute (red lamp) and Solo (amber lamp), each named per channel — PEAK lives in the meter's top segment now (Task 9.5, D9.5.3)", /<TactileSwitch variant="panel" label="Mute" lamp="red" bind:engaged=\{mute\} name=\{`Mute \$\{name\}`\} \/>\s*<TactileSwitch variant="panel" label="Solo" lamp="amber" bind:engaged=\{solo\} name=\{`Solo \$\{name\}`\} \/>\s*<\/footer>/.test(moduleTemplate) && !/<Lamp/.test(moduleTemplate) && /<StripMeter\s+level=\{meterLevel\}\s*\{peak\}\s*name=\{`Level and peak, \$\{name\}, \$\{SIMULATED\}`\}\s*\/>/.test(moduleTemplate) && /meterLevel,/.test(module_));
 check("the knob sections are snippets rendered by the module (the strips own their knobs)", /\{@render knobA\(\)\}/.test(moduleTemplate) && /\{@render knobB\(\)\}/.test(moduleTemplate) && /\{#snippet knobA\(\)\}/.test(ret) && /\{#snippet knobB\(\)\}/.test(ret) && /\{#snippet knobA\(\)\}/.test(bus) && /\{#snippet knobB\(\)\}/.test(bus));
 
 // Return strip.
@@ -198,7 +197,7 @@ check(
   "the fixtures and the playground hold no state and bind nothing; the module only exposes bindable fader / MUTE / SOLO; the Return and bus strips hold one own-settings $state each and bind their approved controls to the model (Tasks 2.9, 3.1)",
   !/\$state|bind:/.test(fixtures + devFixture) && count(module_, /\$state/g) === 0 && count(module_, /\$bindable\(/g) === 3 && count(templateOf(module_), /\bbind:/g) === 3 && count(ret, /\$state/g) === 1 && count(templateOf(ret), /bind:value=\{\(\) => model\./g) === 3 && count(templateOf(ret), /bind:engaged=\{\(\) => model\.bypass/g) === 1 && count(templateOf(ret), /\bbind:/g) === 7 && count(bus, /\$state/g) === 1 && count(templateOf(bus), /\bbind:/g) === 5,
 );
-check("the Return params are the plan §8a controls with provisional ranges (D2.4.3)", /DECAY_PARAM: ReturnParam = \{\s*id: "decay",\s*legend: "Decay",\s*min: 0\.2,\s*max: 10,/.test(fixtures) && /PREDELAY_PARAM: ReturnParam = \{\s*id: "predelay",\s*legend: "Pre-delay",\s*min: 0,\s*max: 200,/.test(fixtures) && /DELAY_TIME_PARAM: ReturnParam = \{\s*id: "time",\s*legend: "Time",\s*min: 20,\s*max: 2000,/.test(fixtures) && /FEEDBACK_PARAM: ReturnParam = \{\s*id: "feedback",\s*legend: "Feedback",\s*min: 0,\s*max: 90,/.test(fixtures) && /TONE_PARAM: ReturnParam = \{\s*id: "tone",\s*legend: "Tone",\s*min: -10,\s*max: 10,/.test(fixtures));
+check("the Return params are the plan §8a controls with provisional ranges (D2.4.3; legends compacted for the 9.5 strip, D9.5.2)", /DECAY_PARAM: ReturnParam = \{\s*id: "decay",\s*legend: "Decay",\s*min: 0\.2,\s*max: 10,/.test(fixtures) && /PREDELAY_PARAM: ReturnParam = \{\s*id: "predelay",\s*legend: "Pre-dly",\s*min: 0,\s*max: 200,/.test(fixtures) && /DELAY_TIME_PARAM: ReturnParam = \{\s*id: "time",\s*legend: "Time",\s*min: 20,\s*max: 2000,/.test(fixtures) && /FEEDBACK_PARAM: ReturnParam = \{\s*id: "feedback",\s*legend: "Feedbk",\s*min: 0,\s*max: 90,/.test(fixtures) && /TONE_PARAM: ReturnParam = \{\s*id: "tone",\s*legend: "Tone",\s*min: -10,\s*max: 10,/.test(fixtures));
 check("a reverb puts DECAY then PRE-DELAY on its strip; a delay TIME then FEEDBACK", /reverb: \{ time: DECAY_PARAM, second: PREDELAY_PARAM \}/.test(fixtures) && /delay: \{ time: DELAY_TIME_PARAM, second: FEEDBACK_PARAM \}/.test(fixtures));
 check("TONE reads FLAT under the mark and signed steps elsewhere", /if \(amount === 0\) return "FLAT";/.test(fixtures) && /extremes: \["(\u2212|\\u2212)10", "\+10"\]/.test(fixtures));
 check("readouts carry their unit: s, ms, %", /formatUnit\(v, 1, "s"\)/.test(fixtures) && /formatUnit\(v, 0, "ms"\)/.test(fixtures) && /formatUnit\(v, 0, "%"\)/.test(fixtures));
@@ -213,11 +212,10 @@ check("the Return's own style uses the green function tokens only (no amber, red
 check("spacing comes from the spacing tokens", count(newStyles, /var\(--al-space-/g) >= 20);
 
 // --- 6. The bank's pinned rail and column mode. ---------------------------------
-check("the pinned rail is outside the tracks scroller and shares its recess recipe", /\.bank__tracks,\s*\.bank__pinned \{[^}]*background-color:\s*color-mix\(in srgb, var\(--al-material-recess\) 55%, var\(--al-material-panel\)\)/s.test(bankStyle) && !/<aside[\s\S]*<TrackStrip/.test(bankTemplate) && !/data-channel-bank-tracks[\s\S]*<ReturnStrip/.test(bankTemplate.slice(0, bankTemplate.indexOf("<aside"))));
-check("in row mode the tracks rail is the only horizontal scroller", count(bankStyle.replace(/@media[\s\S]*$/, ""), /overflow-x:\s*auto/g) === 1 && /\.bank__tracks \{[^}]*overflow-x:\s*auto/s.test(bankStyle));
-check("column mode under 68.75rem = 1100 px (D2.4.2): legend / tracks / pinned legend / pinned, the pinned rail scrolling on its own, contained", /@media \(width < 68\.75rem\) \{[\s\S]*"legend"\s*"tracks"\s*"pinned-legend"\s*"pinned"/s.test(bankStyle) && /@media \(width < 68\.75rem\) \{[\s\S]*\.bank__pinned \{[^}]*overflow-x:\s*auto[^}]*overscroll-behavior-x:\s*contain/s.test(bankStyle));
-check("the breakpoint is explained in the source as the sum of the parts", /pinned rail 668 \+ gap 12 \+ two strips and their rail 336 =\s*1016 px of deck, plus the deck's and the cheeks' 84 px = 1100/.test(bankStyle));
-check("the pinned row keeps the modules' own height and stretches them to one another", /\.bank__pinned-row \{[^}]*flex:\s*0 0 auto/s.test(bankStyle) && /\.bank__pinned-row \{[^}]*align-items:\s*stretch/s.test(bankStyle) && /\.bank__pinned \{[^}]*align-items:\s*flex-start/s.test(bankStyle));
+check("the three rails share one recess recipe, and the tracks rail holds no Return or bus strip", /\.bank__rail-region \{[^}]*background-color:\s*color-mix\(in srgb, var\(--al-material-recess\) 55%, var\(--al-material-panel\)\)/s.test(bankStyle) && !/data-channel-bank-tracks[\s\S]*<ReturnStrip/.test(bankTemplate.slice(0, bankTemplate.indexOf("bank__returns"))) && !/data-channel-bank-tracks[\s\S]*<BusMasterStrip/.test(bankTemplate.slice(0, bankTemplate.indexOf("bank__returns"))));
+check("the tracks and the returns each scroll on their own; the bus rail never scrolls (owner, D9.5.4)", count(bankStyle, /overflow-x:\s*auto/g) === 2 && /\.bank__tracks \{[^}]*overflow-x:\s*auto/s.test(bankStyle) && /\.bank__returns \{[^}]*overflow-x:\s*auto/s.test(bankStyle) && /\.bank__bus \{[^}]*overflow:\s*hidden/s.test(bankStyle) && /\.bank__returns \{[^}]*overscroll-behavior-x:\s*contain/s.test(bankStyle));
+check("no column mode: with two independent scrollers there is no width at which anything moves under anything else (Task 9.5 retires D2.4.2)", !/@media/.test(bankStyle) && /grid-template-areas:\s*"tracks returns bus"/.test(bankStyle));
+check("the rails stretch their modules to one another and to the rail's full height", /\.bank__rail \{[^}]*align-items:\s*stretch/s.test(bankStyle) && /\.bank__rail \{[^}]*width:\s*max-content/s.test(bankStyle));
 
 // --- 7. Scope. -------------------------------------------------------------------
 check("no screw heads in any new file (owner's standing rule, D2.1.9)", !/(class=["'{][^"'}]*screw|\.[\w-]*screw[\w-]*\s*[{,:]|data-[\w-]*screw|__screw)/i.test(newSource + devFixture + bank));
@@ -235,18 +233,34 @@ const pinned = {
   "src/components/hardware/Fader.svelte": "b46e55ec95f4ddbe544175f7e0a340e7378a8cff3af674e431aad2a08d5be372",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
+  // fader, the three-rail bank and the bottom transport bar changed these
+  // files. The checks around each pin still assert the file's real contract.
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "b5fba4b44e3587c79be78b572e6c00dfa5ccbe3c0f6ae892cd93a185ea537a32",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
-  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
+  // fader, the three-rail bank and the bottom transport bar changed these
+  // files. The checks around each pin still assert the file's real contract.
+  "src/components/channel-strip/TrackStrip.svelte": "c7cdc817b55bc2bb891cb9a76b2399f705430311765db7743c4c5152aac888af",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
-  "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
+  // fader, the three-rail bank and the bottom transport bar changed these
+  // files. The checks around each pin still assert the file's real contract.
+  "src/components/channel-strip/track-strip-fixtures.ts": "e891099def6abe69fd2d4558ba2f9f0542a9c4f123d871c2147447e27afab3e5",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",
   // Task 9.1.3 re-pinned this file. Two lines changed, both in the *state the deck
   // reads* — the MIX state now asks `mixRevision` instead of the live `renderProgress
   // === 1` gauge that a finished render always clears, and the completed mix passes
   // its HH:MM through. No markup, class, style or DOM contract was touched; the
   // approved visual structure the rest of this guard describes is unchanged.
-  "src/components/console-transport/ConsoleTransport.svelte": "6436b14c5c410a40549d0c4ea049004780ebbea4fa4d9083b54804078e834ef6",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
+  // fader, the three-rail bank and the bottom transport bar changed these
+  // files. The checks around each pin still assert the file's real contract.
+  "src/components/console-transport/ConsoleTransport.svelte": "05f01bb6ea3430ab96a7c0d97f0d2580300830a8ae8d30404c918570cabe1b48",
   "src/components/console-transport/LampDisplay.svelte": "19634fdde214a7d571ed2a28271064c0d34604a7acf7910cf8f97f3a960dea9d",
   "src/components/console-transport/MixButton.svelte": "0486c92b90ac5fb571320600fea474ed4ab8e25a5d17e60b181e734360eb3f8b",
   "src/components/console-transport/transport-fixtures.ts": "0333ddc273f3cd1eb6576126dc74aa917741f7f15cd35ab18ecd729a6aba9806",
@@ -259,7 +273,11 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ConsoleRoom.svelte": "6d4db7900244cde1a5293899115c02651e2caad73ec038bbe775d2591e4ad48f",
+  // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
+  // fader, the three-rail bank and the bottom transport bar changed these
+  // files. The checks around each pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "a74c2df5d2943f3944271b00e9e8a1ab71d95ce1b8475e4ba44777f8648f18ef",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

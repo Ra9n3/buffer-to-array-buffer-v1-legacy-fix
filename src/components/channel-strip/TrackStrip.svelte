@@ -7,7 +7,7 @@
   import EngravedLabel from "../hardware/EngravedLabel.svelte";
   import Fader from "../hardware/Fader.svelte";
   import Knob from "../hardware/Knob.svelte";
-  import Lamp from "../hardware/Lamp.svelte";
+  import StripMeter from "../hardware/StripMeter.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
   import SendSlot from "./SendSlot.svelte";
   import type { TrackStripLive } from "./strip-live";
@@ -18,35 +18,38 @@
     TRIM_RANGE,
     formatPan,
     formatSignedDb,
+    meterLevelOf,
     orgToken,
   } from "./track-strip-fixtures";
 
   /**
-   * ALLOY Console regular-track channel strip — Task 2.2 (Phase 2 skin).
+   * ALLOY Console regular-track channel strip — Task 2.2 (Phase 2 skin),
+   * rebuilt compact for the one-window Console (Task 9.5).
    *
-   * One physical channel module of the Console's lower section (plan §3:
-   * "name label, fader, pan, mute/solo, input trim, and a peak indicator",
-   * plus the per-track Reverb and Delay sends of plan §8a), repeated once per
-   * track by the channel bank. It is COMPOSED of the approved Phase 1
+   * One physical channel module of the Console's channel bank, repeated once
+   * per track by the ChannelBank. It is COMPOSED of the approved Phase 1
    * components and draws no control of its own:
    *
    *   HEAD        channel number and type, then the organisational colour
-   *               tab beside the engraved track name (spec §7: a small tab,
-   *               never a washed strip).
-   *   TRIM        the approved Knob, cream family (spec §5: input trim and
-   *               gain staging), ±20 dB with unity under the reference mark.
-   *   PAN         the approved Knob, blue-grey family (spec §5: pan and
-   *               stereo placement), L / C / R readout, centre under the mark.
+   *               tab beside the engraved track name (spec §7).
+   *   TRIM · PAN  the approved Knobs — cream for trim (spec §5: gain
+   *               staging), blue-grey for pan (spec §5: placement) — side
+   *               by side on ONE row, trim first (owner, D9.5.2), each at
+   *               its approved 40 px size.
    *   SENDS       two configurable send slots side by side in one recessed
    *               bay (owner, D2.2.9): each a scribble window ("SEND", or
    *               the assigned return's name — click to choose, change or
-   *               remove) over an approved green Knob (spec §5 / plan §8a:
-   *               sends are green) holding that return's send level.
+   *               remove) over an approved green Knob (plan §8a) holding
+   *               that return's send level.
    *   LEVEL       the approved Fader at its approved 1× size and 160 px
-   *               travel — the strip's anchor.
+   *               travel — the strip's anchor — with the strip's own LED
+   *               meter (Task 9.5's `StripMeter`) standing beside it, as on
+   *               the owner's reference console: the thin column of green /
+   *               amber / red segments, its top segment the strip's PEAK
+   *               indicator (lit while `track.peak`, D9.5.3 — the footer
+   *               lamp moved onto the line the eye watches).
    *   MUTE · SOLO two approved panel-labelled TactileSwitches with their
-   *   · PEAK      own engaged lamps (owner's choice, D2.2.3), then the
-   *               approved Lamp, red: a warning.
+   *               own engaged lamps (owner's choice, D2.2.3).
    *
    * The strip draws and turns ONE object, `track` (`TrackStripLive`,
    * strip-live.ts): identity to print, and the settings its controls are
@@ -56,19 +59,21 @@
    * the Mixer strip of one track turn one value, and every write goes
    * through the store's typed operations. The controls keep their approved
    * behaviour — drag, keyboard, numeric entry, press. Still a fixture
-   * session (SIMULATED): no audio, no routing, no mute/solo bus logic.
+   * session (SIMULATED): no audio, no routing, no mute/solo bus logic; the
+   * meter's reading is the fixture table's (`meterLevelOf`), never measured.
    *
-   * The strip is a fixed-width physical module (owner's rule, D2.2.1): it
-   * never shrinks to fit a viewport; the bank scrolls instead.
+   * The strip is a fixed-width physical module: 8rem = 128 px (owner, Task
+   * 9.5 — narrowed from Task 2.2's 10rem so more channels stand in one
+   * window; every approved component keeps its approved size, only the
+   * module's own padding shrank). It never shrinks to fit a viewport; the
+   * bank scrolls instead.
    *
    * `identity` (Task 2.7, optional, default none): a room may extend the
    * head with one more section of its own — the Mixer puts its instrument
-   * identity print and channel controls there (plan §3 / §5a: those belong
-   * to Arrange and Mixer, not the Console). The section is rendered between
-   * the head and TRIM, divided by the same machined rule as every other
-   * section, and the strip draws nothing into it. Without the prop the
-   * markup and CSS are exactly the approved Task 2.2 strip: the Console
-   * passes nothing and renders byte-for-byte the same.
+   * identity print and channel controls there. The section is rendered
+   * between the head and the knob row, divided by the same machined rule as
+   * every other section, and the strip draws nothing into it. Without the
+   * prop the markup and CSS are exactly the Console strip.
    */
   let { track, identity }: { track: TrackStripLive; identity?: Snippet } = $props();
 
@@ -82,6 +87,10 @@
      already feeds is offered greyed; a slot assigned in the UI takes the
      level the track loaded with for that return, if it has one. */
   const takenBy = (i: number): string | null => track.sends.find((_, j) => j !== i)?.to ?? null;
+
+  /* The meter's fixture reading (Task 9.5): the typed table's level for the
+     track's code — SIMULATED, like every reading on the fixture bridge. */
+  const meterLevel = $derived(meterLevelOf(track.code));
 </script>
 
 <li
@@ -118,8 +127,8 @@
       </div>
     {/if}
 
-    <!-- TRIM -->
-    <div class="strip__section strip__section--knob" data-strip-section="trim">
+    <!-- TRIM · PAN: one row, trim first (owner, D9.5.2) -->
+    <div class="strip__section strip__section--knobs" data-strip-section="trim-pan">
       <Knob
         label="Trim"
         family="cream"
@@ -132,10 +141,6 @@
         extremes={["−20", "+20"]}
         format={trimFormat}
       />
-    </div>
-
-    <!-- PAN -->
-    <div class="strip__section strip__section--knob" data-strip-section="pan">
       <Knob
         label="Pan"
         family="bluegrey"
@@ -166,21 +171,26 @@
       </div>
     </div>
 
-    <!-- LEVEL: the approved fader, 1x, 160 px travel -->
+    <!-- LEVEL: the approved fader, 1x, 160 px travel, with the strip's own
+         meter standing beside it (Task 9.5). The section takes the strip's
+         free height; the fader centres in it and the meter stretches with
+         it, the way a console's meter column spans its fader. -->
     <div class="strip__section strip__section--fader" data-strip-section="fader">
-      <Fader label="Level" bind:value={() => track.level, (v) => (track.level = v)} />
+      <div class="strip__level">
+        <Fader label="Level" bind:value={() => track.level, (v) => (track.level = v)} />
+        <StripMeter
+          level={meterLevel}
+          peak={track.peak}
+          name={`Level and peak, ${track.name}, ${SIMULATED}`}
+        />
+      </div>
     </div>
 
-    <!-- MUTE · SOLO · PEAK (the owner's order, D2.2.3) -->
+    <!-- MUTE · SOLO (the owner's order, D2.2.3); PEAK lives in the meter's
+         top segment now (D9.5.3) -->
     <footer class="strip__section strip__section--switches" data-strip-section="switches">
       <TactileSwitch variant="panel" label="Mute" lamp="red" bind:engaged={() => track.mute, (on) => (track.mute = on)} name={`Mute ${track.name}`} />
       <TactileSwitch variant="panel" label="Solo" lamp="amber" bind:engaged={() => track.solo, (on) => (track.solo = on)} name={`Solo ${track.name}`} />
-      <div class="strip__peak" data-strip-peak>
-        <EngravedLabel text="Peak" size="xs" />
-        <span class="strip__peak-lamp">
-          <Lamp lit={track.peak} color="red" name={`Peak, ${track.name}`} />
-        </span>
-      </div>
     </footer>
   </div>
 </li>
@@ -188,16 +198,21 @@
 <style>
   /* =======================================================================
      THE MODULE
-     A fixed-width physical channel module (D2.2.1): 10rem = 160 px, inside
-     the owner's 150–165 px band. It never shrinks; the bank scrolls.
+     A fixed-width physical channel module: 9rem = 144 px (owner, Task 9.5 —
+     the one-window Console; the reference's channel pitch, and wide enough
+     that the knob row's two legends — "Pre-delay", "Bus trim" — print whole
+     beside their dials). It never shrinks; the bank scrolls.
      ======================================================================= */
   .strip {
-    --strip-width: 10rem;
+    --strip-width: 9rem;
     /* the approved components, at the sizes the owner fixed for the strip */
     --knob-size: 2.5rem; /* 40 px dials; legends and value windows keep their type sizes */
     --fader-width: 4.5rem; /* the fader's approved 1x: 72 px wide, 160 px travel */
     --switch-size: 1.75rem; /* the switch's approved 1x: 28 px caps */
-    --lamp-size: 0.75rem; /* 12 px glass for the peak lamp — compact but visible */
+    --meter-width: 0.75rem; /* the strip meter's column: 12 px of glass */
+    /* the strip's vertical rhythm: sections divided by machined rules with
+       the minimum air the controls need — compact, like the reference */
+    --strip-section-pad: var(--al-space-3xs);
 
     display: flex;
     flex: 0 0 var(--strip-width);
@@ -205,6 +220,8 @@
     width: var(--strip-width);
     min-width: var(--strip-width);
     max-width: var(--strip-width);
+    /* a snap point of the bank's rail: scrolling lands on whole modules */
+    scroll-snap-align: start;
     margin: 0;
     padding: 0;
     list-style: none;
@@ -218,7 +235,7 @@
     flex: 1 1 auto;
     flex-direction: column;
     min-width: 0;
-    padding: var(--al-space-2xs) var(--al-space-xs) var(--al-space-2xs);
+    padding: var(--al-space-3xs) var(--al-space-2xs) var(--al-space-3xs);
     border-radius: 2px;
     background-color: var(--al-material-panel);
     background-image:
@@ -253,7 +270,7 @@
     align-items: flex-start;
     justify-content: center;
     min-width: 0;
-    padding: var(--al-space-3xs) 0;
+    padding: var(--strip-section-pad) 0;
   }
 
   .strip__section + .strip__section,
@@ -284,7 +301,7 @@
   .strip__name-row {
     display: flex;
     align-items: center;
-    gap: var(--al-space-xs);
+    gap: var(--al-space-2xs);
     min-width: 0;
     min-height: 1.125rem;
   }
@@ -307,8 +324,12 @@
     padding: var(--al-space-2xs) var(--al-space-3xs);
   }
 
-  /* --- knob sections ------------------------------------------------------ */
-  .strip__section--knob {
+  /* --- the knob row: trim and pan side by side, trim first (D9.5.2) ------- */
+  .strip__section--knobs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--al-space-3xs);
+    align-items: start;
     padding-top: var(--al-space-3xs);
   }
 
@@ -324,7 +345,7 @@
     grid-template-columns: 1fr 1fr;
     gap: var(--al-space-3xs);
     min-width: 0;
-    padding: var(--al-space-2xs) var(--al-space-3xs) var(--al-space-3xs);
+    padding: var(--al-space-3xs);
     border-radius: 3px;
     background-color: color-mix(in srgb, var(--al-material-recess) 72%, var(--al-material-panel));
     box-shadow:
@@ -333,39 +354,36 @@
       0 1px 0 rgba(255, 255, 255, 0.04);
   }
 
-  /* --- the fader --------------------------------------------------------- */
+  /* --- the level row: the fader and its meter ------------------------------ */
   .strip__section--fader {
-    flex: 1 0 auto;
-    padding-top: var(--al-space-2xs);
-    padding-bottom: var(--al-space-2xs);
+    flex: 1 1 auto;
+    min-height: 0;
+    /* the row stretches the section's full height, so the meter column
+       spans it — the fader centres in it, the meter runs the whole line */
+    align-items: stretch;
+    padding-top: var(--al-space-3xs);
+    padding-bottom: var(--al-space-3xs);
   }
 
-  /* --- mute · solo · peak -------------------------------------------------- */
-  .strip__section--switches {
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--al-space-2xs);
-    padding: var(--al-space-2xs) var(--al-space-3xs) var(--al-space-3xs);
-  }
-
-  /* The peak lamp is laid out like the panel switches beside it: the legend
-     printed above, the lamp centred on the same line as the switch caps. */
-  .strip__peak {
+  /* The fader centres in whatever height the section holds; the meter
+     stretches with the section, spanning the fader's line like a console's
+     meter column. */
+  .strip__level {
     display: flex;
-    flex: 0 0 auto;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--al-space-xs);
-    min-width: 0;
-  }
-
-  .strip__peak-lamp {
-    display: flex;
+    flex: 1 1 auto;
     align-items: center;
     justify-content: center;
-    /* the switch's button row (1.25 x the cap); the cap's face sits 4 px
-       above the row's centre, above its own travel shadow */
-    height: calc(var(--switch-size) * 1.25);
-    padding-bottom: 4px;
+    gap: var(--al-space-2xs);
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+  }
+
+  /* --- mute · solo --------------------------------------------------------- */
+  .strip__section--switches {
+    align-items: flex-start;
+    justify-content: space-evenly;
+    gap: var(--al-space-2xs);
+    padding: var(--al-space-3xs) var(--al-space-3xs) var(--al-space-3xs);
   }
 </style>

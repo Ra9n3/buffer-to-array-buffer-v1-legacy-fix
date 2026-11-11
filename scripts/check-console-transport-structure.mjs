@@ -95,17 +95,17 @@ const displayTemplate = templateOf(display);
 const displayStyle = styleOf(display);
 const allTransportSource = [deck, mix, display, fixtures].join("\n");
 
-// --- 1. Three zones; the deck between bridge and bank; READY by default. ------
+// --- 1. Three zones; the deck as the room's bottom bar; READY by default. ------
 check(
-  "ConsoleRoom has exactly three zones, in order: meter-bridge, transport, channel-bank (D2.3.1)",
+  "ConsoleRoom has exactly three zones — bridge, bank, then the transport as the room's bottom bar (Task 9.5, D9.5.1)",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="transport",data-console-zone="channel-bank"',
+    'data-console-zone="meter-bridge",data-console-zone="channel-bank",data-console-zone="transport"',
 );
 check("the transport zone is a section labelled by the deck's own engraved heading", /<section[^>]*class="console-zone console-zone--transport"[^>]*aria-labelledby="console-transport-title"/.test(consoleRoom) && /headingId = "console-transport-title"/.test(deck));
 check("ConsoleRoom imports the deck from its own folder", /import ConsoleTransport from "\.\.\/components\/console-transport\/ConsoleTransport\.svelte"/.test(consoleRoom));
 check("ConsoleRoom renders the deck once, live: the shared transport (Task 8.1)", count(consoleRoom, /<ConsoleTransport\b/g) === 1 && /<ConsoleTransport live \/>/.test(consoleRoom));
-check("the bridge and the bank are still rendered, once each, around it", count(consoleRoom, /<ConsoleMeterBridge\b/g) === 1 && count(consoleRoom, /<ChannelBank\b/g) === 1 && consoleRoom.indexOf("<ConsoleMeterBridge") < consoleRoom.indexOf("<ConsoleTransport") && consoleRoom.indexOf("<ConsoleTransport") < consoleRoom.indexOf("<ChannelBank"));
-check("the room's grid gives the deck a content-sized row between the bridge and the bank (never compressed)", /grid-template-rows:\s*max-content\s+max-content\s+minmax\(max-content, 1fr\)/.test(consoleRoom));
+check("the bridge and the bank are still rendered, once each, above it (Task 9.5: the deck is the room's bottom bar)", count(consoleRoom, /<ConsoleMeterBridge\b/g) === 1 && count(consoleRoom, /<ChannelBank\b/g) === 1 && consoleRoom.indexOf("<ConsoleMeterBridge") < consoleRoom.indexOf("<ChannelBank") && consoleRoom.indexOf("<ConsoleTransport") > consoleRoom.indexOf("<ChannelBank"));
+check("the room's grid gives the bank every free row and the deck a content-sized bar at the foot (never compressed)", /grid-template-rows:\s*max-content\s+minmax\(max-content, 1fr\)\s+max-content/.test(consoleRoom));
 check("the transport zone, like the bridge and bank, wears no Phase 0 frame (the deck is its own housing)", /\.console-zone--meter,\s*\.console-zone--transport,\s*\.console-zone--channels\s*{/.test(consoleRoom) || /\.console-zone--transport[^{]*{[^}]*border:\s*0/.test(consoleRoom));
 check("the deck is a full-width housing: the bridge recipe (cheeks + deck), width 100%", /\.transport\s*{[^}]*grid-template-columns:\s*var\(--b-cheek\) minmax\(0, 1fr\) var\(--b-cheek\)/s.test(deckStyle) && /\.transport\s*{[^}]*width:\s*100%/s.test(deckStyle) && count(deckTemplate, /transport__cheek--(left|right)/g) === 2);
 check("the deck does not change shape by viewport: no media or container query in it (the body wraps instead)", !/@media|@container/.test(deckStyle) && /\.transport__body\s*{[^}]*flex-wrap:\s*wrap/s.test(deckStyle));
@@ -212,15 +212,19 @@ const pinned = {
   "src/components/hardware/VUMeter.svelte": "c3d850c80d9d53c70ed31c603fe23c011402f813e56bce963494086466347394",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "1c96844f79fd0e0a6ba630d6f6b6ba436e3a1cf42eda65ff935f20f779213002",
+    // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
+  // D9.5.1/D9.5.2/D9.5.5): the bridge, the bank, the strip and the fixtures
+  // changed with the approved layout. The checks around this pin still
+  // assert each file's real contract.
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "b5fba4b44e3587c79be78b572e6c00dfa5ccbe3c0f6ae892cd93a185ea537a32",
   // Task 2.4 re-pinned the bank: its pinned area now renders the Return and
   // bus-master strips (the deck above it is untouched; check-bus-return guards
   // the bank's new structure).
-  "src/components/ChannelBank.svelte": "92ef29ee45bd7aa99e9d45138aa1e6001e8c441d3c5d1dc0d7ab798029277c8e",
+  "src/components/ChannelBank.svelte": "03c3c042040a958415be80adcdce5e13ee745bb26f9909303a0346e87f7cd64e",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
-  "src/components/channel-strip/TrackStrip.svelte": "fbf545bd6b4039a4212bfbeb07eee0c91c69205d0754c4389b8acfd66fcb6ec5",
+  "src/components/channel-strip/TrackStrip.svelte": "c7cdc817b55bc2bb891cb9a76b2399f705430311765db7743c4c5152aac888af",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
-  "src/components/channel-strip/track-strip-fixtures.ts": "12620cb066dab631e521cf73bfedfef4ae7c2a72bb1b6fb84989742b89a68d46",
+  "src/components/channel-strip/track-strip-fixtures.ts": "e891099def6abe69fd2d4558ba2f9f0542a9c4f123d871c2147447e27afab3e5",
   "src/components/ChannelStrip.svelte": "13a202f891a9de776d16936d837685ebea757cda244678c9d0e1c10ebb398b58",
   // Task 9.1.1 re-pinned the strip (owner decision D9.1.2 option a): it now mounts the
   // listening-source selector beside the keys. The APPROVED part — this deck — is

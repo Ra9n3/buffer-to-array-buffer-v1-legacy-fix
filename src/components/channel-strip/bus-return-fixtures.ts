@@ -22,6 +22,7 @@
  */
 
 import {
+  DEFAULT_METER_LEVEL,
   EFFECT_RETURNS,
   PAN_RANGE,
   SIMULATED,
@@ -87,10 +88,12 @@ export const DECAY_PARAM: ReturnParam = {
   format: (v) => formatUnit(v, 1, "s"),
 };
 
-/** Reverb pre-delay, milliseconds. */
+/** Reverb pre-delay, milliseconds. The legend prints "Pre-dly" — the
+ *  compact strip's knob column is 67 px and a longer word would truncate
+ *  (Task 9.5; the full word lives in this comment and the Mixer's detail). */
 export const PREDELAY_PARAM: ReturnParam = {
   id: "predelay",
-  legend: "Pre-delay",
+  legend: "Pre-dly",
   min: 0,
   max: 200,
   step: 1,
@@ -111,10 +114,11 @@ export const DELAY_TIME_PARAM: ReturnParam = {
   format: (v) => formatUnit(v, 0, "ms"),
 };
 
-/** Delay feedback, per cent of the repeat fed back. */
+/** Delay feedback, per cent of the repeat fed back. The legend prints
+ *  "Feedbk" for the same reason as PREDELAY_PARAM's (Task 9.5). */
 export const FEEDBACK_PARAM: ReturnParam = {
   id: "feedback",
-  legend: "Feedback",
+  legend: "Feedbk",
   min: 0,
   max: 90,
   step: 1,
@@ -168,6 +172,8 @@ export interface ReturnStripFixture {
   readonly solo: boolean;
   /** Peak lamp lit — a fixture flag, not a detection. */
   readonly peak: boolean;
+  /** The strip meter's fixture reading, dB — the LED column beside the fader (Task 9.5). */
+  readonly meter: number;
   readonly org: OrgSwatch;
 }
 
@@ -185,6 +191,8 @@ export interface BusMasterFixture {
   readonly mute: boolean;
   readonly solo: boolean;
   readonly peak: boolean;
+  /** The strip meter's fixture reading, dB — the LED column beside the fader (Task 9.5). */
+  readonly meter: number;
   readonly org: OrgSwatch;
 }
 
@@ -205,6 +213,7 @@ const RETURN_SETTINGS: Readonly<Record<ReturnId, Omit<ReturnStripFixture, "retur
     mute: false,
     solo: false,
     peak: false,
+    meter: -14,
     org: "neutral",
   },
   plate: {
@@ -218,6 +227,7 @@ const RETURN_SETTINGS: Readonly<Record<ReturnId, Omit<ReturnStripFixture, "retur
     mute: false,
     solo: false,
     peak: true,
+    meter: -5,
     org: "neutral",
   },
   delay1: {
@@ -231,6 +241,7 @@ const RETURN_SETTINGS: Readonly<Record<ReturnId, Omit<ReturnStripFixture, "retur
     mute: false,
     solo: false,
     peak: false,
+    meter: -21,
     org: "neutral",
   },
 };
@@ -248,11 +259,21 @@ export const RETURN_STRIPS: readonly ReturnStripFixture[] = EFFECT_RETURNS.map((
   ...RETURN_SETTINGS[ret.id],
 }));
 
+/** The strip meter's fixture reading for a Return (Task 9.5) — typed, keyed by the shared return id. */
+export function returnMeterOf(id: ReturnId): number {
+  return RETURN_SETTINGS[id].meter;
+}
+
+/** The bus master's fixture meter reading (Task 9.5) — the one pinned bus's typed value. */
+export function busMeterOf(): number {
+  return BUS_MASTERS[0]?.meter ?? DEFAULT_METER_LEVEL;
+}
+
 /**
  * The bus master — the one pinned bus of the Phase 0 bank (0.3), read as the
  * mix bus every track and Return sums into. One entry; the bank renders
  * whatever the list holds.
  */
 export const BUS_MASTERS: readonly BusMasterFixture[] = [
-  { id: "B1", type: "BUS", name: "Mix Bus", trim: 0, balance: 0, level: 0, mute: false, solo: false, peak: false, org: "neutral" },
+  { id: "B1", type: "BUS", name: "Mix Bus", trim: 0, balance: 0, level: 0, mute: false, solo: false, peak: false, meter: -10, org: "neutral" },
 ];

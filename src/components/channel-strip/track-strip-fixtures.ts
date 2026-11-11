@@ -128,6 +128,25 @@ export function formatSend(value: number): string {
   return formatSignedDb(value, 0);
 }
 
+/* --- the strip meters (Task 9.5) -------------------------------------------
+   The LED column beside each fader is fixture data like every other reading:
+   typed levels per fixture track code, varied so the twenty columns read as
+   a mix in progress — quiet pads, healthy drums, one or two touching the
+   red. A code the table does not know (an imported track) takes the default. */
+export const DEFAULT_METER_LEVEL = -18;
+
+export const METER_LEVELS: Readonly<Record<string, number>> = {
+  "01": -8, "02": -6, "03": -13, "04": -22, "05": -17,
+  "06": -3, "07": -1, "08": -9, "09": -28, "10": -34,
+  "11": -12, "12": -15, "13": -20, "14": -26, "15": -4,
+  "16": -11, "17": -7, "18": -2, "19": -18, "20": -24,
+};
+
+/** The fixture meter level for a track code — the typed table's entry, or the default. */
+export function meterLevelOf(code: string): number {
+  return METER_LEVELS[code] ?? DEFAULT_METER_LEVEL;
+}
+
 /**
  * Twenty regular tracks — the Phase 0 bank's count, so Console, Arrange and
  * Mixer still describe the same-sized pretend session. Names, colours and
