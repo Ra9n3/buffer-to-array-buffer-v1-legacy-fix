@@ -15,21 +15,31 @@
    *
    *   SPECTRUM     a recessed bay of approved LED ladders, one per band —
    *               the crisp segmented language of spec §4b, visibly not a
-   *               VU. The row's biggest module, but capped under half the
-   *               deck (D9.7.3, the owner: "the spectrum now is good
-   *               enough").
+   *               VU. The row's biggest module, but capped at the
+   *               reference's 2k5 line — 43% of the deck (D9.7.3; D9.9.1,
+   *               the owner's blue column on the photograph: everything
+   *               right of that line is the goniometer's and the VUs').
    *   GONIOMETER   the dark recessed scope with a warm trace and, on the
    *               same plate, the CORRELATION STRIP — the owner's
    *               "correlation meter", restored (D9.8.2): the strip is the
    *               row's one correlation reading, and the plate takes its
    *               module's leftover width so the instrument extends
-   *               horizontally with the row (D9.8.4).
+   *               horizontally with the row (D9.8.4). Since 9.9 the strip
+   *               rides the plate's vertical middle (D9.9.3, the owner:
+   *               "the line must be in the middle, not at the top") and
+   *               the plate takes a bigger share of the row (D9.9.4).
    *   MASTER       the two approved analog VU meters, LEFT and RIGHT, at
    *               the right end — their cards EXTENDED HORIZONTALLY WITH
    *               THEIR CONTENT (D9.8.3, the owner: the VU meter's `fill`
    *               mode — the drawing is re-cut to the measured box so the
    *               card, its print and its needle fill the module's share of
    *               the row, the height fixed, the sweep widening, capped).
+   *               Since 9.9 the PRINT itself grows with the card (D9.9.2,
+   *               the owner: "not just the frame, the content too — the
+   *               name, the numbers, the arc"): the numerals, the legend
+   *               and the arc enlarge as far as the card's fixed height
+   *               allows — the needle kept at its 1× size (the owner: "the
+   *               needles need to be smaller").
    *
    * The white needle "Phase" meter that sat between the goniometer and the
    * VUs since Task 9.5 left the row at the owner's direction (D9.8.1: "you
@@ -43,7 +53,9 @@
    * Every instrument is drawn from ONE height (--b-inst-height) and the row's
    * leftover width is carried by the instruments themselves (D9.8.4: the
    * goniometer and master modules flex-grow — the master the bigger share —
-   * so no dead panel sits between them).
+   * so no dead panel sits between them; since D9.9.4 the share is 1.4 to
+   * the goniometer's plate against the master's 2, the VU pair still the
+   * biggest extender, and the one height is a step taller at 5rem).
    *
    * The per-channel VU row of Task 2.1 is gone (D9.5.5): every channel strip
    * carries its own LED meter beside its fader now.
@@ -248,10 +260,12 @@
      ======================================================================= */
   .bridge__modules {
     /* The row's one height: every instrument's card is this tall (D9.6.3).
-       4.5rem = 72 px — the meters keep their Task 9.5 rendered size while
-       the row itself gives up the title and label bands, so the bridge is
-       shorter AND the instruments bigger, both at once. */
-    --b-inst-height: 4.5rem;
+       A step up since Task 9.9 (D9.9.4, the owner's "a little bigger"):
+       5rem = 80 px — the square scope, the strip and the VU cards' fill
+       height all follow it, and the VUs' print grows with it, so the row
+       reads bigger without anything leaving its zone (measured to fit at
+       1366×768). */
+    --b-inst-height: 5rem;
 
     display: flex;
     flex-wrap: wrap;
@@ -304,11 +318,12 @@
 
   /* --- the instruments, each drawn from the row's one height (D9.6.3) ---- */
   .module--spectrum {
-    /* the row's biggest module, but capped under half the deck (D9.7.3,
-       the owner's boxes; "the spectrum now is good enough"): the bay
-       pitches its columns across the width it is allowed (SpectrumLadder
-       `spread`). It grows first (D9.8.4) — the larger grow — so it reaches
-       its cap before the others take what is left */
+    /* the row's biggest module, but capped at the reference's 2k5 line —
+       43% of the deck (D9.7.3, the owner's boxes; D9.9.1, the owner's
+       blue column): the bay pitches its columns across the width it is
+       allowed (SpectrumLadder `spread`). It grows first (D9.8.4) — the
+       larger grow — so it reaches its cap before the others take what is
+       left */
     flex: 3 1 auto;
     /* 20 px columns: the bay's ladders + their frequency print land the
        column at the row height (measured; tuned with the fixtures) */
@@ -317,16 +332,21 @@
 
   .module--stereo {
     /* grows for its share of the row's leftover width (D9.8.4) — the
-       scope stays the row's height, the strip stretches */
-    flex: 1 1 auto;
+       scope stays the row's height, the strip stretches. A bigger share
+       since Task 9.9 (D9.9.4, the owner: "a little bigger, not as much
+       as the VUs"): 1.4 against the master's 2, so the plate gains width
+       but the VU pair remains the row's biggest extender */
+    flex: 1.4 1 auto;
     --gonio-size: var(--b-inst-height); /* the square scope IS the row's height */
   }
 
   .module--master {
-    /* grows the bigger share after the spectrum's cap (D9.8.4): the
-       owner's order — spectrum, then the VU pair, then the goniometer
-       plate. The meters fill the module's width at the row's one height
-       (the `fill` mode, D9.8.3): the host writes the height and the 1×
+    /* grows the bigger share after the spectrum's cap (D9.8.4; flex 2
+       kept through Task 9.9, D9.9.4 — the VU pair remains the biggest
+       extender): the owner's order — spectrum, then the VU pair, then
+       the goniometer plate. The meters fill the module's width at the
+       row's one height (the `fill` mode, D9.8.3) and their print grows
+       with the card (D9.9.2): the host writes the height and the 1×
        card's width as the floor */
     flex: 2 1 auto;
     --vu-fill-height: var(--b-inst-height);
@@ -368,9 +388,12 @@
      ======================================================================= */
   @container bridge (min-width: 900px) {
     /* the cap lives here, on the spread row only: a wrapped spectrum takes
-       its own row's full width (D9.7.3) */
+       its own row's full width (D9.7.3). 43% since Task 9.9 (D9.9.1): the
+       owner's blue 2k5 column on the reference photograph — the spectrum's
+       right edge lands on that line and everything right of it belongs to
+       the goniometer plate and the VU pair */
     .module--spectrum {
-      max-width: 45%;
+      max-width: 43%;
     }
   }
 

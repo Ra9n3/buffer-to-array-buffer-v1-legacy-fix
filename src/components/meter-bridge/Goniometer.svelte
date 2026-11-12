@@ -29,6 +29,10 @@
    *                9.8 it takes the plate's leftover width (flex, floored at
    *                its 1× width): the instrument extends horizontally with
    *                the row, the way the owner asked the bridge to (D9.8.4).
+   *                Since Task 9.9 it rides the plate's vertical MIDDLE
+   *                (D9.9.3, the owner: "the line must be in the middle, not
+   *                at the top") — the slot and its −1·0·+1 print one block,
+   *                centred against the scope, no top padding holding it up.
    *
    * Nothing here measures anything: the trace is a fixed set of fixture
    * points and the correlation value is a typed-in number (bridge-fixtures).
@@ -170,7 +174,11 @@
 
     display: flex;
     flex: 1 1 auto;
-    align-items: flex-start;
+    /* Task 9.9 (D9.9.3, the owner: "the line must be in the middle, not
+       at the top"): the plate centres its children vertically, so the
+       strip's slot + print ride the scope's middle instead of hanging at
+       the plate's top edge. */
+    align-items: center;
     gap: var(--al-space-md);
     min-width: 0;
     user-select: none;
@@ -254,12 +262,15 @@
     display: flex;
     /* Task 9.8 (D9.8.4): the strip takes the plate's leftover width — the
        instrument extends horizontally with the row — floored at its 1×
-       width (6rem) so it never collapses under its own print. */
+       width (6rem) so it never collapses under its own print. Since Task
+       9.9 (D9.9.3) it carries no top padding: the slot (8px) and the
+       −1·0·+1 print below it are ONE block, centred in the plate by the
+       parent — the owner: "the line must be in the middle, not at the
+       top". */
     flex: 1 1 auto;
     flex-direction: column;
     gap: var(--al-space-2xs);
     min-width: var(--gonio-strip-width, 6rem); /* 96 px = 1× */
-    padding-top: var(--al-space-3xs);
   }
 
   /* The strip's legend: clipped out of the face, kept for the accessibility

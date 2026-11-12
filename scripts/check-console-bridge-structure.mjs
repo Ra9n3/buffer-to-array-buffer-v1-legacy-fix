@@ -230,6 +230,19 @@ check("only the goniometer contains SVG", !/<svg/.test(bridge) && !/<svg/.test(s
     "goniometer: the strip takes the plate's leftover width (Task 9.8, D9.8.4, the owner: 'extend them horizontally') — flex-grow, floored at its 1× width — and its legend stays clipped out of the face, in the accessibility tree (D9.6.3)",
     /\.gonio__correlation\s*{[\s\S]*?flex:\s*1 1 auto;[\s\S]*?min-width:\s*var\(--gonio-strip-width, 6rem\);/.test(css) && /gonio__legend--hidden/.test(css) && /text="Correlation"/.test(tpl),
   );
+  check(
+    "goniometer: the correlation line rides the plate's vertical MIDDLE (Task 9.9, D9.9.3, the owner: 'the line must be in the middle, not at the top') — the plate centres its children (align-items: center), the strip carries no top padding, the 8px slot and the −1·0·+1 print one centred block with the centre mark at the slot's midpoint",
+    (() => {
+      const plate = css.match(/\.gonio\s*\{([^}]*)\}/)?.[1] ?? "";
+      const stripRule = css.match(/\.gonio__correlation\s*\{([^}]*)\}/)?.[1] ?? "";
+      const slot = css.match(/\.corr__slot\s*\{([^}]*)\}/)?.[1] ?? "";
+      return (
+        /align-items:\s*center/.test(plate) &&
+        !/padding-top/.test(stripRule) &&
+        /height:\s*8px/.test(slot)
+      );
+    })(),
+  );
   check("goniometer: the trace is the lamp / amber family, never green", /--g-trace:\s*var\(--al-material-lamp\)/.test(css) && /--g-trace-core:\s*var\(--al-function-amber-hi\)/.test(css) && !/green/i.test(css));
   check("goniometer: the window floor is the recess token", /--g-floor-centre:\s*color-mix\(in srgb, var\(--al-material-recess\)/.test(css));
   check("goniometer: SVG defs are namespaced per instance", /const uid = `gonio\$\{\+\+nextId\}`/.test(gonio) && !/id="gonio-/.test(tpl));
@@ -246,10 +259,11 @@ const FROZEN = {
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
   "src/components/hardware/LedLadder.svelte": "d09d6f36455731128c7f32189b8e641686f603c293968b5629f55fb61f1628b7",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
-  // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
-  // white phase meter off the row, the correlation strip restored and stretched,
-  // the VU cards extended horizontally with their content).
-  "src/components/hardware/VUMeter.svelte": "a11dc02daada4c685f9ff91b9acf5bbf9d2196c0fa3b4fed345646f3080e2492",
+  // Task 9.9 re-pinned (the owner's content pass, decisions-log D9.9.2: the fill-mode
+  // print grows with the card — the numerals, the legend and the radii bounded by
+  // the card's fixed height, the needle at its 1× size; the 9.8 fill geometry, the
+  // sweep cap and the lamp centring unchanged beneath it).
+  "src/components/hardware/VUMeter.svelte": "08bb01a2cc7b173d1c7cfa37182b516afd40dc8fc4071b2e539bbb974e8d6bd0",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
 };
@@ -298,8 +312,8 @@ check(
   const css = styleOf(bridge);
   check("the deck is a named inline-size container", /container-type:\s*inline-size/.test(css) && /container-name:\s*bridge/.test(css));
   check(
-    "desktop arrangement: one row of instruments spread edge to edge — the reference console's strip uses its whole width (Task 9.5, D9.5.5)",
-    /\.module--spectrum\s*{[^}]*flex:\s*3 1 auto/s.test(css) && /\.module--stereo\s*{[^}]*flex:\s*1 1 auto/s.test(css) && /\.module--master\s*{[^}]*flex:\s*2 1 auto/s.test(css),
+    "desktop arrangement: one row of instruments spread edge to edge — the reference console's strip uses its whole width (Task 9.5, D9.5.5; since Task 9.9, D9.9.4, the goniometer plate's share is 1.4 against the master's 2 — the owner's 'a little bigger, not as much as the VUs' — the VU pair remains the biggest extender)",
+    /\.module--spectrum\s*{[^}]*flex:\s*3 1 auto/s.test(css) && /\.module--stereo\s*{[^}]*flex:\s*1\.4 1 auto/s.test(css) && /\.module--master\s*{[^}]*flex:\s*2 1 auto/s.test(css),
   );
   check("below desktop the modules wrap in the owner's order: spectrum, goniometer, master (D9.6.3; the needle module left the row, Task 9.8)", /flex-wrap:\s*wrap/.test(css) && /\.module--spectrum\s*{\s*order:\s*1;/.test(css) && /\.module--stereo\s*{\s*order:\s*2;/.test(css) && /\.module--master\s*{\s*order:\s*3;/.test(css) && !/module--phase|module--correlation/.test(css));
   {
@@ -311,12 +325,12 @@ check(
   check("modules can never exceed the deck (max-width 100%, min-width 0)", /\.module\s*{[^}]*max-width:\s*100%/s.test(css) && /\.module\s*{[^}]*min-width:\s*0/s.test(css));
   check("master pair is centred with auto margins (no unreachable overflow)", /\.master__pair\s*{[^}]*margin-inline:\s*auto/s.test(css));
 check(
-    "the spread is the owner's instruction (Task 9.8, D9.8.3/D9.8.4): the spectrum stays capped under half the row (max-width 45%, one written-down number, spread row only), the VU cards are EXTENDED WITH THEIR CONTENT — the meters run the `fill` mode at the row's one height, the 1× card's width the floor — and the pair fills the module so the two meters share its width",
+    "the spread is the owner's instruction (Tasks 9.8/9.9): the spectrum stays capped at the reference's 2k5 line — 43% of the row, one written-down number, spread row only (D9.9.1; everything right of that line is the goniometer's and the VUs') — the VU cards are EXTENDED WITH THEIR CONTENT, the print growing with the card (D9.9.2: the meters run the `fill` mode at the row's one height, the 1× card's width the floor) — and the pair fills the module so the two meters share its width",
     (() => {
       const at = css.indexOf("@container bridge (min-width: 900px)");
-      const cap = css.indexOf("max-width: 45%");
+      const cap = css.indexOf("max-width: 43%");
       return (
-        at >= 0 && cap > at && (css.match(/max-width:\s*45%/g) ?? []).length === 1 &&
+        at >= 0 && cap > at && (css.match(/max-width:\s*43%/g) ?? []).length === 1 &&
         (templateOf(bridge).match(/<VUMeter label=\{null\} fill /g) ?? []).length === 2 &&
         /--vu-fill-height:\s*var\(--b-inst-height\)/.test(css) &&
         /--vu-fill-min:\s*calc\(var\(--b-inst-height\) \* 10 \/ 7\)/.test(css) &&
@@ -324,7 +338,7 @@ check(
       );
     })(),
   );
-  check("every instrument is drawn from the row's ONE height (D9.6.3; re-cut in D9.8.3): --b-inst-height drives the scope (--gonio-size) and the VUs' FILL height (--vu-fill-height, their width flexing with the row at the 1× card's width as the floor), nothing else sizes an instrument, and no size steps remain", /--b-inst-height:\s*4\.5rem/.test(css) && /--gonio-size:\s*var\(--b-inst-height\)/.test(css) && /--vu-fill-height:\s*var\(--b-inst-height\)/.test(css) && !/--vu-width:|--phase-width:/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
+  check("every instrument is drawn from the row's ONE height (D9.6.3; re-cut in D9.8.3; a step taller since Task 9.9, D9.9.4 — the owner's 'a little bigger'): --b-inst-height (5rem) drives the scope (--gonio-size) and the VUs' FILL height (--vu-fill-height, their width flexing with the row at the 1× card's width as the floor), nothing else sizes an instrument, and no size steps remain", /--b-inst-height:\s*5rem/.test(css) && /--gonio-size:\s*var\(--b-inst-height\)/.test(css) && /--vu-fill-height:\s*var\(--b-inst-height\)/.test(css) && !/--vu-width:|--phase-width:/.test(css) && (css.match(/@container bridge \(min-width: \d+px\)\s*{\s*\.master\s*{\s*--vu-width:/g) ?? []).length === 0);
   check("no legends print on the row (D9.6.3): the module headings are clipped out of the face and stay in the accessibility tree", /\.module__title\s*{[^}]*clip-path:\s*inset\(50%\)/s.test(css) && /aria-labelledby=\{`\$\{uid\}-master`\}/.test(templateOf(bridge)));
   check("the spectrum spreads by a prop, its 1x bay unchanged (D9.6.3)", /spread = false/.test(spectrum) && /spectrum--spread/.test(styleOf(spectrum)) && /justify-content:\s*space-between/.test(styleOf(spectrum)));
   check("the goniometer is host-sized the VU's way: fallbacks at the use site, never declared at the root (D9.6.3)", /width: var\(--gonio-size, 6\.25rem\)/.test(styleOf(gonio)) && !/--gonio-size:\s*[0-9.]/.test(styleOf(gonio)));

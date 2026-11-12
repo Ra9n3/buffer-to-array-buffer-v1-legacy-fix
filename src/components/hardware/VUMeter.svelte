@@ -102,7 +102,11 @@
    *
    * One instrument, drawn as one SVG at 1 px = 1 unit and scaled as a whole
    * by `--vu-width` (7.5rem = 120 px = 1×), the way the fader scales from
-   * `--fader-width`. From the back forward:
+   * `--fader-width`. In its `fill` mode (Task 9.8) the drawing is instead
+   * re-cut to the measured box, and since Task 9.9 the print GROWS with
+   * the card — bounded by the card's fixed height, the needle never
+   * growing (D9.9.2, the owner: "not just the frame, the content too").
+   * From the back forward:
    *
    *   THE HOUSING   a dark walnut frame, bevelled, with a thin brass bead
    *                 between it and a near-black inner bezel; the bezel's lip
@@ -146,9 +150,14 @@
      *  their content"): stretch the card horizontally to fill its host's
      *  box. The window takes the host's width and height, the drawing is
      *  re-cut to the measured box so the card fills it exactly and the
-     *  scale spreads with it — the sweep widening, capped, everything else
-     *  keeping the approved 1× spacing. Off (the default everywhere else)
-     *  the meter keeps its one written-down size, `--vu-width`. */
+     *  scale spreads with it — the sweep widening, capped — and since Task
+     *  9.9 (D9.9.2, the owner: "not just the frame, the content too — the
+     *  name, the numbers, the arc") the print GROWS with the card: the
+     *  numerals, the legend and the arc as far as the card's fixed height
+     *  allows, the needle kept at its 1× size (the owner: "the needles
+     *  need to be smaller"). Off (the default everywhere else) the meter
+     *  keeps its one written-down size, `--vu-width`, and the approved
+     *  drawing as a whole. */
     fill = false,
   }: {
     label?: string | null;
@@ -208,11 +217,39 @@
   const SW = $derived(winW > 0 && winH > 0 ? Math.max(W, (winW * H) / winH) : W);
   /** How far the card has been stretched: 1 = the approved face. */
   const stretch = $derived(SW / W);
+
+  /* --- the print's growth (Task 9.9, D9.9.2) -----------------------------
+     The owner: "not just the frame, the content too — the name, the
+     numbers, the arc". The print grows with the card in the fill mode —
+     and only there, so a meter at its written-down width keeps the
+     approved drawing as a whole whatever a host sets. At the 1× box the
+     scale is exactly 1 (the fill floor IS the 1× card), so what D9.8.3
+     wrote down still holds: the drawing there is the approved face value
+     for value. The growth rises with the stretch and is full (1.35) by the
+     time the card is ~1.7× the 1× width — a little before the sweep's
+     own cap, the content leading the mechanism. */
+  const PRINT_MAX = 1.35;
+  const print = $derived(fill ? 1 + Math.min(PRINT_MAX - 1, Math.max(0, stretch - 1) * 0.5) : 1);
+  /** The radii's own bound: the card's fixed height. The 1× print's stack
+      over the pivot — arc, major tick, numeral — already spends the card's
+      whole budget (PIVOT_Y − FACE_Y = 61 units), and the −3 mark sits
+      nearest straight up, so ITS numeral is the one that has to clear the
+      card's top edge: with the numerals at their widest (8.5 units) the
+      whole stack clears it only to ≈ 1.02× the approved radii (measured,
+      D9.9.2). The visible growth of the print is therefore carried by what
+      has room — the numerals and the legend — while the arc, the ticks and
+      the numeral ring nudge as far as the card allows and no further. */
+  const RADIUS_FIT = 1.02;
+  const radiusScale = $derived(Math.max(1, Math.min(print, RADIUS_FIT)));
+  /** The numerals: 6.6 units at 1× toward 8.5 at the fullest growth (never below 6.6, never over 9). */
+  const numeralSize = $derived(6.6 * Math.min(print, 8.5 / 6.6));
+  /** The legend: 9 units at 1× toward 11. */
+  const legendSize = $derived(9 * Math.min(print, 11 / 9));
   /** The stretched face: the pivot and the window keep to the card's centre
       line; the sweep widens with the card, capped at +24° (±57° — wider
-      would read as a tuning meter, not a VU); the radii stay the approved
-      ones so the print keeps its 1× spacing and never crowds the card's
-      fixed height. */
+      would read as a tuning meter, not a VU); the radii grow with the
+      print (Task 9.9) as far as the card's fixed height allows, never
+      crowding it — the print block above carries the bound. */
   const S_PIVOT_X = $derived(PIVOT_X + (SW - W) / 2);
   const S_FACE_W = $derived(FACE_W + (SW - W));
   const S_SWEEP = $derived(VU_SWEEP + Math.min(24, Math.max(0, (stretch - 1) * 18)));
@@ -222,18 +259,24 @@
   const angleOf = (db: number): number => -S_SWEEP / 2 + S_SWEEP * (isGr ? grPosition(db) : vuPosition(db));
   const angle = $derived(angleOf(level));
 
-  /** Point at radius r from the pivot, deg clockwise from straight up. */
+  /** Point at radius r from the pivot, deg clockwise from straight up. The
+      radius arrives in 1× print units and is drawn at the print's grown
+      scale (Task 9.9), so the calls keep naming the approved constants. */
   const polar = (r: number, deg: number): [number, number] => {
     const a = (deg * Math.PI) / 180;
-    return [S_PIVOT_X + r * Math.sin(a), PIVOT_Y - r * Math.cos(a)];
+    const rr = r * radiusScale;
+    return [S_PIVOT_X + rr * Math.sin(a), PIVOT_Y - rr * Math.cos(a)];
   };
   const f = (n: number): string => n.toFixed(2).replace(/\.?0+$/, "");
 
-  /** Arc from one dB value to another at radius r (clockwise, never more than the sweep). */
+  /** Arc from one dB value to another at radius r (clockwise, never more
+      than the sweep), its curve drawn at the print's grown scale like
+      every radius (Task 9.9). */
   const arc = (r: number, fromDb: number, toDb: number): string => {
     const [x0, y0] = polar(r, angleOf(fromDb));
     const [x1, y1] = polar(r, angleOf(toDb));
-    return `M ${f(x0)} ${f(y0)} A ${f(r)} ${f(r)} 0 0 1 ${f(x1)} ${f(y1)}`;
+    const rr = f(r * radiusScale);
+    return `M ${f(x0)} ${f(y0)} A ${rr} ${rr} 0 0 1 ${f(x1)} ${f(y1)}`;
   };
 
   const numeral = (db: number): string => (db < 0 ? `\u2212${-db}` : db > 0 ? `+${db}` : "0");
@@ -288,6 +331,8 @@
   style:--vu-pivot={pivotOrigin}
   style:--vu-shadow-dx={`${SHADOW_DX}px`}
   style:--vu-shadow-dy={`${SHADOW_DY}px`}
+  style:--vu-numeral-size={`${f(numeralSize)}px`}
+  style:--vu-legend-size={`${f(legendSize)}px`}
   data-vu
   data-vu-face={face}
   data-vu-level={f(clampedLevel)}
@@ -746,7 +791,10 @@
   .vu__numeral {
     fill: var(--v-ink);
     font-family: var(--al-font-label);
-    font-size: 6.6px;
+    /* 6.6 units at 1×; the fill mode grows it toward 8.5 with the card
+       (Task 9.9, D9.9.2) — the var written by the instance, the approved
+       size the fallback. */
+    font-size: var(--vu-numeral-size, 6.6px);
     font-weight: var(--al-font-weight-bold);
     letter-spacing: 0.02em;
     text-anchor: middle;
@@ -760,7 +808,9 @@
   .vu__legend {
     fill: var(--v-ink);
     font-family: var(--al-font-label);
-    font-size: 9px;
+    /* 9 units at 1×; the fill mode grows it toward 11 with the card
+       (Task 9.9, D9.9.2). */
+    font-size: var(--vu-legend-size, 9px);
     font-weight: var(--al-font-weight-black);
     letter-spacing: 0.1em;
     text-anchor: middle;

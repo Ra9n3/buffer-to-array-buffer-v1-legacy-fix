@@ -201,6 +201,26 @@ check("the needle's tip stays inside the card at both stops", (() => {
   return x < num(V.script, "FACE_X") + num(V.script, "FACE_W") && y > FACE_Y && PIVOT_Y - tip > FACE_Y;
 })());
 
+// --- 2b. Task 9.9 (D9.9.2, the owner: "not just the frame, the content too —
+// the name, the numbers, the arc"): the fill-mode print grows with the card,
+// bounded by the card's fixed height; the needle does not grow.
+check(
+  "the fill-mode print GROWS with the card, bounded by the card: a print scale (fill-gated, so a non-fill meter keeps the approved drawing as a whole at any width; exactly 1 at the 1\u00d7 box \u2014 the fill floor IS the 1\u00d7 card, D9.8.3's invariant; rising with the stretch, capped at 1.35) scales the radii inside polar/arc, itself bounded by the card's height budget (RADIUS_FIT \u2014 the \u22123 numeral, nearest straight up, is the binding mark), the numerals run 6.6 \u2192 8.5 (never below 6.6, never over 9) and the legend 9 \u2192 11 through the size vars with the approved sizes as fallbacks, and the NEEDLE is unchanged at its 1\u00d7 tip radius \u2014 the owner: \"the needles need to be smaller\", i.e. never grown with the card",
+  /const PRINT_MAX = 1\.35;/.test(V.script) &&
+    /const print = \$derived\(fill \? 1 \+ Math\.min\(PRINT_MAX - 1, Math\.max\(0, stretch - 1\) \* 0\.5\) : 1\);/.test(V.script) &&
+    /const RADIUS_FIT = 1\.02;/.test(V.script) &&
+    /const radiusScale = \$derived\(Math\.max\(1, Math\.min\(print, RADIUS_FIT\)\)\);/.test(V.script) &&
+    /const numeralSize = \$derived\(6\.6 \* Math\.min\(print, 8\.5 \/ 6\.6\)\);/.test(V.script) &&
+    /const legendSize = \$derived\(9 \* Math\.min\(print, 11 \/ 9\)\);/.test(V.script) &&
+    /const rr = r \* radiusScale;/.test(V.script) &&
+    /const rr = f\(r \* radiusScale\);/.test(V.script) &&
+    /font-size: var\(--vu-numeral-size, 6\.6px\);/.test(V.style) &&
+    /font-size: var\(--vu-legend-size, 9px\);/.test(V.style) &&
+    /style:--vu-numeral-size=\{`\$\{f\(numeralSize\)\}px`\}/.test(V.markup) &&
+    /style:--vu-legend-size=\{`\$\{f\(legendSize\)\}px`\}/.test(V.markup) &&
+    num(V.script, "NEEDLE_TIP_R") === 53,
+);
+
 // --- 3. The illumination. ---------------------------------------------------------------
 const lampHex = (css.match(/--al-material-lamp: (#[0-9a-f]{6})/i) ?? [])[1] ?? "";
 const inRange = (hex) => {

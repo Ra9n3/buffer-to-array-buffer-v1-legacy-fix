@@ -5305,3 +5305,75 @@ ConsoleMeterBridge re-cut with this note); production build clean. Two VLM passe
 the screenshots (1920 and 1536) confirmed: three groups, no standalone needle meter, the
 VU cards wide with their scale spread across them, the strip much wider than the scope,
 the spectrum under half the row, the row filled edge to edge, nothing cut off.
+
+## Task 9.9 — the owner's content pass: the 2k5 line, the VU print, the centred strip (2026-11-13)
+
+### D9.9.1 — The spectrum's right edge lands at the reference's 2k5 line: 43% of the deck (owner, 2026-11-13)
+
+**Decision.** The owner's photograph carries a blue line at the reference analyzer's 2k5
+column, ≈ 43% of the deck width; everything right of that line is the goniometer's and
+the VUs'. The spectrum module's spread-row cap moves from 45% to 43% (one written-down
+number, spread row only, exactly as D9.7.3/D9.8.4 left it otherwise). All fifteen bands
+stay — ours runs 25 Hz to 16 kHz inside the same 43% the reference's analyzer (which
+itself stops at 2k5) occupies. Measured at 1920×1080: the module's right edge at 43.0%
+of the row, the 2k5 column at 28.4% (the eleventh of fifteen), 16 kHz the last before
+the goniometer plate — the cap, not the column count, carries the landmark.
+
+### D9.9.2 — The VU cards grow WITH their content; the needle does not (owner, 2026-11-13)
+
+**Decision.** The fill mode gains a PRINT scale: `print`, fill-gated (a non-fill meter at
+any width keeps the approved drawing as a whole), exactly 1 at the 1× box (the fill floor
+IS the 1× card, so D9.8.3's guarantee holds — the drawing there is the approved face
+value for value), rising with the stretch and full at 1.35 by ~1.7× the 1× width, a
+little before the sweep's own cap. What it scales: the numerals 6.6 → 8.5 (never below
+6.6, never over 9), the "VU" legend 9 → 11, and the radii — arc, ticks, numeral ring —
+applied inside `polar`/`arc` so every call keeps naming the approved constants. The
+radii's scale is bounded AGAIN by the card, and the card is the hard wall: the 1× print's
+stack over the pivot (arc + major tick + numeral; the −3 mark sits nearest straight up,
+so its numeral is the binding one) already spends the card's whole 61-unit height budget
+(PIVOT_Y − FACE_Y), and with the numerals at 8.5 the whole stack clears the card top
+only to ≈ 1.02× — measured, and the reason the task's example `min(1.35, winH/68 ×
+1.35)` cannot be taken literally: 1.35 × the radii would put the arc itself through the
+bezel (46 × 1.35 = 62.1 of 61) and the −3 numeral 14 units off the card. So the visible
+growth is carried by what has room — the numerals (+29% in units, +43% rendered against
+9.8 once the row's step to 5rem is counted) and the legend — while the arc and the
+numeral ring nudge to 1.02 and the print reads larger at the wider row. The NEEDLE is
+unchanged at its 1× tip radius (53): the owner's "the needles need to be smaller" is
+satisfied by it not growing with anything — relatively smaller against the bigger print,
+its tip still just past the ticks. The sweep cap (±57°), the lamp/vignette centring
+(translate by (SW − W)/2) and the whole 1× path are untouched; the playground's VU face
+measured byte-identical (arc `M 27.47 35.47 A 46 46 0 0 1 92.53 35.47`, numerals 6.6px,
+legend 9px at the 1× position).
+
+### D9.9.3 — The correlation line rides the plate's vertical middle (owner, 2026-11-13)
+
+**Decision.** "The line must be in the middle, not at the top": the goniometer plate
+centres its children (`align-items: center`), and the correlation strip drops its top
+padding — the 8px slot and the −1·0·+1 print are one block, dead-centre against the
+scope (measured: the block's centre and the plate's centre the same pixel), the centre
+mark still at the slot's midpoint. The strip keeps its 9.8 growth (flex, floored at its
+1× width) and its hidden legend.
+
+### D9.9.4 — The plate and the row each a little bigger (owner, 2026-11-13)
+
+**Decision.** "A little bigger, not as much as the VUs": the goniometer module's share of
+the row's leftover width rises from flex 1 to flex 1.4 against the master's kept 2 — the
+VU pair remains the biggest extender after the spectrum's cap. And the row's one height
+steps up one notch, `--b-inst-height` 4.5rem → 5rem (72 → 80 px): the square scope, the
+strip's plate and the VU cards' fill height all follow it automatically, and the VUs'
+print grows with it (D9.9.2). Measured to still fit: zero vertical room scroll at
+1366×768, both transport windows inside the bar, the whole row 90.6 px tall.
+
+**Verification.** Measured in a real browser (the production build served, the fixture
+session seeded as before). At 1920×1080: row 1859 px — spectrum 799.5 (43.0%), goniometer
+442 (scope 80×80, strip 346 wide, block centred to 0 px), master 598.6 (two 292.9 × 80
+cards, numerals 8.5 px, legend 11 px, arc radius 46.92). At 1366×768: spectrum 541.5
+(41.5%, under its cap — the row is narrower), cards 205.8 × 80, everything on one row,
+zero scroll. No phase meter anywhere; fixtures still SIMULATED; wrap order unchanged
+below 900 px. svelte-check 0/0; meter guard 83/83 (its nine 1×-face pins untouched and
+green, plus the new 9.9 print-scale pin); bridge guard 98/98 (re-pinned: the 43% cap,
+flex 1.4/2, 5rem, the new VUMeter SHA 08bb01a2…, and a new assertion that the
+correlation strip is vertically centred); production build clean. VLM passes over the
+1920/1366 bridge crops, the 2× VU zoom and the playground's 1× face: three modules, the
+strip centred, the VU print contained with comfortable top clearance, the needle just
+past the ticks, nothing clipped, the 1× face unchanged.
