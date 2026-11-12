@@ -5377,3 +5377,142 @@ correlation strip is vertically centred); production build clean. VLM passes ove
 1920/1366 bridge crops, the 2× VU zoom and the playground's 1× face: three modules, the
 strip centred, the VU print contained with comfortable top clearance, the needle just
 past the ticks, nothing clipped, the 1× face unchanged.
+
+## Task 10.1 — the playhead and transport scrolling (the spec's 18 sections, 2026-11-13)
+
+### D10.1.1 — Stop is re-cut to the spec's §3: freeze, record, and the two preferences (owner task, 2026-11-13)
+
+**Decision.** Task 8.1's `stop()` returned the playhead to frame 0; §3 of this task's
+spec redefines it, and the controller now owns the whole matrix in one place. Stop
+freezes at the OUTPUT's own clock (never a JS timer's guess), records the freeze as
+`stoppedPosition`, and either leaves the playhead there (the default) or returns it to
+the last fresh start (`returnToStartOnStop`). A Stop while already stopped returns to
+the start only with `secondStopReturnsToStart`; without it it is a no-op. Pause keeps
+its Task 8.1 meaning (freeze, resume continues) and never touches the start memory.
+The two preferences are read LIVE at every Stop through an injected `stopBehaviour`
+provider — omitted (and both off) in Node tests, wired to Settings in the shell — so a
+preference change applies to the very next Stop without reinstalling anything. The
+natural end (§11) records itself as a stop at the project's end; a replay from the end
+restarts from the last fresh start. The playback suite's stop test was re-cut with the
+new semantics (its old expectations are the old behavior, deliberately gone).
+
+### D10.1.2 — lastPlaybackStartPosition is the transport's startFrame, redefined; a wrap never rewrites it (2026-11-13)
+
+**Decision.** `startFrame` keeps its name (every consumer of it — Previous/Next, the
+readouts — gets the better semantics without a rename), and its MEANING becomes the
+spec's `lastPlaybackStartPosition`: recorded by a fresh Play (never a pause-resume),
+re-recorded by a locate while playing (§8: the new position becomes the new start),
+never by any Stop and never by a loop wrap — looping must not rewrite the user's start
+frame by frame. The §7 wrap rides the existing 50 ms poll: when the clock passes the
+loop end (clamped to the playable duration), the poll restarts the attempt at the loop
+start. Wrapping a bounded producer from outside costs up to the poll's 50 ms of
+overshoot — the honest limit; sample-accurate looping belongs to the session producers.
+A restart guard (`restarting`) closes the race the wrap exposed: during the async gap
+between cancelling the old attempt and beginning the new one the output is already
+stopped and its clock reads 0 — without the guard every wrap and locate blipped the
+playhead to the project start for the gap's length; the poll and `positionFramesNow`
+hold the TARGET instead. The guard lives at the wrap trigger (not in `restartAt`), so
+a user seek during a wrap's gap always wins. No UI sets a loop region yet (no loop
+control exists in ALLOY); the region API, the wrap, the follow integration and the
+tests are the contract the editor that draws a loop region will meet — said plainly
+in the module, the report and data-model §23.
+
+### D10.1.3 — The inverse musical map, and what the round-trip test caught (2026-11-13)
+
+**Decision.** `barsToSeconds` joins `secondsToBars` in lib/arrange-audio.ts — the same
+piecewise walk backwards, so a click and the playhead it produces are the same musical
+moment by construction. The first draft returned only the LAST segment's seconds; the
+suite's round-trip test caught it (44 fixture bars → 8.571 s instead of 88.571 s — 40
+bars at 120 plus 4 at 112). The shipped version accumulates across segments, and the
+test now pins the fixture's landmark (bar 45's start = 88.571 s) and the mutual
+round-trip at six positions across all four tempo segments.
+
+### D10.1.4 — The §14 preferences: the settings `transport` group and its screen panel (2026-11-13)
+
+**Decision.** Settings gains the `transport` group — the spec's §14 list exactly (both
+Stop preferences off, Smooth continuous follow, 0.75, suspend-on-manual-scroll on),
+plus click-to-play (off) so §2's "unless click-to-play is enabled" is a real switch,
+and §10's stationary-while-recording override (off). The trigger points are an
+explicit list (0.5–0.9 by 0.05, 0.75 among them), never a range, so a stored document
+cannot smuggle in a value no control offers; the mode falls back one of the five.
+The five switches are one op keyed by control (the `setExportOutput` pattern). The
+screen's fifth panel (Transport & playhead) uses only the approved controls: two
+scribble selectors (mode, trigger) and five panel-labelled tactile switches.
+
+### D10.1.5 — Per-panel follow and the auto-resume rule, in a module-owned effect root (2026-11-13)
+
+**Decision.** `lib/playback/playhead.svelte.ts` carries the spec's §1 reactive list and
+the §13 per-panel state: a panel that never chose reads the Settings defaults; one
+panel's choice never reaches another (the Arrange room keeps its choice, and the Piano
+Roll and Automation editors will keep theirs when they exist). Suspension carries a
+reason (`manual-scroll` · `edit` · `scrub`). The §5 auto-resume rule watches the facade
+in an `$effect.root` — the one sanctioned way a module (not a component) may run an
+effect: a restart (stopped/error → playing) or a locate while playing (startFrame moved
+under playing) resumes every panel; a pause-resume and a wrap deliberately do not.
+Choosing a mode is an explicit act on follow, so it resumes too — a written-down rule,
+not a guess. `isRecording` is FALSE and honestly documented as such: ALLOY v1 has no
+recording path; the §10 rule is implemented and tested synthetically.
+
+### D10.1.6 — The toolbar's contextual follow group, the F shortcut, and the typing predicate's new home (2026-11-13)
+
+**Decision.** The follow control (§15) lives in the top bar — contextual to the active
+timeline panel (App passes `followPanel`; the Console, the Mixer and Home get none),
+because that is where a mode dropdown, the "Follow suspended" badge and the Re-follow
+key can be reached from every timeline panel alike. The F key is the keyboard resume
+(§5), installed only while the control exists — i.e. only while a timeline panel is
+active — guarded by the typing predicate. That predicate (`isTextEntry`, Task 3.3)
+moved from the project shell to `lib/text-entry.ts`: the architecture rule — no
+component imports the shell — stands, and the shell re-exports it so every existing
+importer (and the shell suite) is untouched.
+
+### D10.1.7 — The layer over the lanes: one moving element, and a room that holds no state (2026-11-13)
+
+**Decision.** The Arrange playhead is a late grid child spanning the lanes' rows in
+the timeline column (z-index 1: above the lanes, beneath the pinned rows, the head
+and the corner — the line slides under the track list when the view is scrolled past
+it). The line is amber with a faint lamp glow (distinct from the cream clips and the
+faint bar grid, §15), moved by `transform: translateX` with `will-change` and a
+0.25 px dead band — the clip grid is never touched and the X never enters a reactive
+statement (§16). The rAF loop is alive only while playing or dragging; at rest one
+draw per change and zero per-frame work. The drag cap at the line's head is the
+layer's one real control (focusable; arrow keys nudge by a bar, Home returns to
+bar 1); a drag scrubs with ONE locate on release — a seek per pointermove would
+reopen the sources per event. Large follow corrections ease in over 240 ms; steady
+tracking is exact; page snaps by design; reduced motion makes every correction
+exact. The layer resolves the room's scroller itself (`closest`, at mount), so the
+Arrange room — which the store guard requires to hold no `$state` — holds none.
+Clicks locate through the inverse map, never in the pinned furniture, and
+click-to-play starts besides (§2). A wheel with horizontal intent suspends follow
+(gated by the §14 preference); vertical track browsing never fights it.
+
+### D10.1.8 — The stale 9.9 pins: eight guards re-pinned, and what actually happened (2026-11-13)
+
+**Decision.** Running every guard against this task's tree exposed a pre-existing
+defect, verified against the 9.9 commit itself: Task 9.9 re-pinned only the bridge and
+meter guards, so SEVEN guards still carried 9.8's VUMeter pin, one still carried 9.8's
+ConsoleMeterBridge pin, and the channel-strip guard still demanded 9.7's bridge — all
+failing at 66dba11 with a clean tree. They are re-pinned here to the 9.9-era files
+(which this task never touched), each with a comment saying so. The lesson is
+recorded as a rule for this repo: a task that re-pins a shared file must re-pin it
+in EVERY guard that holds it, not only the task's own.
+
+**Verification.** svelte-check 0/0; tests 477/477 (the new 18-test playhead
+suite among them); all 33 structural guards pass, including the new
+`check:playhead` (68/68); production build clean (694 kB single-file). Measured
+end to end in a real browser (the production build served, the fixture session
+seeded, two synthetic 60 s 24-bit stems imported through the real picker):
+the bar-3 click lands at 192000 frames exactly and Play records it as the
+last fresh start; the line crosses at 21.2–22.0 px/s (the tempo's own 44 px
+per bar); smooth follow holds the playhead at 75% of the visible timeline to
+sub-pixel accuracy (159.0 vs 159.2, 173.0 vs 173.0); a manual scroll suspends
+with the badge and the Re-follow key, and both the F shortcut and the key
+resume with the view catching up exactly (211.0 vs 211.2, 236.0 vs 236.1);
+Stop freezes at the audio clock with `stoppedPosition` recorded, the second
+Stop (with the preference) and return-to-start (with its preference) each
+return the playhead to 1920000 exactly. VLM passes over the evidence: the
+amber line distinct from the clips and the grid, the badge and Re-follow key
+readable, no overlaps or double lines. Two real defects were caught by the
+measurement and fixed in-task (the spanning-grid-child layer and the
+non-accumulating `barsToSeconds`); the harness itself needed three honest
+corrections (24-bit stems, timeline-local coordinates, the second Stop press)
+— all recorded in the task report.

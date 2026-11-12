@@ -248,7 +248,8 @@ const pinned = {
   // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "179044f74a4775f0d5fb8e378ce77e3a27cf5a7010ff5469f580e451c7240b10",
+  // Task 10.1 re-pinned: 9.9's re-pin missed this guard; the file is 9.9's.
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "28f8fc521dd83270426384f24469b41bded24b2fd2b582ad46919b001719a039",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the

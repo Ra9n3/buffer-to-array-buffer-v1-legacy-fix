@@ -19,6 +19,8 @@ export const transport = {
   get sampleRate() { return state.sampleRate; },
   get positionFrames() { return state.positionFrames; },
   get startFrame() { return state.startFrame; },
+  /** Task 10.1: where the last run STOPPED (the spec's `stoppedPosition`). */
+  get stoppedPosition() { return state.stoppedPosition; },
   get durationFrames() { return state.durationFrames; },
   get renderProgress() { return state.renderProgress; },
   /** Task 9.1.3: non-null once a mix has finished and still describes the project. */
@@ -46,6 +48,13 @@ export const transport = {
   pause(): void { controller?.pause(); },
   stop(): void { controller?.stop(); },
   seek(frames: number): void { controller?.seek(frames); },
+  /**
+   * Task 10.1: the LIVE position for rendering — the output's own clock while
+   * an attempt runs (never a JS interval's guess), the held position otherwise.
+   * Panels draw this at the browser's animation rate; the 50 ms poll keeps the
+   * reactive `positionFrames` fresh for readouts.
+   */
+  positionFramesNow(): number { return controller?.positionFramesNow() ?? state.positionFrames; },
   togglePlay(): void { controller?.togglePlay(); },
   setSource(source: ListeningSource): void { controller?.setSource(source); },
   render(): Promise<void> { return controller?.render() ?? Promise.resolve(); },

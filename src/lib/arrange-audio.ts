@@ -52,6 +52,30 @@ export function secondsToBars(seconds: number, markers: readonly TempoMarker[]):
   return bars;
 }
 
+/**
+ * Task 10.1: the inverse — fractional bars from bar 1 → seconds, through the
+ * same piecewise walk `secondsToBars` takes, so a click on the timeline and
+ * the playhead it produces land on the same musical moment by construction.
+ * Seconds ACCUMULATE across the segments: 44 bars in the fixture is 40 bars
+ * at 120 plus 4 at 112 — 88.571 s — never just the last segment's value.
+ */
+export function barsToSeconds(bars: number, markers: readonly TempoMarker[]): number {
+  const list = markers.length > 0 ? [...markers].sort((a, b) => a.bar - b.bar) : [DEFAULT_TEMPO];
+  let remaining = Math.max(0, bars);
+  let seconds = 0;
+  for (let i = 0; i < list.length; i++) {
+    const held = list[i].bpm;
+    const next = list[i + 1];
+    const spb = secondsPerBar(held);
+    if (!next) return seconds + remaining * spb;
+    const span = Math.max(0, next.bar - Math.max(list[i].bar, 1));
+    if (remaining <= span) return seconds + remaining * spb;
+    remaining -= span;
+    seconds += span * spb;
+  }
+  return seconds;
+}
+
 export interface AudioClipInput {
   readonly trackCode: string;
   readonly peaks: PeakData;

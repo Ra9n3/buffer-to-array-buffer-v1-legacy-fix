@@ -64,23 +64,14 @@ export interface KeyLike {
   readonly target: unknown;
 }
 
-interface ElementLike {
-  readonly tagName?: string;
-  readonly type?: string;
-  readonly isContentEditable?: boolean;
-}
-
-const TEXT_INPUT_TYPES = new Set(["text", "number", "search", "email", "url", "tel", "password", ""]);
-
-/** A typing target: a text-like input, a textarea, or contenteditable — the browser's own undo belongs to it. */
-export function isTextEntry(target: unknown): boolean {
-  if (!target || typeof target !== "object") return false;
-  const el = target as ElementLike;
-  const tag = (el.tagName ?? "").toUpperCase();
-  if (tag === "TEXTAREA") return true;
-  if (tag === "INPUT") return TEXT_INPUT_TYPES.has((el.type ?? "").toLowerCase());
-  return el.isContentEditable === true;
-}
+/*
+ * Task 10.1: the typing-target predicate moved to lib/text-entry.ts — a pure
+ * function the follow control's Re-follow shortcut needs in a component,
+ * where the architecture rule (no component imports the shell) stands. The
+ * shell keeps its public surface: this re-export preserves every importer.
+ */
+export { isTextEntry } from "../text-entry";
+import { isTextEntry } from "../text-entry";
 
 /** What a key event asks of history, or null. */
 export function shortcutAction(e: KeyLike): ShortcutAction | null {

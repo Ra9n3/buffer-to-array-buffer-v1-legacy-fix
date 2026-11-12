@@ -23,6 +23,16 @@
  *                    transition off under it.
  *   onboarding       the first-run guide on Home: pending until skipped or
  *                    finished; either is remembered. APPLIED NOW.
+ *   transport        Task 10.1 — the playhead's Stop and follow preferences:
+ *                    return-to-start on stop, second-stop-to-start, the
+ *                    follow mode (Smooth continuous follow by default), the
+ *                    trigger point (0.75), suspend-on-manual-scroll,
+ *                    click-the-timeline-to-play and the stationary-while-
+ *                    recording override. APPLIED NOW: the transport reads the
+ *                    two Stop preferences at every Stop, and the Arrange
+ *                    playhead and the toolbar's follow control read the rest.
+ *                    The follow MODE here is the default every panel starts
+ *                    from; each panel then keeps its own choice (§13).
  *
  * One `$state` object (this module is a runes module), read through
  * `settings`, written through `settingsOps`. Persistence is the Task 3.3
@@ -36,6 +46,13 @@
  */
 
 import type { StorageAdapter } from "./project/persistence";
+import {
+  DEFAULT_FOLLOW_MODE,
+  DEFAULT_FOLLOW_TRIGGER,
+  FOLLOW_MODES,
+  FOLLOW_TRIGGER_POINTS,
+  type FollowMode,
+} from "./playback/follow";
 
 export const SETTINGS_SCHEMA = "alloy.settings/1";
 export const SETTINGS_KEY = "alloy.settings";
@@ -71,6 +88,26 @@ export const MOTION_PREFERENCES: readonly MotionPreference[] = ["system", "reduc
 export type OnboardingState = "pending" | "skipped" | "done";
 export const ONBOARDING_STATES: readonly OnboardingState[] = ["pending", "skipped", "done"];
 
+/**
+ * Task 10.1: the transport & playhead preferences (the spec's §14 list, plus
+ * click-to-play so §2's "unless click-to-play is enabled" is a real switch,
+ * and the §10 stationary-while-recording override). The follow mode is the
+ * vocabulary from lib/playback/follow.ts — one source of truth.
+ */
+export interface TransportPreferences {
+  returnToStartOnStop: boolean;
+  secondStopReturnsToStart: boolean;
+  autoScrollMode: FollowMode;
+  autoScrollTriggerPoint: number;
+  suspendOnManualScroll: boolean;
+  clickToPlay: boolean;
+  stationaryWhileRecording: boolean;
+}
+
+/** The five switch-shaped preferences, the `setExportOutput` pattern. */
+export type TransportSwitchKey = "returnToStartOnStop" | "secondStopReturnsToStart" | "suspendOnManualScroll" | "clickToPlay" | "stationaryWhileRecording";
+export const TRANSPORT_SWITCH_KEYS: readonly TransportSwitchKey[] = ["returnToStartOnStop", "secondStopReturnsToStart", "suspendOnManualScroll", "clickToPlay", "stationaryWhileRecording"];
+
 export interface ExportPreferences {
   fullMix: boolean;
   stems: boolean;
@@ -82,6 +119,7 @@ export interface AppSettings {
   export: ExportPreferences;
   motion: MotionPreference;
   onboarding: OnboardingState;
+  transport: TransportPreferences;
 }
 
 export interface SettingsDocument extends AppSettings {
@@ -94,6 +132,18 @@ export const DEFAULT_SETTINGS: Readonly<AppSettings> = {
   export: { fullMix: true, stems: false, buses: false },
   motion: "system",
   onboarding: "pending",
+  // Task 10.1 (§14): every default exactly as the spec lists it — both Stop
+  // preferences off, Smooth continuous follow, 0.75, suspend on manual scroll
+  // on; click-to-play and the stationary-recording override off.
+  transport: {
+    returnToStartOnStop: false,
+    secondStopReturnsToStart: false,
+    autoScrollMode: DEFAULT_FOLLOW_MODE,
+    autoScrollTriggerPoint: DEFAULT_FOLLOW_TRIGGER,
+    suspendOnManualScroll: true,
+    clickToPlay: false,
+    stationaryWhileRecording: false,
+  },
 };
 
 /* --- the document ----------------------------------------------------- */
@@ -104,6 +154,23 @@ function oneOf<T extends string>(values: readonly T[], value: unknown, fallback:
 
 function bool(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+/** Task 10.1: the transport group, field by field, with the follow vocabulary as its bounds. */
+function transportGroup(value: unknown): TransportPreferences {
+  const doc = (value && typeof value === "object" ? value : {}) as Partial<TransportPreferences>;
+  const trigger = typeof doc.autoScrollTriggerPoint === "number" && FOLLOW_TRIGGER_POINTS.includes(doc.autoScrollTriggerPoint)
+    ? doc.autoScrollTriggerPoint
+    : DEFAULT_SETTINGS.transport.autoScrollTriggerPoint;
+  return {
+    returnToStartOnStop: bool(doc.returnToStartOnStop, DEFAULT_SETTINGS.transport.returnToStartOnStop),
+    secondStopReturnsToStart: bool(doc.secondStopReturnsToStart, DEFAULT_SETTINGS.transport.secondStopReturnsToStart),
+    autoScrollMode: oneOf(FOLLOW_MODES, doc.autoScrollMode, DEFAULT_SETTINGS.transport.autoScrollMode),
+    autoScrollTriggerPoint: trigger,
+    suspendOnManualScroll: bool(doc.suspendOnManualScroll, DEFAULT_SETTINGS.transport.suspendOnManualScroll),
+    clickToPlay: bool(doc.clickToPlay, DEFAULT_SETTINGS.transport.clickToPlay),
+    stationaryWhileRecording: bool(doc.stationaryWhileRecording, DEFAULT_SETTINGS.transport.stationaryWhileRecording),
+  };
 }
 
 /**
@@ -127,6 +194,7 @@ export function parseSettings(text: string): AppSettings | null {
       },
       motion: oneOf(MOTION_PREFERENCES, doc.motion, DEFAULT_SETTINGS.motion),
       onboarding: oneOf(ONBOARDING_STATES, doc.onboarding, DEFAULT_SETTINGS.onboarding),
+      transport: transportGroup(doc.transport),
     };
   } catch {
     return null;
@@ -140,6 +208,7 @@ export function serializeSettings(s: AppSettings): string {
     export: { fullMix: s.export.fullMix, stems: s.export.stems, buses: s.export.buses },
     motion: s.motion,
     onboarding: s.onboarding,
+    transport: { ...s.transport },
   };
   return JSON.stringify(doc);
 }
@@ -151,6 +220,7 @@ const state: AppSettings = $state({
   export: { ...DEFAULT_SETTINGS.export },
   motion: DEFAULT_SETTINGS.motion,
   onboarding: DEFAULT_SETTINGS.onboarding,
+  transport: { ...DEFAULT_SETTINGS.transport },
 });
 
 export interface SettingsStorageStatus {
@@ -205,6 +275,7 @@ function assign(next: AppSettings): void {
   state.export.buses = next.export.buses;
   state.motion = next.motion;
   state.onboarding = next.onboarding;
+  Object.assign(state.transport, next.transport);
 }
 
 /** READS — reactive in components. */
@@ -218,6 +289,9 @@ export const settings = {
   get motion(): MotionPreference {
     return state.motion;
   },
+  get transport(): Readonly<TransportPreferences> {
+    return state.transport;
+  },
   get onboarding(): OnboardingState {
     return state.onboarding;
   },
@@ -230,7 +304,13 @@ export const settings = {
   },
   /** A plain copy (tests, the debug handle). */
   snapshot(): AppSettings {
-    return { hardwareProfile: state.hardwareProfile, export: { ...state.export }, motion: state.motion, onboarding: state.onboarding };
+    return {
+      hardwareProfile: state.hardwareProfile,
+      export: { ...state.export },
+      motion: state.motion,
+      onboarding: state.onboarding,
+      transport: { ...state.transport },
+    };
   },
   subscribe(listener: (s: Readonly<AppSettings>) => void): () => void {
     listeners.add(listener);
@@ -276,6 +356,26 @@ export const settingsOps = {
   showGuideAgain(): void {
     if (state.onboarding === "pending") return;
     state.onboarding = "pending";
+    changed();
+  },
+  /* --- Task 10.1: the transport & playhead preferences, one op per control --- */
+  setTransportMode(mode: FollowMode): void {
+    if (!FOLLOW_MODES.includes(mode)) throw new Error(`unknown follow mode: ${mode}`);
+    if (state.transport.autoScrollMode === mode) return;
+    state.transport.autoScrollMode = mode;
+    changed();
+  },
+  setTransportTriggerPoint(point: number): void {
+    if (!FOLLOW_TRIGGER_POINTS.includes(point)) throw new Error(`unknown trigger point: ${point}`);
+    if (state.transport.autoScrollTriggerPoint === point) return;
+    state.transport.autoScrollTriggerPoint = point;
+    changed();
+  },
+  /** The five switches, the `setExportOutput` pattern: one op, keyed by control. */
+  setTransportSwitch(key: TransportSwitchKey, on: boolean): void {
+    if (!TRANSPORT_SWITCH_KEYS.includes(key)) throw new Error(`unknown transport switch: ${key}`);
+    if (state.transport[key] === on) return;
+    state.transport[key] = on;
     changed();
   },
   /** Everything back to its default (one write). */

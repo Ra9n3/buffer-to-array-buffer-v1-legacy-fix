@@ -9,6 +9,8 @@
 import type { AssetStore } from "../audio/asset-store";
 import type { Project } from "../project/model";
 import { history, project } from "../project/store.svelte";
+import { settings } from "../settings.svelte";
+import { playhead } from "./playhead.svelte";
 import { PlaybackController } from "./controller";
 import { openProjectSources } from "./sources";
 import { transport } from "./store.svelte";
@@ -41,6 +43,14 @@ export function installPlaybackShell(win: Window, options: PlaybackShellOptions)
         return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
       },
     },
+    /* Task 10.1: the Stop preferences are read at every Stop, and the loop
+       region is polled while playing — both live, so a change in Settings or
+       a region set by a future editor applies without reinstalling. */
+    stopBehaviour: () => ({
+      returnToStartOnStop: settings.transport.returnToStartOnStop,
+      secondStopReturnsToStart: settings.transport.secondStopReturnsToStart,
+    }),
+    loop: () => playhead.activeLoopRegion,
   });
   const detach = transport.attach(controller);
 

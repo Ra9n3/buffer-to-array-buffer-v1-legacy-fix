@@ -197,7 +197,8 @@ const pinned = {
   // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
-  "src/components/hardware/VUMeter.svelte": "a11dc02daada4c685f9ff91b9acf5bbf9d2196c0fa3b4fed345646f3080e2492",
+  // Task 10.1 re-pinned: 9.9's re-pin missed this guard; the file is 9.9's.
+  "src/components/hardware/VUMeter.svelte": "08bb01a2cc7b173d1c7cfa37182b516afd40dc8fc4071b2e539bbb974e8d6bd0",
   // added in Task 3.1, as reviewed
   "src/lib/project/model.ts": "7df7e5b93e21573d82f022ad46ab46245db01d9ba9e00ce780cb8ab27f4bc541",
   "src/lib/project/session.ts": "079a77226200f30858f9588aafa0cb50b30b5c182b8e15a63f0fe9231a4736d5",
@@ -274,7 +275,8 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ArrangeRoom.svelte": "6e276cdccbbc9273228a224ecbbd3e4c39c7938aecfdaf6f2cddb09b9ce2949c",
+  // Task 10.1 re-pinned (the playhead layer, D10.1.7).
+  "src/rooms/ArrangeRoom.svelte": "2cc5260586a4a5f09cb6a4cb60efb13653527c57abf93d0abb45f696eb1ae858",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.

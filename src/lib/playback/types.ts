@@ -21,10 +21,26 @@ export interface PlaybackState {
   readonly sampleRate: number;
   /** Current playhead, in frames at `sampleRate`. */
   readonly positionFrames: number;
-  /** Stop returns here. Task 8.1 uses the project start, frame 0. */
+  /**
+   * The position the last FRESH Play started from — the spec's
+   * `lastPlaybackStartPosition` (Task 10.1: click bar 3, press Play, and this
+   * is bar 3 until the next fresh start or locate-while-playing). A
+   * pause-resume never touches it; a loop wrap never rewrites it. Previous
+   * locates here; Return-to-start-on-stop returns the playhead here; a
+   * replay from the end restarts here. Task 8.1 used the project start,
+   * frame 0, until the first Play moves it.
+   */
   readonly startFrame: number;
   /** Longest source, plus the processed tail for preview/render. */
   readonly durationFrames: number;
+  /**
+   * Task 10.1: the position where playback last STOPPED — recorded by Stop
+   * (the freeze point, even when Return-to-start then moves the playhead)
+   * and by the natural end. Null until one of those happens. The spec's
+   * `stoppedPosition`; reading it says where the last run ended, not where
+   * the playhead is now (that is `positionFrames`).
+   */
+  readonly stoppedPosition: number | null;
   /** 0–1 while a rendered mix is being produced; null otherwise. */
   readonly renderProgress: number | null;
   /**
@@ -80,6 +96,22 @@ export interface PlaybackClock {
   now(): string;
 }
 
+/**
+ * Task 10.1: the two Stop preferences (the spec's §3), read live so a change
+ * in Settings applies to the very next Stop without rebuilding the shell.
+ * Omitted (and in Node tests by default): both off — the §3 default.
+ */
+export interface StopBehaviour {
+  readonly returnToStartOnStop: boolean;
+  readonly secondStopReturnsToStart: boolean;
+}
+
+/** Task 10.1: the active loop region in frames, or null when no loop is set. */
+export interface LoopRegion {
+  readonly startFrame: number;
+  readonly endFrame: number;
+}
+
 export interface PlaybackControllerOptions {
   readonly getProject: () => Project;
   /** Opens the current project's imported stems as seekable render sources. */
@@ -92,7 +124,14 @@ export interface PlaybackControllerOptions {
   readonly renderChunkFrames?: number;
   /** Processed silence after the longest input for preview/render. */
   readonly tailSeconds?: number;
+  /** Task 10.1: the Stop preferences, read per Stop; both off when omitted. */
+  readonly stopBehaviour?: () => StopBehaviour;
+  /** Task 10.1: the active loop region, polled while playing; none when omitted. */
+  readonly loop?: () => LoopRegion | null;
 }
+
+/** The Task 10.1 default Stop behaviour: both preferences off. */
+export const STOP_BEHAVIOUR_OFF: Readonly<StopBehaviour> = { returnToStartOnStop: false, secondStopReturnsToStart: false };
 
 export const DEFAULT_PLAYBACK_CHUNK_FRAMES = 2048;
 export const DEFAULT_RENDER_PLAYBACK_CHUNK_FRAMES = 4096;
@@ -107,6 +146,7 @@ export function initialPlaybackState(sampleRate: number): PlaybackState {
     positionFrames: 0,
     startFrame: 0,
     durationFrames: 0,
+    stoppedPosition: null,
     renderProgress: null,
     mixRevision: null,
     mixedAt: null,

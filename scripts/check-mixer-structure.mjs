@@ -269,7 +269,8 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ArrangeRoom.svelte": "6e276cdccbbc9273228a224ecbbd3e4c39c7938aecfdaf6f2cddb09b9ce2949c",
+  // Task 10.1 re-pinned (the playhead layer, D10.1.7).
+  "src/rooms/ArrangeRoom.svelte": "2cc5260586a4a5f09cb6a4cb60efb13653527c57abf93d0abb45f696eb1ae858",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log D9.5.x): the three-rail bank, the compact strips and their meters changed these files. The checks around each pin still assert the file's real contract.
   "src/components/channel-strip/track-strip-fixtures.ts": "e891099def6abe69fd2d4558ba2f9f0542a9c4f123d871c2147447e27afab3e5",

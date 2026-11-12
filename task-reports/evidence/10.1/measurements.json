@@ -1,0 +1,168 @@
+{
+  "layer-at-rest": {
+    "scroller": {
+      "clientWidth": 1894,
+      "scrollLeft": 0,
+      "scrollWidth": 2704,
+      "listWidth": 241
+    },
+    "layer": {
+      "top": 83,
+      "height": 1600,
+      "width": 2464,
+      "zIndex": "1",
+      "pointerEvents": "none"
+    },
+    "firstLane": {
+      "top": 83,
+      "height": 80
+    },
+    "line": {
+      "contentX": 241,
+      "transform": 0,
+      "height": 1600,
+      "color": "rgb(247, 213, 154)",
+      "willChange": "transform"
+    },
+    "handle": {
+      "focusable": true,
+      "keyboard": true
+    },
+    "viewW": 1653
+  },
+  "bar3-click": {
+    "status": "stopped",
+    "positionFrames": 192000,
+    "live": 192000,
+    "startFrame": 0,
+    "stoppedPosition": null,
+    "scrollLeft": 0,
+    "lineT": 88,
+    "viewW": 1653
+  },
+  "after-import": {
+    "status": "stopped",
+    "positionFrames": 192000,
+    "live": 192000,
+    "startFrame": 0,
+    "stoppedPosition": null,
+    "scrollLeft": 0,
+    "lineT": 88,
+    "viewW": 1653
+  },
+  "playing-from-bar3": {
+    "t0": {
+      "status": "playing",
+      "positionFrames": 208864,
+      "live": 210784,
+      "startFrame": 192000,
+      "stoppedPosition": null,
+      "scrollLeft": 0,
+      "lineT": 96.4,
+      "viewW": 1653
+    },
+    "t400": {
+      "status": "playing",
+      "positionFrames": 208864,
+      "live": 212320,
+      "startFrame": 192000,
+      "stoppedPosition": null,
+      "scrollLeft": 0,
+      "lineT": 96.4,
+      "viewW": 1653
+    },
+    "t900": {
+      "status": "playing",
+      "positionFrames": 235360,
+      "live": 236256,
+      "startFrame": 192000,
+      "stoppedPosition": null,
+      "scrollLeft": 0,
+      "lineT": 108.1,
+      "viewW": 1653
+    }
+  },
+  "follow-window": {
+    "viewW": 981,
+    "triggerPx": 735.8
+  },
+  "locate-bar20-while-playing": {
+    "status": "playing",
+    "positionFrames": 1923296,
+    "live": 1925344,
+    "startFrame": 1920000,
+    "stoppedPosition": null,
+    "scrollLeft": 146,
+    "lineT": 882.2,
+    "viewW": 981
+  },
+  "tracking": {
+    "t600": {
+      "status": "playing",
+      "positionFrames": 1951712,
+      "live": 1954144,
+      "startFrame": 1920000,
+      "stoppedPosition": null,
+      "scrollLeft": 159,
+      "lineT": 895,
+      "viewW": 981
+    },
+    "t1200": {
+      "status": "playing",
+      "positionFrames": 1982944,
+      "live": 1982944,
+      "startFrame": 1920000,
+      "stoppedPosition": null,
+      "scrollLeft": 173,
+      "lineT": 908.8,
+      "viewW": 981
+    }
+  },
+  "suspended-after-scroll": {
+    "reason": "manual-scroll",
+    "text": "Follow suspended",
+    "refollow": true
+  },
+  "stop-freeze": {
+    "before": {
+      "status": "playing",
+      "positionFrames": 2120032,
+      "live": 2121568,
+      "startFrame": 1920000,
+      "stoppedPosition": null,
+      "scrollLeft": 236,
+      "lineT": 971.9,
+      "viewW": 981
+    },
+    "after": {
+      "status": "stopped",
+      "positionFrames": 2123488,
+      "live": 2123488,
+      "startFrame": 1920000,
+      "stoppedPosition": 2123488,
+      "scrollLeft": 237,
+      "lineT": 973.3,
+      "viewW": 981
+    }
+  },
+  "second-stop-returns": {
+    "status": "stopped",
+    "positionFrames": 1920000,
+    "live": 1920000,
+    "startFrame": 1920000,
+    "stoppedPosition": 2123488,
+    "scrollLeft": 0,
+    "lineT": 880,
+    "viewW": 981
+  },
+  "return-to-start": {
+    "status": "stopped",
+    "positionFrames": 1920000,
+    "live": 1920000,
+    "startFrame": 1920000,
+    "stoppedPosition": 1937248,
+    "scrollLeft": 152,
+    "lineT": 880,
+    "viewW": 981
+  }
+}

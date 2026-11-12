@@ -190,7 +190,8 @@ const pinned = {
   // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
-  "src/components/hardware/VUMeter.svelte": "a11dc02daada4c685f9ff91b9acf5bbf9d2196c0fa3b4fed345646f3080e2492",
+  // Task 10.1 re-pinned: 9.9's re-pin missed this guard; the file is 9.9's.
+  "src/components/hardware/VUMeter.svelte": "08bb01a2cc7b173d1c7cfa37182b516afd40dc8fc4071b2e539bbb974e8d6bd0",
   // Task 3.1 UI and shapes this task leaves alone (no UI in 3.2)
   "src/components/channel-strip/strip-live.ts": "99603dc16c898e0887c24b5f821b8547ee747342138e8a8b0ebc63e48fa66c7b",
   "src/components/channel-strip/return-live.ts": "837066bc8807932864997db3853d94c70eb6f3f23ec15c15efdb5526f46dfdab",

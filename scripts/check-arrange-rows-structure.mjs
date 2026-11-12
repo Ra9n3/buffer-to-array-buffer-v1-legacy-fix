@@ -385,7 +385,9 @@ const pinned = {
   // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
-  "src/components/hardware/VUMeter.svelte": "a11dc02daada4c685f9ff91b9acf5bbf9d2196c0fa3b4fed345646f3080e2492",
+  // Task 10.1 re-pinned: 9.9 re-pinned only the bridge and meter guards, so
+  // this one still carried 9.8's pin. The file is 9.9's, unchanged since.
+  "src/components/hardware/VUMeter.svelte": "08bb01a2cc7b173d1c7cfa37182b516afd40dc8fc4071b2e539bbb974e8d6bd0",
   "src/components/hardware/LedLadder.svelte": "d09d6f36455731128c7f32189b8e641686f603c293968b5629f55fb61f1628b7",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
@@ -403,7 +405,8 @@ const pinned = {
   // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "179044f74a4775f0d5fb8e378ce77e3a27cf5a7010ff5469f580e451c7240b10",
+  // Task 10.1 re-pinned: same as the VU pin above — the file is 9.9's.
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "28f8fc521dd83270426384f24469b41bded24b2fd2b582ad46919b001719a039",
   // Task 9.1.3 re-pinned this file. Two lines changed, both in the *state the deck
   // reads* — the MIX state now asks `mixRevision` instead of the live `renderProgress
   // === 1` gauge that a finished render always clears, and the completed mix passes
@@ -444,7 +447,8 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/App.svelte": "c82681587787d678287f9d9d50bac7242424c9a2983db05992d68711176b569b",
+  // Task 10.1 re-pinned (the follow group in the top bar, D10.1.6).
+  "src/App.svelte": "514603945ccb3e73b6eff14544ca76fabec7eba05be40246159b20e5f6468730",
   "src/components/RoomShell.svelte": "815bcb79e940433591c632d7ae98c4a5e918394b14d97726ae33c6002d808a71",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

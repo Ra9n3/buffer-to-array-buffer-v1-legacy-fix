@@ -20,12 +20,20 @@
    * button can have in an auto-saving app.
    */
   import ToolbarKey from "./hardware/ToolbarKey.svelte";
+  import FollowControl from "./playhead/FollowControl.svelte";
   import { autosave, history } from "../lib/project/store.svelte";
 
   let {
     onImport,
+    followPanel = null,
   }: {
     onImport: () => void;
+    /**
+     * Task 10.1: the active timeline panel's id, or null when the active
+     * room has no timeline to follow (the Console, the Mixer, Home). The
+     * follow group is contextual — one panel's setting, never a global.
+     */
+    followPanel?: string | null;
   } = $props();
 
   const canUndo = $derived(history.canUndo);
@@ -70,6 +78,15 @@
   <span class="toolbar__divider" aria-hidden="true"></span>
 
   <ToolbarKey label="Save" hook="save" onpress={() => void save()} />
+
+  <!-- Task 10.1: the active timeline panel's follow group (the mode
+       selector, the suspended badge, Re-follow). Contextual: it appears for
+       the Arrange room and any timeline panel that follows, and reads and
+       writes only that panel's setting (§13). -->
+  {#if followPanel}
+    <span class="toolbar__divider" aria-hidden="true"></span>
+    <FollowControl panel={followPanel} />
+  {/if}
 
   <!-- The action's own report, not a permanent label: it appears after a press
        and clears itself. Printed on the panel, so it reads engraved. -->

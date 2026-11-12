@@ -196,10 +196,10 @@ check("the settings module is pure of the browser (storage injected by the shell
 check("hardware profile: Automatic (the benchmark's pick, measured in Task 5.2) + Lite · Standard · Performance with the plan's §11 intents and no invented numbers; read only by the hardware module; the screen says so", /export const HARDWARE_PROFILES: readonly HardwareProfile\[\] = \["auto", "lite", "standard", "performance"\];/.test(SET) && /lite: \{ name: "Lite", intent: "Lowest RAM use and conservative concurrency; a longer render time is acceptable\." \}/.test(SET) && /standard: \{ name: "Standard", intent: "Balanced concurrency, buffering, memory use and render time\." \}/.test(SET) && /performance: \{ name: "Performance", intent: "Higher concurrency and buffering for capable machines, to reduce render time\." \}/.test(SET) && !/\d+\s*(GB|MB|cores?|threads?|ms\b|%)/.test(SET) && /note="Used by the analysis engine: Automatic follows the benchmark measured on this computer before its first analysis; choosing a profile overrides that measurement\."/.test(setT) && /intent: "The profile the hardware benchmark selects, measured on this computer before its first analysis\."/.test(SET) && /hook="hardware-profile"/.test(setT) && /bind:value=\{\(\) => settings\.hardwareProfile, \(id\) => settingsOps\.setHardwareProfile\(id as HardwareProfile\)\}/.test(setT) && !/hardwareProfile/.test(walk("src").filter((rel) => !/settings\.svelte\.ts|SettingsScreen\.svelte|shell\.ts|hardware\.svelte\.ts/.test(rel)).map((rel) => read(rel)).join("\n")));
 check("export: WAV is the one format (a constant, not a preference); three output types (full mix · processed individual stems · processed buses) as tactile toggles; nothing exported, no sample rate or bit depth invented", /export const EXPORT_FORMAT = "WAV";/.test(SET) && /export const EXPORT_OUTPUTS: readonly ExportOutput\[\] = \["fullMix", "stems", "buses"\];/.test(SET) && /fullMix: "Full mix",\s*stems: "Processed individual stems",\s*buses: "Processed buses",/.test(SET) && /\{#each EXPORT_OUTPUTS as output \(output\)\}\s*<div class="output" data-settings-output=\{output\} data-settings-output-on=\{settings\.export\[output\]\}>\s*<TactileSwitch/.test(setT) && /bind:engaged=\{\(\) => settings\.export\[output\], \(on\) => settingsOps\.setExportOutput\(output, on\)\}/.test(setT) && /Format: \$\{EXPORT_FORMAT\}/.test(setT) && !/kHz|sample rate|bit depth|dither|mp3|flac|aac|ogg|showDirectoryPicker|webkitdirectory/i.test(setS + setT + SET) && !/AudioContext|OfflineAudioContext|decodeAudioData|AudioBuffer|MediaRecorder|showSaveFilePicker|Blob\(|createObjectURL/.test(screenCode + SET + L + SH));
 check("motion: Follow system · Reduced through the scribble window; the shell mirrors it onto <html data-motion> now and on every change and clears it at uninstall; preferences.css stops animation and transition under data-motion=reduced with !important and nothing else", /\{ id: "system", name: "Follow system" \},\s*\{ id: "reduced", name: "Reduced" \},/.test(setS) && /hook="motion"/.test(setT) && /bind:value=\{\(\) => settings\.motion, \(id\) => settingsOps\.setMotion\(id as MotionPreference\)\}/.test(setT) && /root\?\.setAttribute\("data-motion", motionAttribute\(s\)\);/.test(SH) && /applyMotion\(settings\);\s*const unsubscribeSettings = settings\.subscribe\(applyMotion\);/.test(SH) && /root\?\.removeAttribute\("data-motion"\);/.test(SH) && /:root\[data-motion="reduced"\] \*,\s*:root\[data-motion="reduced"\] \*::before,\s*:root\[data-motion="reduced"\] \*::after \{\s*animation-duration: 0\.01ms !important;\s*animation-iteration-count: 1 !important;\s*animation-delay: 0ms !important;\s*transition-duration: 0\.01ms !important;\s*transition-delay: 0ms !important;\s*scroll-behavior: auto !important;\s*\}/.test(C.prefs) && !/color|background|font|border|opacity|transform|display/.test(C.prefs));
-check("Settings carries the plan's items only: profile · export · accessibility (motion) · the guide, and the storage line; no theme, language, audio-device, folder or account preference", count(setT, /<ScreenPanel /g) === 4 && /hook="profile"/.test(setT) && /hook="export"/.test(setT) && /hook="accessibility"/.test(setT) && /hook="guide"/.test(setT) && /data-settings-storage=\{settings\.storage\.attached \? "attached" : "none"\}/.test(setT) && !/theme|language|locale|device|default folder|folder preference|account|sign in|login|cloud|sync/i.test(setT + setS));
+check("Settings carries the plan's items plus Task 10.1's transport: profile · export · accessibility (motion) · transport & playhead · the guide, and the storage line; no theme, language, audio-device, folder or account preference", count(setT, /<ScreenPanel /g) === 5 && /hook="profile"/.test(setT) && /hook="export"/.test(setT) && /hook="accessibility"/.test(setT) && /hook="guide"/.test(setT) && /hook="transport"/.test(setT) && /data-settings-storage=\{settings\.storage\.attached \? "attached" : "none"\}/.test(setT) && !/theme|language|locale|device|default folder|folder preference|account|sign in|login|cloud|sync/i.test(setT + setS));
 
 // --- 7. The visual system and the boundaries. -------------------------------------------------
-check("the screens are built from the approved controls only: no raw button, input, select or textarea; the momentary key is the panel-labelled tactile switch; the selectors are scribble windows", !/<(button|input|select|textarea)\b/.test(screenCode) && /<TactileSwitch variant="panel" \{label\} \{name\} lamp="amber" bind:engaged=\{on\} \{onToggle\} \/>/.test(S.actionKey) && /on = false;\s*onpress\(\);/.test(stripComments(scriptOf(S.actionKey))) && count(setT, /<ScribbleSelect/g) === 2 && !/<(button|input|select|textarea)\b/.test(stripComments(templateOf(S.notice))));
+check("the screens are built from the approved controls only: no raw button, input, select or textarea; the momentary key is the panel-labelled tactile switch; the selectors are scribble windows", !/<(button|input|select|textarea)\b/.test(screenCode) && /<TactileSwitch variant="panel" \{label\} \{name\} lamp="amber" bind:engaged=\{on\} \{onToggle\} \/>/.test(S.actionKey) && /on = false;\s*onpress\(\);/.test(stripComments(scriptOf(S.actionKey))) && count(setT, /<ScribbleSelect/g) === 4 && !/<(button|input|select|textarea)\b/.test(stripComments(templateOf(S.notice))));
 /*
   Task 9.3 (owner): the screens are now on the same material as everything else,
   so the old "no tokens on the screens, one hard-coded exception" rule has been
@@ -294,14 +294,20 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/App.svelte": "c82681587787d678287f9d9d50bac7242424c9a2983db05992d68711176b569b",
+  // Task 10.1 re-pinned (the follow group in the top bar, D10.1.6): App passes
+  // the active timeline panel to the toolbar. The rest of the file is unchanged.
+  "src/App.svelte": "514603945ccb3e73b6eff14544ca76fabec7eba05be40246159b20e5f6468730",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
-  "src/lib/project/shell.ts": "90cee1809c81cea24049717ce2329b3c2ef29eced0bfb6740606d98b62218f86",
+  // Task 10.1 re-pinned (isTextEntry moved to lib/text-entry.ts, D10.1.6): a
+  // re-export keeps the shell's public surface; the wiring is unchanged.
+  "src/lib/project/shell.ts": "4b950b3c1e3ced98629d30f61643e8de8769184d9b0f483f09e2e895d80a7f0c",
     // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
   // development session. Nothing was deleted from it; see the decision log (D9.1.2).
   "src/lib/project/lifecycle.ts": "d83451e5b9f224bda2e4dccbaafeec64e413314ed977e5cb3d6334d85444fbbd",
   "src/lib/project/templates.ts": "215db3b6f609b8a622e285204d5973d8ca2fac4db0bd508f7104b47865184aee",
-  "src/lib/settings.svelte.ts": "8a6af022fdeb4a62079e4e285e4fe5b73af6ba00adf08012db018e7afe70c5b0",
+  // Task 10.1 re-pinned (the transport preference group, D10.1.4): settings
+  // gained the transport group, its ops and the follow vocabulary import.
+  "src/lib/settings.svelte.ts": "745807766324257ffe0c60177f841ea437cd6079be151e985074d68735313a16",
   "src/lib/preferences.css": "fd383463fb065a7fa879b36740f8b5e168c03accc0eb7809a8e87a8126f90189",
     // Task 9.3 re-pinned (owner's review: hardware chrome, tactile keys, thin bar).
   // The change to this file is the approved restyle — see decisions-log D9.3.1 —
@@ -327,7 +333,9 @@ const pinned = {
 
 
   "src/screens/HomeScreen.svelte": "36ed1dc4c2ea46463df757df0cef9ceea5e0e7ca9a1d28f1d89128d08aedf7e1",
-  "src/screens/SettingsScreen.svelte": "6a6d5500db0a90f1d523bb2916fbc323cfd72a8928d87353fa6976ebd52fe3e3",
+  // Task 10.1 re-pinned (the Transport & playhead panel, D10.1.4): the fifth
+  // panel, the approved controls only.
+  "src/screens/SettingsScreen.svelte": "83a1bb304722663afbb7b64b3d555c4819357397190fbf9f296b2f75668f9d49",
   "src/components/EmptyProjectNotice.svelte": "031f3c98a303ff01ac11b7e50c949f6684fd1de4970215c083eacb2ec760d152",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
@@ -357,7 +365,9 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/rooms/ArrangeRoom.svelte": "6e276cdccbbc9273228a224ecbbd3e4c39c7938aecfdaf6f2cddb09b9ce2949c",
+  // Task 10.1 re-pinned (the playhead layer, D10.1.7): the room renders the
+  // layer over the lanes; the room itself still holds no state.
+  "src/rooms/ArrangeRoom.svelte": "2cc5260586a4a5f09cb6a4cb60efb13653527c57abf93d0abb45f696eb1ae858",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.

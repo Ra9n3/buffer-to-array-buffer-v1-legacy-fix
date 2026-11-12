@@ -44,20 +44,49 @@ test("the vocabulary: profiles with the plan's intents (no benchmark values), WA
   assert.deepEqual(EXPORT_OUTPUT_PRINT, { fullMix: "Full mix", stems: "Processed individual stems", buses: "Processed buses" });
   assert.deepEqual([...MOTION_PREFERENCES], ["system", "reduced"]);
   assert.deepEqual([...ONBOARDING_STATES], ["pending", "skipped", "done"]);
-  assert.deepEqual(DEFAULT_SETTINGS, { hardwareProfile: "auto", export: { fullMix: true, stems: false, buses: false }, motion: "system", onboarding: "pending" });
+  assert.deepEqual(DEFAULT_SETTINGS, {
+    hardwareProfile: "auto",
+    export: { fullMix: true, stems: false, buses: false },
+    motion: "system",
+    onboarding: "pending",
+    // Task 10.1 (§14): every default exactly as the spec lists it
+    transport: {
+      returnToStartOnStop: false,
+      secondStopReturnsToStart: false,
+      autoScrollMode: "smooth",
+      autoScrollTriggerPoint: 0.75,
+      suspendOnManualScroll: true,
+      clickToPlay: false,
+      stationaryWhileRecording: false,
+    },
+  });
   assert.equal(SETTINGS_SCHEMA, "alloy.settings/1");
   assert.equal(SETTINGS_KEY, "alloy.settings");
 });
 
 test("the document: a round trip is exact; missing, malformed or out-of-vocabulary fields fall back one by one; junk is null", () => {
-  const all = { hardwareProfile: "performance", export: { fullMix: false, stems: true, buses: true }, motion: "reduced", onboarding: "done" };
+  const all = {
+    hardwareProfile: "performance",
+    export: { fullMix: false, stems: true, buses: true },
+    motion: "reduced",
+    onboarding: "done",
+    transport: { returnToStartOnStop: true, secondStopReturnsToStart: true, autoScrollMode: "page", autoScrollTriggerPoint: 0.5, suspendOnManualScroll: false, clickToPlay: true, stationaryWhileRecording: true },
+  };
   const text = serializeSettings(all);
   assert.equal(JSON.parse(text).schema, SETTINGS_SCHEMA);
   assert.deepEqual(parseSettings(text), all);
   assert.deepEqual(parseSettings(JSON.stringify({ schema: SETTINGS_SCHEMA })), DEFAULT_SETTINGS, "an empty document is all defaults");
   assert.deepEqual(
-    parseSettings(JSON.stringify({ schema: SETTINGS_SCHEMA, hardwareProfile: "turbo", export: { stems: "yes", buses: true }, motion: 3, onboarding: "skipped" })),
-    { hardwareProfile: "auto", export: { fullMix: true, stems: false, buses: true }, motion: "system", onboarding: "skipped" },
+    parseSettings(JSON.stringify({ schema: SETTINGS_SCHEMA, hardwareProfile: "turbo", export: { stems: "yes", buses: true }, motion: 3, onboarding: "skipped", transport: { autoScrollMode: "warp", autoScrollTriggerPoint: 0.42, clickToPlay: "maybe" } })),
+    {
+      hardwareProfile: "auto",
+      export: { fullMix: true, stems: false, buses: true },
+      motion: "system",
+      onboarding: "skipped",
+      // field by field: the mode and the trigger fall back to the defaults,
+      // the malformed booleans to theirs; no value a control never offered.
+      transport: { returnToStartOnStop: false, secondStopReturnsToStart: false, autoScrollMode: "smooth", autoScrollTriggerPoint: 0.75, suspendOnManualScroll: true, clickToPlay: false, stationaryWhileRecording: false },
+    },
   );
   assert.deepEqual(parseSettings(JSON.stringify({ schema: SETTINGS_SCHEMA, export: null })), DEFAULT_SETTINGS);
   assert.equal(parseSettings("nope"), null);
@@ -94,14 +123,41 @@ test("the store: every op is one write of the whole document; same-value writes 
   settingsOps.setMotion("reduced");
   assert.equal(storage.writes, 4);
 
+  // Task 10.1: the transport & playhead preferences — one write per control.
+  settingsOps.setTransportMode("page");
+  assert.equal(settings.transport.autoScrollMode, "page");
+  assert.equal(storage.writes, 5);
+  settingsOps.setTransportMode("page");
+  assert.equal(storage.writes, 5, "same value: no write");
+
+  settingsOps.setTransportTriggerPoint(0.5);
+  assert.equal(settings.transport.autoScrollTriggerPoint, 0.5);
+  assert.equal(storage.writes, 6);
+
+  settingsOps.setTransportSwitch("returnToStartOnStop", true);
+  settingsOps.setTransportSwitch("clickToPlay", true);
+  assert.deepEqual(settings.transport, { returnToStartOnStop: true, secondStopReturnsToStart: false, autoScrollMode: "page", autoScrollTriggerPoint: 0.5, suspendOnManualScroll: true, clickToPlay: true, stationaryWhileRecording: false });
+  assert.equal(storage.writes, 8);
+  settingsOps.setTransportSwitch("clickToPlay", true);
+  assert.equal(storage.writes, 8, "same value: no write");
+
   assert.throws(() => settingsOps.setHardwareProfile("turbo"), /unknown hardware profile/);
   assert.throws(() => settingsOps.setExportOutput("midi", true), /unknown export output/);
   assert.throws(() => settingsOps.setMotion("none"), /unknown motion preference/);
-  assert.equal(storage.writes, 4, "a refused op writes nothing");
+  assert.throws(() => settingsOps.setTransportMode("warp"), /unknown follow mode/);
+  assert.throws(() => settingsOps.setTransportTriggerPoint(0.42), /unknown trigger point/);
+  assert.throws(() => settingsOps.setTransportSwitch("turbo", true), /unknown transport switch/);
+  assert.equal(storage.writes, 8, "a refused op writes nothing");
 
   const stored = parseSettings(storage.data.get(SETTINGS_KEY));
-  assert.deepEqual(stored, { hardwareProfile: "lite", export: { fullMix: false, stems: true, buses: false }, motion: "reduced", onboarding: "pending" });
-  assert.equal(settings.storage.writes, 4);
+  assert.deepEqual(stored, {
+    hardwareProfile: "lite",
+    export: { fullMix: false, stems: true, buses: false },
+    motion: "reduced",
+    onboarding: "pending",
+    transport: { returnToStartOnStop: true, secondStopReturnsToStart: false, autoScrollMode: "page", autoScrollTriggerPoint: 0.5, suspendOnManualScroll: true, clickToPlay: true, stationaryWhileRecording: false },
+  });
+  assert.equal(settings.storage.writes, 8);
   fresh();
 });
 
@@ -113,13 +169,22 @@ test("stored once, restored at the next attach — profile, export outputs, moti
   settingsOps.setExportOutput("buses", true);
   settingsOps.setMotion("reduced");
   settingsOps.finishGuide();
+  settingsOps.setTransportMode("centered");
+  settingsOps.setTransportSwitch("secondStopReturnsToStart", true);
   const text = storage.data.get(SETTINGS_KEY);
 
   // "another session": defaults in memory, then the same storage attached
   fresh();
   assert.deepEqual(settings.snapshot(), DEFAULT_SETTINGS);
   assert.equal(attachSettings(storage), true);
-  assert.deepEqual(settings.snapshot(), { hardwareProfile: "standard", export: { fullMix: true, stems: false, buses: true }, motion: "reduced", onboarding: "done" });
+  assert.deepEqual(settings.snapshot(), {
+    hardwareProfile: "standard",
+    export: { fullMix: true, stems: false, buses: true },
+    motion: "reduced",
+    onboarding: "done",
+    transport: { returnToStartOnStop: false, secondStopReturnsToStart: true, autoScrollMode: "centered", autoScrollTriggerPoint: 0.75, suspendOnManualScroll: true, clickToPlay: false, stationaryWhileRecording: false },
+  });
+  assert.equal(settings.transport.autoScrollMode, "centered");
   assert.equal(settings.storage.loaded, true);
   assert.equal(settings.showGuide, false);
   assert.equal(storage.data.get(SETTINGS_KEY), text, "reading does not rewrite");

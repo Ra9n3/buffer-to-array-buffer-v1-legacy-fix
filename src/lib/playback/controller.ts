@@ -32,10 +32,13 @@ import {
   DEFAULT_RENDER_PLAYBACK_CHUNK_FRAMES,
   initialPlaybackState,
   sourceDurationFrames,
+  STOP_BEHAVIOUR_OFF,
   type ListeningSource,
+  type LoopRegion,
   type PlaybackControllerOptions,
   type PlaybackState,
   type PcmChunk,
+  type StopBehaviour,
 } from "./types";
 
 export class PlaybackController {
@@ -48,8 +51,22 @@ export class PlaybackController {
   private readonly chunkFrames: number;
   private readonly renderChunkFrames: number;
   private readonly tailSeconds?: number;
+  /** Task 10.1: the Stop preferences, read per Stop (both off when injected without one). */
+  private readonly stopBehaviour: () => StopBehaviour;
+  /** Task 10.1: the active loop region, polled while playing (none when injected without one). */
+  private readonly loop: () => LoopRegion | null;
   private abort: AbortController | null = null;
   private generation = 0;
+  /**
+   * Task 10.1: true while a restart is in the async gap between cancelling
+   * the old attempt and beginning the new one (openSources + begin). While
+   * it is true the output is already stopped — its clock reads 0 — so the
+   * poll and `positionFramesNow` must hold the TARGET instead of sampling
+   * the dead clock, or every wrap and locate would blip the playhead to the
+   * project start for the length of the gap. Cleared once the new attempt
+   * has begun (or errored); a superseded attempt leaves it to its successor.
+   */
+  private restarting = false;
   /**
    * Task 9.1.3: counts mixes made, for the life of the controller. Monotonic on
    * purpose — `clearMix` sets the *state* back to null but must not rewind this, or
@@ -67,6 +84,8 @@ export class PlaybackController {
     this.chunkFrames = options.chunkFrames ?? DEFAULT_PLAYBACK_CHUNK_FRAMES;
     this.renderChunkFrames = options.renderChunkFrames ?? DEFAULT_RENDER_PLAYBACK_CHUNK_FRAMES;
     this.tailSeconds = options.tailSeconds;
+    this.stopBehaviour = options.stopBehaviour ?? (() => STOP_BEHAVIOUR_OFF);
+    this.loop = options.loop ?? (() => null);
     this.state = initialPlaybackState(options.output.sampleRate);
     this.cancelPoll = options.clock.schedule(() => this.syncPosition(), 50);
   }
@@ -145,9 +164,17 @@ export class PlaybackController {
 
   async play(): Promise<void> {
     if (this.disposed || this.state.status === "playing" || this.state.status === "rendering") return;
-    const from = this.state.positionFrames >= this.state.durationFrames && this.state.durationFrames > 0
+    const duration = this.state.durationFrames;
+    // At or past the end, Play replays from the last fresh start (Task 10.1:
+    // the spec's restart; until one exists that is frame 0).
+    const from = duration > 0 && this.state.positionFrames >= duration
       ? this.state.startFrame
       : this.state.positionFrames;
+    // Task 10.1 (§2/§3): a fresh start — from stopped, error, or a replay from
+    // the end — records `startFrame` (the spec's lastPlaybackStartPosition).
+    // A resume from PAUSED continues at the frozen position and must not
+    // move it (§3: Pause never changes lastPlaybackStartPosition).
+    if (this.state.status !== "paused") this.set({ startFrame: from });
     await this.startPlayback(from);
   }
 
@@ -164,9 +191,44 @@ export class PlaybackController {
     this.set({ status: "paused", positionFrames: clampFrame(position, this.state.durationFrames), renderProgress: null });
   }
 
+  /**
+   * Task 10.1 (§3). Stop, the pause-resume distinction and the two Stop
+   * preferences, in one place:
+   *
+   *   · while playing/rendering: freeze at the output's own clock (where the
+   *     audio actually stopped), record it as `stoppedPosition`, and either
+   *     leave the playhead there (the default) or return it to the last fresh
+   *     start (`returnToStartOnStop`);
+   *   · while paused: the same, freezing at the held position — a pause
+   *     followed by Stop is still a stop;
+   *   · while stopped: the second Stop. With `secondStopReturnsToStart` it
+   *     returns the playhead to the last fresh start; without it it is a
+   *     no-op. `startFrame` (lastPlaybackStartPosition) is never rewritten by
+   *     any Stop — §3 keeps it as the last START's memory;
+   *   · while in error: only clears the error and stands the transport up.
+   */
   stop(): void {
-    this.cancelAttempt();
-    this.set({ status: "stopped", positionFrames: this.state.startFrame, renderProgress: null, error: null });
+    const behaviour = this.stopBehaviour();
+    const wasPlaying = this.state.status === "playing" || this.state.status === "rendering";
+    const wasPaused = this.state.status === "paused";
+    if (wasPlaying || wasPaused) {
+      const freeze = wasPlaying
+        ? clampFrame(this.output.positionFrames(), this.state.durationFrames)
+        : clampFrame(this.state.positionFrames, this.state.durationFrames);
+      this.cancelAttempt();
+      this.set({
+        status: "stopped",
+        positionFrames: behaviour.returnToStartOnStop ? this.state.startFrame : freeze,
+        stoppedPosition: freeze,
+        renderProgress: null,
+        error: null,
+      });
+    } else if (this.state.status === "error") {
+      this.cancelAttempt();
+      this.set({ status: "stopped", error: null });
+    } else if (behaviour.secondStopReturnsToStart) {
+      this.set({ positionFrames: this.state.startFrame });
+    }
   }
 
   seek(frames: number): void {
@@ -174,9 +236,15 @@ export class PlaybackController {
       ? clampFrame(frames, this.state.durationFrames)
       : Math.max(0, Math.floor(Number.isFinite(frames) ? frames : 0));
     const wasPlaying = this.state.status === "playing" || this.state.status === "rendering";
-    this.cancelAttempt();
-    this.set({ positionFrames: target, renderProgress: null, error: null });
-    if (wasPlaying) void this.startPlayback(target);
+    if (!wasPlaying) {
+      this.cancelAttempt();
+      this.set({ positionFrames: target, renderProgress: null, error: null });
+      return;
+    }
+    // Task 10.1 (§8): a locate while playing continues playback from the new
+    // position, and the new position becomes the last fresh start.
+    this.set({ startFrame: target });
+    this.restartAt(target);
   }
 
   togglePlay(): void {
@@ -186,8 +254,42 @@ export class PlaybackController {
 
   syncPosition(): void {
     if (this.state.status !== "playing" && this.state.status !== "rendering") return;
+    if (this.restarting) return;
+    // Task 10.1 (§7): at the loop end, wrap to the loop start. A wrap restarts
+    // the attempt but is NOT a locate — `startFrame` keeps the user's last
+    // fresh start, so looping can never rewrite it. The wrap rides the 50 ms
+    // poll (the same clock that already keeps `positionFrames` fresh); the
+    // up-to-50 ms overshoot is the honest limit of wrapping a bounded
+    // producer from outside — sample-accurate looping belongs to the session
+    // producers, not the transport.
+    const loop = this.loop();
+    if (loop) {
+      const end = Math.min(loop.endFrame, this.state.durationFrames > 0 ? this.state.durationFrames : loop.endFrame);
+      if (end > loop.startFrame && this.output.positionFrames() >= end) {
+        // The guard is here, not in restartAt: a poll-fired wrap must not stack
+        // on a restart still landing, but a user seek during that gap is a
+        // real locate and must go straight through.
+        if (!this.restarting) this.restartAt(loop.startFrame);
+        return;
+      }
+    }
     const position = clampFrame(this.output.positionFrames(), this.state.durationFrames);
     if (position !== this.state.positionFrames) this.set({ positionFrames: position });
+  }
+
+  /**
+   * Task 10.1: the LIVE playhead position for rendering — the output's own
+   * clock while an attempt is running (the Web Audio sample clock, so the
+   * line can never drift from what is audible), the held position otherwise.
+   * This is the number panels draw at the browser's animation rate; the
+   * 50 ms poll keeps the reactive `positionFrames` fresh for readouts.
+   */
+  positionFramesNow(): number {
+    if (this.restarting) return this.state.positionFrames;
+    if (this.state.status === "playing" || this.state.status === "rendering") {
+      return clampFrame(this.output.positionFrames(), this.state.durationFrames);
+    }
+    return this.state.positionFrames;
   }
 
   private cancelAttempt(): void {
@@ -195,6 +297,19 @@ export class PlaybackController {
     this.abort?.abort();
     this.abort = null;
     this.output.stop();
+  }
+
+  /**
+   * Task 10.1: cancel everything and begin a new attempt at `frame` — the one
+   * path a locate-while-playing and a loop wrap share. Callers record
+   * `startFrame` themselves (a wrap deliberately does not). Never re-entrancy
+   * guarded: the wrap trigger guards itself, so a user locate always wins.
+   */
+  private restartAt(frame: number): void {
+    this.restarting = true;
+    this.cancelAttempt();
+    this.set({ positionFrames: frame, renderProgress: null, error: null });
+    void this.startPlayback(frame);
   }
 
   private async startPlayback(fromFrame: number): Promise<void> {
@@ -219,11 +334,15 @@ export class PlaybackController {
       this.set({ durationFrames: duration, positionFrames: start });
       await this.output.begin(start);
       if (generation !== this.generation || abort.signal.aborted) return;
+      // The new attempt is live: the poll and positionFramesNow may sample the
+      // output's clock again (Task 10.1's restart guard).
+      this.restarting = false;
       if (source === "render") await this.runRender(project, sources, start, duration, abort.signal, generation);
       else await this.runLive(project, sources, source, start, abort.signal, generation);
     } catch (error) {
       if (generation !== this.generation || abort.signal.aborted || error instanceof RenderCancelledError) return;
       this.output.stop();
+      this.restarting = false;
       this.set({ status: "error", error: error instanceof Error ? error.message : String(error), renderProgress: null });
     } finally {
       if (sources) await closeSources(sources);
@@ -254,7 +373,9 @@ export class PlaybackController {
       if (signal.aborted || generation !== this.generation) return;
       await this.output.drain?.();
       if (signal.aborted || generation !== this.generation) return;
-      this.set({ status: "stopped", positionFrames: this.state.durationFrames, renderProgress: null });
+      // Task 10.1: the natural end is a stop at the project's end — the
+      // playhead stays there, visible, and `stoppedPosition` records it (§11).
+      this.set({ status: "stopped", positionFrames: this.state.durationFrames, stoppedPosition: this.state.durationFrames, renderProgress: null });
     } finally {
       await session.close();
     }
@@ -315,6 +436,7 @@ export class PlaybackController {
       renderProgress: null,
       mixRevision: ++this.mixRevisions,
       mixedAt: this.clock.now(),
+      stoppedPosition: duration,
     });
   }
 
@@ -329,6 +451,7 @@ export class PlaybackController {
 
   dispose(): void {
     this.disposed = true;
+    this.restarting = false;
     this.cancelAttempt();
     this.cancelPoll();
     this.output.dispose?.();

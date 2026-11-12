@@ -66,6 +66,9 @@ const FILES = {
   persistence: "src/lib/project/persistence.ts",
   clipboard: "src/lib/project/clipboard.ts",
   shell: "src/lib/project/shell.ts",
+  // Task 10.1: the typing-target predicate moved here from the shell (a pure
+  // function the follow control needs in a component; the shell re-exports it).
+  textEntry: "src/lib/text-entry.ts",
   store: "src/lib/project/store.svelte.ts",
   main: "src/main.ts",
   mixerChain: "src/lib/mixer-chain.ts",
@@ -139,7 +142,7 @@ check("D2.8 return-to-Auto is untouched: setMode changes ownership only, setPara
 // the last opened project must be in place when the first frame renders; nothing else about the
 // shell's exclusivity changes.
 check("the shell is the only browser wiring and main.ts installs it once, before the mount (Task 4.1); no component, room or lib module imports it", /import \{ installProjectShell \} from "\.\/lib\/project\/shell";/.test(S.main) && /installProjectShell\(window\);\s*mount\(App, \{ target \}\);/.test(S.main) && (S.main.match(/installProjectShell\(/g) ?? []).length === 1 && walk("src").filter((rel) => /from "[./]*(lib\/)?project\/shell"/.test(read(rel))).map((r) => r.replace(/\\/g, "/")).join() === "src/main.ts");
-check("shortcuts: Ctrl / Cmd + Z = undo, + Shift = redo, Ctrl + Y = redo; nothing with Alt, nothing already handled, nothing while typing (text-like inputs, textarea, contenteditable); the handler preventDefaults", /export function shortcutAction\(e: KeyLike\): ShortcutAction \| null \{\s*if \(e\.defaultPrevented \|\| e\.altKey\) return null;\s*if \(!\(e\.ctrlKey \|\| e\.metaKey\)\) return null;\s*if \(isTextEntry\(e\.target\)\) return null;\s*const key = e\.key\.toLowerCase\(\);\s*if \(key === "z"\) return e\.shiftKey \? "redo" : "undo";\s*if \(key === "y" && e\.ctrlKey && !e\.metaKey && !e\.shiftKey\) return "redo";\s*return null;/.test(SH) && /const TEXT_INPUT_TYPES = new Set\(\["text", "number", "search", "email", "url", "tel", "password", ""\]\);/.test(SH) && /if \(tag === "TEXTAREA"\) return true;/.test(SH) && /return el\.isContentEditable === true;/.test(SH) && /e\.preventDefault\(\);\s*if \(action === "undo"\) history\.undo\(\);\s*else history\.redo\(\);/.test(SH) && /win\.addEventListener\("keydown", onKeydown\);/.test(SH));
+check("shortcuts: Ctrl / Cmd + Z = undo, + Shift = redo, Ctrl + Y = redo; nothing with Alt, nothing already handled, nothing while typing (text-like inputs, textarea, contenteditable); the handler preventDefaults", /export function shortcutAction\(e: KeyLike\): ShortcutAction \| null \{\s*if \(e\.defaultPrevented \|\| e\.altKey\) return null;\s*if \(!\(e\.ctrlKey \|\| e\.metaKey\)\) return null;\s*if \(isTextEntry\(e\.target\)\) return null;\s*const key = e\.key\.toLowerCase\(\);\s*if \(key === "z"\) return e\.shiftKey \? "redo" : "undo";\s*if \(key === "y" && e\.ctrlKey && !e\.metaKey && !e\.shiftKey\) return "redo";\s*return null;/.test(SH) && /const TEXT_INPUT_TYPES = new Set\(\["text", "number", "search", "email", "url", "tel", "password", ""\]\);/.test(S.textEntry) && /if \(tag === "TEXTAREA"\) return true;/.test(S.textEntry) && /return el\.isContentEditable === true;/.test(S.textEntry) && /e\.preventDefault\(\);\s*if \(action === "undo"\) history\.undo\(\);\s*else history\.redo\(\);/.test(SH) && /win\.addEventListener\("keydown", onKeydown\);/.test(SH));
 // Task 4.1 (owner decision D4.1.1): the last opened project is restored at start — by the lifecycle
 // (lifecycle.restoreLast), never by the shell's own hands: the shell still never parses or applies a
 // manifest itself. One Web Storage adapter is shared by autosave, the settings and the lifecycle.
@@ -217,7 +220,8 @@ const REQUIRED_TEST_FILES = [
   "tests/rulebook.test.mjs",
 ];
 /** Suites a later task may append to `npm test`. Task 9.1 added the cross-layer joints. */
-const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs"];
+// Task 10.1: the playhead suite is sanctioned after the required list.
+const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs"];
 const testCommand = pkg.scripts.test ?? "";
 const namedSuites = testCommand.split(/\s+/).filter((part) => part.startsWith("tests/"));
 check(
@@ -247,7 +251,9 @@ const pinned = {
   "src/lib/project/history.ts": "1471c5b8b87285b119fdfada38867a646350e2c502df5faa7786ca47a8ed5563",
   "src/lib/project/persistence.ts": "8d1468e910b39f3c1fba424d01a5c4ccaa09419c0a758e2dc3291473ca2a99e9",
   "src/lib/project/clipboard.ts": "2ede55922707193602770c893042f4a84af4f761426ed71a6fc2476279532d25",
-  "src/lib/project/shell.ts": "90cee1809c81cea24049717ce2329b3c2ef29eced0bfb6740606d98b62218f86",
+  // Task 10.1 re-pinned (isTextEntry moved to lib/text-entry.ts, D10.1.6): a
+  // re-export keeps the shell's public surface; the wiring is unchanged.
+  "src/lib/project/shell.ts": "4b950b3c1e3ced98629d30f61643e8de8769184d9b0f483f09e2e895d80a7f0c",
     // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
   // development session. Nothing was deleted from it; see the decision log (D9.1.2).
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
@@ -265,7 +271,8 @@ const pinned = {
   // and the checks around this pin still assert the file's real contract.
 
 
-  "src/App.svelte": "c82681587787d678287f9d9d50bac7242424c9a2983db05992d68711176b569b",
+  // Task 10.1 re-pinned (the follow group in the top bar, D10.1.6).
+  "src/App.svelte": "514603945ccb3e73b6eff14544ca76fabec7eba05be40246159b20e5f6468730",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

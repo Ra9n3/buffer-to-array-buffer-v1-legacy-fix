@@ -254,7 +254,9 @@ const pinned = {
   "src/lib/audio/import-rules.ts": "194b85961406be10597b59405332999edde2dfd5602cf1c3bb73017526504679",
   "src/lib/audio/peaks.ts": "5901653f01067a408ce22a912d568cae6ca8fe24de459f5d094fdbc6d1b3f1d6",
   "src/lib/audio/asset-store.ts": "c86008b8656f5b55ed4b9735ddb57a4cae95608eba6a58ee3172fc89e4318a5b",
-  "src/lib/arrange-audio.ts": "47b9ba7c3455781a0181d2e64c858dfbd9bc34501332cd42bd3d69d19dc14ab0",
+  // Task 10.1 re-pinned (barsToSeconds, the inverse musical map, D10.1.3): an
+  // added export; every existing one is unchanged.
+  "src/lib/arrange-audio.ts": "1feb6eb618c50278058237e3108893490f55f10d3ce8e615f2cefd3ac84e3edd",
   "src/lib/project/import.ts": "338fbae109f473df660a8d481a21162471f16cb8e01183bb3fdb77403e3a107f",
   "src/lib/project/assets.svelte.ts": "a86ef41994159e1f6ed0fdbb7ebd0bb0fb50fa20302350d2d5d0b868ac553695",
   "src/components/ArrangeImportBand.svelte": "bc45fef96941cda65d24ce26e89e0ef8374a8b8df7a8a4383be8156036e08ff9",

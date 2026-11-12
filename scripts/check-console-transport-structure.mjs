@@ -214,7 +214,8 @@ const pinned = {
   // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
-  "src/components/hardware/VUMeter.svelte": "a11dc02daada4c685f9ff91b9acf5bbf9d2196c0fa3b4fed345646f3080e2492",
+  // Task 10.1 re-pinned: 9.9's re-pin missed this guard; the file is 9.9's.
+  "src/components/hardware/VUMeter.svelte": "08bb01a2cc7b173d1c7cfa37182b516afd40dc8fc4071b2e539bbb974e8d6bd0",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/lib/tokens.ts": "c61debb8c942111395dccc9e67d2111239b9afb80a80cba9402efecb4787bd71",
     // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
@@ -231,7 +232,8 @@ const pinned = {
   // Task 9.8 re-pinned (the owner's correction pass, decisions-log D9.8.1-D9.8.4: the
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "179044f74a4775f0d5fb8e378ce77e3a27cf5a7010ff5469f580e451c7240b10",
+  // Task 10.1 re-pinned: 9.9's re-pin missed this guard; the file is 9.9's.
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "28f8fc521dd83270426384f24469b41bded24b2fd2b582ad46919b001719a039",
   // Task 2.4 re-pinned the bank: its pinned area now renders the Return and
   // bus-master strips (the deck above it is untouched; check-bus-return guards
   // the bank's new structure).

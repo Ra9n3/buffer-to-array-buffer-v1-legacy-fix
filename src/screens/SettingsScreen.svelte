@@ -13,7 +13,10 @@
     type ExportOutput,
     type HardwareProfile,
     type MotionPreference,
+    type TransportPreferences,
+    type TransportSwitchKey,
   } from "../lib/settings.svelte";
+  import { FOLLOW_MODES, FOLLOW_MODE_PRINT, FOLLOW_TRIGGER_POINTS } from "../lib/playback/follow";
   import ActionKey from "./ActionKey.svelte";
   import Print from "./Print.svelte";
   import ScreenPanel from "./ScreenPanel.svelte";
@@ -22,7 +25,7 @@
   /**
    * SETTINGS — Task 4.1 (owner, D4.1.3 / D4.1.5 / D4.1.6).
    *
-   * Four compact panels of the approved controls over lib/settings.svelte.ts,
+   * Five compact panels of the approved controls over lib/settings.svelte.ts,
    * each saying plainly what its preference does in this build:
    *
    *   Hardware profile   plan §11 — read by the analysis engine (Task 5.2):
@@ -33,6 +36,13 @@
    *                      arrives with rendering.
    *   Accessibility      motion — applied now (lib/preferences.css).
    *   First-run guide    bring it back on Home.
+   *   Transport          Task 10.1 — the playhead's Stop and follow
+   *                      preferences. Applied now: the transport reads the
+   *                      two Stop preferences at every Stop; the Arrange
+   *                      playhead and the toolbar's follow group read the
+   *                      rest. The follow MODE here is the default every
+   *                      panel starts from — each panel keeps its own choice
+   *                      on top of it (§13).
    *
    * No visual redesign: the selectors are the scribble windows, the toggles
    * the tactile switches, the print engraved. Keyboard: every control is a
@@ -46,6 +56,16 @@
   ];
   /** Cap prints for the three output switches (the full names are engraved beside them). */
   const OUTPUT_CAP: Readonly<Record<ExportOutput, string>> = { fullMix: "Mix", stems: "Stems", buses: "Buses" };
+  /** Task 10.1: the follow vocabulary and trigger points, as the two selectors print them. */
+  const FOLLOW_MODE_OPTIONS = FOLLOW_MODES.map((id) => ({ id, name: FOLLOW_MODE_PRINT[id].name }));
+  const FOLLOW_TRIGGER_OPTIONS = FOLLOW_TRIGGER_POINTS.map((p) => ({ id: String(p), name: `${Math.round(p * 100)}%` }));
+  const TRANSPORT_SWITCHES: readonly { readonly key: TransportSwitchKey; readonly cap: string; readonly print: string }[] = [
+    { key: "returnToStartOnStop", cap: "Start", print: "Return to start on stop" },
+    { key: "secondStopReturnsToStart", cap: "2nd", print: "Second stop returns to start" },
+    { key: "suspendOnManualScroll", cap: "Hold", print: "Suspend follow on manual scroll" },
+    { key: "clickToPlay", cap: "Play", print: "Click the timeline to play" },
+    { key: "stationaryWhileRecording", cap: "Fixed", print: "Stationary playhead while recording" },
+  ];
 
   const profileIntent = $derived(HARDWARE_PROFILE_PRINT[settings.hardwareProfile].intent);
   const guideState = $derived(
@@ -111,6 +131,50 @@
             : "Follow system: ALLOY honours the operating system's reduced-motion preference."}
           tone="muted"
         />
+      </div>
+    </ScreenPanel>
+
+    <!-- Task 10.1: the transport & playhead preferences — the spec's §14
+         list, plus click-to-play (§2's "unless click-to-play is enabled") and
+         the §10 stationary-while-recording override. Every control is live:
+         the transport reads the two Stop preferences at every Stop, and the
+         follow group reads the rest. -->
+    <ScreenPanel title="Transport & playhead" id="settings-transport-title" note="The follow mode here is the default every panel starts from; each panel keeps its own choice beside it in the toolbar." hook="transport">
+      <div class="field" data-settings-field="follow-mode">
+        <ScribbleSelect
+          label="Follow mode"
+          options={FOLLOW_MODE_OPTIONS}
+          bind:value={() => settings.transport.autoScrollMode, (id) => settingsOps.setTransportMode(id as TransportPreferences["autoScrollMode"])}
+          size="sm"
+          align="start"
+          hook="follow-mode"
+        />
+        <Print text={FOLLOW_MODE_PRINT[settings.transport.autoScrollMode].intent} tone="muted" />
+      </div>
+      <div class="field" data-settings-field="follow-trigger">
+        <ScribbleSelect
+          label="Trigger point"
+          options={FOLLOW_TRIGGER_OPTIONS}
+          bind:value={() => String(settings.transport.autoScrollTriggerPoint), (id) => settingsOps.setTransportTriggerPoint(Number(id))}
+          size="sm"
+          align="start"
+          hook="follow-trigger"
+        />
+        <Print text="Smooth and stationary follow: the view holds still until the playhead reaches this fraction of the visible timeline, then keeps it there." tone="muted" />
+      </div>
+      <div class="outputs" role="group" aria-label="Transport and playhead preferences">
+        {#each TRANSPORT_SWITCHES as sw (sw.key)}
+          <div class="output" data-settings-transport={sw.key} data-settings-transport-on={settings.transport[sw.key]}>
+            <TactileSwitch
+              variant="panel"
+              label={sw.cap}
+              name={`${sw.print}: ${settings.transport[sw.key] ? "on" : "off"}`}
+              lamp="amber"
+              bind:engaged={() => settings.transport[sw.key], (on) => settingsOps.setTransportSwitch(sw.key, on)}
+            />
+            <Print as="span" text={sw.print} />
+          </div>
+        {/each}
       </div>
     </ScreenPanel>
 

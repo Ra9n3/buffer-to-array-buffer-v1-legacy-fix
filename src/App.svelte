@@ -32,6 +32,12 @@
    *  none of the per-room shell rules (viewport pinning, room padding) apply
    *  there and those pages can scroll normally. */
   const activeRoom = $derived(room ?? (route.kind === "dev-components" ? "dev" : route.kind));
+  /* Task 10.1: the active timeline panel — the Arrange room while it is the
+   * active room, null everywhere else. The toolbar's follow group is
+   * contextual to it (one panel's follow setting, §13); the F shortcut for
+   * Re-follow is installed by the group itself, so it too only exists while
+   * a timeline panel is active. */
+  const followPanel = $derived<"arrange" | null>(room === "arrange" ? "arrange" : null);
 
   function syncRouteFromHash(): void {
     route = routeFromHash(window.location.hash);
@@ -135,7 +141,7 @@
     <ChromeBand label="Application bar">
       <div class="app-bar">
         <MenuBar onSettings={() => openSettings()} onHome={() => goHome()} onImport={() => requestImport()} />
-        <AppToolbar onImport={() => requestImport()} />
+        <AppToolbar onImport={() => requestImport()} followPanel={followPanel} />
         <div class="app-nav">
           <RoomNav room={room} onHome={route.kind === "home"} />
         </div>

@@ -182,6 +182,7 @@ test("clampFrame and initial state define the start position and duration bounda
   const state = initialPlaybackState(SR);
   assert.equal(state.startFrame, 0);
   assert.equal(state.positionFrames, 0);
+  assert.equal(state.stoppedPosition, null);
   assert.equal(clampFrame(-5, 100), 0);
   assert.equal(clampFrame(101.9, 100), 100);
   assert.equal(clampFrame(Number.NaN, 100), 0);
@@ -301,16 +302,23 @@ test("seek while stopped moves the playhead; seek while playing restarts at the 
   controller.dispose();
 });
 
-test("stop returns to the defined start position and natural end leaves the playhead at duration", async () => {
+test("10.1 · stop leaves the playhead at the stopped position; the natural end records it (§3, §11)", async () => {
   const project = rawProject(["track-a"]);
   const sources = new Map([["track-a", signalSource(12, () => 0.1)]]);
   const output = autoOutput();
   const controller = controllerFor(project, sources, output);
   await controller.play();
+  // The natural end is a stop AT the project's end: the playhead stays
+  // there, and `stoppedPosition` records it.
   assert.equal(controller.getState().status, "stopped");
   assert.equal(controller.getState().positionFrames, 12);
+  assert.equal(controller.getState().stoppedPosition, 12);
+  // A Stop when already stopped is a no-op by default — the second Stop
+  // returns only with the preference, and neither is on here.
   controller.stop();
-  assert.equal(controller.getState().positionFrames, 0);
+  assert.equal(controller.getState().positionFrames, 12);
+  // The fresh start was frame 0, so a replay from the end restarts there.
+  assert.equal(controller.getState().startFrame, 0);
   controller.dispose();
 });
 

@@ -2656,3 +2656,81 @@ A rulebook is JSON with schema `alloy.rulebook/1`:
 The application is at the library level: there is no rulebook screen, no file picker in
 the UI and no automatic genre lookup. Loading a file is the caller's job (a `readText`
 callback), which keeps the module free of DOM and Node specifics.
+
+## 23. Playhead, transport semantics and follow (Task 10.1)
+
+**What this section pins.** The playhead's whole contract across the app: the
+§3 stop semantics, the `lastPlaybackStartPosition` / `stoppedPosition` pair,
+the §7 loop wrap, the §1 live position, the §4/§7 follow engine, the §13
+per-panel follow state, the §14 preferences, and where each lives.
+
+- **One authoritative position.** The transport controller owns it in frames
+  at the output's sample rate. While an attempt runs, the LIVE read is
+  `positionFramesNow()` — the Web Audio output's own clock
+  (`context.currentTime` against the attempt's epoch), never a JS interval's
+  guess; a 50 ms poll mirrors it into the reactive `positionFrames` for the
+  readouts. A restart guard holds the TARGET through the wrap's async gap so
+  a dead clock (position 0) can never blip the playhead to the project start.
+- **`lastPlaybackStartPosition`** is the transport's `startFrame`: recorded by
+  a fresh Play (never by a pause-resume), re-recorded by a locate while
+  playing (§8), never by any Stop or loop wrap. Previous locates here;
+  Return-to-start-on-stop returns the playhead here; a replay from the end
+  restarts here. Task 8.1 used frame 0 until the first Play moves it.
+- **`stoppedPosition`** records where the last run STOPPED — the freeze point
+  of a Stop (even when Return-to-start then moves the playhead) and of the
+  natural end (§11: the playhead is left at the project's end, visible, and
+  the view never scrolls into empty space for it).
+- **Stop, pause and the two preferences (§3).** Pause freezes at the clock and
+  never moves the start memory. Stop freezes at the output's own clock and
+  records it; with `returnToStartOnStop` the playhead returns to the last
+  fresh start instead. A Stop while already stopped returns to the start only
+  with `secondStopReturnsToStart`. The two preferences are read live at every
+  Stop through the injected `stopBehaviour` provider (both off when absent,
+  which is what Node tests drive).
+- **Looping (§7).** The region lives in the playhead module
+  (`setLoop`/`clearLoop`, frames, validated); the controller polls it on the
+  50 ms poll and wraps by restarting the attempt at the loop start — a wrap
+  is not a locate, so the start memory keeps the user's last fresh start. The
+  wrap point is clamped to the playable duration. Sample-accurate looping
+  belongs to the session producers; wrapping a bounded producer from outside
+  costs up to the poll's 50 ms — the honest limit, and said so.
+  **No UI sets a region yet** (no loop control exists in ALLOY); the
+  machinery, the follow integration and the tests are the contract the
+  editor that draws a loop region will meet.
+- **The follow engine is pure** (`lib/playback/follow.ts`, imports nothing):
+  `followTarget(mode, trigger, playheadT, win, loop) → scrollLeft | null` in
+  timeline-local pixels. Smooth holds while the playhead is visible left of
+  the trigger line (the default 0.75 of the visible timeline) and tracks at
+  and past it; an off-window playhead is brought back, never lost. Page holds
+  while visible and snaps on exit. Centered is 0.50 by definition; stationary
+  always tracks at the panel's trigger. A loop that fits on screen holds
+  every mode — no page movement over an on-screen loop.
+- **The applying side** (the Arrange layer) runs only while something moves:
+  one element per frame (`transform: translateX`, `will-change`), the rAF
+  loop alive only while playing or dragging, one draw per change at rest.
+  Large corrections ease in over 240 ms (a wrap, a re-follow, a locate from
+  far away); steady tracking is exact; page snaps by design; reduced motion
+  makes every correction exact.
+- **Per-panel follow (§13).** Each panel keeps its own mode/trigger/suspension
+  in `lib/playback/playhead.svelte.ts`; a panel that never chose reads the
+  Settings defaults. Suspension reasons: `manual-scroll`, `edit`, `scrub`.
+  Resume: a restart of playback, a locate while playing, the Re-follow key,
+  the F shortcut, or choosing a mode — never a pause-resume, never a wrap.
+  After an edit ends the suspension STAYS and the toolbar shows the badge
+  with the Re-follow key (§9).
+- **The preferences (§14).** The `transport` group in Settings: both Stop
+  preferences off, Smooth continuous follow, 0.75, suspend-on-manual-scroll
+  on, plus click-to-play (off) and the stationary-while-recording override
+  (off). One write per control; the document falls back field by field, so a
+  stored document can never smuggle in a value no control offers.
+- **Recording.** `isRecording` is FALSE in this build — ALLOY v1 has no
+  recording path (the plan has none). The §10 rule (the stationary override)
+  is implemented and tested synthetically; the future recorder meets it on
+  this contract.
+- **Clicks and scrubs.** A click in the timeline region (never the pinned
+  track list) locates through the inverse piecewise map (`barsToSeconds`),
+  so the click and the line it produces are the same musical moment by
+  construction; click-to-play starts playback besides (§2). The drag cap
+  scrubs: the line follows the hand, follow stands down for the drag, and ONE
+  locate lands on release — a seek per pointermove would reopen the sources
+  per event.

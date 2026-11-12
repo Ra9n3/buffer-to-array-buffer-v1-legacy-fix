@@ -4,6 +4,7 @@
   import ArrangeTrackRow from "../components/ArrangeTrackRow.svelte";
   import EmptyProjectNotice from "../components/EmptyProjectNotice.svelte";
   import EngravedLabel from "../components/hardware/EngravedLabel.svelte";
+  import ArrangePlayhead from "../components/playhead/ArrangePlayhead.svelte";
   import RoomShell from "../components/RoomShell.svelte";
   import { assets } from "../lib/project/assets.svelte";
   import { arrangeTrackOf, project, trackMeta } from "../lib/project/store.svelte";
@@ -105,6 +106,15 @@
           />
           <ArrangeTimelineLane code={track.code} laneId={`lane-${track.code}`} name={track.name} org={track.org} clips={arrangement.clips[track.id] ?? []} />
         {/each}
+
+        <!-- Task 10.1: the playhead layer — an absolute overlay of the
+             timeline column, from the head's foot to the last lane's floor:
+             the line, its drag cap, and the follow engine that keeps the view
+             with it during playback. Not rendered for an empty project (there
+             is no timeline to cross and no bars to place it in). The layer
+             resolves the room's scroller itself at mount, so the room holds
+             no state. -->
+        <ArrangePlayhead markers={arrangement.tempoMarkers} barCount={arrangement.barCount} />
       </div>
     </div>
     {/if}
@@ -179,6 +189,10 @@
   }
 
   .arrange-grid {
+    /* Task 10.1: the playhead layer is an absolute overlay of the timeline
+       column (a spanning grid child would push every auto-placed lane one
+       row below its track row — the defect the Task 10.1 measurement caught). */
+    position: relative;
     display: grid;
     grid-template-columns: var(--arrange-track-list-width) var(--arrange-timeline-width);
     grid-template-rows: auto;
