@@ -1,0 +1,162 @@
+{
+  "console-1920x1080": {
+    "route": "#/console",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "deck": {
+      "x": 9.59375,
+      "y": 1021.0625,
+      "w": 1900.8125,
+      "h": 52.546875,
+      "bottom": 1073.609375,
+      "right": 1910.40625,
+      "display": "grid"
+    },
+    "mini": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "bottom": 0,
+      "right": 0,
+      "display": "none"
+    },
+    "mixButtons": 1
+  },
+  "mixer-1920x1080": {
+    "route": "#/mixer",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "deck": null,
+    "mini": {
+      "x": 0,
+      "y": 1036,
+      "w": 1920,
+      "h": 44,
+      "bottom": 1080,
+      "right": 1920,
+      "display": "block"
+    },
+    "mixButtons": 0
+  },
+  "arrange-1920x1080": {
+    "route": "#/arrange",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "deck": null,
+    "mini": {
+      "x": 0,
+      "y": 1036,
+      "w": 1920,
+      "h": 44,
+      "bottom": 1080,
+      "right": 1920,
+      "display": "block"
+    },
+    "mixButtons": 0
+  },
+  "home-1920x1080": {
+    "route": "#/",
+    "viewport": [
+      1920,
+      1080
+    ],
+    "deck": null,
+    "mini": {
+      "x": 0,
+      "y": 1036,
+      "w": 1920,
+      "h": 44,
+      "bottom": 1080,
+      "right": 1920,
+      "display": "block"
+    },
+    "mixButtons": 0
+  },
+  "console-1366x768": {
+    "route": "#/console",
+    "viewport": [
+      1366,
+      768
+    ],
+    "deck": {
+      "x": 9.59375,
+      "y": 709.0625,
+      "w": 1346.8125,
+      "h": 52.546875,
+      "bottom": 761.609375,
+      "right": 1356.40625,
+      "display": "grid"
+    },
+    "mini": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "bottom": 0,
+      "right": 0,
+      "display": "none"
+    },
+    "mixButtons": 1
+  },
+  "mixer-1366x768": {
+    "route": "#/mixer",
+    "viewport": [
+      1366,
+      768
+    ],
+    "deck": null,
+    "mini": {
+      "x": 0,
+      "y": 724,
+      "w": 1366,
+      "h": 44,
+      "bottom": 768,
+      "right": 1366,
+      "display": "block"
+    },
+    "mixButtons": 0
+  },
+  "arrange-1366x768": {
+    "route": "#/arrange",
+    "viewport": [
+      1366,
+      768
+    ],
+    "deck": null,
+    "mini": {
+      "x": 0,
+      "y": 724,
+      "w": 1366,
+      "h": 44,
+      "bottom": 768,
+      "right": 1366,
+      "display": "block"
+    },
+    "mixButtons": 0
+  },
+  "home-1366x768": {
+    "route": "#/",
+    "viewport": [
+      1366,
+      768
+    ],
+    "deck": null,
+    "mini": {
+      "x": 0,
+      "y": 724,
+      "w": 1366,
+      "h": 44,
+      "bottom": 768,
+      "right": 1366,
+      "display": "block"
+    },
+    "mixButtons": 0
+  }
+}

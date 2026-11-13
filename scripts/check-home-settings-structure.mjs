@@ -181,7 +181,7 @@ check("the store: loadProject replaces the whole project in the one tree — obs
 // --- 4. The empty project and the rooms' empty states. -------------------------------------
 check("the empty project is Master only: no tracks, Returns or buses (the plan's default Returns are not invented), an empty arrangement, template `empty`; the fixture template exists under its one id only", /template: "empty",\s*tracks: \[\],\s*returns: \[\],\s*buses: \[\],\s*arrangement: \{\s*barCount: 0,\s*timeSignature: EMPTY_TIME_SIGNATURE,\s*sections: \[\],\s*tempoMarkers: \[\],\s*clips: \{\},\s*\},/.test(T) && /if \(id !== SESSION_PROJECT_ID\) return null;/.test(T) && /export const PROJECT_TEMPLATES: readonly ProjectTemplateId\[\] = \["session-fixture", "empty"\];/.test(T) && /export type ProjectTemplateId = "session-fixture" \| "empty";/.test(C.model));
 check("the empty-project notice: the room's heading id, what is missing in that room, where tracks come from (import in Arrange, Task 5.1), a link Home; nothing drawn that is not there", /<div class="empty" data-empty-project=\{room\}>/.test(S.notice) && /<EngravedLabel as="h2" id=\{headingId\} text="Empty project" size="sm" \/>/.test(S.notice) && /\{WHAT\[room\]\.toLowerCase\(\)\}\. \{HOW\[room\]\}<\/p>/.test(S.notice) && /arrange: "Import stems above to add tracks\.",/.test(S.notice) && /console: "Import stems in Arrange to add tracks\.",/.test(S.notice) && /<a href=\{HOME_HREF\} data-empty-project-home>/.test(S.notice) && /room: "console" \| "arrange" \| "mixer";/.test(S.notice));
-check("Console: the channel-bank zone shows the notice instead of the bank for an empty project; the bridge and transport zones are untouched", /\{#if project\.isEmpty\}\s*<EmptyProjectNotice headingId="console-channels-title" room="console" \/>\s*\{:else\}\s*<ChannelBank \/>\s*\{\/if\}/.test(S.consoleRoom) && count(S.consoleRoom, /project\.isEmpty/g) === 1 && /data-console-zone="meter-bridge"/.test(S.consoleRoom) && /data-console-zone="transport"/.test(S.consoleRoom));
+check("Console: the channel-bank zone shows the notice instead of the bank for an empty project; the bridge zone is untouched, and the transport zone is gone from the room (the deck is the shell's row since Task 10.2, D10.2.1)", /\{#if project\.isEmpty\}\s*<EmptyProjectNotice headingId="console-channels-title" room="console" \/>\s*\{:else\}\s*<ChannelBank \/>\s*\{\/if\}/.test(S.consoleRoom) && count(S.consoleRoom, /project\.isEmpty/g) === 1 && /data-console-zone="meter-bridge"/.test(S.consoleRoom) && !/data-console-zone="transport"/.test(S.consoleRoom));
 check("Arrange: the notice replaces the scroller and grid for an empty project (the fixture timeline header is never drawn for it)", /\{#if project\.isEmpty\}\s*<div class="arrange-empty">\s*<EmptyProjectNotice headingId="arrange-empty-title" room="arrange" \/>\s*<\/div>\s*\{:else\}/.test(S.arrangeRoom) && count(S.arrangeRoom, /project\.isEmpty/g) === 1 && S.arrangeRoom.indexOf("{:else}") < S.arrangeRoom.indexOf("<ArrangeTimelineHeader"));
 check("Mixer: the layout holds the notice alone for an empty project, the compact column + detail otherwise", /\{#if project\.isEmpty\}\s*<section\s*class="mixer-zone mixer-zone--channels"\s*data-mixer-region="channel-column"\s*aria-labelledby="mixer-channels-title"\s*>\s*<EmptyProjectNotice headingId="mixer-channels-title" room="mixer" \/>/.test(S.mixerRoom) && count(S.mixerRoom, /project\.isEmpty/g) === 2 && /<MixerChannelStrip/.test(S.mixerRoom) && /<MixerDetailPanel/.test(S.mixerRoom));
 
@@ -253,7 +253,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/app.css": "fcefcc5cae66ff67ea3d87cb11f31a6a90e561e248912bad0a97e59a061bb027",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the shell gained the deck's row. The checks around this pin still assert the file's real contract.
+  "src/app.css": "8f05c89c3569e7eb58bde6fe6116610b85a5b576d85dbc8dc3a4d2a140208d6a",
   "src/lib/tokens.css": "10ae166bc9e73c265523fbf95f4ba39f7b9f8277573a81e36953295cf51345be",
   "src/components/hardware/TactileSwitch.svelte": "9f8a61ff521988aff708ba7e860854c441343525c0eb43b11e92a534ce1a2ba9",
   "src/components/hardware/ScribbleSelect.svelte": "f0803769f208bca9bd18ff7b1982f9e918b8dde9597aae300879272657f4628a",
@@ -296,7 +298,9 @@ const pinned = {
 
   // Task 10.1 re-pinned (the follow group in the top bar, D10.1.6): App passes
   // the active timeline panel to the toolbar. The rest of the file is unchanged.
-  "src/App.svelte": "514603945ccb3e73b6eff14544ca76fabec7eba05be40246159b20e5f6468730",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the shell gained the deck's row. The checks around this pin still assert the file's real contract.
+  "src/App.svelte": "e7fa23d3206c419579024c90d5d5f843fab2be4d4f1fcf2f17dfdf0ec0b1ceb5",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
   // Task 10.1 re-pinned (isTextEntry moved to lib/text-entry.ts, D10.1.6): a
   // re-export keeps the shell's public surface; the wiring is unchanged.
@@ -355,7 +359,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the deck left the room for the shell's row. The checks around this pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "6bfadc638ecdcf9d45efb37239c04821c47f4d3f62e30166bf3c478abac6215d",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.

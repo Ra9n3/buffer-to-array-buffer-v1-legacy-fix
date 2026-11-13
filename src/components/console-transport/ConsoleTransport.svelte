@@ -9,8 +9,9 @@
    * transport, status and estimated processing time, large illuminated MIX
    * button; §6 playback modes; §10 MIX button behaviour; §14 2.3), moved to
    * the foot of the room as the Console's bottom bar (Task 9.5, D9.5.1 —
-   * the owner's reference console's layout: meters above, channels in the
-   * middle, transport at the bottom).
+   * the owner's reference console's layout), lifted to the shell as the ONE
+   * deck under Console, Mixer and Arrange alike (Task 10.2, D10.2.1 — the
+   * owner: "the transport bar must be shared across the three tabs").
    *
    * One full-width housing — the approved meter bridge's recipe, the same
    * walnut cheeks and bevelled warm-charcoal deck the channel bank already
@@ -30,7 +31,10 @@
    *              warnings in red (plan §10). The listening source is text
    *              here and nowhere else (owner, D2.3.2).
    *   MIX        the dominant button, in the keys' cream with its mixing
-   *              lamp beside it, at the right end (owner, D2.3.12).
+   *              lamp beside it, at the right end (owner, D2.3.12) — the
+   *              Console tab's alone since Task 10.2: the column renders
+   *              only behind the showMix prop, and collapses cleanly (no
+   *              dead gap, nothing else moving) everywhere else.
    *
    * The deck's engraved legend is visually hidden (Task 9.5): the keys,
    * windows and MIX are labelled by their own print, and the bar keeps the
@@ -61,13 +65,22 @@
     fixture = TRANSPORT_FIXTURE,
     headingId = "console-transport-title",
     live = false,
+    showMix = true,
   }: {
     /** The snapshot to print when not live (the playground). */
     fixture?: TransportFixture;
-    /** The engraved legend's id — ConsoleRoom's zone is labelled by it. */
+    /** The engraved legend's id — the shell's deck row is labelled by it
+     *  (Task 10.2; before it, the Console room's zone was). */
     headingId?: string;
-    /** Task 8.1: the Console room drives the one shared transport. */
+    /** Task 8.1: the live deck drives the one shared transport — since Task
+     *  10.2 the shell renders that one live instance for Console, Mixer and
+     *  Arrange alike; the playground keeps the fixture. */
     live?: boolean;
+    /** Task 10.2 (owner, D10.2.2): MIX is the Console tab's alone. The shell
+     *  sets this true only on Console; on Mixer and Arrange the deck's right
+     *  end collapses the column cleanly and the status window remains. The
+     *  playground keeps the default (true). */
+    showMix?: boolean;
   } = $props();
 
   const uid = `transport${++nextId}`;
@@ -231,13 +244,21 @@
       <!-- MIX — the label prints no "Automatic mix" line on the halved bar
            (D9.6.2): the button's own MIX face carries it, and the line under
            it was the bar's tallest print. Kept in the DOM for the
-           accessibility tree, clipped out of the face. -->
-      <div class="transport__mix" data-transport-mix>
-        <MixButton state={view.mix.state} describedBy={`${uid}-status ${uid}-note`} onPress={live ? onMix : undefined} />
-        <span class="transport__mix-note">
-          <EngravedLabel text="Automatic mix" size="xs" tone="muted" />
-        </span>
-      </div>
+           accessibility tree, clipped out of the face.
+
+           Task 10.2 (owner, D10.2.2): MIX is the Console tab's alone. The
+           whole column renders only behind the showMix prop — the shell sets
+           it true on Console, false on Mixer and Arrange — so the deck's
+           right end collapses cleanly (no dead gap, no other control moving)
+           and the status window remains the row's last word. -->
+      {#if showMix}
+        <div class="transport__mix" data-transport-mix>
+          <MixButton state={view.mix.state} describedBy={`${uid}-status ${uid}-note`} onPress={live ? onMix : undefined} />
+          <span class="transport__mix-note">
+            <EngravedLabel text="Automatic mix" size="xs" tone="muted" />
+          </span>
+        </div>
+      {/if}
     </div>
   </div>
 
@@ -366,12 +387,29 @@
                                  wholly inside it, centered (D9.7.4: the
                                  screens no longer bleed out of the bar's
                                  top). */
+    --bar-line: calc(1.9rem + 2 * 0.4rem + 3px); /* 46.2 px — the MIX column's
+                                 own height: the 1.9rem cap in its 6.4px well
+                                 (0.4rem at the room's density) on its 3px
+                                 lift, the tallest thing the bar carries
+                                 (D9.6.2: MIX stands over the keys), written
+                                 as the sum so the number can be checked
+                                 against the column it floors.
+                                 Task 10.2, D10.2.2: the body keeps this
+                                 height on the tabs where the MIX column does
+                                 not render, so the housing, the keys and the
+                                 windows hold exactly their line wherever the
+                                 deck shows — the collapse takes only the
+                                 button, nothing else moves. (The playground
+                                 runs at 1×, where the column is taller still
+                                 and keeps driving; the floor never binds
+                                 there.) */
 
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--al-space-sm) var(--al-space-lg);
     min-width: 0;
+    min-height: var(--bar-line);
     padding: 0 var(--al-space-md);
   }
 

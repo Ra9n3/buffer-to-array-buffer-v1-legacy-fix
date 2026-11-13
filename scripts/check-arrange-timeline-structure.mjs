@@ -207,7 +207,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/app.css": "fcefcc5cae66ff67ea3d87cb11f31a6a90e561e248912bad0a97e59a061bb027",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the shell gained the deck's row. The checks around this pin still assert the file's real contract.
+  "src/app.css": "8f05c89c3569e7eb58bde6fe6116610b85a5b576d85dbc8dc3a4d2a140208d6a",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.
@@ -236,7 +238,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the deck left the room for the shell's row. The checks around this pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "6bfadc638ecdcf9d45efb37239c04821c47f4d3f62e30166bf3c478abac6215d",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   const actual = sha(rel);

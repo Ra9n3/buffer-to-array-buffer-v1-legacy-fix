@@ -90,9 +90,9 @@ check(
   /<EngravedLabel as="h2" id="console-meter-title" text="Meter bridge"/.test(bridge),
 );
 check(
-  "Console keeps the bridge as its first zone, over the bank, with the transport deck as the room's bottom bar (Task 9.5, D9.5.1)",
+  "Console keeps the bridge as its first zone over the bank — TWO zones since Task 10.2 (D10.2.1): the transport deck left the room for the shell, shared with Mixer and Arrange",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="channel-bank",data-console-zone="transport"',
+    'data-console-zone="meter-bridge",data-console-zone="channel-bank"',
 );
 
 // The channel-bank zone: Task 2.2 replaced its Phase 0 header and frame with
@@ -120,18 +120,20 @@ check(
 );
 
 // The room's grid: bridge row sized by the bridge, bank never below its content,
-// vertical scroll inside the room on short windows, never sideways.
+// vertical scroll inside the room on short windows, never sideways. Since
+// Task 10.2 the layout is the two rows the room owns — the transport deck
+// that was the third row is the shell's foot row now (D10.2.1).
 {
   const layout = consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "";
   check(
-    "console layout rows: max-content bridge over the minmax(max-content, 1fr) bank over a max-content transport bar at the foot (Task 9.5, D9.5.1)",
-    /grid-template-rows:\s*max-content\s+minmax\(max-content,\s*1fr\)\s+max-content/.test(layout),
+    "console layout rows: max-content bridge over the minmax(max-content, 1fr) bank — two rows since Task 10.2, the deck being the shell's foot row (Task 9.5, D9.5.1; Task 10.2, D10.2.1)",
+    /grid-template-rows:\s*max-content\s+minmax\(max-content,\s*1fr\);/.test(layout),
     layout.trim().slice(0, 200),
   );
   check("console layout scrolls vertically inside the room only", /overflow-y:\s*auto/.test(layout) && /overflow-x:\s*hidden/.test(layout));
-  // Since Task 2.2 the skinned zones share one reset rule; Task 2.3 added the
-  // transport deck to it.
-  const meterZone = consoleRoom.match(/\.console-zone--meter,\s*\.console-zone--transport,\s*\.console-zone--channels\s*{([^}]*)}/s)?.[1] ?? "";
+  // Since Task 2.2 the skinned zones share one reset rule; the transport zone
+  // left the rule with the deck (Task 10.2).
+  const meterZone = consoleRoom.match(/\.console-zone--meter,\s*\.console-zone--channels\s*{([^}]*)}/s)?.[1] ?? "";
   check(
     "the meter and channel zones drop the placeholder frame (no padding, border or background)",
     /padding:\s*0/.test(meterZone) && /border:\s*0/.test(meterZone) && /background:\s*none/.test(meterZone),
@@ -156,8 +158,8 @@ check(
   !/\$state|selectedId|selectedChannel|onclick|onfocusin/.test(consoleRoom),
 );
 check(
-  "the bank's row keeps a content floor, so nothing above it can crush the strips",
-  /grid-template-rows:\s*max-content\s+minmax\(max-content,\s*1fr\)\s+max-content/.test(
+  "the bank's row keeps a content floor, so nothing above it can crush the strips (and the deck below the room cannot either: it is the shell's row, Task 10.2)",
+  /grid-template-rows:\s*max-content\s+minmax\(max-content,\s*1fr\);/.test(
     consoleRoom.match(/\.console-layout\s*{([^}]*)}/s)?.[1] ?? "",
   ),
 );

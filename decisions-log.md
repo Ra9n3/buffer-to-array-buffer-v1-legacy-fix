@@ -5516,3 +5516,101 @@ measurement and fixed in-task (the spanning-grid-child layer and the
 non-accumulating `barsToSeconds`); the harness itself needed three honest
 corrections (24-bit stems, timeline-local coordinates, the second Stop press)
 — all recorded in the task report.
+
+### D10.2.1 — The transport deck is the shell's: one deck under Console, Mixer and Arrange (2026-11-13)
+
+**Decision.** The owner's instruction: "the transport bar at the bottom of the
+Console tab must be shared across the Console, Mixer and Arrange tabs — all
+three show the same transport bar." The full deck — Task 2.3's component, the
+Console room's own bottom bar since Task 9.5 — is lifted out of the Console
+room and rendered ONCE by App.svelte, in the shell's own third grid row below
+the active room: `auto / minmax(0, 1fr) / auto` (the bar, the room, the deck).
+One mounted instance, outside the room switch — a tab switch cannot remount,
+reset or reposition it; the same DOM node was verified across
+Console → Mixer → Arrange → Home → Console (a property set on the node in
+JavaScript survived every switch, including the detour through Home where the
+row is not displayed). The rooms keep their internal scrolling in the middle
+row; the deck never scrolls with room content and never overlaps it (measured
+under scrolled Arrange and Mixer content: the deck's box byte-identical
+before and after). The Console room loses its transport zone: two zones remain
+(meter-bridge, channel-bank), grid rows `max-content minmax(max-content, 1fr)`.
+The deck keeps the Console's own case — the 0.8× density (D9.6.1) is declared
+on the shell's deck row value for value, and the row's frame (0.4 / 0.6 rem)
+is the Console host's own frame — so the deck's face is unchanged: measured
+against the Task 10.1 build, the Console deck is the same 1900.8 × 52.5 px at
+the same coordinates (x 9.6, bottom 1073.6), the pixel diff confined to one
+edge column of raster noise. At 1366×768 the full deck shows on all three
+rooms (bottom 761.6 of 768), and at 1024 the body wraps as it always did with
+no horizontal overflow. Home, Settings and the private playground never see
+the deck (app.css displays the row only for the three rooms); the mini
+transport stays theirs (D10.2.3).
+
+### D10.2.2 — MIX is the Console tab's alone; the bar keeps its line (2026-11-13)
+
+**Decision.** The owner's instruction: "The only difference is the MIX button,
+which lives only on the Console tab." The deck takes a `showMix` prop (default
+true, so the playground keeps its MIX); the shell sets
+`showMix={room === "console"}` — nothing else differs between the tabs.
+`{#if showMix}` removes the whole column (button, lamp, the clipped legend) —
+no placeholder, no visibility swap, no reserved width: the deck's right end
+collapses to bare deck surface after the status window, and the status
+readout remains at its own width (360 px measured on all three tabs). Because
+the MIX column is the tallest thing the bar carries (D9.6.2: MIX stands over
+the keys), its removal would have shortened the bar's line by 2.1 px and
+lifted every control a pixel — the first measurement caught exactly that
+(52.5 px on Console, 50.4 on Mixer/Arrange) — so the body's floor is now the
+column's own written-down height: `--bar-line: calc(1.9rem + 2 * 0.4rem +
+3px)` (46.2 px: the cap in its 6.4 px well on its 3 px lift). Measured after:
+the deck is 52.6 px tall on all three tabs, the keys / time / status windows
+sit at identical x AND y on all three, and the Console-vs-Mixer pixel diff is
+confined to the MIX column's own 113 px (Mixer vs Arrange: no difference
+beyond ±1 raster noise). The playground runs at 1×, where the column is taller
+still and keeps driving the line; the floor never binds there. MIX's action is
+unchanged: on Console the press ran the bounded rendered-mix path to
+completion (`data-mix-state` processing → complete, the status word MIXED,
+"rerun available"), and on Mixer and Arrange the button is simply not in the
+DOM (count 0, measured).
+
+### D10.2.3 — The mini transport keeps the routes the deck does not serve (2026-11-13)
+
+**Decision.** MiniTransport.svelte is untouched, byte for byte (still pinned
+by its guards): it stays mounted outside the room switch as since Task 0.6,
+still fixed at the viewport bottom, still reserved its height by `.app-shell`
+— but it is displayed only on Home, Settings and the private playground now.
+The three rooms hide it and give the reservation back
+(`padding-bottom: 0`), because the shell's deck row is their transport — two
+transports at one foot would be one too many (the 9.5 rule, now true on all
+three tabs). Home measured pixel-identical to the Task 10.1 build except the
+wall-clock minute on the "opened <time>" line (two runs, minutes apart); the
+mini strip visible there, the deck row not displayed.
+
+### D10.2.4 — The new architecture pinned in the guards (2026-11-13)
+
+**Decision.** The owner-directed contract change is pinned: check:console-
+transport asserts the shell renders the deck once, live, outside the room
+switch, with `showMix` true only on Console; the `{#if}` guard, the bar-line
+floor and the collapse's cleanliness (no placeholder, no visibility swap); and
+that no room file renders the deck or the mini strip. check:transport pins the
+three-row shell grid, the deck row's display list (console, mixer, arrange —
+and only they), the mini's three-room hiding with the reservation given back,
+and the deck row's 0.8× density. The bridge, channel-strip, home-settings and
+playback guards pin the two-zone Console room and the live deck at the shell.
+App.svelte, app.css, ConsoleRoom.svelte and ConsoleTransport.svelte are
+re-pinned wherever an unrelated guard holds them (editing, arrange-rows,
+arrange-timeline, bus-return, mixer, mixer-detail, home-settings) — D10.1.8's
+rule applied: a shared file is re-pinned in EVERY guard that holds it, not
+only the task's own.
+
+**Verification.** svelte-check 0 errors / 0 warnings; the test suite 477 /
+477; all 33 structural guards pass; the production build clean (695 kB
+single-file). Measured in a real browser (Playwright over the served
+production build, the `?debug` handle, two synthetic 60 s 24-bit stems
+imported through the real picker): the deck's geometry identical on the three
+tabs at 1920×1080 and 1366×768 (x 9.6, h 52.6, bottom 1073.6 / 761.6, fully
+visible, never clipped); MIX present on Console only (1 / 0 / 0); playback
+started on Console still running on Mixer and Arrange with the clock
+advancing across the switches (0:00:01 → 0:00:03 → 0:00:04) on the one
+un-remounted node; MIX pressed on Console ran the render to completion
+(processing → complete, MIXED); Home pixel-identical to the 10.1 build but
+for the wall-clock minute. Evidence: `task-reports/evidence/10.2/`
+(twenty screenshots, the baseline build's captures, measurements.json).

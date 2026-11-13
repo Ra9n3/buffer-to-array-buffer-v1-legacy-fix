@@ -17,6 +17,11 @@
  *   5. Task 8.1: the controls drive the one shared transport facade; the
  *      component itself still creates no audio context, timer or persistence.
  *   6. The nav order and tab layout from Task 0.5 are unchanged.
+ *   7. Task 10.2 (owner, D10.2.1): the full transport deck is the shell's now,
+ *      rendered once under Console, Mixer and Arrange; the mini strip serves
+ *      only the routes the deck does not (Home, Settings, the private
+ *      playground) — displayed there, hidden in the three rooms, never
+ *      unmounted.
  *
  * Run: npm run check:transport
  */
@@ -52,15 +57,51 @@ check(
   app.indexOf("<MiniTransport />") > app.indexOf("{/if}"),
 );
 
+/* --- 1b. Task 10.2 (owner, D10.2.1): the full deck is the shell's too. ------
+   One ConsoleTransport, live, outside the room switch, below the room row:
+   Console, Mixer and Arrange all display it, so the three tabs share one deck
+   — the same keys, windows and state, never remounted by a tab switch. The
+   mini strip keeps the routes the deck does not serve. */
+check(
+  "the shell renders the shared deck exactly once, live, outside the room switch, with MIX only on Console (Task 10.2)",
+  (app.match(/<ConsoleTransport live showMix=\{room === "console"\} \/>/g) ?? []).length === 1 &&
+    app.indexOf("<ConsoleTransport") > app.indexOf("{/if}"),
+);
+check(
+  "the shell's grid is three rows — the bar, the room, the deck — with the room row free to scroll its own content (Task 10.2)",
+  /\.app-shell\s*{[^}]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto/s.test(appCss),
+);
+check(
+  "the deck row is hidden by default and displayed only for Console, Mixer and Arrange",
+  /\.app-deck\s*{[^}]*display:\s*none/s.test(appCss) &&
+    /\.app-shell\[data-active-room="console"\] \.app-deck,\s*\.app-shell\[data-active-room="mixer"\] \.app-deck,\s*\.app-shell\[data-active-room="arrange"\] \.app-deck\s*{\s*display:\s*block;\s*}/s.test(appCss),
+);
+check(
+  "the mini strip is not displayed in the three deck rooms, and each gives the reservation back",
+  ["console", "arrange", "mixer"].every(
+    (room) =>
+      new RegExp(`\\.app-shell\\[data-active-room="${room}"\\]\\s*{[^}]*padding-bottom:\\s*0`, "s").test(appCss) &&
+      new RegExp(`\\.app-shell\\[data-active-room="${room}"\\] \.mini-transport\\s*{[^}]*display:\\s*none`, "s").test(appCss),
+  ),
+);
+check(
+  "the deck row carries the Console's 0.8x density (D9.6.1) so the deck's face is unchanged at the shell",
+  /\.app-deck\s*{[^}]*--al-space-3xs:\s*1\.6px/s.test(appCss) && /\.app-deck\s*{[^}]*--al-text-size-base:\s*0\.7rem/s.test(appCss),
+);
+
 // --- 2. No room implements its own transport. ------------------------------
 for (const [name, src] of [
   ["ConsoleRoom", consoleRoom],
   ["ArrangeRoom", arrangeRoom],
   ["MixerRoom", mixerRoom],
 ]) {
-  check(`${name} does not render a transport of its own`, !/<MiniTransport/.test(src) && !/data-mini-transport/.test(src));
+  check(`${name} does not render a transport of its own`, !/<MiniTransport/.test(src) && !/data-mini-transport/.test(src) && !/ConsoleTransport|data-console-transport/.test(src));
   check(`${name} has no transport control buttons`, !/data-transport-control/.test(src));
 }
+check(
+  "no duplicate transport UI remains in the three rooms (Task 10.2): neither the deck nor the mini strip appears in a room file",
+  ![consoleRoom, arrangeRoom, mixerRoom].some((src) => /ConsoleTransport|MiniTransport|data-mini-transport|data-console-transport|data-app-deck/.test(src)),
+);
 
 // --- 3. Positioned fixed, height reserved by the shell. --------------------
 check(
@@ -105,9 +146,9 @@ check(
   !/transportVisible|addEventListener\("scroll"/.test(consoleRoom + arrangeRoom + mixerRoom),
 );
 check(
-  "Console has exactly its three zones — bridge, bank, then the transport as the room's bottom bar (Task 9.5, D9.5.1)",
+  "Console has exactly its two zones — bridge, then bank (Task 10.2, D10.2.1: the deck left the room for the shell)",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="channel-bank",data-console-zone="transport"',
+    'data-console-zone="meter-bridge",data-console-zone="channel-bank"',
 );
 check(
   "all three rooms are bounded to the viewport (no page-level scroll)",

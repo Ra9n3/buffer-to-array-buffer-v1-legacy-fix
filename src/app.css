@@ -76,12 +76,76 @@ a {
   min-height: 100vh;
   min-height: 100dvh;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  /* Task 10.2 (owner, D10.2.1): the shell is three rows — the bar, the
+     room, the transport deck. The deck row is auto: it is sized by the deck
+     itself, sits below whichever room is active, and can never scroll away
+     with a room's content or be overlapped by it; the rooms keep their
+     internal scrolling in the minmax(0, 1fr) row above it. The row is
+     displayed only for Console, Mixer and Arrange (the .app-deck rules
+     below); every other route hides it and keeps the persistent mini
+     transport the shell has always reserved space for at the foot. */
+  grid-template-rows: auto minmax(0, 1fr) auto;
   grid-template-columns: minmax(0, 1fr);
   /* Reserves the space the fixed mini transport occupies, so no room's content
-     can end up underneath it. */
+     can end up underneath it. The three deck rooms give this back (below). */
   padding-bottom: var(--mini-transport-height);
   background: var(--al-material-recess);
+}
+
+/* ---------------------------------------------------------------------------
+   The shared transport deck row — Task 10.2 (owner, D10.2.1).
+
+   The full Console transport deck — the one the Console room drew as its own
+   bottom bar since Task 9.5 — is lifted to the shell and rendered once by
+   App.svelte, below whichever room is active. Console, Mixer and Arrange all
+   display it, so the three tabs share one deck: the same keys, the same
+   windows, the same state, never remounted or reset by a tab switch (the
+   component is mounted outside the room switch; these rules only decide
+   which routes display it).
+
+   The row is hidden by default: Home, Settings and the private playground
+   keep exactly what they had — the persistent mini transport, still fixed at
+   the viewport bottom, still reserved its height by .app-shell above.
+   --------------------------------------------------------------------------- */
+.app-deck {
+  display: none;
+  min-width: 0;
+  /* The deck's case is the Console's own host frame at the room's 0.8×
+     density (Task 9.6, D9.6.1: 0.5 / 0.75 rem × 0.8): the deck sits in the
+     same frame it sat in on the Console — one deck, one density, one frame,
+     under every room it serves. */
+  padding: 0 0.6rem 0.4rem;
+  /* Task 9.6, D9.6.1 — the deck's density. The deck was built inside the
+     Console room's 0.8× scope; lifted to the shell, its row carries the same
+     rescaled tokens value for value (the list the room still carries in
+     ConsoleRoom.svelte for its instruments and its bank), so the deck's face
+     is unchanged at 100% zoom and identical on all three tabs. tokens.css
+     stays the 1× authority; nothing else in the shell reads these. */
+  --al-space-3xs: 1.6px;   /* 2 × 0.8 */
+  --al-space-2xs: 3.2px;   /* 4 × 0.8 */
+  --al-space-xs: 4.8px;    /* 6 × 0.8 */
+  --al-space-sm: 6.4px;    /* 8 × 0.8 */
+  --al-space-md: 9.6px;    /* 12 × 0.8 */
+  --al-space-lg: 12.8px;   /* 16 × 0.8 */
+  --al-space-xl: 19.2px;   /* 24 × 0.8 */
+  --al-space-2xl: 25.6px;  /* 32 × 0.8 */
+  --al-space-3xl: 38.4px;  /* 48 × 0.8 */
+
+  --al-text-size-2xs: 0.5rem;    /* 10 × 0.8 */
+  --al-text-size-xs: 0.55rem;    /* 11 × 0.8 */
+  --al-text-size-sm: 0.6rem;     /* 12 × 0.8 */
+  --al-text-size-md: 0.65rem;    /* 13 × 0.8 */
+  --al-text-size-base: 0.7rem;   /* 14 × 0.8 */
+  --al-text-size-lg: 0.8rem;     /* 16 × 0.8 */
+  --al-text-size-xl: 1rem;       /* 20 × 0.8 */
+  --al-text-size-2xl: 1.2rem;    /* 24 × 0.8 */
+}
+
+/* The three rooms the deck serves — and only they — display the row. */
+.app-shell[data-active-room="console"] .app-deck,
+.app-shell[data-active-room="mixer"] .app-deck,
+.app-shell[data-active-room="arrange"] .app-deck {
+  display: block;
 }
 
 /*
@@ -271,11 +335,21 @@ a {
    This changes only page-level scrolling. The Arrange room's own two-dimensional
    timeline scroller — its shared grid, sticky headers, sticky track column, row
    and lane alignment — is untouched and still scrolls exactly as before.
+
+   Task 10.2: the mini transport's reservation is given back and the strip is
+   not displayed here — this room shows the shell's shared deck row instead
+   (the .app-deck rules above); the timeline scrolls inside the room, never
+   under the deck.
    --------------------------------------------------------------------------- */
 .app-shell[data-active-room="arrange"] {
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
+  padding-bottom: 0;
+}
+
+.app-shell[data-active-room="arrange"] .mini-transport {
+  display: none;
 }
 
 [data-active-room="arrange"] .room-host {
@@ -296,13 +370,16 @@ a {
 
 /* ---------------------------------------------------------------------------
    Console room shell bounding — Task 0.6, reworked for the one-window
-   Console (Task 9.5).
+   Console (Task 9.5), reworked again for the shared deck (Task 10.2).
 
-   The Console now carries its own full transport as the room's bottom bar
-   (the owner's reference layout), so the shell's persistent mini transport
-   is not displayed in this room and the space it reserves is given back.
-   The strip itself is never unmounted — the shell renders it outside the
-   room switch — it is only not displayed here; every other room keeps it.
+   The transport deck that this room drew as its own bottom bar since Task 9.5
+   is now the shell's row, shared with the Mixer and the Arrange rooms (the
+   owner's instruction), so the room is bounded with the deck row directly
+   below it: the meters and the bank fill the room, the deck fills the shell's
+   foot. The shell's persistent mini transport is not displayed in this room
+   (nor in the other two) and the space it reserves is given back. The strip
+   itself is never unmounted — the shell renders it outside the room switch —
+   it is only not displayed here; the routes without the deck keep it.
    --------------------------------------------------------------------------- */
 .app-shell[data-active-room="console"] {
   height: 100dvh;
@@ -370,11 +447,19 @@ a {
 }
 
 /* The room flag lives on the shell element itself, so this is a compound
-   selector, not a descendant one. */
+   selector, not a descendant one. Task 10.2: like Console and Arrange, the
+   Mixer is bounded with the shell's deck row at its foot — the mini
+   transport's reservation is given back and the strip is not displayed (the
+   deck replaces it; it stays mounted for the routes that still show it). */
 .app-shell[data-active-room="mixer"] {
   height: 100dvh;
   max-height: 100dvh;
   overflow: hidden;
+  padding-bottom: 0;
+}
+
+.app-shell[data-active-room="mixer"] .mini-transport {
+  display: none;
 }
 
 [data-active-room="mixer"] .room__header {

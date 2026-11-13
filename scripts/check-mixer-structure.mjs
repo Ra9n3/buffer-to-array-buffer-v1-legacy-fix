@@ -257,7 +257,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the deck left the room for the shell's row. The checks around this pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "6bfadc638ecdcf9d45efb37239c04821c47f4d3f62e30166bf3c478abac6215d",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/ArrangeTrackRow.svelte": "bf5a41e9459048695f05a6b56c4e5d271e5ddd0b1ab83696d3ac6025ddd21fd3",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is

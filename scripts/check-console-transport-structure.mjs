@@ -8,10 +8,14 @@
  * the reduced-motion stillness were measured in a real browser (see
  * task-reports/2.3-report.md). What it tests is the source-level contract:
  *
- *   1. The Console has three zones — meter bridge, transport, channel bank —
- *      in that order, the transport deck a full-width housing of its own
- *      between the other two (owner, D2.3.1); the room prints the READY
- *      default (D2.3.4) and passes no state.
+ *   1. Since Task 10.2 (owner, D10.2.1) the deck is the SHELL's, not the
+ *      Console room's: App.svelte renders it once, live, outside the room
+ *      switch, under Console, Mixer and Arrange alike — one instance, so a
+ *      tab switch can never remount or reset it, and the three tabs show
+ *      the same deck. The Console room keeps the bridge and the bank, two
+ *      zones; MIX is the Console tab's alone (D10.2.2). The deck is a
+ *      full-width housing of its own (owner, D2.3.1); the room prints the
+ *      READY default (D2.3.4) and passes no state.
  *   2. The deck is COMPOSED of the approved Phase 1 components: four
  *      TactileSwitches as the transport keys PREVIOUS · PLAY · STOP · NEXT
  *      (owner's set, nothing else), EngravedLabel for every legend, the
@@ -27,8 +31,9 @@
  *      warnings in the red family — all from one fixture file.
  *   5. MIX is its own button in the keys' cream, larger than a key, not a switch,
  *      with its three fixture states (ready / processing / complete), press
- *      feedback, the approved Lamp beside it lit only while processing, and
- *      no handler: it starts nothing.
+ *      feedback, the approved Lamp beside it lit only while processing; it
+ *      renders only behind the deck's showMix prop, which the shell sets true
+ *      only on Console (Task 10.2, D10.2.2).
  *   6. Materials are tokens; the warm lamp family only (plan §4: no cold
  *      VFD blue / green); layered gradients, no flat fills; no hex literal.
  *   7. Fixture honesty: nothing references audio, clocks, timers, randomness,
@@ -36,8 +41,9 @@
  *      `data-simulated`; the deck says so in visible text.
  *   8. The playground shows every state through one fixture component.
  *   9. Scope: no screw heads (D2.1.9); every approved file this task touches
- *      nothing of is byte-identical; no dependency added or changed; the
- *      other rooms and the shell do not know the deck exists.
+ *      nothing of is byte-identical; no dependency added or changed; App
+ *      is the deck's one mount — the rooms and the shell's wrappers do not
+ *      know the deck exists (Task 10.2).
  *
  * Review changes of 2026-11-01 (owner, D2.3.10–D2.3.12): the Time / Status
  * windows became display screens on the VU meter's lamp-lit cream card —
@@ -82,7 +88,10 @@ const deck = read(`${dir}/ConsoleTransport.svelte`);
 const mix = read(`${dir}/MixButton.svelte`);
 const display = read(`${dir}/LampDisplay.svelte`);
 const fixtures = read(`${dir}/transport-fixtures.ts`);
+const app = read("src/App.svelte");
 const consoleRoom = read("src/rooms/ConsoleRoom.svelte");
+const mixerRoom = read("src/rooms/MixerRoom.svelte");
+const arrangeRoom = read("src/rooms/ArrangeRoom.svelte");
 const devPage = read("src/dev/DevComponentsPage.svelte");
 const devFixture = read("src/dev/TransportFixture.svelte");
 const pkg = JSON.parse(read("package.json"));
@@ -95,18 +104,33 @@ const displayTemplate = templateOf(display);
 const displayStyle = styleOf(display);
 const allTransportSource = [deck, mix, display, fixtures].join("\n");
 
-// --- 1. Three zones; the deck as the room's bottom bar; READY by default. ------
+// --- 1. One deck, at the shell, under the three rooms; READY by default. ------
 check(
-  "ConsoleRoom has exactly three zones — bridge, bank, then the transport as the room's bottom bar (Task 9.5, D9.5.1)",
+  "ConsoleRoom has exactly two zones — bridge, then bank (Task 10.2, D10.2.1: the deck left the room for the shell)",
   (consoleRoom.match(/data-console-zone="([a-z-]+)"/g) ?? []).join(",") ===
-    'data-console-zone="meter-bridge",data-console-zone="channel-bank",data-console-zone="transport"',
+    'data-console-zone="meter-bridge",data-console-zone="channel-bank"',
 );
-check("the transport zone is a section labelled by the deck's own engraved heading", /<section[^>]*class="console-zone console-zone--transport"[^>]*aria-labelledby="console-transport-title"/.test(consoleRoom) && /headingId = "console-transport-title"/.test(deck));
-check("ConsoleRoom imports the deck from its own folder", /import ConsoleTransport from "\.\.\/components\/console-transport\/ConsoleTransport\.svelte"/.test(consoleRoom));
-check("ConsoleRoom renders the deck once, live: the shared transport (Task 8.1)", count(consoleRoom, /<ConsoleTransport\b/g) === 1 && /<ConsoleTransport live \/>/.test(consoleRoom));
-check("the bridge and the bank are still rendered, once each, above it (Task 9.5: the deck is the room's bottom bar)", count(consoleRoom, /<ConsoleMeterBridge\b/g) === 1 && count(consoleRoom, /<ChannelBank\b/g) === 1 && consoleRoom.indexOf("<ConsoleMeterBridge") < consoleRoom.indexOf("<ChannelBank") && consoleRoom.indexOf("<ConsoleTransport") > consoleRoom.indexOf("<ChannelBank"));
-check("the room's grid gives the bank every free row and the deck a content-sized bar at the foot (never compressed)", /grid-template-rows:\s*max-content\s+minmax\(max-content, 1fr\)\s+max-content/.test(consoleRoom));
-check("the transport zone, like the bridge and bank, wears no Phase 0 frame (the deck is its own housing)", /\.console-zone--meter,\s*\.console-zone--transport,\s*\.console-zone--channels\s*{/.test(consoleRoom) || /\.console-zone--transport[^{]*{[^}]*border:\s*0/.test(consoleRoom));
+check(
+  "the shell renders the deck's own row, a section labelled by the deck's engraved heading (the label the Console room's zone used to carry)",
+  /<section class="app-deck" data-app-deck aria-labelledby="console-transport-title">/.test(app) &&
+    /headingId = "console-transport-title"/.test(deck),
+);
+check("App imports the deck from its own folder", /import ConsoleTransport from "\.\/components\/console-transport\/ConsoleTransport\.svelte"/.test(app));
+check(
+  "the shell renders the deck exactly once, live, outside the room switch — ONE instance for Console, Mixer and Arrange, never remounted by a tab switch (Task 10.2, D10.2.1)",
+  count(app, /<ConsoleTransport\b/g) === 1 &&
+    /<ConsoleTransport live showMix=\{room === "console"\} \/>/.test(app) &&
+    app.indexOf("<ConsoleTransport") > app.indexOf("{/if}"),
+);
+check(
+  "the bridge and the bank are still rendered by ConsoleRoom, once each, in order — the deck is no longer the room's to render",
+  count(consoleRoom, /<ConsoleMeterBridge\b/g) === 1 &&
+    count(consoleRoom, /<ChannelBank\b/g) === 1 &&
+    consoleRoom.indexOf("<ConsoleMeterBridge") < consoleRoom.indexOf("<ChannelBank") &&
+    !/ConsoleTransport|console-transport/.test(consoleRoom),
+);
+check("the room's grid gives the bank every free row — two rows since Task 10.2; the deck is the shell's own auto row at the foot, never compressed by a room", /grid-template-rows:\s*max-content\s+minmax\(max-content, 1fr\);/.test(consoleRoom));
+check("the skinned zones share the frameless reset — the transport zone left the rule with the deck", /\.console-zone--meter,\s*\.console-zone--channels\s*{/.test(consoleRoom));
 check("the deck is a full-width housing: the bridge recipe (cheeks + deck), width 100%", /\.transport\s*{[^}]*grid-template-columns:\s*var\(--b-cheek\) minmax\(0, 1fr\) var\(--b-cheek\)/s.test(deckStyle) && /\.transport\s*{[^}]*width:\s*100%/s.test(deckStyle) && count(deckTemplate, /transport__cheek--(left|right)/g) === 2);
 check("the deck does not change shape by viewport: no media or container query in it (the body wraps instead)", !/@media|@container/.test(deckStyle) && /\.transport__body\s*{[^}]*flex-wrap:\s*wrap/s.test(deckStyle));
 
@@ -147,6 +171,16 @@ check("both windows are named for assistive tech, with the simulated flag in the
 check("the fixture default is READY and the playground states are playing / processing / complete", /export const TRANSPORT_FIXTURE: TransportFixture = {\s*transport: "stopped"/.test(fixtures) && /mix: { state: "ready"/.test(fixtures) && /export const TRANSPORT_STATE_FIXTURES: Record<"playing" \| "processing" \| "complete", TransportFixture>/.test(fixtures) && /transport: "playing"/.test(fixtures) && /state: "processing", stageIndex: 2, progress: 0\.42/.test(fixtures) && /state: "complete"/.test(fixtures));
 
 // --- 5. MIX: dominant, in the keys' cream with its lamp, unmistakably not Play. --
+// Task 10.2 (owner, D10.2.2): MIX is the Console tab's alone. The deck takes a
+// showMix prop (default true, so the playground keeps its MIX); the shell sets
+// it true only on Console, and on Mixer and Arrange the deck's right end
+// collapses the column cleanly — no placeholder keeps its space, no other
+// control moves, and the status window remains the row's last word.
+check("the deck takes a showMix prop, default true (the playground keeps its MIX)", /showMix = true/.test(deck) && /showMix\?: boolean/.test(deck));
+check("the MIX column renders only behind the prop: {#if showMix} guards exactly the mix column", /\{#if showMix\}\s*<div class="transport__mix" data-transport-mix>/.test(deckTemplate) && count(deckTemplate, /data-transport-mix/g) === 1);
+check("the bar keeps its one line wherever MIX does not render: the body's floor is the MIX column's written-down height (46.2px: the 1.9rem cap in its 0.4rem well on its 3px lift — D10.2.2)", /--bar-line:\s*calc\(1\.9rem \+ 2 \* 0\.4rem \+ 3px\)/.test(deckStyle) && /\.transport__body\s*{[^}]*min-height:\s*var\(--bar-line\)/s.test(deckStyle));
+check("nothing else hides with MIX: the collapse keeps no dead gap (no placeholder, no visibility swap, no reserved width)", !/transport__mix--|mix-placeholder|visibility:\s*hidden/.test(deckTemplate + deckStyle));
+check("the shell sets showMix true only on the Console tab", /showMix=\{room === "console"\}/.test(app) && !/showMix=\{true\}/.test(app));
 check("MixButton is one real button with the MIX print, typed by MixState", count(mixTemplate, /<button\b/g) === 1 && /type="button"/.test(mixTemplate) && /<span class="mix__legend" data-part="legend">MIX<\/span>/.test(mixTemplate) && /state\?: MixState/.test(mix));
 check("MixButton exposes its state and its lamp on the root", /data-mix-button\s+data-mix-state={state}\s+data-mix-lamp={busy}/.test(mixTemplate) && /data-mix-key/.test(mixTemplate) && !/\blit\b/.test(mix.replace(/<style[\s\S]*<\/style>/, "").replace(/\/\*[\s\S]*?\*\//g, "").replace(/<!--[\s\S]*?-->/g, "").replace(/lit={busy}/g, "")));
 check("MIX is not a TactileSwitch and is not shaped like one: a wide rectangular cap", !/TactileSwitch|Knob|Fader/.test(mix) && /--mix-width,\s*8rem/.test(mixStyle) && /--mix-height,\s*4\.5rem/.test(mixStyle));
@@ -276,8 +310,9 @@ const pinned = {
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }
-const shellFiles = ["src/App.svelte", "src/components/RoomShell.svelte", "src/components/RoomNav.svelte", "src/components/MiniTransport.svelte", "src/rooms/ArrangeRoom.svelte", "src/rooms/MixerRoom.svelte", "src/components/ChannelBank.svelte", "src/components/meter-bridge/ConsoleMeterBridge.svelte"].map(read).join("\n");
-check("the shell, the other rooms, the bridge and the bank do not know the deck exists", !/console-transport|ConsoleTransport|MixButton|LampDisplay/.test(shellFiles));
+const shellFiles = ["src/components/RoomShell.svelte", "src/components/RoomNav.svelte", "src/components/MiniTransport.svelte", "src/rooms/ArrangeRoom.svelte", "src/rooms/MixerRoom.svelte", "src/rooms/ConsoleRoom.svelte", "src/components/ChannelBank.svelte", "src/components/meter-bridge/ConsoleMeterBridge.svelte"].map(read).join("\n");
+check("App.svelte is the deck's ONE mount (Task 10.2): the rooms, the shell's wrappers, the bridge and the bank neither import nor render the deck", !/ConsoleTransport|MixButton|LampDisplay|console-transport\//.test(shellFiles));
+check("no room renders a duplicate transport: the three room files have neither the deck nor the mini strip (the shell owns both)", ![consoleRoom, mixerRoom, arrangeRoom].some((src) => /ConsoleTransport|MiniTransport|data-mini-transport|data-console-transport/.test(src)));
 check(
   "no dependency added or changed",
   !("dependencies" in pkg) &&

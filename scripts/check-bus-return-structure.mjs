@@ -286,7 +286,9 @@ const pinned = {
   // real contract.
   // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
   // the paging rails, the bare scope, the re-spread bridge, the contained windows).
-  "src/components/console-transport/ConsoleTransport.svelte": "e54a710218e8fda0e9d620770aac1c967265cdc74ba67499263441bd18b2102b",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the deck gained the showMix prop. The checks around this pin still assert the file's real contract.
+  "src/components/console-transport/ConsoleTransport.svelte": "a997458ede85c93c4407ddbed5739cc0e7242aa86b81c032fb6f307790a68bbc",
 // Task 9.6 re-pinned (the 0.8x Console, decisions-log D9.6.x): this file
   // changed with the owner's density pass — the room's 0.8x scope, the bare
   // height-driven bridge, the halved transport bar, the walnut divider and
@@ -313,7 +315,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the deck left the room for the shell's row. The checks around this pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "6bfadc638ecdcf9d45efb37239c04821c47f4d3f62e30166bf3c478abac6215d",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

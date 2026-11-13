@@ -1,0 +1,280 @@
+{
+  "A console-1920x1080": {
+    "deckRow": {
+      "x": 0,
+      "y": 1021,
+      "w": 1920,
+      "h": 59,
+      "bottom": 1080,
+      "right": 1920,
+      "display": "block"
+    },
+    "deck": {
+      "x": 9.6,
+      "y": 1021,
+      "w": 1900.8,
+      "h": 52.6,
+      "bottom": 1073.6,
+      "right": 1910.4,
+      "display": "grid"
+    },
+    "miniDisplay": "none",
+    "mixButtons": 1,
+    "fullyVisible": true
+  },
+  "A mixer-1920x1080": {
+    "deckRow": {
+      "x": 0,
+      "y": 1021,
+      "w": 1920,
+      "h": 59,
+      "bottom": 1080,
+      "right": 1920,
+      "display": "block"
+    },
+    "deck": {
+      "x": 9.6,
+      "y": 1021,
+      "w": 1900.8,
+      "h": 52.6,
+      "bottom": 1073.6,
+      "right": 1910.4,
+      "display": "grid"
+    },
+    "miniDisplay": "none",
+    "mixButtons": 0,
+    "fullyVisible": true
+  },
+  "A arrange-1920x1080": {
+    "deckRow": {
+      "x": 0,
+      "y": 1021,
+      "w": 1920,
+      "h": 59,
+      "bottom": 1080,
+      "right": 1920,
+      "display": "block"
+    },
+    "deck": {
+      "x": 9.6,
+      "y": 1021,
+      "w": 1900.8,
+      "h": 52.6,
+      "bottom": 1073.6,
+      "right": 1910.4,
+      "display": "grid"
+    },
+    "miniDisplay": "none",
+    "mixButtons": 0,
+    "fullyVisible": true
+  },
+  "A home-1920x1080": {
+    "deckRow": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "bottom": 0,
+      "right": 0,
+      "display": "none"
+    },
+    "deck": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "bottom": 0,
+      "right": 0,
+      "display": "grid"
+    },
+    "miniDisplay": "block",
+    "mixButtons": 0,
+    "fullyVisible": true
+  },
+  "A console-1366x768": {
+    "deckRow": {
+      "x": 0,
+      "y": 709,
+      "w": 1366,
+      "h": 59,
+      "bottom": 768,
+      "right": 1366,
+      "display": "block"
+    },
+    "deck": {
+      "x": 9.6,
+      "y": 709,
+      "w": 1346.8,
+      "h": 52.6,
+      "bottom": 761.6,
+      "right": 1356.4,
+      "display": "grid"
+    },
+    "miniDisplay": "none",
+    "mixButtons": 1,
+    "fullyVisible": true
+  },
+  "A mixer-1366x768": {
+    "deckRow": {
+      "x": 0,
+      "y": 709,
+      "w": 1366,
+      "h": 59,
+      "bottom": 768,
+      "right": 1366,
+      "display": "block"
+    },
+    "deck": {
+      "x": 9.6,
+      "y": 709,
+      "w": 1346.8,
+      "h": 52.6,
+      "bottom": 761.6,
+      "right": 1356.4,
+      "display": "grid"
+    },
+    "miniDisplay": "none",
+    "mixButtons": 0,
+    "fullyVisible": true
+  },
+  "A arrange-1366x768": {
+    "deckRow": {
+      "x": 0,
+      "y": 709,
+      "w": 1366,
+      "h": 59,
+      "bottom": 768,
+      "right": 1366,
+      "display": "block"
+    },
+    "deck": {
+      "x": 9.6,
+      "y": 709,
+      "w": 1346.8,
+      "h": 52.6,
+      "bottom": 761.6,
+      "right": 1356.4,
+      "display": "grid"
+    },
+    "miniDisplay": "none",
+    "mixButtons": 0,
+    "fullyVisible": true
+  },
+  "A home-1366x768": {
+    "deckRow": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "bottom": 0,
+      "right": 0,
+      "display": "none"
+    },
+    "deck": {
+      "x": 0,
+      "y": 0,
+      "w": 0,
+      "h": 0,
+      "bottom": 0,
+      "right": 0,
+      "display": "grid"
+    },
+    "miniDisplay": "block",
+    "mixButtons": 0,
+    "fullyVisible": true
+  },
+  "A deck height identical on the three tabs (1920)": {
+    "console": 52.6,
+    "mixer": 52.6,
+    "arrange": 52.6
+  },
+  "A deck height identical on the three tabs (1366)": {
+    "console": 52.6,
+    "mixer": 52.6,
+    "arrange": 52.6
+  },
+  "B mixer-vs-arrange deck real diff bbox (tol 2)": "None",
+  "B console-vs-mixer deck real diff bbox (tol 2)": "(1757, 6, 1870, 50)",
+  "B console-vs-mixer first differing x vs MIX column left edge": {
+    "firstDiffX": 1757,
+    "mixColumnLeftInCrop": 1757.7,
+    "differencesConfinedToMixColumn": true
+  },
+  "B keys/time/status left edges identical across tabs": {
+    "keys": true,
+    "time": true,
+    "status": true,
+    "statusWidth": [
+      360,
+      360,
+      360
+    ]
+  },
+  "B vertical: keys/time y identical across tabs": {
+    "keysY": [
+      1025.4,
+      1025.4,
+      1025.4
+    ],
+    "timeY": [
+      1025.3,
+      1025.3,
+      1025.3
+    ]
+  },
+  "B console deck vs baseline deck real diff bbox (tol 2)": "(1900, 2, 1901, 53)",
+  "F home 1920 diff bbox + confined to the opened-time line": {
+    "bbox": "(696, 621, 707, 629)",
+    "tsBox": {
+      "x": 460,
+      "y": 620.5625,
+      "w": 931.40625,
+      "h": 11.5
+    },
+    "confined": true
+  },
+  "F home 1366 diff bbox (same wall-clock line expected)": "(419, 621, 430, 629)",
+  "F home mini visible, deck hidden": {
+    "mini": "block",
+    "deck": "none"
+  },
+  "D imported tracks": 2,
+  "C mix present on console": true,
+  "C mix state right after press": "processing",
+  "C mix state after render": "complete",
+  "C status word after render": "MIXED",
+  "D deck state on console after play": "playing",
+  "D clock on console": "0:00:00",
+  "D on mixer": {
+    "nodeMarker": "same-node",
+    "state": "playing",
+    "clock": "0:00:01",
+    "mixButtons": 0
+  },
+  "D on arrange": {
+    "nodeMarker": "same-node",
+    "state": "playing",
+    "clock": "0:00:03",
+    "mixButtons": 0
+  },
+  "D on console": {
+    "nodeMarker": "same-node",
+    "state": "playing",
+    "clock": "0:00:04",
+    "mixButtons": 1
+  },
+  "D deck display on home": "none",
+  "D node marker after home round-trip": "same-node",
+  "E arrange deck unmoved": true,
+  "E mixer deck unmoved": true,
+  "G deck at 1024x768": {
+    "x": 9.6,
+    "y": 709,
+    "w": 1004.8,
+    "h": 52.6,
+    "bottom": 761.6,
+    "right": 1014.4,
+    "display": "grid"
+  },
+  "G deck no horizontal overflow": true
+}

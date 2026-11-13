@@ -49,7 +49,7 @@ const tests = read("tests/playback.test.mjs");
 const mini = read("src/components/MiniTransport.svelte");
 const deck = read("src/components/console-transport/ConsoleTransport.svelte");
 const mix = read("src/components/console-transport/MixButton.svelte");
-const consoleRoom = read("src/rooms/ConsoleRoom.svelte");
+const app = read("src/App.svelte");
 const projectShell = read("src/lib/project/shell.ts");
 
 // --- 1. One shared transport -------------------------------------------------
@@ -85,7 +85,7 @@ check("Web Audio is confined to the playback backend", /AudioContext/.test(W) &&
 
 // --- 6. Room integration ------------------------------------------------------
 check("the mini transport drives the shared facade", /transport\.togglePlay\(\)/.test(mini) && /transport\.stop\(\)/.test(mini) && /transport\.seek/.test(mini));
-check("the Console deck is live and drives the same facade", /<ConsoleTransport live \/>/.test(consoleRoom) && /transport\.togglePlay\(\)/.test(deck) && /transport\.render\(\)/.test(deck));
+check("the shared deck is live at the shell and drives the same facade (Task 10.2: one deck under Console, Mixer and Arrange, MIX only on Console)", /<ConsoleTransport live showMix=\{room === "console"\} \/>/.test(app) && /transport\.togglePlay\(\)/.test(deck) && /transport\.render\(\)/.test(deck));
 check("MIX starts the rendered path through a callback, not a navigation", /onPress\?: \(\(\) => void\) \| undefined/.test(mix) && /onclick=\{press\}/.test(mix));
 check("the playground deck can still run simulated", /live = false/.test(deck) && /data-simulated={simulated}/.test(deck));
 

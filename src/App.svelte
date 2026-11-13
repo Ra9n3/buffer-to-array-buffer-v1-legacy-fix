@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import AppToolbar from "./components/AppToolbar.svelte";
   import ChromeBand from "./components/ChromeBand.svelte";
+  import ConsoleTransport from "./components/console-transport/ConsoleTransport.svelte";
   import MenuBar from "./components/MenuBar.svelte";
   import MiniTransport from "./components/MiniTransport.svelte";
   import RoomNav from "./components/RoomNav.svelte";
@@ -183,8 +184,27 @@
     {/if}
   </main>
 
+  <!-- Task 10.2 (owner, D10.2.1): the transport deck, lifted to the shell.
+       The full deck that was the Console room's own bottom bar since Task 9.5
+       renders ONCE here, below whichever room is active — one mounted
+       instance for Console, Mixer and Arrange alike, so the keys, the windows
+       and the button states are the same on every tab and no tab switch can
+       remount or reset them. app.css displays the row only for those three
+       rooms; Home, Settings and the private playground keep the mini
+       transport below and never see the deck. MIX is the Console's alone
+       (D10.2.2): the shell passes showMix true only there, and the deck
+       collapses the column cleanly on the other two tabs. The section is
+       labelled by the deck's own engraved heading (its default id). -->
+  <section class="app-deck" data-app-deck aria-labelledby="console-transport-title">
+    <ConsoleTransport live showMix={room === "console"} />
+  </section>
+
   <!-- Rendered once, outside the room switch, so the transport is never
-       remounted and never moves when the room changes. -->
+       remounted and never moves when the room changes. Since Task 10.2 it is
+       displayed only on the routes the deck does not serve (Home, Settings,
+       the private playground) — the three rooms show the shell's deck row
+       instead (app.css); the strip itself is never unmounted, only not
+       displayed there. -->
   <MiniTransport />
 </div>
 

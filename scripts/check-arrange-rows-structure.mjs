@@ -300,7 +300,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/app.css": "fcefcc5cae66ff67ea3d87cb11f31a6a90e561e248912bad0a97e59a061bb027",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the shell gained the deck's row. The checks around this pin still assert the file's real contract.
+  "src/app.css": "8f05c89c3569e7eb58bde6fe6116610b85a5b576d85dbc8dc3a4d2a140208d6a",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.
@@ -319,7 +321,9 @@ const pinned = {
   // height-driven bridge, the halved transport bar, the walnut divider and
   // the snapping rails. The checks around this pin still assert the file's
   // real contract.
-  "src/rooms/ConsoleRoom.svelte": "b9bb7d57ab1f90503798e8fbd2a4c753e43b86eac08e56e6fa591dedd4a6ecde",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the deck left the room for the shell's row. The checks around this pin still assert the file's real contract.
+  "src/rooms/ConsoleRoom.svelte": "6bfadc638ecdcf9d45efb37239c04821c47f4d3f62e30166bf3c478abac6215d",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
@@ -423,7 +427,9 @@ const pinned = {
   // real contract.
   // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
   // the paging rails, the bare scope, the re-spread bridge, the contained windows).
-  "src/components/console-transport/ConsoleTransport.svelte": "e54a710218e8fda0e9d620770aac1c967265cdc74ba67499263441bd18b2102b",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the deck gained the showMix prop. The checks around this pin still assert the file's real contract.
+  "src/components/console-transport/ConsoleTransport.svelte": "a997458ede85c93c4407ddbed5739cc0e7242aa86b81c032fb6f307790a68bbc",
   // Task 9.1.1 re-pinned the strip (owner decision D9.1.2 option a): it now mounts the
   // listening-source selector beside the keys, in its own component. The strip's layout,
   // the four Phase 0 keys and their functions are unchanged; what moved the hash is one
@@ -448,7 +454,9 @@ const pinned = {
 
 
   // Task 10.1 re-pinned (the follow group in the top bar, D10.1.6).
-  "src/App.svelte": "514603945ccb3e73b6eff14544ca76fabec7eba05be40246159b20e5f6468730",
+  // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
+  // the shell gained the deck's row. The checks around this pin still assert the file's real contract.
+  "src/App.svelte": "e7fa23d3206c419579024c90d5d5f843fab2be4d4f1fcf2f17dfdf0ec0b1ceb5",
   "src/components/RoomShell.svelte": "815bcb79e940433591c632d7ae98c4a5e918394b14d97726ae33c6002d808a71",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

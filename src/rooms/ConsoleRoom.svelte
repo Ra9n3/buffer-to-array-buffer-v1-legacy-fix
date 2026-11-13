@@ -1,6 +1,5 @@
 <script lang="ts">
   import ChannelBank from "../components/ChannelBank.svelte";
-  import ConsoleTransport from "../components/console-transport/ConsoleTransport.svelte";
   import EmptyProjectNotice from "../components/EmptyProjectNotice.svelte";
   import ConsoleMeterBridge from "../components/meter-bridge/ConsoleMeterBridge.svelte";
   import RoomShell from "../components/RoomShell.svelte";
@@ -13,12 +12,13 @@
      spacing steps and the type ramp — is rescaled by 0.8 in ONE place, the
      room's own scope, and every fixed geometry the room's components declare
      (the strip's width and its controls' sizes, the decks' cheeks, the
-     transport's caps and windows, the bridge's instruments) is written down at
-     its 0.8× value beside its component. The tokens.css file is untouched: the
-     tokens are the 1× authority, and this scope is the Console's density, the
-     way a hardware console's photo and its 1:1 face differ only in scale.
-     Nothing outside .console-room is affected — the shell, the header, the
-     other rooms keep their 1×. */
+     bridge's instruments) is written down at its 0.8× value beside its
+     component. The tokens.css file is untouched: the tokens are the 1×
+     authority, and this scope is the Console's density, the way a hardware
+     console's photo and its 1:1 face differ only in scale. Nothing outside
+     .console-room is affected — the shell, the header, the other rooms keep
+     their 1× (the shell's deck row carries the deck's own copy of this list,
+     Task 10.2). */
 
   /* Task 9.5 — the one-window Console, the owner's reference console's
      layout (owner decision D9.5.1, 2026-11-12, with the reference
@@ -35,23 +35,28 @@
                       thing in the whole program, and they are the first thing
                       on screen, whole, never scrolled away to reach (the 9.4
                       report's words for the failure this layout fixes).
-       TRANSPORT      the full deck at the very BOTTOM, like the reference's,
-                      nearly half its Task 9.5 height (D9.6.2): the four keys,
-                      the lamp-lit time and status windows and the dominant
-                      MIX button at the right end.
+       TRANSPORT      the full deck — Task 10.2 (owner, D10.2.1): the deck
+                      that was this room's third row, its own bottom bar, is
+                      lifted to the shell and rendered once BELOW the room,
+                      shared with the Mixer and the Arrange rooms (the
+                      owner's instruction: all three tabs show the same
+                      transport bar). The room itself is the two zones above;
+                      the shell's deck row is this room's foot now, and its
+                      MIX button shows only here (D10.2.2).
 
-     The shell's persistent mini transport does not show in this room
-     (app.css): the room's own bottom bar IS the transport here, and two
-     bars at one foot would be one too many. It stays mounted — the shell
-     renders it outside the room switch — it is only not displayed.
+     The shell's persistent mini transport does not show in this room (app.css)
+     — nor in Mixer or Arrange, which show the same deck — and the deck row
+     below is the one transport any of the three rooms has. The strip stays
+     mounted — the shell renders it outside the room switch — it is only not
+     displayed; the routes without the deck keep it.
 
      The room never scrolls vertically on a normal desktop window: the
      bridge and the bar hold their compact heights and the bank takes the
      rest. On a window too short for the strip's minimum, the layout scrolls
      inside the room — never the page, and never sideways. The zone hooks
-     and their accessible names (the bridge's, the bank's, the transport's)
-     are unchanged: the bridge, the bank and the transport still render the
-     <h2>s their zones are labelled by (visually hidden now, Task 9.5). */
+     and their accessible names (the bridge's, the bank's) are unchanged:
+     the two zones still render the <h2>s their zones are labelled by
+     (visually hidden since Task 9.5). */
 </script>
 
 <RoomShell
@@ -81,14 +86,6 @@
           <ChannelBank />
         {/if}
       </section>
-
-      <section
-        class="console-zone console-zone--transport"
-        data-console-zone="transport"
-        aria-labelledby="console-transport-title"
-      >
-        <ConsoleTransport live />
-      </section>
     </div>
   </div>
 </RoomShell>
@@ -105,8 +102,11 @@
        whole density change for everything token-driven — the engraved print,
        the paddings, the gaps, the recess insets. The fixed geometries the
        room's own components declare (strip width, control sizes, deck
-       cheeks, transport caps and windows, bridge instruments) are written at
-       their 0.8× value in the component that owns them, each with its D-ref.
+       cheeks, bridge instruments) are written at their 0.8× value in the
+       component that owns them, each with its D-ref — the transport deck's
+       caps and windows left with the deck (Task 10.2), and their written-down
+       0.8× values went with the component: the shell's deck row carries this
+       same token scope for them (app.css).
 
        tokens.css stays the 1× authority, untouched; nothing above this
        element — the shell, the header, the other rooms — sees any of this.
@@ -138,12 +138,13 @@
     height: 100%;
   }
 
-  /* Task 9.5: the bridge holds its compact height, the bank takes everything
-     between the two decks but never less than its own content, and the
-     transport deck is the room's bottom bar. The minimums are max-content
-     rather than auto on purpose: with a definite layout height and no free
-     space, an auto row collapses below its content and the zones overlap.
-     On a window too short for all three, the layout scrolls vertically
+  /* Task 9.5: the bridge holds its compact height and the bank takes
+     everything below it but never less than its own content. Task 10.2: the
+     transport row is gone — the deck is the shell's foot row below the room —
+     so the layout is the two rows the room owns. The minimum is
+     max-content rather than auto on purpose: with a definite layout height
+     and no free space, an auto row collapses below its content and the zones
+     overlap. On a window too short for both, the layout scrolls vertically
      inside the room — never the page, and never sideways. */
   .console-layout {
     display: grid;
@@ -151,8 +152,7 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows:
       max-content
-      minmax(max-content, 1fr)
-      max-content;
+      minmax(max-content, 1fr);
     /* 0.375 × 0.8 — the zones' seams at the room's density (D9.6.1) */
     gap: 0.3rem;
     min-width: 0;
@@ -179,9 +179,9 @@
   }
 
   /* The skinned zones are their own housings: no placeholder frame round
-     them (the bridge, the bank, the transport). */
+     them (the bridge, the bank — the transport zone left the room with the
+     deck, Task 10.2). */
   .console-zone--meter,
-  .console-zone--transport,
   .console-zone--channels {
     padding: 0;
     border: 0;
