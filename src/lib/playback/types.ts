@@ -81,6 +81,17 @@ export interface PlaybackOutput {
   drain?(): Promise<void>;
   stop(): void;
   dispose?(): void | Promise<void>;
+  /**
+   * Stage 0: set the queue depth for the attempt that follows. Raw and preview
+   * play with `LIVE_PLAYBACK_QUEUE_SECONDS`; render keeps `PLAYBACK_QUEUE_SECONDS`.
+   * Optional so test doubles need not implement it.
+   */
+  setQueueSeconds?(seconds: number): void;
+  /**
+   * Stage 0: chunks scheduled after their intended start time had already passed,
+   * counted since the last `begin`. Optional so test doubles need not implement it.
+   */
+  readonly underruns?: number;
 }
 
 export interface PlaybackClock {
@@ -137,6 +148,30 @@ export const DEFAULT_PLAYBACK_CHUNK_FRAMES = 2048;
 export const DEFAULT_RENDER_PLAYBACK_CHUNK_FRAMES = 4096;
 /** About one second of scheduled audio is enough to hide timer jitter without a project-sized queue. */
 export const PLAYBACK_QUEUE_SECONDS = 1;
+/**
+ * Stage 0: the live (raw and preview) producer block and queue depth. A smaller
+ * chunk and a shorter queue cut the delay between a mixer move and what is
+ * audible; render playback keeps its own, larger defaults above.
+ */
+export const LIVE_PLAYBACK_CHUNK_FRAMES = 1024;
+export const LIVE_PLAYBACK_QUEUE_SECONDS = 0.15;
+
+/**
+ * Stage 0: live playback diagnostics, exposed through the debug handle's
+ * transport facade (`window.alloy.transport.playbackStats()`).
+ */
+export interface PlaybackStats {
+  /** Chunks scheduled after their intended start time, since the attempt began. */
+  readonly underruns: number;
+  /** Mean milliseconds spent inside `session.next()` this attempt (0 before any). */
+  readonly meanProcessMs: number;
+  /** Max milliseconds spent inside one `session.next()` this attempt. */
+  readonly maxProcessMs: number;
+  /** The attempt's producer block, frames (render attempts use the render chunk). */
+  readonly chunkFrames: number;
+  /** The queue depth the attempt runs with, seconds. */
+  readonly queueSeconds: number;
+}
 
 export function initialPlaybackState(sampleRate: number): PlaybackState {
   return {

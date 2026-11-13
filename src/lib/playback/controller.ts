@@ -31,12 +31,15 @@ import {
   DEFAULT_PLAYBACK_CHUNK_FRAMES,
   DEFAULT_RENDER_PLAYBACK_CHUNK_FRAMES,
   initialPlaybackState,
+  LIVE_PLAYBACK_QUEUE_SECONDS,
+  PLAYBACK_QUEUE_SECONDS,
   sourceDurationFrames,
   STOP_BEHAVIOUR_OFF,
   type ListeningSource,
   type LoopRegion,
   type PlaybackControllerOptions,
   type PlaybackState,
+  type PlaybackStats,
   type PcmChunk,
   type StopBehaviour,
 } from "./types";
@@ -73,6 +76,17 @@ export class PlaybackController {
    * the mix after a cleared one would reuse the number of the mix before it.
    */
   private mixRevisions = 0;
+  /**
+   * Stage 0 Step 5: what the current attempt's `session.next()` calls cost —
+   * count, total and max in ms (performance.now around each call). Reset at
+   * every attempt; render attempts take no session path and stay at zero.
+   */
+  private processSamples = 0;
+  private processTotalMs = 0;
+  private processMaxMs = 0;
+  /** Stage 0: the chunk size and queue depth the current (or last) attempt runs with. */
+  private lastChunkFrames: number;
+  private lastQueueSeconds: number;
   private cancelPoll: () => void;
   private disposed = false;
 
@@ -83,6 +97,8 @@ export class PlaybackController {
     this.clock = options.clock;
     this.chunkFrames = options.chunkFrames ?? DEFAULT_PLAYBACK_CHUNK_FRAMES;
     this.renderChunkFrames = options.renderChunkFrames ?? DEFAULT_RENDER_PLAYBACK_CHUNK_FRAMES;
+    this.lastChunkFrames = this.chunkFrames;
+    this.lastQueueSeconds = LIVE_PLAYBACK_QUEUE_SECONDS;
     this.tailSeconds = options.tailSeconds;
     this.stopBehaviour = options.stopBehaviour ?? (() => STOP_BEHAVIOUR_OFF);
     this.loop = options.loop ?? (() => null);
@@ -92,6 +108,20 @@ export class PlaybackController {
 
   getState(): PlaybackState {
     return { ...this.state };
+  }
+
+  /**
+   * Stage 0 Step 5: live playback diagnostics for the current (or last) attempt
+   * — the debug handle's transport facade hands this to `?debug` sessions.
+   */
+  playbackStats(): PlaybackStats {
+    return {
+      underruns: this.output.underruns ?? 0,
+      meanProcessMs: this.processSamples > 0 ? this.processTotalMs / this.processSamples : 0,
+      maxProcessMs: this.processMaxMs,
+      chunkFrames: this.lastChunkFrames,
+      queueSeconds: this.lastQueueSeconds,
+    };
   }
 
   subscribe(listener: (state: PlaybackState) => void): () => void {
@@ -319,6 +349,16 @@ export class PlaybackController {
     this.abort = abort;
     const project = this.getProject();
     const source = this.state.source;
+    // Stage 0 Step 4: raw and preview run with the live queue; a render attempt
+    // keeps the shared PLAYBACK_QUEUE_SECONDS. Step 5: the attempt's process
+    // timing starts clean here.
+    const queueSeconds = source === "render" ? PLAYBACK_QUEUE_SECONDS : LIVE_PLAYBACK_QUEUE_SECONDS;
+    this.output.setQueueSeconds?.(queueSeconds);
+    this.lastChunkFrames = source === "render" ? this.renderChunkFrames : this.chunkFrames;
+    this.lastQueueSeconds = queueSeconds;
+    this.processSamples = 0;
+    this.processTotalMs = 0;
+    this.processMaxMs = 0;
     this.set({ status: source === "render" ? "rendering" : "playing", positionFrames: fromFrame, error: null, renderProgress: source === "render" ? 0 : null });
 
     let sources: ReadonlyMap<TrackId, RenderSource> | null = null;
@@ -364,7 +404,13 @@ export class PlaybackController {
     try {
       for (;;) {
         if (signal.aborted || generation !== this.generation) return;
+        // Stage 0 Step 5: what one bounded producer block costs, mean and max.
+        const startedAt = performance.now();
         const chunk = await session.next(signal);
+        const spentMs = performance.now() - startedAt;
+        this.processSamples++;
+        this.processTotalMs += spentMs;
+        if (spentMs > this.processMaxMs) this.processMaxMs = spentMs;
         if (!chunk) break;
         if (signal.aborted || generation !== this.generation) return;
         await this.output.write(chunk);

@@ -8,7 +8,14 @@
 
 import type { PlaybackController } from "./controller";
 import { DEFAULT_PROJECT_RATE } from "../audio/rates";
-import { initialPlaybackState, type ListeningSource, type PlaybackState } from "./types";
+import {
+  initialPlaybackState,
+  LIVE_PLAYBACK_CHUNK_FRAMES,
+  LIVE_PLAYBACK_QUEUE_SECONDS,
+  type ListeningSource,
+  type PlaybackState,
+  type PlaybackStats,
+} from "./types";
 
 // Task 11.1: the boot placeholder runs at the default rate until a controller
 // attaches (its own output carries the open project's rate); every readout
@@ -67,6 +74,22 @@ export const transport = {
   syncPosition(): void { controller?.syncPosition(); },
   /** Recompute the playable length without playing (Task 9.1). */
   refreshDuration(): Promise<void> { return controller?.refreshDuration() ?? Promise.resolve(); },
+  /**
+   * Stage 0: live playback diagnostics for the current (or last) attempt. The
+   * debug handle carries this facade (`window.alloy.transport.playbackStats()`),
+   * so `?debug` sessions read it from the console with no visible UI.
+   */
+  playbackStats(): PlaybackStats {
+    return (
+      controller?.playbackStats() ?? {
+        underruns: 0,
+        meanProcessMs: 0,
+        maxProcessMs: 0,
+        chunkFrames: LIVE_PLAYBACK_CHUNK_FRAMES,
+        queueSeconds: LIVE_PLAYBACK_QUEUE_SECONDS,
+      }
+    );
+  },
 } as const;
 
 /** H:MM:SS.mmm for the mini transport's existing position readout. */

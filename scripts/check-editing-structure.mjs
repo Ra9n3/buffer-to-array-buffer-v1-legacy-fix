@@ -221,7 +221,8 @@ const REQUIRED_TEST_FILES = [
 ];
 /** Suites a later task may append to `npm test`. Task 9.1 added the cross-layer joints. */
 // Task 10.1: the playhead suite is sanctioned after the required list.
-const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs", "tests/resample.test.mjs"];
+// Stage 0: the live-gain suite (T1/T2 ramps, the T6 render-identity golden).
+const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs", "tests/resample.test.mjs", "tests/engine-live-gains.test.mjs"];
 const testCommand = pkg.scripts.test ?? "";
 const namedSuites = testCommand.split(/\s+/).filter((part) => part.startsWith("tests/"));
 check(

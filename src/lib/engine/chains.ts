@@ -25,6 +25,14 @@
  *   - the Return's `second` control is **pre-delay in ms for a reverb** and
  *     **feedback in per cent for a delay** (plan §8a lists both), and the two
  *     approved modules take exactly those.
+ *
+ * STAGE 0 (live mixer controls): trim, PAN, BALANCE and the fader levels are no
+ * longer frozen at construction. Every block re-reads them from the channel the
+ * chain was built from — the same live read `MixEngine.process` applies to send
+ * levels — and a changed gain crosses the block as a linear ramp from the gain
+ * the previous block ended on. A gain that has not changed keeps today's single
+ * constant multiply, sample for sample. Everything else (EQ, dynamic EQ,
+ * expander, compressor, effect settings) is still construction-captured.
  */
 
 import { Compressor, type CompressorCharacterId } from "../dsp/compressor";
@@ -36,9 +44,9 @@ import { Reverb, type ReverbCharacterId } from "../dsp/reverb";
 import type { DspOptions } from "../dsp/params";
 import type { BandId, CharacterId, CompState, EqState } from "../mixer-chain";
 import type { ReturnChainState } from "../return-chain";
-import type { Bus, ReturnBus, Track } from "../project/model";
+import type { Bus, BusChannel, ReturnBus, ReturnChannel, Track, TrackChannel } from "../project/model";
 import { CLEANUP_EXPANDER, DYNAMIC_BAND_GATE } from "./constants";
-import { balanceGains, panGains, type PanGains } from "./pan";
+import { balanceGains, panGains } from "./pan";
 
 const CHANNELS = 2;
 
@@ -157,11 +165,22 @@ export interface DetectorKeys {
 }
 
 export class TrackChain {
-  readonly trimGain: number;
-  readonly faderGain: number;
-  readonly pan: PanGains;
+  /** The channel this chain was built from — trim, pan and level are read from it every block (Stage 0). */
+  private readonly channel: TrackChannel;
+  trimGain: number;
+  faderGain: number;
+  readonly pan: { left: number; right: number };
   readonly hasExpander: boolean;
   readonly hasDynamicEq: boolean;
+
+  /** The model values the current derived gains were computed from (Stage 0 change detection). */
+  private lastTrimDb: number;
+  private lastPan: number;
+  private lastLevelDb: number;
+  /** The gain each stage ended its last block on — where the next ramp starts. */
+  private prevTrimGain: number;
+  private prevLeftGain: number;
+  private prevRightGain: number;
 
   private readonly expander: Expander | null;
   private readonly eq: Eq;
@@ -170,9 +189,16 @@ export class TrackChain {
 
   constructor(track: Track, options: DspOptions, maskingDynamicBands: readonly MaskingDynamicBand[] = []) {
     const channel = track.channel;
+    this.channel = channel;
     this.trimGain = dbToGain(channel.trim);
     this.faderGain = levelGain(channel.level);
     this.pan = panGains(channel.pan);
+    this.lastTrimDb = channel.trim;
+    this.lastPan = channel.pan;
+    this.lastLevelDb = channel.level;
+    this.prevTrimGain = this.trimGain;
+    this.prevLeftGain = this.pan.left * this.faderGain;
+    this.prevRightGain = this.pan.right * this.faderGain;
 
     this.expander = track.chain.cleanup
       ? new Expander(
@@ -202,23 +228,75 @@ export class TrackChain {
    * two: after them the signal belongs to the summing stage.
    */
   process(buffer: readonly Float32Array[], frames: number, keys?: DetectorKeys): void {
+    // Stage 0: TRIM is read live, exactly like MixEngine's send levels; the derived
+    // gain is recomputed only when the value moved since the last block.
+    const trimDb = this.channel.trim;
+    if (trimDb !== this.lastTrimDb) {
+      this.lastTrimDb = trimDb;
+      this.trimGain = dbToGain(trimDb);
+    }
     const trim = this.trimGain;
-    for (let c = 0; c < CHANNELS; c++) {
-      const data = buffer[c];
-      for (let i = 0; i < frames; i++) data[i] *= trim;
+    if (trim !== this.prevTrimGain) {
+      // A changed trim crosses the block as a linear ramp; an unchanged one keeps
+      // today's single constant multiply, sample for sample.
+      const from = this.prevTrimGain;
+      const delta = trim - from;
+      for (let c = 0; c < CHANNELS; c++) {
+        const data = buffer[c];
+        for (let i = 0; i < frames; i++) data[i] *= from + (delta * (i + 1)) / frames;
+      }
+      this.prevTrimGain = trim;
+    } else {
+      for (let c = 0; c < CHANNELS; c++) {
+        const data = buffer[c];
+        for (let i = 0; i < frames; i++) data[i] *= trim;
+      }
     }
     if (this.expander) this.expander.process(buffer, buffer, frames);
     this.eq.process(buffer, buffer, frames);
     if (this.dynamicEq) this.dynamicEq.process(buffer, buffer, frames, keys?.dynamicEq);
     this.compressor.process(buffer, buffer, frames, keys?.compressor);
 
+    // Stage 0: PAN and the fader are read live as well. The pan law is inlined
+    // here (panGains returns a fresh pair, and process must not allocate), with
+    // the exact arithmetic of engine/pan.ts.
+    const pan = this.channel.pan;
+    if (pan !== this.lastPan) {
+      this.lastPan = pan;
+      const finite = Number.isFinite(pan) ? pan : 0;
+      const position = Math.min(100, Math.max(-100, finite));
+      const theta = ((position + 100) / 200) * (Math.PI / 2);
+      const cos = Math.cos(theta);
+      const sin = Math.sin(theta);
+      this.pan.left = Math.abs(cos) < 1e-15 ? 0 : cos;
+      this.pan.right = Math.abs(sin) < 1e-15 ? 0 : sin;
+    }
+    const levelDb = this.channel.level;
+    if (levelDb !== this.lastLevelDb) {
+      this.lastLevelDb = levelDb;
+      this.faderGain = levelGain(levelDb);
+    }
     const left = this.pan.left * this.faderGain;
     const right = this.pan.right * this.faderGain;
     const targetL = buffer[0];
     const targetR = buffer[1];
-    for (let i = 0; i < frames; i++) {
-      targetL[i] *= left;
-      targetR[i] *= right;
+    if (left !== this.prevLeftGain || right !== this.prevRightGain) {
+      // Each side ramps separately, from the pan×fader gain its last block ended on.
+      const fromL = this.prevLeftGain;
+      const fromR = this.prevRightGain;
+      const deltaL = left - fromL;
+      const deltaR = right - fromR;
+      for (let i = 0; i < frames; i++) {
+        targetL[i] *= fromL + (deltaL * (i + 1)) / frames;
+        targetR[i] *= fromR + (deltaR * (i + 1)) / frames;
+      }
+      this.prevLeftGain = left;
+      this.prevRightGain = right;
+    } else {
+      for (let i = 0; i < frames; i++) {
+        targetL[i] *= left;
+        targetR[i] *= right;
+      }
     }
   }
 
@@ -242,18 +320,34 @@ export class TrackChain {
 
 /** One bus's chain: the strip's trim → EQ → compressor → balance → fader. */
 export class BusChain {
-  readonly trimGain: number;
-  readonly balance: PanGains;
-  readonly faderGain: number;
+  /** The channel this chain was built from — trim, balance and level are read from it every block (Stage 0). */
+  private readonly channel: BusChannel;
+  trimGain: number;
+  readonly balance: { left: number; right: number };
+  faderGain: number;
   readonly hasDynamicEq = false;
+
+  private lastTrimDb: number;
+  private lastBalance: number;
+  private lastLevelDb: number;
+  private prevTrimGain: number;
+  private prevLeftGain: number;
+  private prevRightGain: number;
 
   private readonly eq: Eq;
   private readonly compressor: Compressor;
 
   constructor(bus: Bus, options: DspOptions) {
+    this.channel = bus.channel;
     this.trimGain = dbToGain(bus.channel.trim);
     this.balance = balanceGains(bus.channel.balance);
     this.faderGain = levelGain(bus.channel.level);
+    this.lastTrimDb = bus.channel.trim;
+    this.lastBalance = bus.channel.balance;
+    this.lastLevelDb = bus.channel.level;
+    this.prevTrimGain = this.trimGain;
+    this.prevLeftGain = this.balance.left * this.faderGain;
+    this.prevRightGain = this.balance.right * this.faderGain;
     this.eq = new Eq({ bypassed: bus.chain.eq.bypassed, bands: eqBands(bus.chain.eq) }, options);
     this.compressor = compressorOf(bus.chain.comp, options);
   }
@@ -265,20 +359,73 @@ export class BusChain {
 
   /** No expander, no dynamic band and no sends: none of them is in the plan for a bus. */
   process(buffer: readonly Float32Array[], frames: number, keys?: DetectorKeys): void {
+    // Stage 0: TRIM is read live, like a send level; the derived gain is
+    // recomputed only when the value moved, and a change ramps across the block.
+    const trimDb = this.channel.trim;
+    if (trimDb !== this.lastTrimDb) {
+      this.lastTrimDb = trimDb;
+      this.trimGain = dbToGain(trimDb);
+    }
     const trim = this.trimGain;
-    for (let c = 0; c < CHANNELS; c++) {
-      const data = buffer[c];
-      for (let i = 0; i < frames; i++) data[i] *= trim;
+    if (trim !== this.prevTrimGain) {
+      const from = this.prevTrimGain;
+      const delta = trim - from;
+      for (let c = 0; c < CHANNELS; c++) {
+        const data = buffer[c];
+        for (let i = 0; i < frames; i++) data[i] *= from + (delta * (i + 1)) / frames;
+      }
+      this.prevTrimGain = trim;
+    } else {
+      for (let c = 0; c < CHANNELS; c++) {
+        const data = buffer[c];
+        for (let i = 0; i < frames; i++) data[i] *= trim;
+      }
     }
     this.eq.process(buffer, buffer, frames);
     this.compressor.process(buffer, buffer, frames, keys?.compressor);
+
+    // Stage 0: BALANCE and the fader are read live. The balance law is inlined
+    // (balanceGains returns a fresh pair, and process must not allocate), with
+    // the exact arithmetic of engine/pan.ts.
+    const balance = this.channel.balance;
+    if (balance !== this.lastBalance) {
+      this.lastBalance = balance;
+      const finite = Number.isFinite(balance) ? balance : 0;
+      const position = Math.min(100, Math.max(-100, finite));
+      const attenuation = 1 - Math.abs(position) / 100;
+      if (position <= 0) {
+        this.balance.left = 1;
+        this.balance.right = attenuation;
+      } else {
+        this.balance.left = attenuation;
+        this.balance.right = 1;
+      }
+    }
+    const levelDb = this.channel.level;
+    if (levelDb !== this.lastLevelDb) {
+      this.lastLevelDb = levelDb;
+      this.faderGain = levelGain(levelDb);
+    }
     const left = this.balance.left * this.faderGain;
     const right = this.balance.right * this.faderGain;
     const targetL = buffer[0];
     const targetR = buffer[1];
-    for (let i = 0; i < frames; i++) {
-      targetL[i] *= left;
-      targetR[i] *= right;
+    if (left !== this.prevLeftGain || right !== this.prevRightGain) {
+      const fromL = this.prevLeftGain;
+      const fromR = this.prevRightGain;
+      const deltaL = left - fromL;
+      const deltaR = right - fromR;
+      for (let i = 0; i < frames; i++) {
+        targetL[i] *= fromL + (deltaL * (i + 1)) / frames;
+        targetR[i] *= fromR + (deltaR * (i + 1)) / frames;
+      }
+      this.prevLeftGain = left;
+      this.prevRightGain = right;
+    } else {
+      for (let i = 0; i < frames; i++) {
+        targetL[i] *= left;
+        targetR[i] *= right;
+      }
     }
   }
 
@@ -295,15 +442,23 @@ export class BusChain {
  */
 export class ReturnChain {
   readonly kind: "reverb" | "delay";
-  readonly levelGain: number;
+  /** The channel this chain was built from — its level is read every block (Stage 0). */
+  private readonly channel: ReturnChannel;
+  levelGain: number;
+
+  private lastLevelDb: number;
+  private prevLevelGain: number;
 
   private readonly reverb: Reverb | null;
   private readonly delay: Delay | null;
 
   constructor(ret: ReturnBus, options: DspOptions) {
     const chain: ReturnChainState = ret.chain;
+    this.channel = ret.channel;
     this.levelGain = levelGain(ret.channel.level);
     this.kind = ret.effect;
+    this.lastLevelDb = ret.channel.level;
+    this.prevLevelGain = this.levelGain;
 
     if (ret.effect === "reverb") {
       this.reverb = new Reverb(
@@ -334,10 +489,27 @@ export class ReturnChain {
   process(buffer: readonly Float32Array[], frames: number): void {
     if (this.reverb) this.reverb.process(buffer, buffer, frames);
     else if (this.delay) this.delay.process(buffer, buffer, frames);
+    // Stage 0: the Return's level is read live, like a send level; a change ramps
+    // across the block, an unchanged level keeps the constant multiply.
+    const levelDb = this.channel.level;
+    if (levelDb !== this.lastLevelDb) {
+      this.lastLevelDb = levelDb;
+      this.levelGain = levelGain(levelDb);
+    }
     const level = this.levelGain;
-    for (let c = 0; c < CHANNELS; c++) {
-      const data = buffer[c];
-      for (let i = 0; i < frames; i++) data[i] *= level;
+    if (level !== this.prevLevelGain) {
+      const from = this.prevLevelGain;
+      const delta = level - from;
+      for (let c = 0; c < CHANNELS; c++) {
+        const data = buffer[c];
+        for (let i = 0; i < frames; i++) data[i] *= from + (delta * (i + 1)) / frames;
+      }
+      this.prevLevelGain = level;
+    } else {
+      for (let c = 0; c < CHANNELS; c++) {
+        const data = buffer[c];
+        for (let i = 0; i < frames; i++) data[i] *= level;
+      }
     }
   }
 

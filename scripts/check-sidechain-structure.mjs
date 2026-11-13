@@ -244,7 +244,8 @@ check(
 const pinned = {
   "src/lib/engine/sidechain.ts": "5ef6f3c2853ce37f4a1f75ee92242f68ffbd8e728a736ed9f8de040326641881",
   "src/lib/dsp/compressor.ts": "bac2cbc5a7894abde0bb1593a6bdf2ecb6d6aa276d9cba38d2cef73fe087503b",
-  "src/lib/engine/chains.ts": "3736f3b86130a0512ec777b12ae27605452ff4027178745a3665d0bc264167cd",
+  // Stage 0 re-pin (live gains and block ramps): the chain file changed knowingly.
+  "src/lib/engine/chains.ts": "47431566bffd3da263fe54d9848d25fc30d759b1e5ac329706a2ccd383cac629",
   "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
   "src/lib/project/model.ts": "6bc7373e2ce155f67f5fd4065da57e6d34a316828bdbd55e79edb5f8e9bcefc4",
 };

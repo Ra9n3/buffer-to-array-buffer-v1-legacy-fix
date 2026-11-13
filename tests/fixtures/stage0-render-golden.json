@@ -1,0 +1,11 @@
+{
+  "note": "produced by scripts/stage0-t6-golden.mjs from the ORIGINAL engine (commit d4ae915, before the Stage 0 live-gain changes)",
+  "sampleRate": 48000,
+  "chunkFrames": 3000,
+  "inputFrames": 24000,
+  "frames": 82081,
+  "tailFrames": 58081,
+  "channels": 2,
+  "layout": "planar float32: frames L samples, then frames R samples",
+  "sha256": "e5eaaeb98dc222dc574f8d703daa84bf3322c3197581d1ff3970e4fe95d26759"
+}

@@ -29,7 +29,12 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
   // it); the DEVICE's own rate may differ, and that conversion is Web Audio's
   // business — there is no custom output path here.
   const sampleRate = options.sampleRate ?? DEFAULT_PROJECT_RATE;
-  const maxQueueFrames = Math.ceil(sampleRate * (options.queueSeconds ?? PLAYBACK_QUEUE_SECONDS));
+  // Stage 0: the queue depth is settable per attempt (the controller sets it to
+  // LIVE_PLAYBACK_QUEUE_SECONDS for raw/preview and back to the shared
+  // PLAYBACK_QUEUE_SECONDS for render); the option stays the construction default.
+  let queueSeconds = options.queueSeconds ?? PLAYBACK_QUEUE_SECONDS;
+  let maxQueueFrames = Math.ceil(sampleRate * queueSeconds);
+  let underrunCount = 0;
   let context: AudioContext | null = null;
   let master: GainNode | null = null;
   let epoch: number | null = null;
@@ -91,6 +96,8 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
       const ctx = ensureContext();
       if (ctx.state === "suspended") await ctx.resume();
       stop();
+      // Stage 0: underruns are counted per generation — a new attempt starts at zero.
+      underrunCount = 0;
       epoch = ctx.currentTime + LEAD_SECONDS - startFrame / sampleRate;
       scheduledUntil = startFrame;
     },
@@ -107,7 +114,11 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
       const node = ctx.createBufferSource();
       node.buffer = buffer;
       node.connect(master as GainNode);
-      const at = Math.max(ctx.currentTime, epoch + chunk.startFrame / sampleRate);
+      const intended = epoch + chunk.startFrame / sampleRate;
+      // Stage 0: an underrun is a chunk whose intended start time is already
+      // earlier than the clock when it is scheduled.
+      if (intended < ctx.currentTime) underrunCount++;
+      const at = Math.max(ctx.currentTime, intended);
       nodes.add(node);
       node.onended = () => {
         nodes.delete(node);
@@ -117,6 +128,13 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
       scheduledUntil = Math.max(scheduledUntil, end);
     },
     positionFrames,
+    setQueueSeconds(seconds: number): void {
+      queueSeconds = seconds;
+      maxQueueFrames = Math.ceil(sampleRate * seconds);
+    },
+    get underruns(): number {
+      return underrunCount;
+    },
     async drain() {
       const gen = generation;
       while (generation === gen && epoch !== null && positionFrames() < scheduledUntil) {

@@ -15,6 +15,7 @@ import { PlaybackController } from "./controller";
 import { openProjectSources } from "./sources";
 import { transport } from "./store.svelte";
 import { createWebAudioOutput } from "./web-audio";
+import { LIVE_PLAYBACK_CHUNK_FRAMES, LIVE_PLAYBACK_QUEUE_SECONDS } from "./types";
 
 export interface PlaybackShellOptions {
   readonly assetStore: AssetStore | null;
@@ -27,12 +28,17 @@ export function installPlaybackShell(win: Window, options: PlaybackShellOptions)
    * or a rate change (both "clear" events) rebuilds the output when the rate
    * moved — the context is created lazily on first play, so this is cheap
    * while stopped, and a rate change stops playback first.
+   *
+   * Stage 0: the output is created with the LIVE queue depth, and raw/preview
+   * play in LIVE_PLAYBACK_CHUNK_FRAMES blocks — the controller switches the
+   * queue back to the shared PLAYBACK_QUEUE_SECONDS for a render attempt.
    */
-  let output = options.output ?? createWebAudioOutput({ sampleRate: project.sampleRate });
+  let output = options.output ?? createWebAudioOutput({ sampleRate: project.sampleRate, queueSeconds: LIVE_PLAYBACK_QUEUE_SECONDS });
   let controller = new PlaybackController({
     getProject: () => project as unknown as Project,
     openSources: (current) => openProjectSources(current, options.assetStore),
     output,
+    chunkFrames: LIVE_PLAYBACK_CHUNK_FRAMES,
     clock: {
       schedule: (fn, ms) => {
         if (typeof win.setInterval !== "function") return () => {};
@@ -68,11 +74,12 @@ export function installPlaybackShell(win: Window, options: PlaybackShellOptions)
     // rate is replaced: the shell's one job is that playback runs at the rate
     // the open project names, and the context is created lazily, so a stopped
     // rebuild touches no browser API.
-    output = createWebAudioOutput({ sampleRate: rate });
+    output = createWebAudioOutput({ sampleRate: rate, queueSeconds: LIVE_PLAYBACK_QUEUE_SECONDS });
     controller = new PlaybackController({
       getProject: () => project as unknown as Project,
       openSources: (current) => openProjectSources(current, options.assetStore),
       output,
+      chunkFrames: LIVE_PLAYBACK_CHUNK_FRAMES,
       clock: {
         schedule: (fn, ms) => {
           if (typeof win.setInterval !== "function") return () => {};
