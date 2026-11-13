@@ -5614,3 +5614,53 @@ un-remounted node; MIX pressed on Console ran the render to completion
 (processing → complete, MIXED); Home pixel-identical to the 10.1 build but
 for the wall-clock minute. Evidence: `task-reports/evidence/10.2/`
 (twenty screenshots, the baseline build's captures, measurements.json).
+
+### D10.2.5 — The readout's digits are tabular in the face itself (2026-11-13)
+
+**Decision.** The owner's report on the 10.2 deck: the time window — the
+small screen printing the bar · beat — "is dynamic, it become smaller when
+the beat count is 1, and bigger when the beat is either 2/3 or 4, it should
+stay static with one size." The cause had been written down in the font
+folder's README since Task 2.3: Orbitron Medium is proportional with no
+tabular-figures feature — the digit `1` advances 391 units against 826–834
+for the others — so every line the screens print changes width with which
+digits it shows, and the time window is content-sized (`flex: 0 0 auto`),
+so the window itself breathed: measured 6.00 px on every bar of the 10.2
+build, beat 1 narrowest, and the whole row after it (status window, MIX)
+rode along. The `font-variant-numeric: tabular-nums` LampDisplay declared
+since Task 2.3 was honest CSS over a face that cannot honour it. The fix
+is in the shipped subset, not the layout: the ten digits are normalised to
+one written-down advance — 834 units, the cell `0` and `8` already occupy
+— with each digit's ink centred in its cell, which leaves the seven wide
+digits exactly where the designer put them and moves only `1`, `4` and
+`7`. `scripts/make-orbitron-tabular.py` (committed, idempotent,
+`--check` verifies) applies and re-applies it; the letters, the kerning
+(letters only — no pair in the subset involves a digit) and the original
+`Orbitron-Medium.ttf` (untouched, never referenced by a stylesheet) are
+unchanged. A readout that ticks no longer reflows: bar · beat holds one
+width through beats 1–4 and the clock through seconds 0–9; only a change
+in digit count (bar 9 → 10, hour 9 → 10) may move the window, one cell at
+a time. Both font files' SHA-256 are pinned in check:console-transport
+(section 9a), so regenerating the subset without re-running the script
+fails the guard; the CSS, the components and every guard that pins them
+are untouched.
+
+**Verification.** svelte-check 0 errors / 0 warnings; the test suite 477 /
+477; all 33 structural guards pass; the production build clean (695.17 kB
+single-file). Measured in a real browser (Playwright over the served
+production build, two synthetic 60 s 24-bit stems imported through the
+real picker, the deck playing): before — the time window's width varied
+6.00 px on every bar (bar 1: 101.97 px at beat 1 against 107.97 at beat
+4; the beat-1 vs beat-4 crops of one bar differ across x 270–725: the
+window's right edge, the status window and MIX all shifted); after —
+111.97 px at every beat of every bar, a 0.00 px variance, the window
+settled inside the range it used to breathe across, and the same-bar
+crops differ only inside the beat digit's own 26 px cell (x 315–341). The
+10.2 contract holds with the tabular face: the deck 52.6 px tall, its
+body 46.2 px (the written-down bar-line floor), one line, unwrapped,
+fully visible on Console, Mixer and Arrange at 1920×1080 and 1366×768 —
+the width the time window settled at is absorbed by the status window's
+flex, no other control moved. Evidence: `task-reports/evidence/10.2/`
+(`tabular-before-beat{1,4}-bar2-1920.png`, `tabular-after-beat{1,4}`,
+`tabular-after-console-{1920x1080,1366x768}.png`,
+`tabular-measurements.json`).

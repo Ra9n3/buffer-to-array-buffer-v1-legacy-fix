@@ -44,6 +44,13 @@
  *      nothing of is byte-identical; no dependency added or changed; App
  *      is the deck's one mount — the rooms and the shell's wrappers do not
  *      know the deck exists (Task 10.2).
+ *  10. Since D10.2.5 (owner, 2026-11-13: the time window "should stay
+ *      static with one size") the digits are TABULAR in the shipped
+ *      Orbitron subset itself — one written-down advance for all ten
+ *      digits, applied by the committed, idempotent
+ *      scripts/make-orbitron-tabular.py; the subset's and the original
+ *      TTF's SHA-256 are pinned so the face cannot silently regress to
+ *      proportional figures (section 9a).
  *
  * Review changes of 2026-11-01 (owner, D2.3.10–D2.3.12): the Time / Status
  * windows became display screens on the VU meter's lamp-lit cream card —
@@ -207,6 +214,23 @@ const fontDir = "src/assets/fonts/orbitron";
 check("the display face lives inside the project with its licence: Orbitron Medium, the original TTF and the Latin subset the screens load, the SIL OFL text, a README; nothing fetched from a CDN; no other font folder left behind", exists(`${fontDir}/Orbitron-Medium.subset.woff2`) && exists(`${fontDir}/Orbitron-Medium.ttf`) && exists(`${fontDir}/OFL.txt`) && /SIL Open Font License/i.test(read(`${fontDir}/OFL.txt`)) && /Reserved Font Name: "Orbitron"/.test(read(`${fontDir}/OFL.txt`)) && /Open Font License/.test(read(`${fontDir}/README.md`)) && !exists("src/assets/fonts/segment16") && !exists("src/assets/fonts/dseg") && !/https?:\/\/[^"']*\.(woff2?|ttf|otf)/i.test(displayStyle) && !/fonts\.googleapis|cdn\.jsdelivr|unpkg/.test(allTransportSource));
 check("one @font-face rule, a relative url() to that folder, weight 500 (the Medium face), font-display block; neither DSEG nor Segment16A is referenced anywhere in the deck", count(displayStyle, /@font-face\s*{/g) === 1 && /font-family:\s*"Orbitron";\s*src:\s*url\("\.\.\/\.\.\/assets\/fonts\/orbitron\/Orbitron-Medium\.subset\.woff2"\) format\("woff2"\)/.test(displayStyle) && /@font-face\s*{[^}]*font-weight:\s*500/s.test(displayStyle) && count(displayStyle, /font-display:\s*block/g) === 1 && !/DSEG|Segment16/.test(allTransportSource));
 check("the single-file build inlines that woff2: the vite inliner keeps font files inline", /assetsInlineLimit/.test(read("vite.config.ts")) && /woff2/.test(read("vite.config.ts")));
+
+// --- 9a. The digits are tabular in the face itself (owner, D10.2.5). ----------
+// The owner, 2026-11-13: the time window "becomes smaller when the beat count
+// is 1, and bigger when the beat is either 2/3 or 4 — it should stay static
+// with one size." Orbitron Medium is proportional with no tabular-figures
+// feature (the digit 1 advanced 391 units against 826-834 for the others), so
+// the content-sized window breathed 6 px on every bar. The fix is in the
+// shipped subset, not the layout: one written-down advance for all ten
+// digits, applied by a committed, idempotent script; the original TTF stays
+// the untouched proportional source; both files pinned by SHA-256.
+const fontScript = read("scripts/make-orbitron-tabular.py");
+const fontReadme = read("src/assets/fonts/orbitron/README.md");
+const sha256Bytes = (rel) => createHash("sha256").update(readFileSync(resolve(root, rel))).digest("hex");
+check("the digits are tabular in the shipped subset: scripts/make-orbitron-tabular.py sets all ten digits (DIGITS = \"0123456789\") to one written-down advance (TABULAR_ADVANCE = 834, the cell 0 and 8 already occupy), centres each digit's ink in its cell, verifies without writing under --check, and saves only the subset — the layout, the CSS and every other glyph are untouched (owner, D10.2.5: the readout holds one size)", /DIGITS = "0123456789"/.test(fontScript) && /TABULAR_ADVANCE = 834/.test(fontScript) && /--check/.test(fontScript) && /font\.save\(SUBSET\)/.test(fontScript) && !/font\.save\(TTF\)/.test(fontScript));
+check("the shipped subset is the normalised face, byte for byte: its SHA-256 is pinned here, so regenerating the subset from the TTF without re-running the script fails this guard", sha256Bytes("src/assets/fonts/orbitron/Orbitron-Medium.subset.woff2") === "8c7011e0429970bbab6fcf46371b98a6a00b18a2d84e7b2ce22d5142e47359b8");
+check("the original Orbitron-Medium.ttf stays the untouched proportional source, never referenced by a stylesheet — its SHA-256 is pinned here too", sha256Bytes("src/assets/fonts/orbitron/Orbitron-Medium.ttf") === "826f71504dfc50c8508f795b4bb5cd90f673ac55f02c8c2a97f236ba1ea68651");
+check("the font folder's README documents the tabular digits and the script that made them, and the old known-quirk line (a running clock changes width) is retired", /tabular/.test(fontReadme) && /make-orbitron-tabular\.py/.test(fontReadme) && !/running clock changes width/.test(fontReadme));
 check("the words and the numbers alike are Orbitron: the clock over the mono stack, the status word and all small print over the label stack, at the halved bar's written-down sizes (D9.6.2: 1.0625rem clock, 0.8rem status word)", /\.display__primary\s*{[^}]*font-family:\s*"Orbitron", var\(--al-font-mono\)/s.test(displayStyle) && /\.display__secondary\s*{[^}]*font-family:\s*"Orbitron", var\(--al-font-label\)/s.test(displayStyle) && /\.display--clock \.display__primary\s*{[^}]*font-size:\s*1\.0625rem/s.test(displayStyle) && /\.display--clock \.display__secondary\s*{[^}]*font-size:\s*var\(--al-text-size-sm\)/s.test(displayStyle));
 check("the print is set at the face's own weight through the medium token and the font's own spacing (the normal letter-spacing token), never a synthesised bold or a new tracking number", count(displayStyle, /font-weight:\s*var\(--al-font-weight-medium\)/g) === 2 && count(displayStyle, /letter-spacing:\s*var\(--al-letter-spacing-normal\)/g) === 2 && !/letter-spacing:\s*[0-9.]+(em|px|rem)/.test(displayStyle) && !/font-weight:\s*(bold|[6-9]00)/.test(displayStyle));
 check("the separator between details is the owner's middle dot; the text content itself is untouched", /const SEPARATOR = "\\u00B7";/.test(display) && /<span class="display__dot" aria-hidden="true">{SEPARATOR}<\/span>/.test(displayTemplate) && /<span class="display__primary" data-part="primary">{primary}<\/span>/.test(displayTemplate) && /<span class="display__part" class:is-warning={warning && i === secondary\.length - 1}>{part}<\/span>/.test(displayTemplate));

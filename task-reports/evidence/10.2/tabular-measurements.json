@@ -1,0 +1,316 @@
+{
+  "before per-bar beat widths": {
+    "bar 1": {
+      "widths_by_beat": {
+        "1": [
+          101.97
+        ],
+        "2": [
+          106.97
+        ],
+        "3": [
+          105.97
+        ],
+        "4": [
+          107.97
+        ]
+      },
+      "beat_variance": 6.0
+    },
+    "bar 2": {
+      "widths_by_beat": {
+        "1": [
+          106.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          110.97
+        ],
+        "4": [
+          112.97
+        ]
+      },
+      "beat_variance": 6.0
+    },
+    "bar 3": {
+      "widths_by_beat": {
+        "1": [
+          105.97
+        ],
+        "2": [
+          110.97
+        ],
+        "3": [
+          109.97
+        ],
+        "4": [
+          111.97
+        ]
+      },
+      "beat_variance": 6.0
+    },
+    "bar 4": {
+      "widths_by_beat": {
+        "1": [
+          107.97
+        ],
+        "2": [
+          112.97
+        ],
+        "3": [
+          111.97
+        ],
+        "4": [
+          113.97
+        ]
+      },
+      "beat_variance": 6.0
+    },
+    "bar 5": {
+      "widths_by_beat": {
+        "1": [
+          106.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          110.97
+        ],
+        "4": [
+          112.97
+        ]
+      },
+      "beat_variance": 6.0
+    },
+    "bar 6": {
+      "widths_by_beat": {
+        "1": [
+          106.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          110.97
+        ],
+        "4": [
+          112.97
+        ]
+      },
+      "beat_variance": 6.0
+    },
+    "bar 7": {
+      "widths_by_beat": {
+        "1": [
+          104.97
+        ]
+      },
+      "beat_variance": 0.0
+    }
+  },
+  "before time window breathes with the beat (defect present)": true,
+  "before beat crops (same bar)": {
+    "1": "tabular-before-beat1-bar2-1920.png",
+    "4": "tabular-before-beat4-bar2-1920.png"
+  },
+  "after per-bar beat widths": {
+    "bar 1": {
+      "widths_by_beat": {
+        "1": [
+          111.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          111.97
+        ],
+        "4": [
+          111.97
+        ]
+      },
+      "beat_variance": 0.0
+    },
+    "bar 2": {
+      "widths_by_beat": {
+        "1": [
+          111.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          111.97
+        ],
+        "4": [
+          111.97
+        ]
+      },
+      "beat_variance": 0.0
+    },
+    "bar 3": {
+      "widths_by_beat": {
+        "1": [
+          111.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          111.97
+        ],
+        "4": [
+          111.97
+        ]
+      },
+      "beat_variance": 0.0
+    },
+    "bar 4": {
+      "widths_by_beat": {
+        "1": [
+          111.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          111.97
+        ],
+        "4": [
+          111.97
+        ]
+      },
+      "beat_variance": 0.0
+    },
+    "bar 5": {
+      "widths_by_beat": {
+        "1": [
+          111.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          111.97
+        ],
+        "4": [
+          111.97
+        ]
+      },
+      "beat_variance": 0.0
+    },
+    "bar 6": {
+      "widths_by_beat": {
+        "1": [
+          111.97
+        ],
+        "2": [
+          111.97
+        ],
+        "3": [
+          111.97
+        ],
+        "4": [
+          111.97
+        ]
+      },
+      "beat_variance": 0.0
+    },
+    "bar 7": {
+      "widths_by_beat": {
+        "1": [
+          111.97
+        ]
+      },
+      "beat_variance": 0.0
+    }
+  },
+  "after time window breathes with the beat (defect present)": false,
+  "after beat crops (same bar)": {
+    "1": "tabular-after-beat1-bar2-1920.png",
+    "4": "tabular-after-beat4-bar2-1920.png"
+  },
+  "after geometry regression (10.2 contract)": {
+    "console-1920x1080": {
+      "deck": {
+        "x": 9.6,
+        "y": 1021,
+        "w": 1900.8,
+        "h": 52.6,
+        "bottom": 1073.6,
+        "right": 1910.4
+      },
+      "fullyVisible": true,
+      "bodyHeight": 46.2,
+      "bodyWrapped": false
+    },
+    "mixer-1920x1080": {
+      "deck": {
+        "x": 9.6,
+        "y": 1021,
+        "w": 1900.8,
+        "h": 52.6,
+        "bottom": 1073.6,
+        "right": 1910.4
+      },
+      "fullyVisible": true,
+      "bodyHeight": 46.2,
+      "bodyWrapped": false
+    },
+    "arrange-1920x1080": {
+      "deck": {
+        "x": 9.6,
+        "y": 1021,
+        "w": 1900.8,
+        "h": 52.6,
+        "bottom": 1073.6,
+        "right": 1910.4
+      },
+      "fullyVisible": true,
+      "bodyHeight": 46.2,
+      "bodyWrapped": false
+    },
+    "console-1366x768": {
+      "deck": {
+        "x": 9.6,
+        "y": 709,
+        "w": 1346.8,
+        "h": 52.6,
+        "bottom": 761.6,
+        "right": 1356.4
+      },
+      "fullyVisible": true,
+      "bodyHeight": 46.2,
+      "bodyWrapped": false
+    },
+    "mixer-1366x768": {
+      "deck": {
+        "x": 9.6,
+        "y": 709,
+        "w": 1346.8,
+        "h": 52.6,
+        "bottom": 761.6,
+        "right": 1356.4
+      },
+      "fullyVisible": true,
+      "bodyHeight": 46.2,
+      "bodyWrapped": false
+    },
+    "arrange-1366x768": {
+      "deck": {
+        "x": 9.6,
+        "y": 709,
+        "w": 1346.8,
+        "h": 52.6,
+        "bottom": 761.6,
+        "right": 1356.4
+      },
+      "fullyVisible": true,
+      "bodyHeight": 46.2,
+      "bodyWrapped": false
+    }
+  }
+}
