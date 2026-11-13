@@ -210,18 +210,18 @@ const pinned = {
   "src/components/channel-strip/TrackStrip.svelte": "2a9434fbd1bd46d6e026d8ea26b2d4d30ce90227fb62a1f6a777fbaf32627333",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/mixer/BusDetail.svelte": "71c5ca0d04290da8b23f919fd1af00818adaf3617e34589524d4fb222ea5e77f",
-  "src/lib/mixer-chain.ts": "818fb94f4560f173819dacb76bf42726db67b28a18eb7288dacdba74f67919d2",
+  "src/lib/mixer-chain.ts": "95499fda3f1e5093bf58f0844136c052e38078ed488238ca340931af8f35531c",
   // added / touched in Task 3.2, as reviewed
   "src/lib/project/routing.ts": "f5479a9e7013514fdfbc09ba1914cc88f78fdfa6f146c3773d1d5eb7a0740588",
-  "src/lib/project/model.ts": "7df7e5b93e21573d82f022ad46ab46245db01d9ba9e00ce780cb8ab27f4bc541",
-  "src/lib/project/session.ts": "079a77226200f30858f9588aafa0cb50b30b5c182b8e15a63f0fe9231a4736d5",
+  "src/lib/project/model.ts": "6bc7373e2ce155f67f5fd4065da57e6d34a316828bdbd55e79edb5f8e9bcefc4",
+  "src/lib/project/session.ts": "e486dd8b9ab3de0476ecf274c7b054c945cf761c2887461bb334425bfda71e25",
     // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
   // development session. Nothing was deleted from it; see the decision log (D9.1.2).
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/lib/project/store.svelte.ts": "babbe46c6bf16f7ba5b0c16e016b1f321f5f8ed41b6cef6ddc282689bb3e39c9",
+  "src/lib/project/store.svelte.ts": "9814f3f455e34463f7e54f33d039fe9a152f25b8bf67f41ce6db861f1c0e523d",
   "tests/loader.mjs": "51a401d95b0f35584ca7bce2dd564346ba6c1c2c066eeffa51ebd1ad5da15451",
   "tests/register.mjs": "80ef952e463fa5bf7eb9bf1b0a11dcbe5fe32e3a86391c2d596f6f41a8de7b56",
   "tests/routing.test.mjs": "bc389e8869b20fb0dc98ffa77e88d67c7c4c959622669fc7db7b7be96b37676d",
@@ -229,6 +229,8 @@ const pinned = {
   // development session. Nothing was deleted from it; see the decision log (D9.1.2).
   "tests/store.test.mjs": "2d7601d8a63de01a8f2861d2ce97322fbd481688e31f13183bf0d18e7008aacf",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

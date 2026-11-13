@@ -1,0 +1,44 @@
+{
+  "24-44100.wav": {
+    "source": "44100 Hz · 24-bit pcm",
+    "converted": "48000 Hz · 32-bit float · 96000 frames",
+    "resampled": true,
+    "peaksAt": 48000,
+    "peakDbfs": "-6.02"
+  },
+  "24-48000.wav": {
+    "source": "48000 Hz · 24-bit pcm",
+    "converted": "48000 Hz · 32-bit float · 96000 frames",
+    "resampled": false,
+    "peaksAt": 48000,
+    "peakDbfs": "-6.02"
+  },
+  "32f-44100.wav": {
+    "source": "44100 Hz · 32-bit float",
+    "converted": "48000 Hz · 32-bit float · 96000 frames",
+    "resampled": true,
+    "peaksAt": 48000,
+    "peakDbfs": "-6.02"
+  },
+  "32f-48000.wav": {
+    "source": "48000 Hz · 32-bit float",
+    "converted": "48000 Hz · 32-bit float · 96000 frames",
+    "resampled": false,
+    "peaksAt": 48000,
+    "peakDbfs": "-6.02"
+  },
+  "24-in-32-left-48000.wav": {
+    "source": "48000 Hz · 24-bit pcm (24-in-32, left, declared)",
+    "converted": "48000 Hz · 32-bit float · 96000 frames",
+    "resampled": false,
+    "peaksAt": 48000,
+    "peakDbfs": "-6.02"
+  },
+  "24-in-32-right-48000.wav": {
+    "source": "48000 Hz · 24-bit pcm (24-in-32, right, detected)",
+    "converted": "48000 Hz · 32-bit float · 96000 frames",
+    "resampled": false,
+    "peaksAt": 48000,
+    "peakDbfs": "-6.02"
+  }
+}

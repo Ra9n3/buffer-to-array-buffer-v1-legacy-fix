@@ -2,9 +2,9 @@
 // handful of wrong files. Nothing is decoded by anything but the code under test.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { inspectWav, looksLike, readWavHeader, sampleReaderFor, encodeWav } from "../src/lib/audio/wav.ts";
-import { ACCEPTED_SAMPLE_RATE, SHORT_SECONDS, SILENCE_PEAK_DBFS, describeFormat, isSilentPeak, isVeryShort, judgeFormat, printSeconds } from "../src/lib/audio/import-rules.ts";
-import { AIFFISH, FLACISH, MP3ISH, NOT_AUDIO, RATE, adpcmWav, noDataWav, silence, sine, truncated } from "./wav-fixtures.mjs";
+import { inspectWav, is24In32, looksLike, readWavHeader, resolve24In32Alignment, sampleReaderFor, encodeWav } from "../src/lib/audio/wav.ts";
+import { IMPORT_RATES, SHORT_SECONDS, SILENCE_PEAK_DBFS, describeFormat, isSilentPeak, isVeryShort, judgeFormat, printSeconds } from "../src/lib/audio/import-rules.ts";
+import { AIFFISH, FLACISH, MP3ISH, NOT_AUDIO, RATE, adpcmWav, noDataWav, silence, sine, sine24In32, truncated } from "./wav-fixtures.mjs";
 
 test("a plain 48 kHz 24-bit stereo WAV is read whole: format, frames, data placement", () => {
   const bytes = sine(1.5, { channels: 2, bitDepth: 24 });
@@ -54,32 +54,83 @@ test("32-bit float, mono and stereo, plain and extensible: accepted", () => {
   }
 });
 
-test("the plan's refusals: 16-bit, 32-bit integer, 8-bit, 44.1 / 96 kHz, more than two channels, compressed WAV — each named, each with the re-export advice", () => {
+test("the Task 11.1 acceptances: 32-bit int PCM, 44.1 kHz, and both 24-in-32 alignments — each read whole, each judged the same, each decoded at the right level", () => {
+  const r32i = inspectWav(sine(0.25, { bitDepth: 32, encoding: "pcm" }));
+  assert.equal(r32i.ok, true);
+  assert.equal(r32i.format.bitDepth, 32);
+  assert.equal(r32i.format.containerBits, 32);
+  assert.equal(judgeFormat(r32i.format).ok, true, "32-bit int PCM is accepted (Task 11.1)");
+
+  const r441 = inspectWav(sine(0.25, { sampleRate: 44100 }));
+  assert.equal(r441.ok, true);
+  assert.equal(r441.format.sampleRate, 44100);
+  assert.equal(judgeFormat(r441.format).ok, true, "44.1 kHz is accepted and converted at import (Task 11.1)");
+  assert.deepEqual(IMPORT_RATES, [44100, 48000]);
+
+  for (const alignment of ["left", "right"]) {
+    const bytes = sine24In32(0.25, { alignment });
+    const r = inspectWav(bytes);
+    assert.equal(r.ok, true, `24-in-32 ${alignment}`);
+    assert.equal(r.format.encoding, "pcm");
+    assert.equal(r.format.bitDepth, 24);
+    assert.equal(r.format.containerBits, 32, "the container is 32 bits");
+    assert.equal(r.format.blockAlign, 8, "two 4-byte containers");
+    assert.equal(r.format.alignment, alignment, `resolved ${alignment}`);
+    assert.equal(r.format.alignmentBasis, alignment === "right" ? "detected" : "declared");
+    assert.equal(r.format.channelMask, 3, "the extensible header's stereo channel mask is read");
+    assert.equal(is24In32(r.format), true);
+    assert.equal(judgeFormat(r.format).ok, true, `24-in-32 ${alignment} is accepted`);
+    // the samples decode to the same values either way: 0.5 left, a quarter down right —
+    // frame 0 of the 220 Hz sine at phase 0 is 0, so read the first non-zero frame instead
+    const read = sampleReaderFor(r.format);
+    assert.ok(read, `24-in-32 ${alignment} has a reader`);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let sawLeft = 0;
+    let sawRight = 0;
+    for (let f = 0; f < r.format.frames; f++) {
+      const l = read(view, r.format.dataOffset + f * 8);
+      const rr = read(view, r.format.dataOffset + f * 8 + 4);
+      sawLeft = Math.max(sawLeft, Math.abs(l));
+      sawRight = Math.max(sawRight, Math.abs(rr));
+    }
+    assert.ok(Math.abs(sawLeft - 0.5) < 0.01, `24-in-32 ${alignment}: the left peak is ≈0.5 (got ${sawLeft})`);
+    assert.ok(Math.abs(sawRight - 0.375) < 0.01, `24-in-32 ${alignment}: the right peak is ≈0.375, a quarter down (got ${sawRight})`);
+  }
+
+  // the resolution rule itself: the declared left default, and the one deterministic override
+  const left = sine24In32(0.25, { alignment: "left" });
+  const view = new DataView(left.buffer, left.byteOffset, left.byteLength);
+  const fmt = inspectWav(left).format;
+  assert.equal(resolve24In32Alignment(view, fmt.dataOffset, fmt.blockAlign, fmt.channels, fmt.frames).alignment, "left");
+  // a left-aligned file with a NOISY pad byte still reads correctly: the shift never trusts the low byte
+  const noisy = new Uint8Array(left);
+  const nview = new DataView(noisy.buffer);
+  for (let at = fmt.dataOffset; at < fmt.dataOffset + fmt.dataBytes; at += 4) {
+    if (at % 8 === 0) nview.setUint8(at, 0x5a); // a pad byte that is not zero
+  }
+  const nfmt = inspectWav(noisy).format;
+  assert.equal(nfmt.alignment, "left", "a noisy pad byte does not turn a normal-level file right-aligned");
+  const nread = sampleReaderFor(nfmt);
+  const first = nread(new DataView(noisy.buffer, noisy.byteOffset, noisy.byteLength), nfmt.dataOffset);
+  assert.ok(Math.abs(first - 0) < 1e-9, "the shifted read drops the pad byte entirely");
+});
+
+test("the refusals that remain: 16-bit, 8-bit, 96 kHz, more than two channels, compressed WAV — each named, each with the re-export advice (the advice never claims losslessness)", () => {
   const r16 = judgeFormat(inspectWav(sine(0.2, { bitDepth: 16 })).format);
   assert.equal(r16.ok, false);
   assert.equal(r16.reason, "unsupported-depth");
   assert.match(r16.detail, /16-bit PCM/);
-  assert.match(r16.detail, /re-export the stem as a 48 kHz WAV, 24-bit or 32-bit float/);
-
-  const r32i = judgeFormat(inspectWav(sine(0.2, { bitDepth: 32, encoding: "pcm" })).format);
-  assert.equal(r32i.ok, false);
-  assert.equal(r32i.reason, "unsupported-depth", "32-bit integer PCM is not 32-bit float");
-  assert.match(r32i.detail, /32-bit PCM/);
+  assert.match(r16.detail, /re-export the stem as a 44\.1 or 48 kHz WAV, 24-bit \(packed or 24-in-32\) or 32-bit \(int or float\)/);
 
   const r8 = judgeFormat(inspectWav(sine(0.2, { bitDepth: 8 })).format);
   assert.equal(r8.ok, false);
   assert.equal(r8.reason, "unsupported-depth");
 
-  const r441 = judgeFormat(inspectWav(sine(0.2, { sampleRate: 44100 })).format);
-  assert.equal(r441.ok, false);
-  assert.equal(r441.reason, "unsupported-rate");
-  assert.match(r441.detail, /44\.1 kHz/);
-  assert.match(r441.detail, /does not resample/);
-
   const r96 = judgeFormat(inspectWav(sine(0.2, { sampleRate: 96000 })).format);
   assert.equal(r96.ok, false);
   assert.equal(r96.reason, "unsupported-rate");
   assert.match(r96.detail, /96 kHz/);
+  assert.match(r96.detail, /44\.1 or 48 kHz/);
 
   const r6 = judgeFormat(inspectWav(sine(0.1, { channels: 6 })).format);
   assert.equal(r6.ok, false);
@@ -96,10 +147,9 @@ test("the plan's refusals: 16-bit, 32-bit integer, 8-bit, 44.1 / 96 kHz, more th
   assert.match(rad.detail, /ADPCM/);
   assert.equal(sampleReaderFor(adpcm.format), null, "nothing decodes it");
 
-  // the order of the rules: a 16-bit 44.1 kHz file is refused for its depth first (one reason per file)
-  const both = judgeFormat(inspectWav(sine(0.1, { bitDepth: 16, sampleRate: 44100 })).format);
+  // the order of the rules: a 16-bit 96 kHz file is refused for its depth first (one reason per file)
+  const both = judgeFormat(inspectWav(sine(0.1, { bitDepth: 16, sampleRate: 96000 })).format);
   assert.equal(both.reason, "unsupported-depth");
-  assert.equal(ACCEPTED_SAMPLE_RATE, 48000);
 });
 
 test("not a WAV at all: text, MP3, FLAC, AIFF, empty — named when the magic is known, never thrown", () => {

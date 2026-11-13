@@ -1,0 +1,70 @@
+{
+  "spec48down": {
+    "inRate": 48000,
+    "outRate": 44100,
+    "up": 147,
+    "down": 160,
+    "phases": 147,
+    "tapsPerPhase": 64,
+    "cutoffHz": 20396.25,
+    "lookaheadInputSamples": 32
+  },
+  "spec44up": {
+    "inRate": 44100,
+    "outRate": 48000,
+    "up": 160,
+    "down": 147,
+    "phases": 160,
+    "tapsPerPhase": 64,
+    "cutoffHz": 20396.25,
+    "lookaheadInputSamples": 32
+  },
+  "cases": [
+    {
+      "impulseAt": 0,
+      "midFrames": 4410,
+      "expectedMid": 4410,
+      "backFrames": 4800,
+      "peakAt": 0,
+      "off": 0,
+      "peak": 0.8098
+    },
+    {
+      "impulseAt": 1,
+      "midFrames": 4410,
+      "expectedMid": 4410,
+      "backFrames": 4800,
+      "peakAt": 1,
+      "off": 0,
+      "peak": 0.8052
+    },
+    {
+      "impulseAt": 1234,
+      "midFrames": 4410,
+      "expectedMid": 4410,
+      "backFrames": 4800,
+      "peakAt": 1234,
+      "off": 0,
+      "peak": 0.8335
+    },
+    {
+      "impulseAt": 2399,
+      "midFrames": 4410,
+      "expectedMid": 4410,
+      "backFrames": 4800,
+      "peakAt": 2399,
+      "off": 0,
+      "peak": 0.8335
+    },
+    {
+      "impulseAt": 4799,
+      "midFrames": 4410,
+      "expectedMid": 4410,
+      "backFrames": 4800,
+      "peakAt": 4799,
+      "off": 0,
+      "peak": 0.7826
+    }
+  ],
+  "streamingVsWholeWorstDiff": 0
+}

@@ -272,7 +272,7 @@ const pinned = {
 
 
   // Task 10.1 re-pinned (the playhead layer, D10.1.7).
-  "src/rooms/ArrangeRoom.svelte": "2cc5260586a4a5f09cb6a4cb60efb13653527c57abf93d0abb45f696eb1ae858",
+  "src/rooms/ArrangeRoom.svelte": "20597c413a5dca23c2c93d79653f71fc44c8a7764da2d10c9fba5f81587b47e7",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log D9.5.x): the three-rail bank, the compact strips and their meters changed these files. The checks around each pin still assert the file's real contract.
   "src/components/channel-strip/track-strip-fixtures.ts": "e891099def6abe69fd2d4558ba2f9f0542a9c4f123d871c2147447e27afab3e5",
@@ -282,6 +282,8 @@ const pinned = {
   "src/components/hardware/Lamp.svelte": "024d907589c1ab33b2b3c5cc8840347b9779450b61a60f67c34b045d4ac8010a",
   "src/components/hardware/EngravedLabel.svelte": "230ebcd7cf810d3096953e5131cb9cb3a89dd83f9f0e9cc0bcd934d2ca74fc29",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

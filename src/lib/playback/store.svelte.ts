@@ -7,9 +7,13 @@
  */
 
 import type { PlaybackController } from "./controller";
+import { DEFAULT_PROJECT_RATE } from "../audio/rates";
 import { initialPlaybackState, type ListeningSource, type PlaybackState } from "./types";
 
-const state: PlaybackState = $state(initialPlaybackState(48000));
+// Task 11.1: the boot placeholder runs at the default rate until a controller
+// attaches (its own output carries the open project's rate); every readout
+// that matters reads the project's rate, not this placeholder.
+const state: PlaybackState = $state(initialPlaybackState(DEFAULT_PROJECT_RATE));
 let controller: PlaybackController | null = null;
 let unsubscribe: (() => void) | null = null;
 

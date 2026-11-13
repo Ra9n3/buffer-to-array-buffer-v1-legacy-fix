@@ -24,7 +24,7 @@ import { byteSourceOf } from "../analysis/decode";
 import type { ProfileId } from "../analysis/profiles";
 import type { AnalysisRecord, AssetStore } from "../audio/asset-store";
 import { hardware } from "./hardware.svelte";
-import type { TrackId } from "./model";
+import { audioSeconds, type TrackId } from "./model";
 import { project } from "./store.svelte";
 
 export type AnalysisStatus = "pending" | "queued" | "analysing" | "ready" | "missing" | "failed";
@@ -98,7 +98,7 @@ function set(id: TrackId, patch: Partial<AnalysisEntry>): void {
 
 function secondsOf(id: TrackId): number {
   const t = project.tracks.find((x) => x.id === id);
-  return t?.audio ? t.audio.frames / t.audio.sampleRate : 0;
+  return t?.audio ? audioSeconds(t.audio) : 0;
 }
 
 /** Stops the run in flight and forgets the queue (a project switch, a detach). */

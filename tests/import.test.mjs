@@ -16,7 +16,8 @@ import { createEmptyProject, createImportedTrack, nextTrackCode, withImportedTra
 import { buildManifest, memoryStorage, parseManifest, serializeManifest } from "../src/lib/project/persistence.ts";
 import { projectFields } from "../src/lib/project/fields.ts";
 import { role } from "../src/lib/arrange.ts";
-import { MP3ISH, NOT_AUDIO, RATE, nanFloat, silence, sine, source, truncated } from "./wav-fixtures.mjs";
+import { MP3ISH, NOT_AUDIO, RATE, nanFloat, silence, sine, sine24In32, source, truncated } from "./wav-fixtures.mjs";
+import { changeProjectRate } from "../src/lib/project/rate-change.ts";
 
 let tick = 0;
 let n = 0;
@@ -24,7 +25,7 @@ const now = () => `2026-11-02T12:00:${String(tick++ % 60).padStart(2, "0")}.000Z
 const newId = () => `id-${String(++n).padStart(3, "0")}`;
 
 function ctx(store, overrides = {}) {
-  return { projectId: "project-x", tracks: [], tempoMarkers: [], store, newId, now, ...overrides };
+  return { projectId: "project-x", projectRate: 48000, tracks: [], tempoMarkers: [], store, newId, now, ...overrides };
 }
 
 /* ------------------------------------------------------------------------- the pipeline, pure */
@@ -75,9 +76,10 @@ test("a batch with every outcome: the good stems become tracks after their copie
   assert.equal(room.detail, "0:03.0 · 48 kHz · 24-bit PCM · stereo · silent — kept, left out of analysis · shorter than the longest stem — padded to 0:04.0");
   assert.deepEqual(click.flags, ["short", "padded"]);
   assert.match(click.detail, /^0:00\.4 · 48 kHz · 24-bit PCM · stereo · very short — processed as one buffer · shorter than the longest stem — padded to 0:04\.0$/);
-  assert.equal(mp3.detail, "This is an MP3 file, not a WAV file; re-export the stem as a 48 kHz WAV, 24-bit or 32-bit float");
-  assert.equal(txt.detail, "Not a WAV file (no RIFF/WAVE header); re-export the stem as a 48 kHz WAV, 24-bit or 32-bit float");
-  assert.equal(b16.detail, "48 kHz · 16-bit PCM · stereo — ALLOY takes 24-bit PCM or 32-bit float; re-export the stem as a 48 kHz WAV, 24-bit or 32-bit float");
+  const advice = "re-export the stem as a 44.1 or 48 kHz WAV, 24-bit (packed or 24-in-32) or 32-bit (int or float)";
+  assert.equal(mp3.detail, `This is an MP3 file, not a WAV file; ${advice}`);
+  assert.equal(txt.detail, `Not a WAV file (no RIFF/WAVE header); ${advice}`);
+  assert.equal(b16.detail, `48 kHz · 16-bit PCM · stereo — ALLOY takes 24-bit PCM (packed or 24-in-32) or 32-bit (int or float); ${advice}`);
   assert.match(cut.detail, /^The file ends before its audio data does .* — the file is truncated$/);
   assert.equal(nan.detail, "1 sample is not a number — the float data is damaged");
 
@@ -346,18 +348,29 @@ test("reopen with assets: the imported tracks come back from the manifest and th
   assert.equal(project.tracks[1].channel.level, -3, "its saved values applied");
   assert.equal(project.tracks[0].audio.assetId, assetIds[0]);
   assert.equal(project.arrangement.barCount, 3);
-  // hydration is asynchronous: pending first, then ready / missing
+  // hydration is asynchronous: pending first, then ready / repaired / missing
   assert.equal(assets.statusOf("track-01"), "pending");
   assert.equal(project.arrangement.clips["track-01"], undefined, "nothing drawn before the peaks are read");
   await tickTask();
   await tickTask();
+  await tickTask();
+  await tickTask();
   assert.equal(assets.statusOf("track-01"), "ready");
-  assert.equal(assets.statusOf("track-02"), "missing");
-  assert.equal(assets.statusOf("track-03"), "missing");
+  assert.equal(
+    assets.statusOf("track-02"),
+    "ready",
+    "Task 11.1: a peaks record whose hash disagrees is repaired from the original, not drawn as truth",
+  );
+  assert.equal(assets.statusOf("track-03"), "missing", "a stem whose ORIGINAL is gone is missing; the project still opens");
   assert.equal(project.arrangement.clips["track-01"][0].source, "audio");
   assert.equal(project.arrangement.clips["track-01"][0].barCount, 3);
-  assert.equal(project.arrangement.clips["track-02"], undefined, "a MISSING track draws nothing");
+  assert.equal(project.arrangement.clips["track-02"][0].source, "audio", "the repaired stem draws again");
   assert.equal(project.arrangement.clips["track-03"], undefined);
+  // the repair healed the damaged record: the peaks now describe the copy at the project's rate
+  const healed = assetStore.peaks.get(assetIds[1]);
+  assert.equal(healed.sha256, project.tracks[1].audio.sha256);
+  assert.equal(healed.sampleRate, 48000);
+  assert.equal(healed.convertedSha256, (await assetStore.getAsset(assetIds[1])).converted.sha256);
 
   // Home's listing still knows the project
   const entries = parseRecentIndex(storage.data.get(RECENT_KEY));
@@ -446,5 +459,180 @@ test("without an asset store nothing can be imported and a reopened project's im
   assert.equal(project.tracks.length, 1, "the project opens from its manifest");
   assert.equal(assets.statusOf("track-01"), "missing");
   assert.equal(project.arrangement.clips["track-01"], undefined);
+  reset();
+});
+
+/* ------------------------------------------------------------------------- Task 11.1: rates, alignments, retention, the rate change */
+
+test("Task 11.1: a 44.1 kHz import into a 48 kHz project is converted once — the notice says what happened and never claims losslessness; the original is retained beside the conversion", async () => {
+  const store = memoryAssetStore();
+  const result = await importFiles([source("stem.441.wav", sine(2, { sampleRate: 44100, amp: 0.5 }))], ctx(store));
+  assert.equal(result.lines[0].outcome, "added");
+  assert.match(result.lines[0].detail, /44\.1 kHz → 48 kHz — high-quality resampling to the project rate — not lossless/);
+  assert.deepEqual(result.lines[0].flags, ["converted"]);
+  const stem = result.stems[0];
+  // the model: the ORIGINAL's facts stay (44.1), the project-rate copy is recorded
+  assert.equal(stem.track.audio.sampleRate, 44100, "the source metadata is retained");
+  assert.equal(stem.track.audio.containerBits, 24);
+  assert.equal(stem.track.audio.alignment, null);
+  assert.equal(stem.track.audio.converted.sampleRate, 48000);
+  assert.equal(stem.track.audio.converted.frames, Math.ceil((2 * 44100) * 48000 / 44100));
+  // the store: original AND converted, byte for byte
+  const asset = await store.getAsset(stem.track.audio.assetId);
+  assert.ok(asset.converted, "the project-rate copy is stored beside the original");
+  const original = asset.bytes instanceof Uint8Array ? asset.bytes : new Uint8Array(await asset.bytes.arrayBuffer());
+  assert.equal(await sha256Hex(original), asset.sha256, "the original is the file, unchanged");
+  const converted = asset.converted.bytes instanceof Uint8Array ? asset.converted.bytes : new Uint8Array(await asset.converted.bytes.arrayBuffer());
+  const c = await importFiles([source("probe.wav", converted)], ctx(store, { projectId: "probe-only" }));
+  assert.equal(c.lines[0].outcome, "added");
+  assert.equal(c.stems[0].track.audio.sampleRate, 48000, "the converted copy is float32 at the project rate");
+  assert.equal(c.stems[0].track.audio.encoding, "float");
+  assert.equal(c.stems[0].track.audio.converted.frames, stem.track.audio.converted.frames, "the copy passes through untouched at the same rate");
+  // the peaks are keyed to the CONVERTED copy at the project rate
+  const peaks = await store.getPeaks(stem.track.audio.assetId);
+  assert.equal(peaks.sampleRate, 48000);
+  assert.equal(peaks.convertedSha256, asset.converted.sha256);
+  assert.equal(peaks.peaks, stem.peaks);
+  assert.equal(peaks.peaks.frames, stem.track.audio.converted.frames);
+  // a 48 kHz import needs no conversion: no notice, no flag
+  const same = await importFiles([source("stem.48.wav", sine(2))], ctx(store, { projectId: "probe-only" }));
+  assert.equal(same.lines[0].outcome, "added");
+  assert.ok(!/converted/.test(same.lines[0].detail), same.lines[0].detail);
+  assert.deepEqual(same.lines[0].flags, []);
+});
+
+test("Task 11.1: both 24-in-32 alignments import at the correct level (the right one detected, the left one declared) and at the correct pitch and grid", async () => {
+  for (const alignment of ["left", "right"]) {
+    const store = memoryAssetStore();
+    const result = await importFiles([source(`stem-${alignment}.wav`, sine24In32(2, { alignment, amp: 0.5 }))], ctx(store));
+    assert.equal(result.lines[0].outcome, "added", `${alignment} imports`);
+    const audio = result.stems[0].track.audio;
+    assert.equal(audio.containerBits, 32, "the container fact travels");
+    assert.equal(audio.bitDepth, 24);
+    assert.equal(audio.alignment, alignment, `the resolved alignment is recorded in the import metadata (${alignment})`);
+    assert.ok(Math.abs(audio.peakDbfs - 20 * Math.log10(0.5)) < 0.05, `${alignment}: the level is the file's (−6 dBFS), not 8× off (got ${audio.peakDbfs})`);
+    assert.ok(Math.abs(audio.converted.peakDbfs - 20 * Math.log10(0.5)) < 0.05, `${alignment}: the converted copy keeps the level`);
+    // grid alignment: 2 s at 48 kHz converts to exactly 96000 frames at 48 kHz (no rate change)
+    assert.equal(audio.converted.frames, 96000);
+  }
+  // a 24-in-32 file at 44.1 kHz: alignment AND rate, both handled in one conversion
+  const store = memoryAssetStore();
+  const both = await importFiles([source("stem-both.wav", sine24In32(1, { alignment: "right", sampleRate: 44100 }))], ctx(store));
+  assert.equal(both.lines[0].outcome, "added");
+  const audio = both.stems[0].track.audio;
+  assert.equal(audio.alignment, "right");
+  assert.equal(audio.sampleRate, 44100);
+  assert.equal(audio.converted.sampleRate, 48000);
+  assert.ok(Math.abs(audio.converted.peakDbfs - 20 * Math.log10(0.5)) < 0.05, "the level survives alignment detection and resampling together");
+  assert.match(both.lines[0].detail, /44\.1 kHz → 48 kHz/);
+});
+
+test("Task 11.1: 32-bit int PCM and 32-bit float import; 96 kHz is still refused", async () => {
+  const store = memoryAssetStore();
+  const r = await importFiles([
+    source("int32.wav", sine(1, { bitDepth: 32, encoding: "pcm", amp: 0.5 })),
+    source("float32.wav", sine(1, { bitDepth: 32, encoding: "float", amp: 0.5 })),
+    source("hires.wav", sine(1, { sampleRate: 96000 })),
+  ], ctx(store));
+  assert.equal(r.lines[0].outcome, "added");
+  assert.equal(r.lines[1].outcome, "added");
+  assert.equal(r.lines[2].outcome, "unsupported");
+  assert.equal(r.lines[2].detail.match(/96 kHz/)?.length, 1);
+  assert.ok(Math.abs(r.stems[0].track.audio.peakDbfs - 20 * Math.log10(0.5)) < 0.01, "int32 scales by 2^31");
+  assert.ok(Math.abs(r.stems[1].track.audio.peakDbfs - 20 * Math.log10(0.5)) < 0.001, "float32 passes as stored");
+});
+
+test("Task 11.1: the project rate is locked at creation, saved in the manifest, migrated for old projects, and read by everything", async () => {
+  const { storage, schedule, assetStore } = rig();
+  lifecycle.restoreLast();
+  lifecycle.startEmpty();
+  assert.equal(project.sampleRate, 48000, "a new project defaults to 48 kHz");
+  await assets.importBatch([source("legacy.wav", sine(2))]);
+  schedule.run();
+  const saved = JSON.parse(storage.data.get(projectKey("project-a")));
+  assert.equal(saved.project.sampleRate, 48000);
+
+  // an old manifest (pre-11.1, no sampleRate field) reopens at 48000
+  const legacy = JSON.parse(JSON.stringify(saved));
+  legacy.project.id = "project-b";
+  delete legacy.project.sampleRate;
+  delete legacy.tracks?.[0]?.audio?.converted;
+  storage.data.set(projectKey("project-b"), JSON.stringify(legacy));
+  storage.data.set(RECENT_KEY, JSON.stringify({ schema: "alloy.projects/1", entries: [
+    { id: "project-b", name: "Legacy", template: "empty", openedAt: "2026-11-02T13:00:00.000Z" },
+    { id: "project-a", name: "A", template: "empty", openedAt: "2026-11-02T12:00:00.000Z" },
+  ] }));
+  const opened = lifecycle.open("project-b");
+  assert.equal(opened.ok, true);
+  assert.equal(project.sampleRate, 48000, "a manifest without a rate reopens at the legacy default");
+  assert.equal(project.tracks[0].audio.converted, null, "a legacy audio block reopens with converted: null");
+  // the hydrate repair makes its copy at the project rate
+  await tickTask(); await tickTask(); await tickTask(); await tickTask();
+  assert.equal(assets.statusOf(project.tracks[0].id), "ready");
+  assert.equal(project.tracks[0].audio.converted.sampleRate, 48000);
+  const repairedAsset = await assetStore.getAsset(project.tracks[0].audio.assetId);
+  assert.ok(repairedAsset && repairedAsset.converted, "the legacy record gained its project-rate copy");
+  reset();
+});
+
+test("Task 11.1: changing the project's rate is explicit, re-resamples every clip with progress, and applies once", async () => {
+  const { schedule, assetStore } = rig();
+  lifecycle.restoreLast();
+  lifecycle.startEmpty();
+  await assets.importBatch([source("a.wav", sine(4, { sampleRate: 44100 })), source("b.wav", sine(2))]);
+  assert.equal(project.sampleRate, 48000);
+  assert.equal(project.tracks[0].audio.converted.sampleRate, 48000);
+  assert.equal(project.tracks[0].audio.converted.frames, Math.ceil(4 * 44100 * 48000 / 44100));
+
+  const seen = [];
+  const outcome = await changeProjectRate(44100, {
+    store: assetStore,
+    onProgress: (p) => seen.push(`${p.index}/${p.total}:${p.name}:${p.fraction.toFixed(2)}`),
+  });
+  assert.equal(outcome.ok, true, outcome.detail ?? "");
+  assert.equal(outcome.changed, 2);
+  assert.equal(outcome.rate, 44100);
+  assert.equal(project.sampleRate, 44100, "the project's rate flipped in one structural change");
+  for (const t of project.tracks) {
+    assert.equal(t.audio.converted.sampleRate, 44100, `${t.audio.fileName} was re-resampled`);
+    assert.ok(Math.abs(t.audio.converted.frames / 44100 - (t.audio.frames / t.audio.sampleRate)) < 0.01, "the duration is preserved");
+    const asset = await assetStore.getAsset(t.audio.assetId);
+    assert.equal(asset.converted.format.sampleRate, 44100);
+    assert.equal(asset.format.sampleRate, t.audio.sampleRate, "the original's facts are untouched");
+    const peaks = await assetStore.getPeaks(t.audio.assetId);
+    assert.equal(peaks.sampleRate, 44100, "the peaks were invalidated and recomputed at the new rate");
+    assert.ok(peaks.convertedSha256 === asset.converted.sha256, "the peaks describe the new copy");
+  }
+  assert.ok(seen.length >= 2, `progress reported per stem (${seen.length} reports)`);
+  assert.match(seen[0], /^0\/2:a\.wav/);
+
+  // the manifest saves the new rate; a reopen keeps it and the copies are ready without repair
+  schedule.run();
+  lifecycle.open(SESSION_PROJECT_ID);
+  const reopened = lifecycle.open("project-a");
+  assert.equal(reopened.ok, true);
+  assert.equal(project.sampleRate, 44100);
+  await tickTask(); await tickTask(); await tickTask(); await tickTask();
+  assert.equal(assets.statusOf("track-01"), "ready");
+  assert.equal(assets.statusOf("track-02"), "ready");
+  assert.equal(project.arrangement.clips["track-01"][0].source, "audio");
+
+  // a same-rate change is an honest no-op
+  const noop = await changeProjectRate(44100, { store: assetStore });
+  assert.equal(noop.ok, true);
+  assert.equal(noop.changed, 0);
+  reset();
+});
+
+test("Task 11.1: a rate change refuses to start when a stem's original is gone, and the project keeps its rate", async () => {
+  const { schedule, assetStore } = rig();
+  lifecycle.restoreLast();
+  lifecycle.startEmpty();
+  await assets.importBatch([source("a.wav", sine(2))]);
+  await assetStore.remove(project.tracks[0].audio.assetId);
+  const outcome = await changeProjectRate(44100, { store: assetStore });
+  assert.equal(outcome.ok, false);
+  assert.match(outcome.detail, /stored copy is gone/);
+  assert.equal(project.sampleRate, 48000, "nothing was applied");
   reset();
 });

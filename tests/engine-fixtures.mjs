@@ -145,11 +145,13 @@ export function returnFixture(options) {
   };
 }
 
-export function projectFixture({ tracks = [], buses = [], returns = [], sidechains } = {}) {
+export function projectFixture({ tracks = [], buses = [], returns = [], sidechains, sampleRate = RATE } = {}) {
   const project = {
     id: "engine-fixture",
     name: "Engine fixture",
     template: "session-fixture",
+    // Task 11.1: the project's one rate, what every render and export runs at.
+    sampleRate,
     tracks,
     returns,
     buses,

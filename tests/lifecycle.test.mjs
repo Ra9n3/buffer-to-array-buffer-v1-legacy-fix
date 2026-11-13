@@ -200,7 +200,7 @@ test("startEmpty: a new unique identity, a valid Master-only project in the shar
   // the new project is stored at creation and listed first, the fixture behind it
   const stored = parseManifest(storage.data.get(projectKey("project-a")));
   assert.ok(stored);
-  assert.deepEqual(stored.project, { id: "project-a", name: EMPTY_PROJECT_NAME, template: "empty" });
+  assert.deepEqual(stored.project, { id: "project-a", name: EMPTY_PROJECT_NAME, template: "empty", sampleRate: 48000 });
   assert.deepEqual(stored.channels, {});
   assert.deepEqual(index(storage).map((e) => [e.id, e.name, e.template]), [["project-a", EMPTY_PROJECT_NAME, "empty"]]);
   assert.deepEqual(lifecycle.recent().map((v) => v.status.kind), ["current"]);

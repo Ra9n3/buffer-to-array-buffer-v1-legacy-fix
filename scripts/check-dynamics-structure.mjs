@@ -113,7 +113,10 @@ for (const rel of dspFiles) {
     `pure of the browser: ${rel}`,
     !/\bwindow\b|\bdocument\b|localStorage|sessionStorage|indexedDB|performance\.now|Date\.now|setTimeout|setInterval|requestAnimationFrame|Math\.random|new Worker|fetch\(|WebSocket/.test(body),
   );
-  check(`imports only its own folder: ${rel}`, !/from "\.\.\//.test(body) && !/from "@\//.test(body));
+  // Task 11.1: params.ts names the default rate through lib/audio/rates.ts — the one
+  // home of every rate decision — and nothing else leaves the folder.
+  const rateHomeException = rel === "src/lib/dsp/params.ts" ? /from "\.\./.test(body.replace('from "../audio/rates"', "")) : /from "\.\./.test(body);
+  check(`imports only its own folder: ${rel}`, !rateHomeException && !/from "@\//.test(body));
 }
 check(
   "no Web Audio API in the dynamics: the modules are the project's arithmetic, not browser nodes",

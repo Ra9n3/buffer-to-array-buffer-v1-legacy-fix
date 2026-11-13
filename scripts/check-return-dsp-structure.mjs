@@ -267,8 +267,10 @@ check("the report states that nothing was committed", /[Nn]othing committed|no c
 const pinned = {
   "src/lib/dsp/reverb.ts": "ca30f4135030fecff8ed4e8f94afaaf31933906e49f6ea74e85784d3a66ae0a2",
   "src/lib/dsp/delay.ts": "3c78e0fc6f45f72b97da82b31183f23defac093f4a2d75b3fe6ba398b24e1198",
-  "src/lib/dsp/params.ts": "6653a527255d80a62d435e63aa0abc9170fb24c7cbea8d1a84aa58be72185a71",
+  "src/lib/dsp/params.ts": "319136c7e9e8a00d25baa1544c97bfe24e8445321d5b61a887027785cb1e764a",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`reviewed file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

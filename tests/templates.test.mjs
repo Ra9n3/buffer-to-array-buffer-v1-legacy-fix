@@ -77,7 +77,7 @@ test("manifest round trip: the template travels with the identity; an empty proj
   const text = serializeManifest(buildManifest(empty, projectFields(empty)));
   const m = parseManifest(text);
   assert.ok(m);
-  assert.deepEqual(m.project, { id: "project-7", name: "Untitled project", template: "empty" });
+  assert.deepEqual(m.project, { id: "project-7", name: "Untitled project", template: "empty", sampleRate: 48000 });
   assert.deepEqual(m.channels, {});
   const fixture = createSessionProject();
   const fm = parseManifest(serializeManifest(buildManifest(fixture, projectFields(fixture))));

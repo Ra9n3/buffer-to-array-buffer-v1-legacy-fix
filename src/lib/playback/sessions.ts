@@ -92,7 +92,7 @@ export function createPreviewSession(
   chunkFrames: number,
   tailSeconds?: number,
 ): PlaybackSession {
-  const sampleRate = 48000;
+  const sampleRate = project.sampleRate; // Task 11.1: the session runs at the project's own rate
   const engine = new MixEngine(project, { sampleRate, maxFramesPerBlock: chunkFrames });
   const inputFrames = inputFramesOf(sources);
   const start = Math.max(0, Math.min(Math.floor(startFrame), inputFrames));

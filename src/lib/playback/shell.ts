@@ -22,8 +22,14 @@ export interface PlaybackShellOptions {
 }
 
 export function installPlaybackShell(win: Window, options: PlaybackShellOptions): () => void {
-  const output = options.output ?? createWebAudioOutput();
-  const controller = new PlaybackController({
+  /*
+   * Task 11.1: the output runs at the OPEN PROJECT's rate. A project switch
+   * or a rate change (both "clear" events) rebuilds the output when the rate
+   * moved — the context is created lazily on first play, so this is cheap
+   * while stopped, and a rate change stops playback first.
+   */
+  let output = options.output ?? createWebAudioOutput({ sampleRate: project.sampleRate });
+  let controller = new PlaybackController({
     getProject: () => project as unknown as Project,
     openSources: (current) => openProjectSources(current, options.assetStore),
     output,
@@ -52,7 +58,46 @@ export function installPlaybackShell(win: Window, options: PlaybackShellOptions)
     }),
     loop: () => playhead.activeLoopRegion,
   });
-  const detach = transport.attach(controller);
+  let detach = transport.attach(controller);
+  const rebuildAtProjectRate = (): void => {
+    const rate = project.sampleRate;
+    if (rate === output.sampleRate) return;
+    controller.stop();
+    controller.dispose();
+    // A fresh output at the project's rate. An injected test output at another
+    // rate is replaced: the shell's one job is that playback runs at the rate
+    // the open project names, and the context is created lazily, so a stopped
+    // rebuild touches no browser API.
+    output = createWebAudioOutput({ sampleRate: rate });
+    controller = new PlaybackController({
+      getProject: () => project as unknown as Project,
+      openSources: (current) => openProjectSources(current, options.assetStore),
+      output,
+      clock: {
+        schedule: (fn, ms) => {
+          if (typeof win.setInterval !== "function") return () => {};
+          const id = win.setInterval(fn, ms);
+          return () => win.clearInterval(id);
+        },
+        yieldBetween: () => new Promise<void>((resolve) => {
+          if (typeof win.setTimeout !== "function") resolve();
+          else win.setTimeout(resolve, 0);
+        }),
+        now: () => {
+          const d = new Date();
+          return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+        },
+      },
+      stopBehaviour: () => ({
+        returnToStartOnStop: settings.transport.returnToStartOnStop,
+        secondStopReturnsToStart: settings.transport.secondStopReturnsToStart,
+      }),
+      loop: () => playhead.activeLoopRegion,
+    });
+    detach();
+    detach = transport.attach(controller);
+    refresh();
+  };
 
   /*
    * Keep the playable length current (Task 9.1). The transport must know how long the
@@ -72,6 +117,9 @@ export function installPlaybackShell(win: Window, options: PlaybackShellOptions)
   };
   const stopWatching = history.subscribe((event) => {
     if (event.kind !== "clear") return;
+    // Task 11.1: a project switch or a rate change may have moved the rate —
+    // the output follows it before anything else is recomputed.
+    rebuildAtProjectRate();
     // Task 9.1.3: the same structural events mean any finished mix no longer
     // describes this project — an import, a project switch, or an undo past one.
     // A plain parameter edit is not a `clear`, and it is deliberately left alone:

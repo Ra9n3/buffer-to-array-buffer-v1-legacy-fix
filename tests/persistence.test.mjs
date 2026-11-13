@@ -60,7 +60,7 @@ test("the manifest holds every field by channel and relative path, carries no ti
   const m = buildManifest(project, fields);
   assert.equal(m.schema, MANIFEST_SCHEMA);
   // Task 4.1: the identity names the template the values apply onto (additive; the schema is unchanged)
-  assert.deepEqual(m.project, { id: "session-fixture", name: "Fixture session", template: "session-fixture" });
+  assert.deepEqual(m.project, { id: "session-fixture", name: "Fixture session", template: "session-fixture", sampleRate: 48000 });
   assert.equal(Object.keys(m.channels).length, 24, "20 tracks + 3 Returns + 1 bus");
   assert.equal(Object.values(m.channels).reduce((n, c) => n + Object.keys(c).length, 0), fields.length);
   assert.equal(manifestChannel(m, "track-03")["channel/level"], -12);

@@ -21,7 +21,8 @@
    */
   import ToolbarKey from "./hardware/ToolbarKey.svelte";
   import FollowControl from "./playhead/FollowControl.svelte";
-  import { autosave, history } from "../lib/project/store.svelte";
+  import { autosave, history, project } from "../lib/project/store.svelte";
+  import { printRate } from "../lib/audio/rates";
 
   let {
     onImport,
@@ -78,6 +79,16 @@
   <span class="toolbar__divider" aria-hidden="true"></span>
 
   <ToolbarKey label="Save" hook="save" onpress={() => void save()} />
+
+  <!-- Task 11.1: the header badge. It reads the ACTUAL project rate — the one
+       every import is converted to and every render runs at — never the
+       device's, never the target format's. A machined plate, engraved print,
+       no button: the rate is a fact, not a control. -->
+  <span class="toolbar__divider" aria-hidden="true"></span>
+  <p class="rate-badge" data-rate-badge data-rate={project.sampleRate} title="The project's sample rate — locked at creation; every import is converted to it once">
+    <span class="rate-badge__mark" aria-hidden="true">RATE</span>
+    <span class="rate-badge__value">{printRate(project.sampleRate)}</span>
+  </p>
 
   <!-- Task 10.1: the active timeline panel's follow group (the mode
        selector, the suspended badge, Re-follow). Contextual: it appears for
@@ -136,5 +147,32 @@
     .toolbar__report {
       display: none;
     }
+  }
+  /* Task 11.1: the rate badge. The value-window recipe (a dark recess under
+     a subtle border, mono capitals), because it is a READING, not a button:
+     the rate is a fact about the project, read from the store. */
+  .rate-badge {
+    display: flex;
+    align-items: baseline;
+    gap: var(--al-space-2xs);
+    margin: 0;
+    padding: 1px var(--al-space-2xs) 2px;
+    border: 1px solid var(--al-border-subtle);
+    border-radius: 2px;
+    background: var(--al-material-recess);
+    font-family: var(--al-font-mono);
+    font-size: var(--al-font-size-2xs, 0.6875rem);
+    line-height: 1.35;
+    letter-spacing: 0.06em;
+  }
+
+  .rate-badge__mark {
+    color: var(--al-text-secondary);
+    font-size: 0.5625rem;
+  }
+
+  .rate-badge__value {
+    color: var(--al-text-primary);
+    white-space: nowrap;
   }
 </style>

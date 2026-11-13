@@ -106,15 +106,18 @@ for (const rel of dspFiles) {
     `pure of the browser: ${rel}`,
     !/\bwindow\b|\bdocument\b|localStorage|sessionStorage|indexedDB|performance\.now|Date\.now|setTimeout|setInterval|requestAnimationFrame|Math\.random|new Worker|fetch\(|WebSocket/.test(body),
   );
-  check(`imports only its own folder: ${rel}`, !/from "\.\.\//.test(body) && !/from "@\//.test(body));
+  // Task 11.1: params.ts names the default rate through lib/audio/rates.ts — the one
+  // home of every rate decision — and nothing else leaves the folder.
+  const rateHomeException = rel === "src/lib/dsp/params.ts" ? /from "\.\./.test(body.replace('from "../audio/rates"', "")) : /from "\.\./.test(body);
+  check(`imports only its own folder: ${rel}`, !rateHomeException && !/from "@\//.test(body));
 }
 check(
   "no Web Audio API in the DSP: a section is the project's arithmetic, not a node",
   !/AudioContext|AudioWorklet|BiquadFilterNode|DynamicsCompressor|ConvolverNode|DelayNode|decodeAudioData|OfflineAudioContext/.test(dspCode),
 );
 check(
-  "the sample format is the project's: one Float32Array per channel, mono or stereo, 48 kHz",
-  /export const DSP_SAMPLE_RATE = 48000;/.test(paramsCode) &&
+  "the sample format is the project's: one Float32Array per channel, mono or stereo, at the named rate (rates.ts, Task 11.1 — no 48 kHz literal)",
+  /export const DSP_SAMPLE_RATE: number = DEFAULT_PROJECT_RATE;/.test(paramsCode) && /import \{ DEFAULT_PROJECT_RATE \} from "\.\.\/audio\/rates"/.test(paramsCode) &&
     /channels !== 1 && channels !== 2/.test(paramsCode) &&
     /instanceof Float32Array/.test(stripComments(S.buffers)) &&
     /sampleRate\?: number;/.test(paramsCode),
@@ -326,12 +329,14 @@ const pinned = {
   // params.ts is shared: Task 6.2 appended the dynamics ranges and requireBoolean, Task 6.3 the five Return
   // ranges, below the
   // Task 6.1 ones without touching them (the 6.1 assertions above still hold).
-  "src/lib/dsp/params.ts": "6653a527255d80a62d435e63aa0abc9170fb24c7cbea8d1a84aa58be72185a71",
+  "src/lib/dsp/params.ts": "319136c7e9e8a00d25baa1544c97bfe24e8445321d5b61a887027785cb1e764a",
   "src/lib/dsp/biquad.ts": "919d840eda33cd022c3f4c0bc73531608ecdcb14ee7251abb7cd4da5924fa8e8",
   "src/lib/dsp/buffers.ts": "6054edf494a5b44bf35edc2813e6487118d0b8678b50bf394cea623a1ae8af20",
   "src/lib/dsp/eq.ts": "08bb262554a4bf44bd93de22844f2b9c7cc6d208bccd0b69390c46c5e0b219d5",
   "src/lib/dsp/dynamic-eq.ts": "57bcf8e1693e224fae39229a045941934414dca17635444623778e101706189a",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`reviewed file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

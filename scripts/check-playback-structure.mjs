@@ -55,7 +55,7 @@ const projectShell = read("src/lib/project/shell.ts");
 // --- 1. One shared transport -------------------------------------------------
 check("the three plan listening modes are the transport's source type", /export type ListeningSource = "raw" \| "preview" \| "render"/.test(T));
 check("transport state carries status, source, playhead, start, duration, render progress and error", /export interface PlaybackState \{[\s\S]*status: TransportStatus[\s\S]*source: ListeningSource[\s\S]*positionFrames: number[\s\S]*startFrame: number[\s\S]*durationFrames: number[\s\S]*renderProgress: number \| null[\s\S]*error: string \| null/.test(T));
-check("one reactive module-level transport state, attached once by the shell", /const state: PlaybackState = \$state\(initialPlaybackState\(48000\)\)/.test(ST) && /attach\(next: PlaybackController\)/.test(ST));
+check("one reactive module-level transport state, attached once by the shell", /const state: PlaybackState = \$state\(initialPlaybackState\(DEFAULT_PROJECT_RATE\)\)/.test(ST) && /attach\(next: PlaybackController\)/.test(ST));
 check("the facade exposes play/pause/stop/seek/source/render", /play\(\): Promise<void>/.test(ST) && /pause\(\): void/.test(ST) && /stop\(\): void/.test(ST) && /seek\(frames: number\): void/.test(ST) && /setSource\(source: ListeningSource\): void/.test(ST) && /render\(\): Promise<void>/.test(ST));
 check("the project shell installs and detaches the shared playback controller", /installPlaybackShell\(win, \{ assetStore \}\)/.test(projectShell) && /detachPlayback\(\)/.test(projectShell));
 check("the debug handle exposes the transport facade", /readonly transport: typeof transport;/.test(projectShell) && /transport,/.test(projectShell));

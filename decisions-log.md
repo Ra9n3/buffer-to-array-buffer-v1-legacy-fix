@@ -5664,3 +5664,124 @@ flex, no other control moved. Evidence: `task-reports/evidence/10.2/`
 (`tabular-before-beat{1,4}-bar2-1920.png`, `tabular-after-beat{1,4}`,
 `tabular-after-console-{1920x1080,1366x768}.png`,
 `tabular-measurements.json`).
+
+## Task 11.1 — Multi-format audio: 24/32-bit × 44.1/48 kHz import and export (2026-11-14)
+
+Owner-approved architecture, applied whole: ONE internal format (32-bit float),
+ONE project sample rate (44100 | 48000, default 48000, locked after creation);
+convert once on import, once on export; rate and depth conversion are separate
+stages in that order. Resampling is high-quality but NOT lossless — no code, UI
+or document claims otherwise.
+
+### D11.1.1 — One home of rate decisions; both rates accepted at import (2026-11-14)
+
+`src/lib/audio/rates.ts` is the single source of every rate decision:
+`ProjectRate`, `PROJECT_RATES`, `DEFAULT_PROJECT_RATE`, `LEGACY_PROJECT_RATE`
+(48000 — what every pre-11.1 project was built at), the internal-format
+constants and the prints. `DSP_SAMPLE_RATE` derives from it (dsp/params.ts
+imports it — the one sanctioned import out of the dsp folder); the benchmark,
+the mixer-chain response and every other module name rates through it. An
+import is accepted at EITHER rate (the conversion stage resamples to the
+project's); 96 kHz and everything else is still refused, with the new advice
+("re-export the stem as a 44.1 or 48 kHz WAV, 24-bit (packed or 24-in-32) or
+32-bit (int or float)"). More than two channels stays refused — the plan's
+locked rule (a stem is mono or stereo); the parser reads and describes a
+multichannel header, channel mask included, before the rule refuses it.
+
+### D11.1.2 — The rate is the project's; the manifest carries it; old projects reopen at 48000 (2026-11-14)
+
+`Project.sampleRate` is chosen at creation (default 48000) and locked. The
+manifest writes `project.sampleRate`; a manifest without it (pre-11.1)
+reopens at `LEGACY_PROJECT_RATE` 48000 — which is what those projects were
+built at. The DEVICE's rate is not ours: the Web Audio context is created at
+the project's rate where the browser allows it, the device rate may differ,
+and Web Audio owns that final conversion — there is no custom output path
+(the checkers pin the separation in check:playback's wiring). The header
+badge, the transport and every conversion read the ACTUAL project rate; the
+export dialog reads the ACTUAL target format.
+
+### D11.1.3 — 24-in-32 resolved by the declared rule plus one deterministic override (2026-11-14)
+
+Microsoft's WAVEFORMATEXTENSIBLE specification (ksmedia.h): "If
+wValidBitsPerSample is less than Format.wBitsPerSample, the valid bits (the
+actual PCM data) are left-aligned within the container. The unused bits in
+the least-significant portion of the container should be set to zero." So a
+24-in-32 file is READ left-aligned — the word is arithmetic-shifted right by
+8 and scaled by 2^23; the container is never read as a plain int32. A
+minority of writers zero the HIGH byte instead (right-aligned); no header bit
+distinguishes the two, so ONE deterministic whole-file test overrides: if
+every word has a zero high byte while some word has a non-zero low byte, the
+bytes can only be right-aligned. Both readings are accepted; the resolved
+alignment and its basis ("declared" | "detected") are recorded in the import
+metadata (AssetRecord.format and TrackAudio). Edge case, documented rather
+than solved: a left-aligned file that stays below −18 dBFS everywhere AND
+carries a noisy pad byte would read 256× too quiet — no header-only rule can
+separate it from a quiet right-aligned file. The depth is decided by
+container + valid bits together, never by wValidBitsPerSample alone.
+
+### D11.1.4 — The conversion stage: one internal format, non-destructive (2026-11-14)
+
+`lib/audio/convert.ts` runs the task's order for every accepted file: parse
+(inspectWav) → resample to the project rate (the resampler, only when the
+rates differ) → peaks FROM THE CONVERTED COPY. The store keeps the original
+bytes AND its facts (rate, depth, container, alignment, channels) beside the
+converted copy (32-bit float WAV at the project rate, written by the one WAV
+writer, `decoded` mode). The peaks record is keyed to the converted copy: it
+carries the converted hash and the rate it was computed at, so any mismatch
+invalidates it. In the app the stage runs in a Worker
+(`?worker&inline`, so the single-file build stays single); Node tests and a
+browser without Workers fall back to the in-thread stage. The import line
+says what happened: "44.1 kHz → 48 kHz — high-quality resampling to the
+project rate — not lossless".
+
+### D11.1.5 — The resampler: pinned ratios, declared latency, deterministic (2026-11-14)
+
+Polyphase windowed-sinc: Kaiser window (96 dB design stopband, β ≈ 9.6),
+linear-phase symmetric prototype, 64 taps/phase (the top of the task's
+32–64), cutoff 0.925 × min(rate)/2. The ratios are reduced and pinned:
+48→44.1 is L=147/M=160 (147 phases), 44.1→48 is L=160/M=147 (160 phases).
+The FIR's group delay is compensated BY CONSTRUCTION (each output is the
+symmetric kernel centred on its own time — an impulse round-trips to its
+sample position within ±1 sample, verified); what remains is declared in one
+place: ceil(64/2) input samples of lookahead, zero-padded at the end, so the
+last ~0.7 ms fades. Per-phase DC normalisation (a constant passes at exactly
+1). Streaming and whole-file are byte-identical. Measured honestly at this
+tap budget: 997 Hz–10 kHz flat to 0.01 dB; 20 kHz droops ≈ −3 dB (the
+transition band is ≈ 20.4–24.6 kHz wide); aliasing at the fold edge ≥ 90 dB
+down. High quality, not lossless.
+
+### D11.1.6 — Export: render at the project rate, then one rate stage, then one depth stage (2026-11-14)
+
+`exportProject` renders at `project.sampleRate`; when the target differs,
+`RateStageWriter` (lib/export/rate-stage.ts) streams the render through the
+same resampler, then the WAV writer applies the depth. The dialog's two
+independent selects (depth: 24-bit PCM | 32-bit float) × (rate: 44.1 | 48 |
+the project's own, the default) give four combinations, remembered in
+settings with the dither choice. 24-bit: round-to-nearest, clamp to
+[−2^23, 2^23−1], the −1.0 full-scale edge exact; dither OFF by default, TPDF
+an explicit opt-in applied ONCE at the depth stage (never on the float path,
+never double, no noise shaping), with an injectable noise source so tests are
+deterministic. `fact` chunk: OMITTED for 24-bit PCM, INCLUDED for float
+(44 + 12 header); every header field is golden-pinned for all four
+combinations. Float never clips. The honest note ("48 kHz → 44.1 kHz —
+high-quality resampling, not lossless") travels in the outcome.
+
+### D11.1.7 — The rate change: explicit, warned, all-or-nothing (2026-11-14)
+
+`rate-change.ts` changes an existing project's rate only through the warned
+flow: every original is read and hash-checked first; then each is converted
+at the new rate with per-stem progress and the store overwritten per asset
+(the peaks record's rate makes a half-applied change self-healing on the next
+hydrate); then the project's rate and every track's audio facts flip in ONE
+structural change (`applyProjectRate`) — the project is never seen at the new
+rate with the old copies. The manifest writes the new rate; the transport
+rebuilds at it (the shell's rate watcher). A same-rate call is an honest
+no-op. Analysis results are NOT invalidated: they measure the original's
+content, which a rate change does not touch. The Settings panel is the only
+door to it, and the warning says what resampling is.
+
+**Verification.** The full suite 501/501 under `npm test`; all 33 check:*
+guards pass (check:import rewritten for the new contract and re-pinned;
+check:export, check:dsp, check:playback, check:project-store,
+check:home-settings, check:playhead, check:analysis, check:editing extended
+and re-pinned); svelte-check 0/0; `npm run build` clean.

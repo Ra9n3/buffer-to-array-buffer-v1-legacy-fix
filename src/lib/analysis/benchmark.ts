@@ -16,12 +16,16 @@
  */
 import { analyseBytes } from "./analyse";
 import { ENGINE_VERSION } from "./analyser";
+import { DEFAULT_PROJECT_RATE } from "../audio/rates";
 import { encodeWav } from "../audio/wav";
 import { chooseProfile, isProfileId, type DeviceFacts, type ProfileId } from "./profiles";
 
 export const BENCHMARK_SCHEMA = "alloy.benchmark/1";
 export const BENCHMARK_KEY = "alloy.benchmark";
 export const BENCHMARK_WORKLOAD_SECONDS = 4;
+/** The workload's rate and slice length, named (Task 11.1: no rate literal survives unnamed). */
+export const BENCHMARK_RATE_HZ: number = DEFAULT_PROJECT_RATE;
+export const BENCHMARK_SLICE_FRAMES = BENCHMARK_RATE_HZ;
 export const BENCHMARK_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 /** The estimate's safety margin over the measured throughput (machines are busier than at the benchmark). */
 export const ESTIMATE_MARGIN = 1.25;
@@ -41,7 +45,7 @@ export interface BenchmarkRecord {
 
 /** The workload: deterministic, so every device measures the same bytes. */
 export function benchmarkWorkload(seconds = BENCHMARK_WORKLOAD_SECONDS): Uint8Array {
-  const rate = 48000;
+  const rate = BENCHMARK_RATE_HZ;
   const frames = Math.round(seconds * rate);
   let seed = 0x2545f491;
   const noise = (): number => {
@@ -84,7 +88,7 @@ export interface BenchmarkDeps extends DeviceFacts {
 export async function runBenchmark(deps: BenchmarkDeps): Promise<BenchmarkRecord> {
   const bytes = benchmarkWorkload();
   const start = deps.clock();
-  const result = await analyseBytes(bytes, { sliceFrames: 48000, yieldBetween: deps.yieldBetween });
+  const result = await analyseBytes(bytes, { sliceFrames: BENCHMARK_SLICE_FRAMES, yieldBetween: deps.yieldBetween });
   const elapsedMs = Math.max(0.001, deps.clock() - start);
   const workloadSeconds = result.format.seconds;
   const throughput = workloadSeconds / (elapsedMs / 1000);

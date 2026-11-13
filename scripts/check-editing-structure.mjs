@@ -119,7 +119,7 @@ check("persistence is a pure module: storage and scheduling are injected; no win
 // Task 4.1: the identity in the manifest carries the template the project was built from (optional on
 // read: a manifest written before 4.1 has none and is still a manifest). The schema id is unchanged —
 // the field is additive and the reader is lenient.
-check("the manifest: schema alloy.project-manifest/1, project id + name + template (Task 4.1), channels by id → {rel: value} over the registry; stable serialisation, no timestamp", /export const MANIFEST_SCHEMA = "alloy.project-manifest\/1";/.test(P) && /export function buildManifest\(project: Pick<Project, "id" \| "name" \| "template"> & \{ readonly tracks\?: readonly Pick<Track, "id" \| "code" \| "name" \| "org" \| "audio">\[\] \}, fields: readonly FieldRef\[\]\): ProjectManifest/.test(P) && /const manifest: ProjectManifest = \{ schema: MANIFEST_SCHEMA, project: \{ id: project\.id, name: project\.name, template: project\.template \}, channels \};\s*if \(imported\.length === 0\) return manifest;/.test(P) && /readonly project: \{ readonly id: string; readonly name: string; readonly template\?: ProjectTemplateId \};/.test(P) && /if \(m\.project\.template !== undefined && typeof m\.project\.template !== "string"\) return null;/.test(P) && /export function serializeManifest\(manifest: ProjectManifest\): string \{\s*return JSON\.stringify\(manifest\);/.test(P) && !/savedAt|timestamp|new Date|toISOString|Date\./.test(P.slice(0, P.indexOf("export interface StorageAdapter"))) && /export function parseManifest\(text: string\): ProjectManifest \| null/.test(P) && /export function manifestChannel\(manifest: ProjectManifest, id: ChannelId\)/.test(P));
+check("the manifest: schema alloy.project-manifest/1, project id + name + template + rate (Tasks 4.1 / 11.1), channels by id → {rel: value} over the registry; stable serialisation, no timestamp", /export const MANIFEST_SCHEMA = "alloy.project-manifest\/1";/.test(P) && /export function buildManifest\(project: Pick<Project, "id" \| "name" \| "template" \| "sampleRate"> & \{ readonly tracks\?: readonly Pick<Track, "id" \| "code" \| "name" \| "org" \| "audio">\[\] \}, fields: readonly FieldRef\[\]\): ProjectManifest/.test(P) && /const manifest: ProjectManifest = \{ schema: MANIFEST_SCHEMA, project: \{ id: project\.id, name: project\.name, template: project\.template, sampleRate: project\.sampleRate \}, channels \};\s*if \(imported\.length === 0\) return manifest;/.test(P) && /readonly project: \{ readonly id: string; readonly name: string; readonly template\?: ProjectTemplateId; readonly sampleRate\?: ProjectRate \};/.test(P) && /if \(m\.project\.template !== undefined && typeof m\.project\.template !== "string"\) return null;/.test(P) && /export function serializeManifest\(manifest: ProjectManifest\): string \{\s*return JSON\.stringify\(manifest\);/.test(P) && !/savedAt|timestamp|new Date|toISOString|Date\./.test(P.slice(0, P.indexOf("export interface StorageAdapter"))) && /export function parseManifest\(text: string\): ProjectManifest \| null/.test(P) && /export function manifestChannel\(manifest: ProjectManifest, id: ChannelId\)/.test(P));
 check("storage adapters: memoryStorage (tests; failWrites hook) and webStorageAdapter over getItem / setItem — localStorage named, never imported", /export function memoryStorage\(options: \{ readonly failWrites\?: \(\) => boolean \} = \{\}\)/.test(P) && /export function webStorageAdapter\(storage: Pick<Storage, "getItem" \| "setItem">, name = "localStorage"\): StorageAdapter/.test(P));
 check("the save lifecycle: clean | dirty | saving | saved | failed; dirty = revision ≠ savedRevision; save() outcomes written | unchanged | clean | no-storage | failed", /export type SaveState = "clean" \| "dirty" \| "saving" \| "saved" \| "failed";/.test(P) && /readonly outcome: "written" \| "unchanged" \| "clean" \| "no-storage" \| "failed";/.test(P) && /get dirty\(\): boolean \{\s*return this\.revisionOf\(\) !== this\.savedRevision;/.test(P) && /if \(!this\.storage\) return \{ ok: false, outcome: "no-storage", error: null, revision \};/.test(P) && /if \(revision === this\.savedRevision\) return \{ ok: true, outcome: "clean", error: null, revision \};/.test(P));
 check("never a false 'saved': savedRevision / savedAt move only after a successful write; a failure keeps the error until a write succeeds or the stored copy matches again; unchanged text skips the write but counts as saved", /if \(text === this\.lastSavedText\) \{\s*this\.savedRevision = revision;\s*this\.skipped\+\+;\s*this\.error = null;\s*this\.lastAttempt = "saved";\s*return \{ ok: true, outcome: "unchanged", error: null, revision \};/.test(P) && /private failed\(e: unknown, revision: number\): SaveResult \{\s*this\.error = e instanceof Error \? e\.message : String\(e\);\s*this\.lastAttempt = "failed";\s*return \{ ok: false, outcome: "failed", error: this\.error, revision \};\s*\}/.test(P) && /private written\(revision: number, text: string\): SaveResult \{\s*this\.savedRevision = revision;\s*this\.lastSavedText = text;\s*this\.savedAt = this\.clock \? this\.clock\(\) : null;\s*this\.error = null;\s*this\.writes\+\+;\s*this\.lastAttempt = "saved";/.test(P) && count(P, /this\.savedRevision = revision;/g) === 2);
@@ -184,7 +184,7 @@ check(
 );
 check(
   "the toolbar binds to the ONE project history and the ONE autosave, never its own state",
-  /import \{ autosave, history \} from "\.\.\/lib\/project\/store\.svelte"/.test(read("src/components/AppToolbar.svelte")) &&
+  /import \{ autosave, history, project \} from "\.\.\/lib\/project\/store\.svelte"/.test(read("src/components/AppToolbar.svelte")) &&
     /history\.undo\(\)/.test(read("src/components/AppToolbar.svelte")) &&
     /history\.redo\(\)/.test(read("src/components/AppToolbar.svelte")) &&
     /autosave\.save\(\)/.test(read("src/components/AppToolbar.svelte")),
@@ -221,7 +221,7 @@ const REQUIRED_TEST_FILES = [
 ];
 /** Suites a later task may append to `npm test`. Task 9.1 added the cross-layer joints. */
 // Task 10.1: the playhead suite is sanctioned after the required list.
-const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs"];
+const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs", "tests/resample.test.mjs"];
 const testCommand = pkg.scripts.test ?? "";
 const namedSuites = testCommand.split(/\s+/).filter((part) => part.startsWith("tests/"));
 check(
@@ -249,18 +249,18 @@ check("data-model.md documents the editing layer: the registry and copyable boun
 const pinned = {
   "src/lib/project/fields.ts": "4d7b03cbed7a3c2f867d1bc0b18204ad9548b210d0f1784cd8b4c1aa64171d32",
   "src/lib/project/history.ts": "1471c5b8b87285b119fdfada38867a646350e2c502df5faa7786ca47a8ed5563",
-  "src/lib/project/persistence.ts": "8d1468e910b39f3c1fba424d01a5c4ccaa09419c0a758e2dc3291473ca2a99e9",
+  "src/lib/project/persistence.ts": "1981174100232c3c05a78e1d5b4754c75a47ad3a5f6b5657fbf60946e51356a6",
   "src/lib/project/clipboard.ts": "2ede55922707193602770c893042f4a84af4f761426ed71a6fc2476279532d25",
   // Task 10.1 re-pinned (isTextEntry moved to lib/text-entry.ts, D10.1.6): a
   // re-export keeps the shell's public surface; the wiring is unchanged.
-  "src/lib/project/shell.ts": "4b950b3c1e3ced98629d30f61643e8de8769184d9b0f483f09e2e895d80a7f0c",
+  "src/lib/project/shell.ts": "f5048e9e29ef12318ce85b6508b6d84381c74fed98099ffa62eef7f43fb0a6d4",
     // Task 9.1.2 re-pinned this file: the store boots an EMPTY project instead of the
   // development session. Nothing was deleted from it; see the decision log (D9.1.2).
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/lib/project/store.svelte.ts": "babbe46c6bf16f7ba5b0c16e016b1f321f5f8ed41b6cef6ddc282689bb3e39c9",
+  "src/lib/project/store.svelte.ts": "9814f3f455e34463f7e54f33d039fe9a152f25b8bf67f41ce6db861f1c0e523d",
   "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
@@ -274,8 +274,10 @@ const pinned = {
   // Task 10.1 re-pinned (the follow group in the top bar, D10.1.6).
   // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
   // the shell gained the deck's row. The checks around this pin still assert the file's real contract.
-  "src/App.svelte": "e7fa23d3206c419579024c90d5d5f843fab2be4d4f1fcf2f17dfdf0ec0b1ceb5",
+  "src/App.svelte": "05b529f1000bdf56440dda2e83eb238f129030f347e6a9f11c9b93875f99e226",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

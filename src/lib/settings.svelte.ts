@@ -10,10 +10,11 @@
  *                    NOT YET OPERATIONAL: no engine reads it in this build.
  *   export           plan §12 (v1): WAV only; the output types — full mix,
  *                    processed individual stems, processed buses — in any
- *                    combination. These are the DEFAULT SELECTION for the
- *                    export dialog that arrives with rendering; nothing is
- *                    exported in this build. The destination folder is
- *                    chosen at export time (a folder cannot be kept here).
+ *                    combination, plus the dialog's remembered FORMAT
+ *                    (Task 11.1): depth (32-bit float default) × rate (null
+ *                    follows the project) and TPDF dither at 24-bit, off by
+ *                    default. A stored document from before 11.1 keeps its
+ *                    output selections and takes the format defaults.
  *   motion           accessibility: "system" follows the operating system's
  *                    reduced-motion preference (what the approved components
  *                    already honour); "reduced" forces it in this
@@ -46,6 +47,7 @@
  */
 
 import type { StorageAdapter } from "./project/persistence";
+import type { ProjectRate } from "./audio/rates";
 import {
   DEFAULT_FOLLOW_MODE,
   DEFAULT_FOLLOW_TRIGGER,
@@ -82,6 +84,28 @@ export const EXPORT_OUTPUT_PRINT: Readonly<Record<ExportOutput, string>> = {
 /** Plan §12: the only export format in v1. Not a preference. */
 export const EXPORT_FORMAT = "WAV";
 
+/* --- Task 11.1: the export dialog's two selects and its dither switch --------------- */
+
+/** The depth select's vocabulary (lib/export/encode.ts's ExportDepth). */
+export type ExportDepthPreference = "float32" | "pcm24";
+export const EXPORT_DEPTHS: readonly ExportDepthPreference[] = ["float32", "pcm24"];
+export const EXPORT_DEPTH_PRINT: Readonly<Record<ExportDepthPreference, string>> = {
+  float32: "32-bit float",
+  pcm24: "24-bit PCM",
+};
+
+/**
+ * The rate select's vocabulary. `null` follows the project's rate — the
+ * default, so nothing is resampled until someone says so; a stored value is
+ * the remembered choice. 44.1 and 48 are the two project rates (rates.ts).
+ */
+export type ExportRatePreference = ProjectRate | null;
+export const EXPORT_RATES: readonly NonNullable<ExportRatePreference>[] = [44100, 48000];
+export const EXPORT_RATE_PRINT: Readonly<Record<NonNullable<ExportRatePreference>, string>> = {
+  44100: "44.1 kHz",
+  48000: "48 kHz",
+};
+
 export type MotionPreference = "system" | "reduced";
 export const MOTION_PREFERENCES: readonly MotionPreference[] = ["system", "reduced"];
 
@@ -112,6 +136,12 @@ export interface ExportPreferences {
   fullMix: boolean;
   stems: boolean;
   buses: boolean;
+  /** Task 11.1: the dialog's remembered depth (default 32-bit float). */
+  depth: ExportDepthPreference;
+  /** Task 11.1: the dialog's remembered rate — null follows the project (no resampling). */
+  rate: ExportRatePreference;
+  /** Task 11.1: TPDF at 24-bit — OFF by default, an explicit opt-in, applied once. */
+  dither: boolean;
 }
 
 export interface AppSettings {
@@ -129,7 +159,15 @@ export interface SettingsDocument extends AppSettings {
 export const DEFAULT_SETTINGS: Readonly<AppSettings> = {
   hardwareProfile: "auto",
   // the beginner's flow (plan, vision): press MIX, export the mix — the mix is on by default, the rest off
-  export: { fullMix: true, stems: false, buses: false },
+  export: {
+    fullMix: true,
+    stems: false,
+    buses: false,
+    // Task 11.1: float32, the project's own rate, no dither — the honest defaults
+    depth: "float32",
+    rate: null,
+    dither: false,
+  },
   motion: "system",
   onboarding: "pending",
   // Task 10.1 (§14): every default exactly as the spec lists it — both Stop
@@ -154,6 +192,17 @@ function oneOf<T extends string>(values: readonly T[], value: unknown, fallback:
 
 function bool(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+/** Task 11.1: the export dialog's remembered group — depth, rate, dither. */
+function exportExtras(value: unknown): Pick<ExportPreferences, "depth" | "rate" | "dither"> {
+  const doc = (value && typeof value === "object" ? value : {}) as Partial<ExportPreferences>;
+  const rate = doc.rate === 44100 || doc.rate === 48000 ? doc.rate : null;
+  return {
+    depth: oneOf(EXPORT_DEPTHS, doc.depth, DEFAULT_SETTINGS.export.depth),
+    rate,
+    dither: bool(doc.dither, DEFAULT_SETTINGS.export.dither),
+  };
 }
 
 /** Task 10.1: the transport group, field by field, with the follow vocabulary as its bounds. */
@@ -185,12 +234,14 @@ export function parseSettings(text: string): AppSettings | null {
     const doc = value as Partial<SettingsDocument>;
     if (doc.schema !== SETTINGS_SCHEMA) return null;
     const exp = (doc.export && typeof doc.export === "object" ? doc.export : {}) as Partial<ExportPreferences>;
+    const extras = exportExtras(doc.export);
     return {
       hardwareProfile: oneOf(HARDWARE_PROFILES, doc.hardwareProfile, DEFAULT_SETTINGS.hardwareProfile),
       export: {
         fullMix: bool(exp.fullMix, DEFAULT_SETTINGS.export.fullMix),
         stems: bool(exp.stems, DEFAULT_SETTINGS.export.stems),
         buses: bool(exp.buses, DEFAULT_SETTINGS.export.buses),
+        ...extras,
       },
       motion: oneOf(MOTION_PREFERENCES, doc.motion, DEFAULT_SETTINGS.motion),
       onboarding: oneOf(ONBOARDING_STATES, doc.onboarding, DEFAULT_SETTINGS.onboarding),
@@ -205,7 +256,7 @@ export function serializeSettings(s: AppSettings): string {
   const doc: SettingsDocument = {
     schema: SETTINGS_SCHEMA,
     hardwareProfile: s.hardwareProfile,
-    export: { fullMix: s.export.fullMix, stems: s.export.stems, buses: s.export.buses },
+    export: { fullMix: s.export.fullMix, stems: s.export.stems, buses: s.export.buses, depth: s.export.depth, rate: s.export.rate, dither: s.export.dither },
     motion: s.motion,
     onboarding: s.onboarding,
     transport: { ...s.transport },
@@ -273,6 +324,9 @@ function assign(next: AppSettings): void {
   state.export.fullMix = next.export.fullMix;
   state.export.stems = next.export.stems;
   state.export.buses = next.export.buses;
+  state.export.depth = next.export.depth;
+  state.export.rate = next.export.rate;
+  state.export.dither = next.export.dither;
   state.motion = next.motion;
   state.onboarding = next.onboarding;
   Object.assign(state.transport, next.transport);
@@ -376,6 +430,24 @@ export const settingsOps = {
     if (!TRANSPORT_SWITCH_KEYS.includes(key)) throw new Error(`unknown transport switch: ${key}`);
     if (state.transport[key] === on) return;
     state.transport[key] = on;
+    changed();
+  },
+  /* --- Task 11.1: the export dialog's remembered choices, one op per control --- */
+  setExportDepth(depth: ExportDepthPreference): void {
+    if (!EXPORT_DEPTHS.includes(depth)) throw new Error(`unknown export depth: ${depth}`);
+    if (state.export.depth === depth) return;
+    state.export.depth = depth;
+    changed();
+  },
+  setExportRate(rate: ExportRatePreference): void {
+    if (rate !== null && rate !== 44100 && rate !== 48000) throw new Error(`unknown export rate: ${rate}`);
+    if (state.export.rate === rate) return;
+    state.export.rate = rate;
+    changed();
+  },
+  setExportDither(on: boolean): void {
+    if (state.export.dither === on) return;
+    state.export.dither = on;
     changed();
   },
   /** Everything back to its default (one write). */

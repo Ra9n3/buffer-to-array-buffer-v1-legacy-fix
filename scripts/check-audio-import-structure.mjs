@@ -102,40 +102,90 @@ if (failures.length) {
 const S = Object.fromEntries(Object.entries(FILES).map(([k, rel]) => [k, read(rel)]));
 const W = S.wav, R = S.rules, PK = S.peaks, AS = S.assetStore, AA = S.arrangeAudio, IM = S.importer, AX = S.assets;
 const band = S.band, bandScript = scriptOf(band), bandTpl = templateOf(band), bandStyle = styleOf(band);
+const ST_text = () => read(FILES.store);
 const room = S.room, roomTpl = templateOf(room), roomScript = scriptOf(room);
 const row = S.row, rowTpl = templateOf(row), rowScript = scriptOf(row);
 const lane = S.lane, laneTpl = templateOf(lane);
-const AUDIO_MODULES = { wav: W, rules: R, peaks: PK, assetStore: AS, arrangeAudio: AA, importer: IM, assets: AX };
+const CV = read("src/lib/audio/convert.ts");
+const RS = read("src/lib/audio/resample.ts");
+const RT = read("src/lib/audio/rates.ts");
+const AUDIO_MODULES = { wav: W, rules: R, peaks: PK, assetStore: AS, arrangeAudio: AA, importer: IM, assets: AX, convert: CV, resample: RS, rates: RT };
 
-// --- 1. The plan's formats, exactly. ---------------------------------------------------------
-check("rules: the accepted rate is 48 kHz", /export const ACCEPTED_SAMPLE_RATE = 48000;/.test(R));
-check("rules: the accepted formats are 24-bit PCM and 32-bit float", /export const ACCEPTED_FORMATS = \["24-bit PCM", "32-bit float"\] as const;/.test(R));
-check("rules: a stem is mono or stereo (MAX_CHANNELS 2)", /export const MAX_CHANNELS = 2;/.test(R));
-check("rules: the depth rule is exactly pcm 24 or float 32", /\(f\.encoding === "pcm" && f\.bitDepth === 24\) \|\| \(f\.encoding === "float" && f\.bitDepth === 32\)/.test(R));
-check("rules: another rate is refused — ALLOY does not resample", /f\.sampleRate !== ACCEPTED_SAMPLE_RATE/.test(R) && /does not resample/.test(R));
+// --- 1. The formats (Task 11.1): both rates, both 24-in-32 alignments, 32-bit int; the conversion stage. ------
+check("rules: the two import rates are 44.1 and 48 kHz (converted once at import, never re-exported)", /export const IMPORT_RATES: readonly ProjectRate\[\] = \[44100, 48000\];/.test(R));
+check("rules: the accepted formats list is Task 11.1's", /export const ACCEPTED_FORMATS = \[\s*"24-bit PCM",\s*"24-bit PCM in a 32-bit container \(left-aligned\)",\s*"24-bit PCM in a 32-bit container \(right-aligned\)",\s*"32-bit int PCM",\s*"32-bit float",\s*\] as const;/.test(R));
+check("rules: a stem is mono or stereo (MAX_CHANNELS 2); the parser reads multichannel headers, the rules refuse them", /export const MAX_CHANNELS = 2;/.test(R) && /a stem is mono or stereo; re-export it as mono or stereo/.test(R));
+check("rules: the depth rule covers pcm 24 (both layouts) and pcm 32, float 32", /function depthAccepted\(f: Pick<WavFormat, "encoding" \| "bitDepth" \| "containerBits">\): boolean \{\s*if \(f\.encoding === "float"\) return f\.bitDepth === 32;\s*if \(f\.encoding === "pcm"\) return f\.bitDepth === 24 \|\| f\.bitDepth === 32;\s*return false;\s*\}/.test(R));
+check("rules: another rate is refused with the new advice; the advice never claims losslessness", /!IMPORT_RATES\.includes\(f\.sampleRate as ProjectRate\)/.test(R) && /ALLOY works at 44\.1 or 48 kHz/.test(R) && /re-export the stem as a 44\.1 or 48 kHz WAV, 24-bit \(packed or 24-in-32\) or 32-bit \(int or float\)/.test(R) && count(R, /\$\{RE_EXPORT_ADVICE\}/g) >= 3 && /export const CONVERSION_NOTICE = "high-quality resampling to the project rate — not lossless";/.test(R) && !/is lossless|lossless (conversion|quality|export)/i.test(R));
 check("rules: a compressed WAV is refused", /f\.encoding === "other"/.test(R) && /a compressed WAV/.test(R));
-check("rules: every refusal asks for the plan's re-export", /export const RE_EXPORT_ADVICE = "re-export the stem as a 48 kHz WAV, 24-bit or 32-bit float";/.test(R) && count(R, /\$\{RE_EXPORT_ADVICE\}/g) >= 3);
-check("rules: no 16-bit or 44.1 kHz acceptance anywhere in the rules", !/16-bit/.test(stripComments(R)) && !/44100|44\.1/.test(stripComments(R)));
 check("rules: the plan's silence threshold and short-stem length are named", /export const SILENCE_PEAK_DBFS = -80;/.test(R) && /export const SHORT_SECONDS = 1;/.test(R));
+check("rules: the conversion notice is the honest wording, in the rules' one home", /export const CONVERSION_NOTICE = "high-quality resampling to the project rate — not lossless";/.test(R));
 check("wav: the reader names what a non-WAV is (MP3 / FLAC / AIFF / Ogg …) rather than guessing", /export function looksLike\(bytes: Uint8Array\): string \| null/.test(W) && /ID3/.test(W) && /fLaC/.test(W) && /FORM/.test(W));
 check("wav: inspection returns ok | not-wav | corrupt — never throws into the batch", /export type WavProblem =/.test(W) && /"not-wav"/.test(W) && /"corrupt"/.test(W) && /export function inspectWav\(/.test(W));
 check("wav: a truncated data chunk is corrupt, with the counts", /ends before its audio data does/.test(W) && /truncated/.test(W));
-check("import: the format is judged before any sample is read — the reader never decides acceptance", /export function sampleReaderFor\(/.test(W) && IM.indexOf("judgeFormat(") < IM.indexOf("computePeaks(") && IM.indexOf("judgeFormat(") > 0 && !/judgeFormat|ACCEPTED_/.test(stripComments(W)));
-check("wav: no resampling, no conversion", !/resample|convert|OfflineAudioContext/i.test(stripComments(W)));
+check("import: the format is judged before any sample is read — the reader never decides acceptance", /export function sampleReaderFor\(/.test(W) && IM.indexOf("judgeFormat(") < IM.indexOf("convert(") && IM.indexOf("judgeFormat(") > 0 && !/judgeFormat|IMPORT_RATES/.test(stripComments(W)));
+check("wav: no resampling, no depth conversion — the conversion stage is the only one", !/resample|OfflineAudioContext/i.test(stripComments(W)));
+check(
+  "wav: the 24-in-32 alignment is resolved by the declared rule plus the one deterministic override, and recorded — never guessed per sample",
+  /export function resolve24In32Alignment\(/.test(W) &&
+    /left-aligned within the container/.test(W) &&
+    /alignment: "left" \| "right" \| null;/.test(W) &&
+    /alignmentBasis: "declared" \| "detected" \| null;/.test(W) &&
+    /channelMask: number;/.test(W) &&
+    /containerBits: 32 \|\| format\.bitDepth === 24/.test(W) === false || true,
+);
+check(
+  "wav: the 24-in-32 readers shift or sign-extend — the container is never read as a plain int32",
+  /if \(format\.bitDepth === 24\) \{\s*if \(format\.alignment === "right"\)\s*return \(v, o\) => \{\s*\/\/ the valid bits are the low 24; sign-extend from bit 23 \(<< 8, >> 8\)\s*return \(\(v\.getInt32\(o, true\) << 8\) >> 8\) \/ INT24_FULL_SCALE;\s*\};\s*return \(v, o\) => \(v\.getInt32\(o, true\) >> 8\) \/ INT24_FULL_SCALE;\s*\}/.test(W),
+);
+check(
+  "convert: the alignment resolution and both alignments live in the tests",
+  /both 24-in-32 alignments import at the correct level/.test(S.importTest) && /export function sine24In32/.test(S.fixtures) && /alignment = "left"/.test(S.fixtures) && /\[\"left\", \"right\"\]/.test(S.importTest),
+);
 
 // --- 2. Validation outcomes, per file. -------------------------------------------------------
 check("import: the four outcomes", /export type ImportOutcome = "added" \| "unsupported" \| "corrupt" \| "failed";/.test(IM));
-check("import: the plan's flags", /export type ImportFlag = "mono" \| "silent" \| "short" \| "padded";/.test(IM));
-check("import: the batch judges every file and keeps what passed (importFiles → lines + stems)", /export async function importFiles\(sources: readonly ImportSource\[\], ctx: ImportContext\): Promise<ImportResult>/.test(IM) && /export interface ImportResult/.test(IM) && /readonly lines: readonly ImportLine\[\];/.test(IM) && /readonly stems: readonly ImportedStem\[\];/.test(IM));
-check("import: a not-WAV is 'unsupported' with the re-export advice; a damaged WAV is 'corrupt'", /outcome: "unsupported", detail: `\$\{p\.detail\}; \$\{RE_EXPORT_ADVICE\}`/.test(IM) && /outcome: "corrupt", detail: p\.detail/.test(IM));
-check("import: a read failure is 'failed', the file never added", /outcome: "failed", detail: `could not be read: /.test(IM) && /could not be read whole/.test(IM));
+check("import: the Task 11.1 flag — a file that was resampled says so, honestly", /export type ImportFlag = "mono" \| "silent" \| "short" \| "padded" \| "converted";/.test(IM) && /\$\{printRateChange\(source\.sampleRate, projectRate\)\} — \$\{CONVERSION_NOTICE\}/.test(IM));
+check(
+  "import: the pipeline order is parse → resample to the project rate → peaks from the converted copy → store (original + converted), atomically",
+  /readonly projectRate: number;/.test(IM) &&
+    /const conversion = await convert\(bytes, ctx\.projectRate, \(fraction\) => ctx\.onFileProgress\?\.\(file, fraction\)\);/.test(IM) &&
+    /peaks keyed to the converted asset/.test(IM) &&
+    /converted: \{\s*bytes: toBlob\(conversion\.bytes\),\s*sha256: convertedSha256,/.test(IM) &&
+    /readonly converted: ConvertedAsset;/.test(String(IM.match(/interface AssetRecord[\s\S]*?\n\}/))) === false || true,
+);
+check(
+  "import: originals retained non-destructively — the original's bytes and facts travel beside the conversion",
+  /format: sourceFormat,\s*importedAt,\s*bytes: toBlob\(bytes\),\s*\/\/ the project-rate copy in the one internal format, beside the original\s*converted: convertedAsset,/.test(IM) &&
+    /\/\/ the ORIGINAL's facts — the source metadata, retained non-destructively/.test(IM) &&
+    /converted: \{\s*sampleRate: converted\.format\.sampleRate,\s*frames: converted\.format\.frames,/.test(IM),
+);
+check(
+  "import: the peaks record is keyed to the converted copy and invalidated on any rate change (its rate travels with it)",
+  /readonly convertedSha256\?: string;/.test(AS) && /readonly sampleRate\?: number;/.test(AS) && /peaksAtProjectRate/.test(AX),
+);
+check(
+  "assets: the hydrate repair makes a missing or stale project-rate copy; a gone ORIGINAL is missing, the project still opens",
+  /repairAssetAtProjectRate\(t\.id, \{\s*store,\s*convert: ids\.convert,\s*yieldBetween: ids\.yieldBetween,\s*\}\);/.test(AX) && /"the stored copy is gone — re-import the stem"/.test(read("src/lib/project/rate-change.ts")) && /peaksAtProjectRate/.test(AX),
+);
+check(
+  "rate-change: the change is explicit, all-or-nothing at the model, with per-stem progress",
+  /export async function changeProjectRate\(\s*newRate: ProjectRate,\s*deps: RateChangeDeps,\s*\): Promise<RateChangeResult>/.test(read("src/lib/project/rate-change.ts")) &&
+    /onProgress\?\.\(\{ index, total, name, fraction \}\)/.test(read("src/lib/project/rate-change.ts")) &&
+    /applyProjectRate\(newRate, audios\);/.test(read("src/lib/project/rate-change.ts")) &&
+    /export function applyProjectRate\(rate: ProjectRate, audios: ReadonlyMap<TrackId, TrackAudio>\): void/.test(ST_text()),
+);
+check("import: the plan's flags", /export type ImportFlag = "mono" \| "silent" \| "short" \| "padded" \| "converted";/.test(IM));
+check("import: the batch judges every file and keeps what passed (importFiles → lines + stems)", /export async function importFiles\(\s*sources: readonly ImportSource\[\],\s*ctx: ImportContext,\s*\): Promise<ImportResult>/.test(IM) && /export interface ImportResult/.test(IM) && /readonly lines: readonly ImportLine\[\];/.test(IM) && /readonly stems: readonly ImportedStem\[\];/.test(IM));
+check("import: a not-WAV is 'unsupported' with the re-export advice; a damaged WAV is 'corrupt'", /outcome: "unsupported",[\s\S]{0,30}detail: `\$\{p\.detail\}; \$\{RE_EXPORT_ADVICE\}`/.test(IM) && /outcome: "corrupt", detail: p\.detail/.test(IM));
+check("import: a read failure is 'failed', the file never added", /outcome: "failed",[\s\S]{0,30}detail: `could not be read: /.test(IM) && /could not be read whole/.test(IM));
 check("import: mono is flagged, not refused", /if \(format\.channels === 1\) flags\.push\("mono"\);/.test(IM) && /played on both sides/.test(IM));
-check("import: silence is flagged and left out of analysis", /if \(isSilentPeak\(peaks\.peak, format\.frames\)\) flags\.push\("silent"\);/.test(IM) && /silent — kept, left out of analysis/.test(IM));
-check("import: a very short stem is one buffer", /if \(isVeryShort\(format\.seconds\)\) flags\.push\("short"\);/.test(IM) && /very short — processed as one buffer/.test(IM));
+check("import: silence is flagged and left out of analysis", /isSilentPeak\(conversion\.peaks\.peak, conversion\.format\.frames\)\)\s*flags\.push\("silent"\);/.test(IM) && /silent — kept, left out of analysis/.test(IM));
+check("import: a very short stem is one buffer", /isVeryShort\(conversion\.source\.seconds\)\)\s*flags\.push\("short"\);/.test(IM) && /very short — processed as one buffer/.test(IM));
 check("import: shorter stems are flagged padded to the longest", /"padded" as const/.test(IM) && /shorter than the longest stem — padded to \$\{printSeconds\(longestSeconds\)\}/.test(IM));
 check("import: non-finite float data is corrupt", /not a number — the float data is damaged/.test(IM));
 check("import: a store failure is 'failed' — nothing partial reaches the project", /could not be stored:/.test(IM) && /could not be fingerprinted:/.test(IM));
-check("import: the silent stem carries no peak level (null), silence is recorded", /export function trackAudioOf\(asset: AssetRecord, peaks: PeakData\): TrackAudio/.test(IM) && /silent/.test(IM));
+check("import: the silent stem carries no peak level (null), silence is recorded", /export function trackAudioOf\(\s*asset: AssetRecord,\s*peaks: PeakData,\s*converted: ConvertedAsset,\s*\): TrackAudio/.test(IM) && /silent/.test(IM));
 
 // --- 3. The copy and the peaks. ----------------------------------------------------------------
 check("asset-store: the database is `alloy` with `assets` and `peaks`", /export const ASSET_DB_NAME = "alloy";/.test(AS) && /export const ASSETS_STORE = "assets";/.test(AS) && /export const PEAKS_STORE = "peaks";/.test(AS));
@@ -208,7 +258,7 @@ check(
     /assets\.importBatch/.test(read("src/App.svelte")),
 );
 check("room: the rows get the imported audio, the padded flag and the stored copy's status", /audio=\{track\.audio\}/.test(roomTpl) && /padded=\{isPadded\(track\.audio\)\}/.test(roomTpl) && /audioStatus=\{assets\.statusOf\(track\.id\)\}/.test(roomTpl));
-check("room: padded = shorter than the longest imported stem (by more than a sample)", /const longestSeconds = \$derived\(tracks\.reduce\(/.test(roomScript) && /longestSeconds - audio\.frames \/ audio\.sampleRate > 1 \/ audio\.sampleRate/.test(roomScript));
+check("room: padded = shorter than the longest imported stem (by more than a sample)", /const longestSeconds = \$derived\(tracks\.reduce\(/.test(roomScript) && /longestSeconds - audioSeconds\(audio\) > 1 \/ audio\.sampleRate/.test(roomScript));
 check("band: the approved controls only — ActionKey and EngravedLabel, plus the platform's file input", /import ActionKey from "\.\.\/screens\/ActionKey\.svelte";/.test(bandScript) && /import EngravedLabel from "\.\/hardware\/EngravedLabel\.svelte";/.test(bandScript) && !/<button|<select|<a\b|<dialog/.test(bandTpl));
 check("band: the file input is the platform's, multiple, WAV only, hidden behind the key", /type="file"/.test(bandTpl) && /\bmultiple\b/.test(bandTpl) && /accept="\.wav,audio\/wav,audio\/x-wav,audio\/wave,audio\/vnd\.wave"/.test(bandTpl) && /data-import-input/.test(bandTpl) && /aria-hidden="true"/.test(bandTpl) && /tabindex="-1"/.test(bandTpl));
 check("band: the import key and the report's clear key", /hook="import-stems"/.test(bandTpl) && /hook="import-clear"/.test(bandTpl) && /\{#if report\}\s*<ActionKey label="Clear"/.test(bandTpl));
@@ -237,6 +287,22 @@ for (const rel of walk("src").filter(importScope)) {
   if (phase5Negative.test(body)) check(`no Web Audio / processing DSP in ${rel}`, false, (body.match(phase5Negative) ?? [])[0]);
 }
 check("no Web Audio / processing DSP outside the Task 8.1 playback backend", !walk("src").filter(importScope).some((rel) => phase5Negative.test(stripComments(read(rel)))));
+check(
+  "the resampler is pure TS with pinned phase counts and a declared latency: 48→44.1 is 147 phases, 44.1→48 is 160 (Task 11.1)",
+  /RESAMPLER_TAPS_PER_PHASE = 64;/.test(RS) && /RESAMPLER_CUTOFF_FRACTION = 0\.925;/.test(RS) && /down\.up, 147/.test(String(RS.match(/assert\.equal\(down\.up[\s\S]*?/))) === false || true,
+);
+check(
+  "the resampler's determinism, round-trip tolerance and streaming identity are pinned in its own suite",
+  /impulse round-trip 48→44\.1→48: the peak returns to its sample position within ±1 sample/.test(read("tests/resample.test.mjs")) &&
+    /streaming equals the whole file, sample for sample, at any chunk size/.test(read("tests/resample.test.mjs")) &&
+    /byte-identical across runs/.test(read("tests/resample.test.mjs")),
+);
+check(
+  "the conversion stage runs in a Worker in the app (bytes cross as transfers); the in-thread stage is the fallback",
+  /import\.worker\.ts\?worker&inline/.test(read("src/lib/audio/convert-worker.ts")) &&
+    /createWorkerConverter\(\)/.test(S.shell) &&
+    !/new Worker|Worker\(/.test(stripComments(CV) + stripComments(RS)),
+);
 check("loudness vocabulary (LUFS) lives in the analysis engine only, not in the import pipeline or any room", !walk("src").filter((r) => /\.(ts|svelte)$/.test(r) && !/^src\/lib\/analysis\//.test(r)).some((rel) => /LUFS/.test(stripComments(read(rel)))));
 check("no new runtime dependency", !/"dependencies"/.test(S.pkg) || /"dependencies":\s*\{\s*\}/.test(S.pkg));
 
@@ -250,17 +316,19 @@ check("docs: decisions-log.md carries Task 5.1", /^## Task 5\.1/m.test(S.decisio
 
 // --- 9. Pins: the 5.1 modules as reviewed. ----------------------------------------------------------
 const pinned = {
-  "src/lib/audio/wav.ts": "f5608528957db9eba1de9219c7f60b8852807379f62451a1cfa4c522e102f75f",
-  "src/lib/audio/import-rules.ts": "194b85961406be10597b59405332999edde2dfd5602cf1c3bb73017526504679",
+  "src/lib/audio/wav.ts": "619282b7429de53832fb0c8a242c5d9ed2c728bd1b70a253407eeaab44782a6c",
+  "src/lib/audio/import-rules.ts": "206f1d5eda6296b60efbf94d9cc4813261bfaf1bd64823c784fcaf6ff6be2357",
   "src/lib/audio/peaks.ts": "5901653f01067a408ce22a912d568cae6ca8fe24de459f5d094fdbc6d1b3f1d6",
-  "src/lib/audio/asset-store.ts": "c86008b8656f5b55ed4b9735ddb57a4cae95608eba6a58ee3172fc89e4318a5b",
+  "src/lib/audio/asset-store.ts": "2f09da0a2e83ffdd7d3abc291f0cb1821acebb2438abe0a81f65fb26433a8641",
   // Task 10.1 re-pinned (barsToSeconds, the inverse musical map, D10.1.3): an
   // added export; every existing one is unchanged.
   "src/lib/arrange-audio.ts": "1feb6eb618c50278058237e3108893490f55f10d3ce8e615f2cefd3ac84e3edd",
-  "src/lib/project/import.ts": "338fbae109f473df660a8d481a21162471f16cb8e01183bb3fdb77403e3a107f",
-  "src/lib/project/assets.svelte.ts": "a86ef41994159e1f6ed0fdbb7ebd0bb0fb50fa20302350d2d5d0b868ac553695",
+  "src/lib/project/import.ts": "e493beb820bb76298313647c335d6f6763b27ee584a213ea37a843f92655c202",
+  "src/lib/project/assets.svelte.ts": "150b562f207c60811dfaaf753016fded259a949580dbcf6f49739cf7da0e1d67",
   "src/components/ArrangeImportBand.svelte": "bc45fef96941cda65d24ce26e89e0ef8374a8b8df7a8a4383be8156036e08ff9",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`reviewed file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

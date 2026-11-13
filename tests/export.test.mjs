@@ -37,6 +37,7 @@ import {
 import { renderProject } from "../src/lib/engine/render.ts";
 import { inspectWav, readWavHeader, sampleReaderFor } from "../src/lib/audio/wav.ts";
 import { RATE, busFixture, projectFixture, returnFixture, trackFixture } from "./engine-fixtures.mjs";
+import { resampleChannels } from "../src/lib/audio/resample.ts";
 
 const FRAMES = 4800; // 0.1 s at 48 kHz
 
@@ -77,11 +78,15 @@ function withAudio(track, frames, extra = {}) {
       bytes: frames * 3 * 2,
       encoding: "pcm",
       bitDepth: 24,
+      containerBits: 24,
+      alignment: null,
       sampleRate: RATE,
       channels: 2,
       frames,
       peakDbfs: -6,
       silent: false,
+      // Task 11.1: the project-rate copy the fixture's stems are read from
+      converted: { sampleRate: RATE, frames, peakDbfs: -6, silent: false },
       ...extra,
     },
   };
@@ -729,7 +734,7 @@ test("8.2 · the streaming writer patches its header and needs a seekable sink",
   await writer.write(left, right, 3);
   const stats = await writer.finish();
   assert.equal(stats.frames, 3);
-  assert.equal(stats.totalBytes, 44 + 3 * 8);
+  assert.equal(stats.totalBytes, 56 + 3 * 8, "Task 11.1: a float export's header carries a fact chunk (44 + 12)");
   const { header, channels } = samplesOf(sink.bytes());
   assert.equal(header.dataBytes, 24);
   assert.deepEqual([...channels[0]], [0.5, -0.5, 0.25]);
@@ -781,13 +786,14 @@ test("8.2 · the header declares the format it wrote", () => {
   assert.equal(inspected.format.frames, 100); // 600 bytes / (3 bytes × 2 channels)
 });
 
-test("8.2 · the shipped formats are the plan's two, at the session rate", () => {
-  assert.equal(EXPORT_FORMATS.length, 2);
+test("8.2 · the shipped formats are Task 11.1's four: depth × rate, both project rates", () => {
+  assert.equal(EXPORT_FORMATS.length, 4);
   assert.deepEqual(
-    EXPORT_FORMATS.map((format) => `${format.bitDepth}-${format.encoding}`),
-    ["32-float", "24-pcm"],
+    EXPORT_FORMATS.map((format) => `${format.bitDepth}-${format.encoding}@${format.sampleRate}`),
+    ["32-float@48000", "24-pcm@48000", "32-float@44100", "24-pcm@44100"],
   );
-  assert.ok(EXPORT_FORMATS.every((format) => format.sampleRate === 48000 && format.channels === 2));
+  assert.ok(EXPORT_FORMATS.every((format) => format.channels === 2));
+  assert.ok(EXPORT_FORMATS.every((format) => format.sampleRate === 44100 || format.sampleRate === 48000));
 });
 
 test("8.2 · an export never touches a project the caller keeps", async () => {
@@ -991,4 +997,176 @@ test("8.2 · the rulebook vocabulary is the engine's own parameter specs, not a 
   assert.equal(RULES["eq.lf.gain"].spec, EQ_GAIN);
   assert.match(describeRange("compressor.threshold"), /dB/);
   assert.match(describeRange("not.a.parameter"), /unknown parameter/);
+});
+
+/* ======================================================================================
+   Task 11.1 — the four format combinations, the fact chunk, the edges, dither,
+   the rate stage, and the honest conversion note
+   ====================================================================================== */
+
+test("11.1 · golden headers: all four depth × rate combinations are byte-pinned, fact included for float and omitted for 24-bit PCM", () => {
+  const golden = (rate, encoding, bitDepth, dataBytes) => {
+    const format = { sampleRate: rate, channels: 2, encoding, bitDepth };
+    const header = wavHeader(format, dataBytes, Math.floor(dataBytes / (bitDepth / 8) / 2));
+    // RIFF/WAVE + sizes, and the four-combo facts: tag, rate, align, depth
+    const view = new DataView(header.buffer);
+    const text = (at, n) => String.fromCharCode(...header.subarray(at, at + n));
+    assert.equal(text(0, 4), "RIFF");
+    assert.equal(text(8, 4), "WAVE");
+    assert.equal(view.getUint32(4, true), header.length + dataBytes - 8);
+    assert.equal(text(12, 4), "fmt ");
+    assert.equal(view.getUint16(20, true), encoding === "float" ? 3 : 1);
+    assert.equal(view.getUint16(22, true), 2);
+    assert.equal(view.getUint32(24, true), rate);
+    assert.equal(view.getUint32(28, true), rate * (bitDepth / 8) * 2, "nAvgBytesPerSec = rate × nBlockAlign");
+    assert.equal(view.getUint16(32, true), (bitDepth / 8) * 2, "nBlockAlign = channels × bytes");
+    assert.equal(view.getUint16(34, true), bitDepth);
+    if (encoding === "float") {
+      assert.equal(text(36, 4), "fact", "a float export carries a fact chunk");
+      assert.equal(view.getUint32(40, true), 4);
+      assert.equal(view.getUint32(44, true), Math.floor(dataBytes / 8), "fact's payload is the frame count");
+      assert.equal(text(48, 4), "data");
+      assert.equal(view.getUint32(52, true), dataBytes);
+    } else {
+      assert.equal(text(36, 4), "data", "a 24-bit PCM export omits fact");
+      assert.equal(view.getUint32(40, true), dataBytes);
+    }
+    return header;
+  };
+  golden(48000, "float", 32, 8 * 100);
+  golden(48000, "pcm", 24, 6 * 100);
+  golden(44100, "float", 32, 8 * 100);
+  golden(44100, "pcm", 24, 6 * 100);
+  // every one of them is readable by the app's own reader, end to end
+  for (const format of EXPORT_FORMATS) {
+    const dataBytes = format.bitDepth === 24 ? 6 * 50 : 8 * 50;
+    const file = new Uint8Array(wavHeader(format, dataBytes, 50).length + dataBytes);
+    file.set(wavHeader(format, dataBytes, 50));
+    const read = inspectWav(file);
+    assert.equal(read.ok, true, JSON.stringify(format));
+    assert.equal(read.format.sampleRate, format.sampleRate);
+    assert.equal(read.format.encoding, format.encoding);
+    assert.equal(read.format.frames, 50);
+  }
+});
+
+test("11.1 · the −1.0 full-scale edge is exact at 24-bit and float; +1.0 clamps with the flag, never truncates", async () => {
+  const sink = new MemoryByteSink();
+  const writer = new WavStreamWriter({ sampleRate: 48000, channels: 2, encoding: "pcm", bitDepth: 24 }, sink);
+  await writer.begin();
+  const left = new Float32Array([-1, 1, 0.4999999, -0.5000001]);
+  const right = new Float32Array([-1, -1, 0.3, 0.3]);
+  await writer.write(left, right, 4);
+  const stats = await writer.finish();
+  assert.equal(stats.clipped, true, "+1.0 exceeded the 24-bit top");
+  const { channels } = samplesOf(sink.bytes());
+  assert.equal(channels[0][0], -1, "−1.0 maps to −2^23 exactly (the full-scale edge)");
+  assert.equal(channels[1][0], -1);
+  assert.equal(channels[0][1], 1 - 1 / 8388608, "+1.0 clamps to the largest value, round-to-nearest, never truncated");
+  assert.ok(Math.abs(channels[0][2] - 0.4999999) < 1e-6, "in-range values round to nearest");
+
+  const fsink = new MemoryByteSink();
+  const fwriter = new WavStreamWriter({ sampleRate: 48000, channels: 2, encoding: "float", bitDepth: 32 }, fsink);
+  await fwriter.begin();
+  await fwriter.write(new Float32Array([-1, 1.5]), new Float32Array([-2.5, 0]), 2);
+  const fstats = await fwriter.finish();
+  assert.equal(fstats.clipped, false, "float never clips: a peak above 0 dBFS survives");
+  const f = samplesOf(fsink.bytes());
+  assert.equal(f.channels[0][0], -1);
+  assert.equal(f.channels[0][1], 1.5);
+});
+
+test("11.1 · dither is OFF by default; TPDF is a one-time opt-in at 24-bit, never on the float path, never double", async () => {
+  // deterministic noise for the test: an LCG in [0, 1)
+  let seed = 0x9e3779b9;
+  const lcg = () => {
+    seed = (Math.imul(1664525, seed) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const values = new Float32Array(2000);
+  for (let i = 0; i < 2000; i++) values[i] = 0.3 + (i % 2 ? 1e-7 : -1e-7);
+
+  const off = new MemoryByteSink();
+  const woff = new WavStreamWriter({ sampleRate: 48000, channels: 2, encoding: "pcm", bitDepth: 24 }, off);
+  await woff.begin();
+  await woff.write(values, values, 2000);
+  await woff.finish();
+  const offSamples = samplesOf(off.bytes());
+  assert.equal(offSamples.channels[0][0], Math.round(0.3 * 8388608) / 8388608, "no dither by default: pure round-to-nearest");
+
+  const on = new MemoryByteSink();
+  const won = new WavStreamWriter({ sampleRate: 48000, channels: 2, encoding: "pcm", bitDepth: 24 }, on, { dither: "tprf", random: lcg });
+  await won.begin();
+  await won.write(values, values, 2000);
+  await won.finish();
+  const onSamples = samplesOf(on.bytes());
+  let moved = 0;
+  for (let i = 0; i < 2000; i++) if (onSamples.channels[0][i] !== offSamples.channels[0][i]) moved++;
+  assert.ok(moved > 500, `TPDF moves a clear share of the samples, where no dither moves none (${moved}/2000)`);
+  // the SAME noise source reproduces the same bytes: the dither is one stage, not double
+  let seed2 = 0x9e3779b9;
+  const lcg2 = () => {
+    seed2 = (Math.imul(1664525, seed2) + 1013904223) >>> 0;
+    return seed2 / 4294967296;
+  };
+  const again = new MemoryByteSink();
+  const wagain = new WavStreamWriter({ sampleRate: 48000, channels: 2, encoding: "pcm", bitDepth: 24 }, again, { dither: "tprf", random: lcg2 });
+  await wagain.begin();
+  await wagain.write(values, values, 2000);
+  await wagain.finish();
+  assert.deepEqual([...samplesOf(again.bytes()).channels[0]], [...onSamples.channels[0]], "deterministic with an injected source");
+
+  // dither on the float path is a named error, never silently ignored
+  assert.throws(() => new WavStreamWriter({ sampleRate: 48000, channels: 2, encoding: "float", bitDepth: 32 }, new MemoryByteSink(), { dither: "tprf" }), /dither exists only at the 24-bit depth stage/);
+});
+
+test("11.1 · the rate stage: a 48 kHz project exported at 44.1 gets the right length, header and content — and the note says it honestly", async () => {
+  const { project, sources } = session();
+  const destination = memoryDestination();
+  const format = formatFromId("float32", 44100);
+  const outcome = await exportProject({ project, sources, selection: { fullMix: true, stems: false, buses: false }, destination, format });
+  assert.equal(outcome.ok, true, JSON.stringify(outcome.failures));
+  const bytes = destination.read(fullMixName(project.name));
+  const { header, channels, frames } = samplesOf(bytes);
+  assert.equal(header.raw.sampleRate, 44100);
+  const reference = await renderToArrays(project, sources);
+  assert.equal(frames, Math.ceil((reference.frames * 44100) / 48000), "the target length is ceil(render frames × ratio)");
+  assert.equal(header.dataBytes, frames * 8);
+  // the content is the reference itself, resampled once — the streaming rate stage
+  // equals the whole-file resampler on the same input (sample for sample)
+  const direct = resampleChannels([reference.channels[0], reference.channels[1]], 48000, 44100);
+  let worst = 0;
+  for (let c = 0; c < 2; c++) for (let i = 0; i < frames; i++) worst = Math.max(worst, Math.abs(channels[c][i] - direct[c][i]));
+  assert.equal(worst, 0, `the exported samples ARE the resampled render (${worst.toExponential(2)})`);
+  // the honest note, never a lossless claim
+  assert.ok(outcome.notes.some((n) => /48 kHz → 44\.1 kHz/.test(n) && /not lossless/.test(n)), outcome.notes.join(" | "));
+});
+
+test("11.1 · all four combinations export end to end with the right duration and headers", async () => {
+  const { project, sources } = session();
+  const reference = await renderToArrays(project, sources);
+  for (const format of EXPORT_FORMATS) {
+    const destination = memoryDestination();
+    const outcome = await exportProject({ project, sources, selection: { fullMix: true, stems: false, buses: false }, destination, format });
+    assert.equal(outcome.ok, true, `${format.encoding}${format.bitDepth}@${format.sampleRate}: ${JSON.stringify(outcome.failures)}`);
+    assert.equal(outcome.files[0].seconds * format.sampleRate, outcome.files[0].frames, "the reported seconds match the frames at the target rate");
+    const expectedFrames = format.sampleRate === 48000 ? reference.frames : Math.ceil((reference.frames * format.sampleRate) / 48000);
+    assert.equal(outcome.files[0].frames, expectedFrames, `${format.sampleRate} Hz length`);
+    const bytes = destination.read(fullMixName(project.name));
+    assert.equal(readWavHeader(bytes).raw.sampleRate, format.sampleRate);
+    assert.equal(readWavHeader(bytes).raw.containerBits, format.bitDepth === 24 ? 24 : 32);
+    assert.equal(readWavHeader(bytes).raw.tag, format.encoding === "float" ? 3 : 1);
+  }
+});
+
+test("11.1 · equal rates have no stage: exporting at the project's rate converts nothing", async () => {
+  const { project, sources } = session();
+  const destination = memoryDestination();
+  const outcome = await exportProject({ project, sources, selection: { fullMix: true, stems: false, buses: false }, destination, format: { sampleRate: 48000, channels: 2, encoding: "float", bitDepth: 32 } });
+  assert.ok(outcome.notes.every((n) => !/→/.test(n)), `no conversion note at the project's own rate (${outcome.notes.join(" | ")})`);
+  const { channels, frames } = samplesOf(destination.read(fullMixName(project.name)));
+  const reference = await renderToArrays(project, sources);
+  let worst = 0;
+  for (let c = 0; c < 2; c++) for (let i = 0; i < frames; i++) worst = Math.max(worst, Math.abs(channels[c][i] - reference.channels[c][i]));
+  assert.equal(worst, 0, "no stage, no shift, no rounding: the render's own samples");
 });

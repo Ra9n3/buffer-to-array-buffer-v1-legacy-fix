@@ -17,9 +17,9 @@
    *   Help > Settings        Settings moved here from the top bar
    *
    * There is no New/Open/Save-As/Export item: a project is created from Home,
-   * reopened from Home, saved automatically, and export has no UI yet. Inventing
-   * menu rows for them would be a lie about what the app can do, so they are
-   * documented as absent rather than printed greyed-out.
+   * reopened from Home, saved automatically, and export has its dialog since
+   * Task 11.1 (File > Export…). What does not exist is still documented as
+   * absent rather than printed greyed-out.
    */
   import ToolbarKey from "./hardware/ToolbarKey.svelte";
   import { autosave, history } from "../lib/project/store.svelte";
@@ -28,10 +28,13 @@
     onSettings,
     onHome,
     onImport,
+    onExport,
   }: {
     onSettings: () => void;
     onHome: () => void;
     onImport: () => void;
+    /** Task 11.1: opens the export dialog (File > Export…). */
+    onExport: () => void;
   } = $props();
 
   type MenuId = "file" | "edit" | "view" | "help";
@@ -96,6 +99,15 @@
             onclick={() => run(() => void autosave.save())}>
             <span>Save</span>
             <span class="menubar__shortcut" aria-hidden="true">Ctrl+S</span>
+          </button>
+        </li>
+        <!-- Task 11.1: the export dialog. The plan's §12 export now has a UI:
+             two selects (depth × rate), the optional TPDF dither, the honest
+             project-vs-target print, and the destination folder. -->
+        <li role="none">
+          <button type="button" role="menuitem" class="menubar__option" data-menu-item="export"
+            onclick={() => run(onExport)}>
+            <span>Export…</span>
           </button>
         </li>
         <li role="separator" class="menubar__separator" aria-hidden="true"></li>

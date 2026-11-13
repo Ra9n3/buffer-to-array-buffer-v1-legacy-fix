@@ -41,9 +41,22 @@ export const ANALYSIS_STORE = "analysis";
 export interface AssetFormat {
   readonly encoding: WavEncoding;
   readonly bitDepth: number;
+  /** The container size in bits (32 for a 24-in-32 file; Task 11.1). Absent on pre-11.1 records — read as `bitDepth`. */
+  readonly containerBits?: number;
+  /** 24-in-32 only: which end the valid bits sit at; null otherwise (Task 11.1). Absent on pre-11.1 records — read as null. */
+  readonly alignment?: "left" | "right" | null;
   readonly sampleRate: number;
   readonly channels: number;
   readonly frames: number;
+}
+
+/** The project-rate copy stored beside the original (Task 11.1): 32-bit float at the project's rate. */
+export interface ConvertedAsset {
+  /** The converted copy. A Blob in the browser; tests may pass a Uint8Array. */
+  readonly bytes: Blob | Uint8Array;
+  /** SHA-256 of the converted bytes — what the peaks describe. */
+  readonly sha256: string;
+  readonly format: AssetFormat;
 }
 
 export interface AssetRecord {
@@ -53,18 +66,26 @@ export interface AssetRecord {
   readonly fileName: string;
   readonly mimeType: string;
   readonly size: number;
-  /** SHA-256 of the bytes, hex. */
+  /** SHA-256 of the ORIGINAL bytes, hex. */
   readonly sha256: string;
+  /** The ORIGINAL file's facts (rate, depth, container, alignment, channels) — retained non-destructively. */
   readonly format: AssetFormat;
   readonly importedAt: string;
-  /** The copy. A Blob in the browser; tests may pass a Uint8Array. */
+  /** The original copy. A Blob in the browser; tests may pass a Uint8Array. */
   readonly bytes: Blob | Uint8Array;
+  /** The project-rate copy (Task 11.1). Absent on records written before 11.1 — made by the hydrate repair. */
+  readonly converted?: ConvertedAsset;
 }
 
 export interface PeaksRecord {
   readonly assetId: string;
   readonly projectId: string;
+  /** The ORIGINAL's hash — the identity the record is tied to. */
   readonly sha256: string;
+  /** The CONVERTED copy's hash (Task 11.1): the peaks describe these bytes. */
+  readonly convertedSha256?: string;
+  /** The rate the peaks were computed at — the project rate of the moment (Task 11.1); a mismatch invalidates them. */
+  readonly sampleRate?: number;
   readonly peaks: PeakData;
 }
 

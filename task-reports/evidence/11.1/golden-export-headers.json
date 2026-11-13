@@ -1,0 +1,54 @@
+{
+  "float32@48000": {
+    "fields": {
+      "tag": 3,
+      "channels": 2,
+      "sampleRate": 48000,
+      "avgBytesPerSec": 384000,
+      "blockAlign": 8,
+      "bitsPerSample": 32,
+      "fact": true,
+      "riffSize": 848
+    },
+    "headerHex": "52 49 46 46 50 03 00 00 57 41 56 45 66 6d 74 20 10 00 00 00 03 00 02 00 80 bb 00 00 00 dc 05 00 08 00 20 00 66 61 63 74 04 00 00 00 64 00 00 00 64 61 74 61 20 03 00 00"
+  },
+  "pcm24@48000": {
+    "fields": {
+      "tag": 1,
+      "channels": 2,
+      "sampleRate": 48000,
+      "avgBytesPerSec": 288000,
+      "blockAlign": 6,
+      "bitsPerSample": 24,
+      "fact": false,
+      "riffSize": 636
+    },
+    "headerHex": "52 49 46 46 7c 02 00 00 57 41 56 45 66 6d 74 20 10 00 00 00 01 00 02 00 80 bb 00 00 00 65 04 00 06 00 18 00 64 61 74 61 58 02 00 00"
+  },
+  "float32@44100": {
+    "fields": {
+      "tag": 3,
+      "channels": 2,
+      "sampleRate": 44100,
+      "avgBytesPerSec": 352800,
+      "blockAlign": 8,
+      "bitsPerSample": 32,
+      "fact": true,
+      "riffSize": 848
+    },
+    "headerHex": "52 49 46 46 50 03 00 00 57 41 56 45 66 6d 74 20 10 00 00 00 03 00 02 00 44 ac 00 00 20 62 05 00 08 00 20 00 66 61 63 74 04 00 00 00 64 00 00 00 64 61 74 61 20 03 00 00"
+  },
+  "pcm24@44100": {
+    "fields": {
+      "tag": 1,
+      "channels": 2,
+      "sampleRate": 44100,
+      "avgBytesPerSec": 264600,
+      "blockAlign": 6,
+      "bitsPerSample": 24,
+      "fact": false,
+      "riffSize": 636
+    },
+    "headerHex": "52 49 46 46 7c 02 00 00 57 41 56 45 66 6d 74 20 10 00 00 00 01 00 02 00 44 ac 00 00 98 09 04 00 06 00 18 00 64 61 74 61 58 02 00 00"
+  }
+}

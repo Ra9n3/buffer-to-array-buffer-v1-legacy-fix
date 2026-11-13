@@ -31,7 +31,8 @@
 import { SEND_RANGE, SEND_SLOT_COUNT, type OrgSwatch } from "../../components/channel-strip/track-strip-fixtures";
 import { createChainState } from "../mixer-chain";
 import { barCountFor, DEFAULT_TEMPO } from "../arrange-audio";
-import { TIER_ANCHOR, trackId, type Arrangement, type Project, type ProjectTemplateId, type Track, type TrackAudio } from "./model";
+import { DEFAULT_PROJECT_RATE, type ProjectRate } from "../audio/rates";
+import { audioSeconds, TIER_ANCHOR, trackId, type Arrangement, type Project, type ProjectTemplateId, type Track, type TrackAudio } from "./model";
 import { SESSION_PROJECT_ID, createSessionProject } from "./session";
 
 export const PROJECT_TEMPLATES: readonly ProjectTemplateId[] = ["session-fixture", "empty"];
@@ -54,12 +55,13 @@ export const TEMPLATE_LABELS: Readonly<Record<ProjectTemplateId, string>> = {
 export const EMPTY_PROJECT_NAME = "Untitled project";
 export const EMPTY_TIME_SIGNATURE = "4/4";
 
-/** A valid project with nothing in it: the model's own empty collections, Master only. */
-export function createEmptyProject(id: string, name: string = EMPTY_PROJECT_NAME): Project {
+/** A valid project with nothing in it: the model's own empty collections, Master only. The rate is chosen here and locked afterwards (Task 11.1). */
+export function createEmptyProject(id: string, name: string = EMPTY_PROJECT_NAME, sampleRate: ProjectRate = DEFAULT_PROJECT_RATE): Project {
   return {
     id,
     name,
     template: "empty",
+    sampleRate,
     tracks: [],
     returns: [],
     buses: [],
@@ -77,15 +79,20 @@ export function createEmptyProject(id: string, name: string = EMPTY_PROJECT_NAME
  * A fresh project of `template` under the identity a manifest recorded, or
  * null when the identity cannot belong to the template (the fixture session
  * has one id). The name is the saved one: a template has no claim on it.
+ * The rate is the saved one when the manifest names it (Task 11.1); a
+ * manifest that predates the field reopens at the legacy default, 48000 —
+ * which is what those projects were built at.
  */
-export function createTemplateProject(template: ProjectTemplateId, id: string, name: string): Project | null {
+export function createTemplateProject(template: ProjectTemplateId, id: string, name: string, sampleRate: ProjectRate = DEFAULT_PROJECT_RATE): Project | null {
   if (template === "session-fixture") {
     if (id !== SESSION_PROJECT_ID) return null;
     const project = createSessionProject();
     project.name = name;
-    return project;
+    // the fixture session's own rate is 48 kHz; a manifest that says otherwise
+    // for this template is not trusted with it (the template decides).
+    return { ...project, sampleRate: DEFAULT_PROJECT_RATE };
   }
-  return createEmptyProject(id, name);
+  return createEmptyProject(id, name, sampleRate);
 }
 
 /** A project with no channels at all (every room shows its empty state). */
@@ -170,7 +177,7 @@ export const importedTrackId = trackId;
  * Sections and clips are untouched — clips come from the peaks later.
  */
 export function arrangementWithAudio(arrangement: Arrangement, tracks: readonly Pick<Track, "audio">[]): Arrangement {
-  const seconds = tracks.map((t) => (t.audio ? t.audio.frames / t.audio.sampleRate : 0));
+  const seconds = tracks.map((t) => (t.audio ? audioSeconds(t.audio) : 0));
   const longest = seconds.reduce((m, s) => Math.max(m, s), 0);
   const tempoMarkers = arrangement.tempoMarkers.length > 0 ? arrangement.tempoMarkers : longest > 0 ? [DEFAULT_TEMPO] : arrangement.tempoMarkers;
   return {

@@ -20,6 +20,26 @@ export function sine(seconds, { channels = 2, amp = 0.5, encoding = "pcm", bitDe
   });
 }
 
+/**
+ * Task 11.1 — the same sine as 24 VALID bits in a 32-bit int container,
+ * WAVE_FORMAT_EXTENSIBLE, either alignment. Left: value << 8, low pad zero
+ * (the spec's form). Right: the value in the low 24 bits, high byte zero.
+ */
+export function sine24In32(seconds, { channels = 2, amp = 0.5, sampleRate = RATE, alignment = "left" } = {}) {
+  const frames = Math.round(seconds * sampleRate);
+  return encodeWav({
+    sampleRate,
+    channels,
+    encoding: "pcm",
+    bitDepth: 24,
+    containerBits: 32,
+    alignment,
+    frames,
+    extensible: true,
+    sample: (channel, frame) => amp * (channel === 1 ? 0.75 : 1) * Math.sin((2 * Math.PI * 220 * frame) / sampleRate),
+  });
+}
+
 /** Digital silence (all zeros). */
 export function silence(seconds, { channels = 2, encoding = "pcm", bitDepth = 24 } = {}) {
   return encodeWav({ sampleRate: RATE, channels, encoding, bitDepth, frames: Math.round(seconds * RATE), sample: () => 0 });

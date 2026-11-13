@@ -246,8 +246,10 @@ const pinned = {
   "src/lib/dsp/compressor.ts": "bac2cbc5a7894abde0bb1593a6bdf2ecb6d6aa276d9cba38d2cef73fe087503b",
   "src/lib/engine/chains.ts": "3736f3b86130a0512ec777b12ae27605452ff4027178745a3665d0bc264167cd",
   "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
-  "src/lib/project/model.ts": "7df7e5b93e21573d82f022ad46ab46245db01d9ba9e00ce780cb8ab27f4bc541",
+  "src/lib/project/model.ts": "6bc7373e2ce155f67f5fd4065da57e6d34a316828bdbd55e79edb5f8e9bcefc4",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`reviewed file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

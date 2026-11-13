@@ -45,7 +45,8 @@
 
 import type { OrgSwatch } from "../../components/channel-strip/track-strip-fixtures";
 import type { FieldRef, FieldValue } from "./fields";
-import type { ChannelId, Project, ProjectTemplateId, Track, TrackAudio } from "./model";
+import { isProjectRate, LEGACY_PROJECT_RATE, type ProjectRate } from "../audio/rates";
+import type { ChannelId, ConvertedAudio, Project, ProjectTemplateId, Track, TrackAudio } from "./model";
 
 /* =========================================================================
    THE MANIFEST
@@ -60,8 +61,11 @@ export interface ProjectManifest {
    * onto; it is optional on read because Task 3.3 manifests predate it —
    * the loader (lifecycle.ts) treats a template-less manifest of the fixture
    * session's id as the fixture session and anything else as unavailable.
+   * `sampleRate` (Task 11.1) is likewise optional on read: a manifest that
+   * predates it reopens at the legacy default 48000, which is what those
+   * projects were built at. On write it is always present.
    */
-  readonly project: { readonly id: string; readonly name: string; readonly template?: ProjectTemplateId };
+  readonly project: { readonly id: string; readonly name: string; readonly template?: ProjectTemplateId; readonly sampleRate?: ProjectRate };
   /** channel id → relative field path → value, in registry order. */
   readonly channels: Readonly<Record<string, Readonly<Record<string, FieldValue>>>>;
   /**
@@ -82,13 +86,13 @@ export interface ManifestTrack {
   readonly audio: TrackAudio;
 }
 
-export function buildManifest(project: Pick<Project, "id" | "name" | "template"> & { readonly tracks?: readonly Pick<Track, "id" | "code" | "name" | "org" | "audio">[] }, fields: readonly FieldRef[]): ProjectManifest {
+export function buildManifest(project: Pick<Project, "id" | "name" | "template" | "sampleRate"> & { readonly tracks?: readonly Pick<Track, "id" | "code" | "name" | "org" | "audio">[] }, fields: readonly FieldRef[]): ProjectManifest {
   const channels: Record<string, Record<string, FieldValue>> = {};
   for (const f of fields) {
     (channels[f.channel] ??= {})[f.rel] = f.get();
   }
   const imported = (project.tracks ?? []).filter((t) => t.audio !== null);
-  const manifest: ProjectManifest = { schema: MANIFEST_SCHEMA, project: { id: project.id, name: project.name, template: project.template }, channels };
+  const manifest: ProjectManifest = { schema: MANIFEST_SCHEMA, project: { id: project.id, name: project.name, template: project.template, sampleRate: project.sampleRate }, channels };
   if (imported.length === 0) return manifest;
   return {
     ...manifest,
@@ -98,6 +102,28 @@ export function buildManifest(project: Pick<Project, "id" | "name" | "template">
 
 const ORG_SWATCHES: readonly unknown[] = [1, 2, 3, 4, 5, 6, 7, 8, "neutral"];
 
+/**
+ * A stored `converted` block (Task 11.1): present on records written since the
+ * conversion stage; absent on older ones, which reopen with `converted: null`
+ * and are repaired on hydrate. Validated only when present.
+ */
+function isConvertedAudio(value: unknown): value is ConvertedAudio {
+  if (!value || typeof value !== "object") return false;
+  const c = value as Partial<ConvertedAudio>;
+  return (
+    typeof c.sampleRate === "number" &&
+    c.sampleRate > 0 &&
+    typeof c.frames === "number" &&
+    (c.peakDbfs === null || typeof c.peakDbfs === "number") &&
+    typeof c.silent === "boolean"
+  );
+}
+
+/**
+ * A stored `TrackAudio`, tolerant of the two generations (Task 5.1 flat facts;
+ * Task 11.1 adds containerBits / alignment / converted, all optional on read
+ * so an old manifest still opens and is repaired on hydrate).
+ */
 function isTrackAudio(value: unknown): value is TrackAudio {
   if (!value || typeof value !== "object") return false;
   const a = value as Partial<TrackAudio>;
@@ -113,8 +139,26 @@ function isTrackAudio(value: unknown): value is TrackAudio {
     typeof a.frames === "number" &&
     (a.peakDbfs === null || typeof a.peakDbfs === "number") &&
     typeof a.silent === "boolean" &&
-    typeof a.importedAt === "string"
+    typeof a.importedAt === "string" &&
+    (a.containerBits === undefined || typeof a.containerBits === "number") &&
+    (a.alignment === undefined || a.alignment === null || a.alignment === "left" || a.alignment === "right") &&
+    (a.converted === undefined || a.converted === null || isConvertedAudio(a.converted))
   );
+}
+
+/**
+ * A stored track's audio, normalised to the model's strict shape: the
+ * container facts default to the flat facts, the alignment to null and the
+ * project-rate copy to null when a manifest predates them. One shape in
+ * memory; both generations on disk.
+ */
+export function normalizeTrackAudio(audio: TrackAudio): TrackAudio {
+  return {
+    ...audio,
+    containerBits: audio.containerBits ?? audio.bitDepth,
+    alignment: audio.alignment ?? null,
+    converted: audio.converted ?? null,
+  };
 }
 
 function isManifestTrack(value: unknown): value is ManifestTrack {
@@ -136,11 +180,19 @@ export function parseManifest(text: string): ProjectManifest | null {
     if (m.schema !== MANIFEST_SCHEMA || !m.project || typeof m.project.id !== "string" || !m.channels || typeof m.channels !== "object") return null;
     if (typeof m.project.name !== "string") return null;
     if (m.project.template !== undefined && typeof m.project.template !== "string") return null;
+    // Task 11.1: the rate, when a manifest names one, must be one of the two;
+    // absent is legal (a pre-11.1 manifest reopens at the legacy default).
+    if (m.project.sampleRate !== undefined && !isProjectRate(m.project.sampleRate)) return null;
     if (m.tracks !== undefined && (!Array.isArray(m.tracks) || !m.tracks.every(isManifestTrack))) return null;
     return m as ProjectManifest;
   } catch {
     return null;
   }
+}
+
+/** The rate a manifest reopens at: its own when it names one, the legacy default otherwise. */
+export function manifestRate(manifest: ProjectManifest): ProjectRate {
+  return isProjectRate(manifest.project.sampleRate) ? manifest.project.sampleRate : LEGACY_PROJECT_RATE;
 }
 
 /** The manifest's values for one channel, or null. */

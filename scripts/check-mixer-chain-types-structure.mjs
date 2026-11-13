@@ -263,8 +263,10 @@ const pinned = {
   "src/components/mixer/SendsIn.svelte": "49e0892f09b0351a1f0099c089dbfb92863ddac2df5862bc8429c206d92a85e0",
   "src/lib/return-chain.ts": "8d955c33261d9bbb98d8444e67284779ef694a7d03b1643b79e57d18ee5a9f2c",
   "src/lib/bus-chain.ts": "52ef0107246646e89b008196545510a34f2ca9cf97ee5ad4508577ea1b0093e5",
-  "src/lib/mixer-chain.ts": "818fb94f4560f173819dacb76bf42726db67b28a18eb7288dacdba74f67919d2",
+  "src/lib/mixer-chain.ts": "95499fda3f1e5093bf58f0844136c052e38078ed488238ca340931af8f35531c",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

@@ -38,6 +38,7 @@ import {
 } from "../../components/channel-strip/track-strip-fixtures";
 import { ARRANGE_BAR_COUNT, ARRANGE_TRACKS, type ArrangeTrack } from "../arrange";
 import { ARRANGE_SECTIONS, ARRANGE_TEMPO_MARKERS, TIME_SIGNATURE, clipsOf } from "../arrange-timeline";
+import { DEFAULT_PROJECT_RATE } from "../audio/rates";
 import { createBusChainState } from "../bus-chain";
 import { createChainState } from "../mixer-chain";
 import { createReturnChainState } from "../return-chain";
@@ -176,6 +177,9 @@ export function createSessionProject(): Project {
     id: SESSION_PROJECT_ID,
     name: SESSION_PROJECT_NAME,
     template: "session-fixture",
+    // The development session's own rate (Task 11.1): 48 kHz, like every
+    // project that predates the choice.
+    sampleRate: DEFAULT_PROJECT_RATE,
     tracks,
     returns,
     buses,

@@ -48,7 +48,7 @@
 import { isValidSource } from "../arrange";
 import { isValidValue, projectFields } from "./fields";
 import type { Project, ProjectTemplateId } from "./model";
-import { buildManifest, parseManifest, serializeManifest, type ProjectManifest, type StorageAdapter } from "./persistence";
+import { buildManifest, manifestRate, normalizeTrackAudio, parseManifest, serializeManifest, type ProjectManifest, type StorageAdapter } from "./persistence";
 import { validateGraph } from "./routing";
 import { SESSION_PROJECT_ID } from "./session";
 import { analysis } from "./analysis.svelte";
@@ -267,10 +267,14 @@ interface Rebuilt {
  */
 function rebuild(status: Extract<RecentStatus, { kind: "ready" }>): Rebuilt | { readonly reason: UnavailableReason; readonly detail: string } {
   const { manifest, template } = status;
-  const built = createTemplateProject(template, manifest.project.id, manifest.project.name);
+  // Task 11.1: the saved rate, or the legacy default a pre-11.1 manifest reopens at.
+  const built = createTemplateProject(template, manifest.project.id, manifest.project.name, manifestRate(manifest));
   if (!built) return { reason: "mismatch", detail: UNAVAILABLE_DETAIL.mismatch };
-  // Task 5.1: the imported tracks the manifest carries, appended before the values apply (theirs are in `channels` too)
-  const withImports = manifest.tracks && manifest.tracks.length > 0 ? withImportedTracks(built, manifest.tracks) : built;
+  // Task 5.1: the imported tracks the manifest carries, appended before the values apply (theirs are in `channels` too).
+  // Task 11.1: their audio is normalised to the model's strict shape (legacy manifests lack the container facts).
+  const withImports = manifest.tracks && manifest.tracks.length > 0
+    ? withImportedTracks(built, manifest.tracks.map((t) => ({ ...t, audio: normalizeTrackAudio(t.audio) })))
+    : built;
   if ("ok" in withImports) return { reason: "damaged", detail: `${UNAVAILABLE_DETAIL.damaged}: ${withImports.detail}` };
   const next = withImports;
   const skipped: string[] = [];

@@ -46,7 +46,7 @@ test("the vocabulary: profiles with the plan's intents (no benchmark values), WA
   assert.deepEqual([...ONBOARDING_STATES], ["pending", "skipped", "done"]);
   assert.deepEqual(DEFAULT_SETTINGS, {
     hardwareProfile: "auto",
-    export: { fullMix: true, stems: false, buses: false },
+    export: { fullMix: true, stems: false, buses: false, depth: "float32", rate: null, dither: false },
     motion: "system",
     onboarding: "pending",
     // Task 10.1 (§14): every default exactly as the spec lists it
@@ -67,7 +67,7 @@ test("the vocabulary: profiles with the plan's intents (no benchmark values), WA
 test("the document: a round trip is exact; missing, malformed or out-of-vocabulary fields fall back one by one; junk is null", () => {
   const all = {
     hardwareProfile: "performance",
-    export: { fullMix: false, stems: true, buses: true },
+    export: { fullMix: false, stems: true, buses: true, depth: "float32", rate: null, dither: false },
     motion: "reduced",
     onboarding: "done",
     transport: { returnToStartOnStop: true, secondStopReturnsToStart: true, autoScrollMode: "page", autoScrollTriggerPoint: 0.5, suspendOnManualScroll: false, clickToPlay: true, stationaryWhileRecording: true },
@@ -80,7 +80,7 @@ test("the document: a round trip is exact; missing, malformed or out-of-vocabula
     parseSettings(JSON.stringify({ schema: SETTINGS_SCHEMA, hardwareProfile: "turbo", export: { stems: "yes", buses: true }, motion: 3, onboarding: "skipped", transport: { autoScrollMode: "warp", autoScrollTriggerPoint: 0.42, clickToPlay: "maybe" } })),
     {
       hardwareProfile: "auto",
-      export: { fullMix: true, stems: false, buses: true },
+      export: { fullMix: true, stems: false, buses: true, depth: "float32", rate: null, dither: false },
       motion: "system",
       onboarding: "skipped",
       // field by field: the mode and the trigger fall back to the defaults,
@@ -112,7 +112,7 @@ test("the store: every op is one write of the whole document; same-value writes 
 
   settingsOps.setExportOutput("stems", true);
   settingsOps.setExportOutput("fullMix", false);
-  assert.deepEqual(settings.export, { fullMix: false, stems: true, buses: false });
+  assert.deepEqual(settings.export, { fullMix: false, stems: true, buses: false, depth: "float32", rate: null, dither: false });
   assert.equal(storage.writes, 3);
   settingsOps.setExportOutput("buses", false);
   assert.equal(storage.writes, 3);
@@ -152,7 +152,7 @@ test("the store: every op is one write of the whole document; same-value writes 
   const stored = parseSettings(storage.data.get(SETTINGS_KEY));
   assert.deepEqual(stored, {
     hardwareProfile: "lite",
-    export: { fullMix: false, stems: true, buses: false },
+    export: { fullMix: false, stems: true, buses: false, depth: "float32", rate: null, dither: false },
     motion: "reduced",
     onboarding: "pending",
     transport: { returnToStartOnStop: true, secondStopReturnsToStart: false, autoScrollMode: "page", autoScrollTriggerPoint: 0.5, suspendOnManualScroll: true, clickToPlay: true, stationaryWhileRecording: false },
@@ -179,7 +179,7 @@ test("stored once, restored at the next attach — profile, export outputs, moti
   assert.equal(attachSettings(storage), true);
   assert.deepEqual(settings.snapshot(), {
     hardwareProfile: "standard",
-    export: { fullMix: true, stems: false, buses: true },
+    export: { fullMix: true, stems: false, buses: true, depth: "float32", rate: null, dither: false },
     motion: "reduced",
     onboarding: "done",
     transport: { returnToStartOnStop: false, secondStopReturnsToStart: true, autoScrollMode: "centered", autoScrollTriggerPoint: 0.75, suspendOnManualScroll: true, clickToPlay: false, stationaryWhileRecording: false },
@@ -265,5 +265,31 @@ test("subscribers hear every change and the attach; a failing storage keeps the 
   assert.deepEqual(settings.storage, { attached: false, storage: null, loaded: false, error: null, writes: 0 });
   settingsOps.setMotion("reduced");
   assert.equal(storage.writes, 3, "detached: nothing more is written");
+  fresh();
+});
+
+test("Task 11.1: the export dialog's remembered format — depth, rate and dither — persists and an old document takes the defaults", () => {
+  fresh();
+  const storage = memoryStorage();
+  attachSettings(storage);
+  assert.deepEqual(settings.snapshot().export, { fullMix: true, stems: false, buses: false, depth: "float32", rate: null, dither: false }, "the honest defaults: float32, the project's rate, no dither");
+  settingsOps.setExportDepth("pcm24");
+  settingsOps.setExportRate(44100);
+  settingsOps.setExportDither(true);
+  const text = storage.data.get(SETTINGS_KEY);
+  assert.ok(/"depth":"pcm24"/.test(text) && /"rate":44100/.test(text) && /"dither":true/.test(text), text);
+
+  fresh();
+  attachSettings(storage);
+  assert.deepEqual(settings.snapshot().export, { fullMix: true, stems: false, buses: false, depth: "pcm24", rate: 44100, dither: true }, "remembered");
+
+  // a document from before 11.1 (no depth/rate/dither keys) takes the defaults
+  storage.data.set(SETTINGS_KEY, JSON.stringify({ schema: SETTINGS_SCHEMA, hardwareProfile: "auto", export: { fullMix: true, stems: true, buses: false }, motion: "system", onboarding: "pending", transport: { ...DEFAULT_SETTINGS.transport } }));
+  fresh();
+  assert.equal(attachSettings(storage), true);
+  assert.deepEqual(settings.snapshot().export, { fullMix: true, stems: true, buses: false, depth: "float32", rate: null, dither: false }, "an old document keeps its outputs and takes the format defaults");
+
+  // the rate select's null is legal (follow the project) and anything else is refused
+  assert.throws(() => settingsOps.setExportRate(96000), /unknown export rate/);
   fresh();
 });

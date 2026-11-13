@@ -24,6 +24,7 @@
  *   - the gain-reduction readings are fixed illustrative numbers.
  */
 import { PROCESSING_CHAIN_STEPS } from "./mixer";
+import { DEFAULT_PROJECT_RATE } from "./audio/rates";
 import type { Channel, Track } from "./project/model";
 
 /* =========================================================================
@@ -537,11 +538,12 @@ export function blockEngaged(chain: ChainState, id: BlockId): boolean {
 
 /* =========================================================================
    THE RESPONSE — the settings drawn as a curve
-   Textbook analog-prototype biquads (RBJ cookbook) at the session rate
-   (plan §16: 48 kHz), evaluated on the unit circle and summed in dB.
+   Textbook analog-prototype biquads (RBJ cookbook) at the default session
+   rate (plan §16), evaluated on the unit circle and summed in dB. The rate
+   is named once, through the one home of rate decisions (Task 11.1).
    ========================================================================= */
 
-const SAMPLE_RATE = 48000;
+const SAMPLE_RATE: number = DEFAULT_PROJECT_RATE;
 
 export interface BandSetting {
   readonly kind: BandKind;

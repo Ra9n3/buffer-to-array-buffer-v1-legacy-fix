@@ -2734,3 +2734,32 @@ per-panel follow state, the §14 preferences, and where each lives.
   scrubs: the line follows the hand, follow stands down for the drag, and ONE
   locate lands on release — a seek per pointermove would reopen the sources
   per event.
+
+## 24. Project rates, the conversion stage and the export formats (Task 11.1)
+
+One internal format (32-bit float) and one project rate per project
+(44100 | 48000, default 48000, locked at creation, carried in the manifest;
+a pre-11.1 manifest reopens at 48000). An import is accepted at either rate
+and either 24-bit layout (packed, or 24 valid bits in a 32-bit container —
+both alignments: the declared left-aligned rule with one deterministic
+whole-file override for right-aligned writers, resolved once in the reader
+and recorded in the import metadata) or 32-bit (int or float); the
+conversion stage (`lib/audio/convert.ts`, in a Worker in the app) resamples
+it to the project rate once and computes the peaks FROM THE CONVERTED COPY.
+The store is non-destructive: the original's bytes and facts live beside the
+project-rate copy; the peaks record is keyed to the copy (its hash and its
+rate travel with it), so any mismatch — a legacy record, an interrupted rate
+change — is repaired on hydrate rather than drawn as truth. The rate change
+itself (`lib/project/rate-change.ts`) is explicit and warned: every clip is
+re-resampled with progress, then the rate and the facts flip in one
+structural change.
+
+Export renders at the project's rate; a separate rate stage (the same
+resampler, streaming) converts when the target differs, then the depth stage
+writes: 24-bit PCM (round-to-nearest, the −1.0 edge exact, optional TPDF
+dither applied once, off by default, no noise shaping) or 32-bit float (a
+`fact` chunk included; 24-bit PCM omits it). Depth × rate are two
+independent selects in the export dialog, remembered with the dither choice;
+resampling is high quality, never claimed lossless. The device's rate is the
+browser's business: the context is created at the project's rate and Web
+Audio owns any final conversion.

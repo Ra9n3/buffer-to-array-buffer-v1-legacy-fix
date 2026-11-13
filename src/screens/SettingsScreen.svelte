@@ -19,6 +19,7 @@
   import { FOLLOW_MODES, FOLLOW_MODE_PRINT, FOLLOW_TRIGGER_POINTS } from "../lib/playback/follow";
   import ActionKey from "./ActionKey.svelte";
   import Print from "./Print.svelte";
+  import ProjectRatePanel from "./ProjectRatePanel.svelte";
   import ScreenPanel from "./ScreenPanel.svelte";
   import ScreenShell from "./ScreenShell.svelte";
 
@@ -94,10 +95,10 @@
       </div>
     </ScreenPanel>
 
-    <ScreenPanel title="Export" id="settings-export-title" note="The default selection for the export that arrives with rendering. Nothing is exported in this build; the destination folder is chosen at export time." hook="export">
+    <ScreenPanel title="Export" id="settings-export-title" note="The default selection for the export dialog (File > Export…). The dialog also remembers its format — depth × rate and the optional dither — and the destination folder is chosen at export time." hook="export">
       <div class="field" data-settings-field="export-format">
         <EngravedLabel text={`Format: ${EXPORT_FORMAT}`} size="xs" />
-        <Print text="The one export format of version 1 (plan §12)." tone="muted" />
+        <Print text="The one export format of version 1 (plan §12): depth (24-bit PCM | 32-bit float) × rate (44.1 | 48 kHz), chosen in the dialog." tone="muted" />
       </div>
       <div class="outputs" role="group" aria-label="Export output types">
         {#each EXPORT_OUTPUTS as output (output)}
@@ -113,6 +114,13 @@
           </div>
         {/each}
       </div>
+    </ScreenPanel>
+
+    <!-- Task 11.1: the project's own rate. Locked at creation; the change is
+         an explicit, warned operation that re-resamples every imported clip
+         with progress — never silent, never per-file. -->
+    <ScreenPanel title="Project rate" id="settings-rate-title" note="The project's one sample rate: what every import is converted to once and every render runs at. Locked at creation; changing it re-resamples every imported clip — high quality, not lossless." hook="rate">
+      <ProjectRatePanel />
     </ScreenPanel>
 
     <ScreenPanel title="Accessibility" id="settings-access-title" note="Applied now. Keyboard access and the visible focus ring are always on." hook="accessibility">

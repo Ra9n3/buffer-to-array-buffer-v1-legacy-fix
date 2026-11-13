@@ -13,6 +13,7 @@
  */
 
 import { PLAYBACK_QUEUE_SECONDS, type PlaybackOutput } from "./types";
+import { DEFAULT_PROJECT_RATE } from "../audio/rates";
 
 const LEAD_SECONDS = 0.03;
 const POLL_MS = 10;
@@ -24,7 +25,10 @@ export interface WebAudioOutputOptions {
 }
 
 export function createWebAudioOutput(options: WebAudioOutputOptions = {}): PlaybackOutput {
-  const sampleRate = options.sampleRate ?? 48000;
+  // Task 11.1: the context is created at the PROJECT's rate (the shell passes
+  // it); the DEVICE's own rate may differ, and that conversion is Web Audio's
+  // business — there is no custom output path here.
+  const sampleRate = options.sampleRate ?? DEFAULT_PROJECT_RATE;
   const maxQueueFrames = Math.ceil(sampleRate * (options.queueSeconds ?? PLAYBACK_QUEUE_SECONDS));
   let context: AudioContext | null = null;
   let master: GainNode | null = null;

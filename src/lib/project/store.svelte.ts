@@ -103,6 +103,7 @@ import {
   type ReturnBus,
   type ReturnBusId,
   type Track,
+  type TrackAudio,
   type TrackId,
 } from "./model";
 import type { ArrangeClip } from "../arrange-timeline";
@@ -116,6 +117,7 @@ import {
   type RoutingVerdict,
 } from "./routing";
 import { createEmptyProject } from "./templates";
+import type { ProjectRate } from "../audio/rates";
 import { untrack } from "svelte";
 import { applyPaste, copyChannelSettings, pasteVerdict, type ChannelSettings, type PasteVerdict } from "./clipboard";
 import { projectFields } from "./fields";
@@ -225,6 +227,15 @@ export const project = {
   /** The structure the project was built from (Task 4.1): the fixture session or the empty project. */
   get template(): ProjectTemplateId {
     return state.template;
+  },
+  /**
+   * The project's one sample rate (Task 11.1): 44100 or 48000, locked after
+   * creation. Read by the badge, the export dialog, the transport and every
+   * conversion; changed only through `changeProjectRate` (rate-change.ts),
+   * which re-resamples every imported clip first.
+   */
+  get sampleRate(): ProjectRate {
+    return state.sampleRate;
   },
   /** No tracks, Returns or buses: every room shows its empty state (Task 4.1). */
   get isEmpty(): boolean {
@@ -919,6 +930,7 @@ export function loadProject(next: Project): void {
   target.id = next.id;
   target.name = next.name;
   target.template = next.template;
+  target.sampleRate = next.sampleRate;
   target.tracks = next.tracks;
   target.returns = next.returns;
   target.buses = next.buses;
@@ -969,6 +981,44 @@ export function appendTracks(tracks: readonly Track[], arrangement: Arrangement)
 export function setTrackClips(id: TrackId, clips: readonly ArrangeClip[]): void {
   mustTrack(id);
   (state.arrangement.clips as Partial<Record<TrackId, readonly ArrangeClip[]>>)[id] = clips;
+}
+
+/* =========================================================================
+   PROJECT RATE (Task 11.1) — the one locked rate, changed only through here
+   ========================================================================= */
+
+/**
+ * Replace a track's imported-audio facts (a hydrate repair that made the
+ * project-rate copy, or the rate change). Structural like an import: not
+ * an edit, nothing to undo — the manifest's `tracks` block is what changed,
+ * so the revision bumps and autosave writes it.
+ */
+export function setTrackAudio(id: TrackId, audio: TrackAudio): void {
+  const track = mustTrack(id) as { audio: TrackAudio | null };
+  stopObserver();
+  track.audio = audio;
+  history.clear();
+  stopObserver = startObserver();
+}
+
+/**
+ * Apply a new project rate (rate-change.ts `changeProjectRate`, after every
+ * imported stem's copy has been re-made at the new rate): flips the project's
+ * one rate and swaps in each stem's new audio facts in the SAME structural
+ * change, so the project is never seen at the new rate with the old copies.
+ * Like an import: not undoable, the revision bumps, autosave writes the
+ * manifest with its new `sampleRate`, and the transport rebuilds at the new
+ * rate (the shell's rate watcher).
+ */
+export function applyProjectRate(rate: ProjectRate, audios: ReadonlyMap<TrackId, TrackAudio>): void {
+  stopObserver();
+  (state as LoadableProject).sampleRate = rate;
+  for (const [id, audio] of audios) {
+    const track = mustTrack(id) as { audio: TrackAudio | null };
+    track.audio = audio;
+  }
+  history.clear();
+  stopObserver = startObserver();
 }
 
 export type { ChannelId };

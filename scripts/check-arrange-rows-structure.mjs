@@ -456,9 +456,11 @@ const pinned = {
   // Task 10.1 re-pinned (the follow group in the top bar, D10.1.6).
   // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
   // the shell gained the deck's row. The checks around this pin still assert the file's real contract.
-  "src/App.svelte": "e7fa23d3206c419579024c90d5d5f843fab2be4d4f1fcf2f17dfdf0ec0b1ceb5",
+  "src/App.svelte": "05b529f1000bdf56440dda2e83eb238f129030f347e6a9f11c9b93875f99e226",
   "src/components/RoomShell.svelte": "815bcb79e940433591c632d7ae98c4a5e918394b14d97726ae33c6002d808a71",
 };
+  // Task 11.1 re-pin (rates, conversion, the export dialog): every changed
+  // file re-pinned; the unchanged ones keep their hash.
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`approved file untouched: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
 }

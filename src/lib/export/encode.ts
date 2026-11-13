@@ -27,9 +27,14 @@
  */
 
 import { requireSampleRate } from "../dsp/params";
+import { printRate } from "../audio/rates";
 
 /** What a WAV file carries. `pcm` is integer, `float` is IEEE. */
 export type ExportEncoding = "pcm" | "float";
+
+/** The two depths of version 1, as the export dialog's select words them. */
+export type ExportDepth = "pcm24" | "float32";
+export const EXPORT_DEPTHS: readonly ExportDepth[] = ["float32", "pcm24"];
 
 export interface ExportFormat {
   readonly sampleRate: number;
@@ -39,10 +44,16 @@ export interface ExportFormat {
   readonly bitDepth: 24 | 32;
 }
 
-/** v1's agreed formats (§11): 24-bit PCM or 32-bit float, at the session rate. */
+/**
+ * Version 1's four combinations (Task 11.1): depth (24-bit PCM | 32-bit float)
+ * × rate (44.1 | 48 kHz). The dialog's two selects pick one of these; the
+ * rates are the project rates (lib/audio/rates.ts) — no literal survives here.
+ */
 export const EXPORT_FORMATS: readonly ExportFormat[] = [
   { sampleRate: 48000, channels: 2, encoding: "float", bitDepth: 32 },
   { sampleRate: 48000, channels: 2, encoding: "pcm", bitDepth: 24 },
+  { sampleRate: 44100, channels: 2, encoding: "float", bitDepth: 32 },
+  { sampleRate: 44100, channels: 2, encoding: "pcm", bitDepth: 24 },
 ];
 
 export const DEFAULT_EXPORT_FORMAT: ExportFormat = EXPORT_FORMATS[0];
@@ -50,7 +61,10 @@ export const DEFAULT_EXPORT_FORMAT: ExportFormat = EXPORT_FORMATS[0];
 /** A named suffix so a UI or a test can pick the format by one word. */
 export type ExportFormatId = "float32" | "pcm24";
 
-export function formatFromId(id: ExportFormatId, sampleRate: number): ExportFormat {
+export function formatFromId(
+  id: ExportFormatId,
+  sampleRate: number,
+): ExportFormat {
   const base = id === "pcm24" ? EXPORT_FORMATS[1] : EXPORT_FORMATS[0];
   return { ...base, sampleRate: requireSampleRate(sampleRate) };
 }
@@ -62,8 +76,9 @@ export function formatIdOf(format: ExportFormat): ExportFormatId {
 /** The plain-language print of a format, e.g. `48 kHz · 32-bit float · stereo`. */
 export function printFormat(format: ExportFormat): string {
   const depth = `${format.bitDepth}-bit ${format.encoding === "pcm" ? "PCM" : "float"}`;
-  const rate = `${format.sampleRate / 1000} kHz`;
-  const channels = format.channels === 2 ? "stereo" : `${format.channels} channel`;
+  const rate = printRate(format.sampleRate);
+  const channels =
+    format.channels === 2 ? "stereo" : `${format.channels} channel`;
   return `${rate} · ${depth} · ${channels}`;
 }
 
@@ -85,19 +100,43 @@ export class WavSinkError extends Error {
 const PCM = 1;
 const FLOAT = 3;
 const INT24_FULL_SCALE = 8388608; // 2^23
+/**
+ * The canonical 44-byte header. A float export also carries a `fact` chunk
+ * (Task 11.1): OMITTED for 24-bit PCM, INCLUDED for float — expected by some
+ * readers for non-PCM tags, harmless to the rest.
+ */
 const HEADER_BYTES = 44;
+const FACT_BYTES = 12; // "fact" + size + 4 payload bytes (the frame count)
 const MAX_RIFF_BYTES = 0xffffffff - 8;
 const MAX_FRAMES_SAFE = Math.floor(Number.MAX_SAFE_INTEGER / 4);
 
-/** A WAV header for `dataBytes` of audio. `dataBytes` is patched again at the end. */
-export function wavHeader(format: ExportFormat, dataBytes: number): Uint8Array {
+/** The header's total size: 44, plus 12 for a float export's `fact` chunk. */
+export function headerBytesOf(format: Pick<ExportFormat, "encoding">): number {
+  return HEADER_BYTES + (format.encoding === "float" ? FACT_BYTES : 0);
+}
+
+/** Whether this format's header carries a `fact` chunk (float: yes; 24-bit PCM: no). */
+export function hasFactChunk(format: Pick<ExportFormat, "encoding">): boolean {
+  return format.encoding === "float";
+}
+
+/** A WAV header for `dataBytes` of audio, `fact` first when the format carries one. `dataBytes` is patched again at the end. */
+export function wavHeader(
+  format: ExportFormat,
+  dataBytes: number,
+  frames?: number,
+): Uint8Array {
   const bytesPerSample = format.bitDepth / 8;
   const blockAlign = bytesPerSample * format.channels;
-  const total = HEADER_BYTES + dataBytes;
+  const fact = hasFactChunk(format);
+  const header = headerBytesOf(format);
+  const total = header + dataBytes;
   if (total > MAX_RIFF_BYTES) {
-    throw new WavSinkError(`a ${Math.round(total / 1024 / 1024)} MB export exceeds the ${Math.round(MAX_RIFF_BYTES / 1024 / 1024)} MB RIFF limit of a WAV file`);
+    throw new WavSinkError(
+      `a ${Math.round(total / 1024 / 1024)} MB export exceeds the ${Math.round(MAX_RIFF_BYTES / 1024 / 1024)} MB RIFF limit of a WAV file`,
+    );
   }
-  const out = new Uint8Array(HEADER_BYTES);
+  const out = new Uint8Array(header);
   const view = new DataView(out.buffer);
   const put = (at: number, text: string): void => {
     for (let i = 0; i < text.length; i++) out[at + i] = text.charCodeAt(i);
@@ -113,8 +152,18 @@ export function wavHeader(format: ExportFormat, dataBytes: number): Uint8Array {
   view.setUint32(28, format.sampleRate * blockAlign, true);
   view.setUint16(32, blockAlign, true);
   view.setUint16(34, format.bitDepth, true);
-  put(36, "data");
-  view.setUint32(40, dataBytes, true);
+  if (fact) {
+    // "fact" between fmt and data; its payload is the frame count. The pad rule
+    // applies to odd chunks — fact is 4 bytes, even, so no pad byte exists.
+    put(36, "fact");
+    view.setUint32(40, 4, true);
+    view.setUint32(44, frames ?? Math.floor(dataBytes / blockAlign), true);
+    put(48, "data");
+    view.setUint32(52, dataBytes, true);
+  } else {
+    put(36, "data");
+    view.setUint32(40, dataBytes, true);
+  }
   return out;
 }
 
@@ -133,24 +182,57 @@ export interface WavWriteStats {
  * `finish` the writer refuses further writes, so a failed export can never leave
  * a half-written file that looks complete.
  */
+export type DitherSetting = "off" | "tprf";
+
+export interface WavWriterOptions {
+  /**
+   * Task 11.1: dither at the 24-bit depth stage. OFF by default; TPDF is a
+   * one-time opt-in, applied once before the round (never twice, never on the
+   * float path, no noise shaping). The noise source is injectable so tests can
+   * pin it deterministically; the default is the platform's `Math.random`.
+   */
+  readonly dither?: DitherSetting;
+  /** A uniform [0, 1) noise source for TPDF dither (tests inject an LCG). */
+  readonly random?: () => number;
+}
+
 export class WavStreamWriter {
   readonly format: ExportFormat;
   private readonly sink: ByteSink;
   private readonly bytesPerSample: number;
   private readonly scratch: Uint8Array;
+  private readonly dither: DitherSetting;
+  private readonly random: () => number;
   private frames = 0;
   private chunkCount = 0;
   private clipped = false;
   private state: "open" | "finished" | "aborted" = "open";
 
-  constructor(format: ExportFormat, sink: ByteSink) {
+  constructor(
+    format: ExportFormat,
+    sink: ByteSink,
+    options: WavWriterOptions = {},
+  ) {
     const sampleRate = requireSampleRate(format.sampleRate);
-    if (format.channels !== 2) throw new WavSinkError(`export writes stereo, not ${String(format.channels)} channels`);
-    if (format.encoding === "pcm" && format.bitDepth !== 24) throw new WavSinkError("24-bit is the only integer export format in version 1");
-    if (format.encoding === "float" && format.bitDepth !== 32) throw new WavSinkError("32-bit float is the only float export format in version 1");
+    if (format.channels !== 2)
+      throw new WavSinkError(
+        `export writes stereo, not ${String(format.channels)} channels`,
+      );
+    if (format.encoding === "pcm" && format.bitDepth !== 24)
+      throw new WavSinkError(
+        "24-bit is the only integer export format in version 1",
+      );
+    if (format.encoding === "float" && format.bitDepth !== 32)
+      throw new WavSinkError(
+        "32-bit float is the only float export format in version 1",
+      );
     this.format = { ...format, sampleRate };
     this.sink = sink;
     this.bytesPerSample = format.bitDepth / 8;
+    this.dither = options.dither ?? "off";
+    this.random = options.random ?? Math.random;
+    if (this.dither !== "off" && format.encoding !== "pcm")
+      throw new WavSinkError("dither exists only at the 24-bit depth stage");
     // Sized once: the largest chunk a renderer hands over is bounded by 65536 frames.
     this.scratch = new Uint8Array(65536 * this.bytesPerSample * 2);
   }
@@ -165,14 +247,29 @@ export class WavStreamWriter {
   }
 
   /** Append `frames` frames of the two channels. The arrays are read, never kept. */
-  async write(left: Float32Array, right: Float32Array, frames: number): Promise<void> {
+  async write(
+    left: Float32Array,
+    right: Float32Array,
+    frames: number,
+  ): Promise<void> {
     this.requireOpen();
-    if (!Number.isSafeInteger(frames) || frames < 0) throw new WavSinkError(`frames must be a whole, non-negative number, not ${String(frames)}`);
-    if (frames > MAX_FRAMES_SAFE) throw new WavSinkError("the export is longer than a WAV file can describe");
+    if (!Number.isSafeInteger(frames) || frames < 0)
+      throw new WavSinkError(
+        `frames must be a whole, non-negative number, not ${String(frames)}`,
+      );
+    if (frames > MAX_FRAMES_SAFE)
+      throw new WavSinkError(
+        "the export is longer than a WAV file can describe",
+      );
     const needed = frames * this.bytesPerSample * 2;
-    if (needed > this.scratch.length) throw new WavSinkError(`${frames} frames is more than the writer's bounded block (65536)`);
+    if (needed > this.scratch.length)
+      throw new WavSinkError(
+        `${frames} frames is more than the writer's bounded block (65536)`,
+      );
     if (left.length < frames || right.length < frames) {
-      throw new WavSinkError(`a channel holds ${Math.min(left.length, right.length)} frames; ${frames} were supplied`);
+      throw new WavSinkError(
+        `a channel holds ${Math.min(left.length, right.length)} frames; ${frames} were supplied`,
+      );
     }
     if (this.format.encoding === "float") this.encodeFloat(left, right, frames);
     else this.encodePcm24(left, right, frames);
@@ -186,11 +283,11 @@ export class WavStreamWriter {
     this.requireOpen();
     const dataBytes = this.frames * this.bytesPerSample * 2;
     await this.sink.seek(0);
-    await this.sink.write(wavHeader(this.format, dataBytes));
+    await this.sink.write(wavHeader(this.format, dataBytes, this.frames));
     const stats: WavWriteStats = {
       frames: this.frames,
       dataBytes,
-      totalBytes: HEADER_BYTES + dataBytes,
+      totalBytes: headerBytesOf(this.format) + dataBytes,
       clipped: this.clipped,
       chunks: this.chunkCount,
     };
@@ -211,12 +308,22 @@ export class WavStreamWriter {
   }
 
   private requireOpen(): void {
-    if (this.state === "aborted") throw new WavSinkError("the writer was aborted");
-    if (this.state === "finished") throw new WavSinkError("the writer is already closed");
+    if (this.state === "aborted")
+      throw new WavSinkError("the writer was aborted");
+    if (this.state === "finished")
+      throw new WavSinkError("the writer is already closed");
   }
 
-  private encodeFloat(left: Float32Array, right: Float32Array, frames: number): void {
-    const view = new DataView(this.scratch.buffer, this.scratch.byteOffset, this.scratch.byteLength);
+  private encodeFloat(
+    left: Float32Array,
+    right: Float32Array,
+    frames: number,
+  ): void {
+    const view = new DataView(
+      this.scratch.buffer,
+      this.scratch.byteOffset,
+      this.scratch.byteLength,
+    );
     let at = 0;
     for (let i = 0; i < frames; i++) {
       // Float output is sample-exact: no clamping and no rounding, so a peak above
@@ -227,7 +334,11 @@ export class WavStreamWriter {
     }
   }
 
-  private encodePcm24(left: Float32Array, right: Float32Array, frames: number): void {
+  private encodePcm24(
+    left: Float32Array,
+    right: Float32Array,
+    frames: number,
+  ): void {
     let at = 0;
     for (let i = 0; i < frames; i++) {
       at = this.writePcmSample(left[i], at);
@@ -235,9 +346,13 @@ export class WavStreamWriter {
     }
   }
 
-  /** One 24-bit little-endian sample, round-to-nearest, clamped at full scale. */
+  /** One 24-bit little-endian sample: the optional TPDF dither (once, here, never anywhere else), then round-to-nearest, clamped at full scale. */
   private writePcmSample(value: number, at: number): number {
-    const scaled = Math.round(value * INT24_FULL_SCALE);
+    const source =
+      this.dither === "tprf"
+        ? value + (this.random() - this.random()) / INT24_FULL_SCALE
+        : value;
+    const scaled = Math.round(source * INT24_FULL_SCALE);
     let v = scaled;
     if (scaled > INT24_FULL_SCALE - 1 || scaled < -INT24_FULL_SCALE) {
       this.clipped = true;
@@ -280,8 +395,12 @@ export class MemoryByteSink implements ByteSink {
   }
 
   seek(position: number): void {
-    if (!Number.isSafeInteger(position) || position < 0) throw new WavSinkError(`cannot seek to ${String(position)}`);
-    if (position > this.length) throw new WavSinkError(`cannot seek to ${position}: only ${this.length} bytes are written`);
+    if (!Number.isSafeInteger(position) || position < 0)
+      throw new WavSinkError(`cannot seek to ${String(position)}`);
+    if (position > this.length)
+      throw new WavSinkError(
+        `cannot seek to ${position}: only ${this.length} bytes are written`,
+      );
     this.cursor = position;
   }
 
@@ -322,8 +441,14 @@ class CursorBuffer {
   }
 
   seek(position: number): void {
-    if (!Number.isSafeInteger(position) || position < 0 || position > this.length) {
-      throw new WavSinkError(`cannot seek to ${String(position)} (${this.length} bytes written)`);
+    if (
+      !Number.isSafeInteger(position) ||
+      position < 0 ||
+      position > this.length
+    ) {
+      throw new WavSinkError(
+        `cannot seek to ${String(position)} (${this.length} bytes written)`,
+      );
     }
     this.cursor = position;
   }
@@ -338,7 +463,10 @@ class CursorBuffer {
 export { CursorBuffer };
 
 /** Peaks and RMS of a written file's samples — evidence for "no mastering" (tests). */
-export function peakOf(channels: readonly Float32Array[], frames: number): number {
+export function peakOf(
+  channels: readonly Float32Array[],
+  frames: number,
+): number {
   let most = 0;
   for (const channel of channels) {
     for (let i = 0; i < frames; i++) {

@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 
 const { importFiles } = await import("../src/lib/project/import.ts");
 const { memoryAssetStore, sha256Hex } = await import("../src/lib/audio/asset-store.ts");
-const { judgeFormat, ACCEPTED_SAMPLE_RATE } = await import("../src/lib/audio/import-rules.ts");
+const { judgeFormat } = await import("../src/lib/audio/import-rules.ts");
 const { encodeWav, inspectWav } = await import("../src/lib/audio/wav.ts");
 const { exportProject } = await import("../src/lib/export/exporter.ts");
 const { memoryDestination } = await import("../src/lib/export/destination.ts");
@@ -19,7 +19,7 @@ const { safeName, stemName, busName, uniqueName } = await import("../src/lib/exp
 const { PlaybackController } = await import("../src/lib/playback/controller.ts");
 const { projectFixture, trackFixture, busFixture } = await import("./engine-fixtures.mjs");
 
-const RATE = ACCEPTED_SAMPLE_RATE;
+const RATE = 48000; // the fixtures' declared rate (Task 11.1: a named fixture rate, per the de-hardcode rule)
 
 /* --- fixtures ------------------------------------------------------------------------- */
 
@@ -38,6 +38,7 @@ let idSeed = 0;
 function importContext(store, tracks = []) {
   return {
     projectId: "stabilization",
+    projectRate: 48000,
     tracks,
     tempoMarkers: [{ bar: 1, seconds: 0, tempo: 120 }],
     store,
@@ -129,7 +130,7 @@ test("9.1 · a good stem imports, and the track it creates carries exactly the f
 test("9.1 · every refusal reason is distinct and none of them adds a track", async () => {
   const store = memoryAssetStore();
   const cases = [
-    ["slow.wav", wavBytes({ rate: 44100 }), "unsupported"],
+    ["hires.wav", wavBytes({ rate: 96000 }), "unsupported"], // Task 11.1: 44.1 is accepted and converted; 96 kHz is the rate refusal
     ["sixteen.wav", wavBytes({ bitDepth: 16 }), "unsupported"],
     ["three.wav", wavBytes({ channels: 3 }), "unsupported"],
     // A file that is not a WAV at all is a *format* refusal, not damage: the importer
@@ -592,7 +593,7 @@ test("9.2 · Home is the fourth navigation tab, and it is not a room", async () 
 test("9.2 · the toolbar's actions are real bindings, not decoration", async () => {
   const bar = await readSource("src/components/AppToolbar.svelte");
 
-  assert.match(bar, /import \{ autosave, history \} from "\.\.\/lib\/project\/store\.svelte"/);
+  assert.match(bar, /import \{ autosave, history, project \} from "\.\.\/lib\/project\/store\.svelte"/);
   assert.match(bar, /history\.undo\(\)/);
   assert.match(bar, /history\.redo\(\)/);
   assert.match(bar, /autosave\.save\(\)/);

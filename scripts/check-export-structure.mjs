@@ -110,11 +110,42 @@ check("the plan documents that no loudness target is applied", /no mastering or 
 /* --- 4. Format and sample rate -------------------------------------------------------- */
 
 check("the writer declares a WAV RIFF/WAVE header", /RIFF/.test(encode) && /WAVE/.test(encode));
-check("32-bit float is the default format", /encoding: "float"[\s\S]{0,80}bitDepth: 32/.test(encode));
-check("24-bit PCM is offered as the only clipped path", /encoding: "pcm"[\s\S]{0,80}bitDepth: 24/.test(encode));
+check("32-bit float is the default format, and all four depth \u00d7 rate combinations are shipped (Task 11.1)", /encoding: "float"[\s\S]{0,80}bitDepth: 32/.test(encode) && /EXPORT_FORMATS\.length, 4/.test(exportTests));
+check(
+  "24-bit PCM is the only clipped path: round-to-nearest with the exact \u22121.0 edge, OFF-by-default TPDF dither applied once, no noise shaping; float never clips (Task 11.1)",
+  /encoding: "pcm"[\s\S]{0,80}bitDepth: 24/.test(encode) &&
+    /dither\?: DitherSetting;/.test(encode) &&
+    /value \+ \(this\.random\(\) - this\.random\(\)\) \/ INT24_FULL_SCALE/.test(encode) &&
+    /dither exists only at the 24-bit depth stage/.test(encode) &&
+    /maps to \u22122\^23 exactly/.test(exportTests),
+);
+check(
+  "a float export carries a fact chunk (44 + 12) and a 24-bit PCM export omits it (Task 11.1); the headers are golden-pinned for all four combinations",
+  /hasFactChunk\(format: Pick<ExportFormat, "encoding">\): boolean \{\s*return format\.encoding === "float";\s*\}/.test(encode) &&
+    /const FACT_BYTES = 12;/.test(encode) &&
+    /golden headers: all four depth \u00d7 rate combinations are byte-pinned/.test(exportTests),
+);
+check(
+  "the rate stage is the same resampler as the import, streaming between the render and the depth stage (Task 11.1)",
+  /from "\.\.\/audio\/resample"/.test(read("src/lib/export/rate-stage.ts")) &&
+    /createStreamingResampler\(fromRate, toRate, 2\)/.test(read("src/lib/export/rate-stage.ts")) &&
+    /RateStageWriter\.wrap\(\s*new WavStreamWriter\(format, sink, \{ dither: options\.dither \}\),\s*projectRate,\s*\)/.test(exporter) &&
+    /format\.sampleRate !== projectRate\s*\?\s*\[/.test(exporter) &&
+    /CONVERSION_NOTICE/.test(exporter) && /not lossless/.test(read("src/lib/audio/import-rules.ts")),
+);
+check(
+  "no rate literal outside named constants in the export modules (Task 11.1)",
+  !/\b48000\b|\b44100\b/.test(encode.replace(/export const EXPORT_FORMATS[\s\S]*?\];/, "") + exporter + read("src/lib/export/rate-stage.ts")),
+);
 check("the writer streams: header first, data patched at finish", /begin\(\)/.test(encode) && /seek\(0\)/.test(encode));
 check("the writer reports clipping rather than hiding it", /clipped/.test(encode));
-check("the export takes the project's sample rate from the DSP rate", /DSP_SAMPLE_RATE/.test(exporter));
+check(
+  "the export renders at the project's rate and reaches the target through one rate stage (Task 11.1); the DSP rate is no longer a literal anywhere in the export",
+  /sampleRate: projectRate,/.test(exporter) &&
+    /const projectRate = options.project.sampleRate;/.test(exporter) &&
+    /options.format \?\? \{\s*\.\.\.DEFAULT_EXPORT_FORMAT,\s*sampleRate: projectRate,\s*\};/.test(exporter) &&
+    !/DSP_SAMPLE_RATE|\b48000\b|\b44100\b/.test(exporter),
+);
 check("stereo is declared, not inferred", /channels: 2/.test(encode));
 
 /* --- 5. Folders, names and collisions ------------------------------------------------- */

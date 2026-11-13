@@ -3,6 +3,7 @@
   import AppToolbar from "./components/AppToolbar.svelte";
   import ChromeBand from "./components/ChromeBand.svelte";
   import ConsoleTransport from "./components/console-transport/ConsoleTransport.svelte";
+  import ExportDialog from "./components/ExportDialog.svelte";
   import MenuBar from "./components/MenuBar.svelte";
   import MiniTransport from "./components/MiniTransport.svelte";
   import RoomNav from "./components/RoomNav.svelte";
@@ -93,6 +94,10 @@
     window.location.hash = SETTINGS_HREF;
   }
 
+  /* Task 11.1: File > Export… opens the export dialog — one instance in the
+     shell, mounted only while it is open. Nothing else in the app builds one. */
+  let exportOpen = $state(false);
+
   onMount(() => {
     // Normalise the address to the route's canonical hash: "#/console/" →
     // "#/console", and the empty hash of a fresh visit → "#/" (Home).
@@ -141,7 +146,7 @@
   <header class="app-header">
     <ChromeBand label="Application bar">
       <div class="app-bar">
-        <MenuBar onSettings={() => openSettings()} onHome={() => goHome()} onImport={() => requestImport()} />
+        <MenuBar onSettings={() => openSettings()} onHome={() => goHome()} onImport={() => requestImport()} onExport={() => (exportOpen = true)} />
         <AppToolbar onImport={() => requestImport()} followPanel={followPanel} />
         <div class="app-nav">
           <RoomNav room={room} onHome={route.kind === "home"} />
@@ -206,6 +211,10 @@
        instead (app.css); the strip itself is never unmounted, only not
        displayed there. -->
   <MiniTransport />
+
+  {#if exportOpen}
+    <ExportDialog onclose={() => (exportOpen = false)} />
+  {/if}
 </div>
 
 <style>

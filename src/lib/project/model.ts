@@ -42,6 +42,7 @@
 
 import type { OrgSwatch } from "../../components/channel-strip/track-strip-fixtures";
 import type { ReturnEffect } from "../../components/channel-strip/bus-return-fixtures";
+import type { ProjectRate } from "../audio/rates";
 import type { FamilyId, ProminenceTier, RoleId } from "../arrange";
 import type { ArrangeClip, ArrangeSection, TempoMarker } from "../arrange-timeline";
 import type { ChainState, Mode } from "../mixer-chain";
@@ -225,20 +226,32 @@ export interface Track {
    ========================================================================= */
 
 /**
- * What the project knows about an imported stem: the reference to its copy
- * in the project-owned storage (lib/audio/asset-store.ts) and the facts the
- * import read from the file. The copy's bytes and its peaks are not here —
+ * What the project knows about an imported stem (Task 5.1; Task 11.1 adds the
+ * source's container facts and the project-rate copy): the reference to its
+ * copy in the project-owned storage (lib/audio/asset-store.ts) and the facts
+ * the import read from the file. The copy's bytes and its peaks are not here —
  * they are looked up by `assetId` and checked against `sha256`.
+ *
+ * The flat fields describe the ORIGINAL file — the source metadata is
+ * retained non-destructively next to the conversion. `converted` is the
+ * project-rate copy (32-bit float, the one internal format) that playback,
+ * drawing and rendering read; null only on legacy records that predate the
+ * conversion stage, until the hydrate repair makes it.
  */
 export interface TrackAudio {
   readonly assetId: string;
   /** The original file's name, as imported. */
   readonly fileName: string;
-  /** SHA-256 (hex) of the copied bytes; the peaks carry the same, so a drawing is always of these bytes. */
+  /** SHA-256 (hex) of the copied ORIGINAL bytes; the peaks and the copy carry the same, so a drawing is always of these bytes. */
   readonly sha256: string;
   readonly bytes: number;
   readonly encoding: "pcm" | "float";
+  /** The file's VALID bits (24 for both 24-bit layouts, 32 for int/float 32). */
   readonly bitDepth: number;
+  /** The file's container size in bits (24 packed: 24; 24-in-32: 32; int/float 32: 32). */
+  readonly containerBits: number;
+  /** 24-valid-bits-in-32-container only: which end the valid bits sit at; null for every other layout. */
+  readonly alignment: "left" | "right" | null;
   readonly sampleRate: number;
   readonly channels: number;
   readonly frames: number;
@@ -247,6 +260,23 @@ export interface TrackAudio {
   /** Plan §11: a silent / empty stem — accepted, warned about, excluded from analysis targets later. */
   readonly silent: boolean;
   readonly importedAt: string;
+  /** The project-rate copy (32-bit float) the conversion stage made; null on legacy records until the hydrate repair. */
+  readonly converted: ConvertedAudio | null;
+}
+
+/** The project-rate copy of an imported stem (Task 11.1): float32 at the project's rate. */
+export interface ConvertedAudio {
+  /** The rate the copy was made at — the project's rate at conversion time. */
+  readonly sampleRate: number;
+  readonly frames: number;
+  readonly peakDbfs: number | null;
+  readonly silent: boolean;
+}
+
+/** A stem's length in seconds: the project-rate copy when there is one, the original's own rate otherwise. */
+export function audioSeconds(audio: TrackAudio): number {
+  if (audio.converted) return audio.converted.frames / audio.converted.sampleRate;
+  return audio.frames / audio.sampleRate;
 }
 
 /* =========================================================================
@@ -346,6 +376,14 @@ export interface Project {
   readonly id: string;
   name: string;
   readonly template: ProjectTemplateId;
+  /**
+   * The project's one sample rate (Task 11.1): 44100 or 48000, chosen at
+   * creation, default 48000, LOCKED afterwards. Every import is converted to
+   * it once, every render runs at it, and the export's rate stage converts from
+   * it. Changing it is an explicit, warned operation that re-resamples every
+   * imported clip — never silent, never per-file.
+   */
+  readonly sampleRate: ProjectRate;
   /** Session order = channel order in every room. */
   readonly tracks: Track[];
   readonly returns: ReturnBus[];

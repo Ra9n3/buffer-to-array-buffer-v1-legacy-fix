@@ -250,12 +250,12 @@ check("the document round-trips the group; the mode and trigger fall back to the
   /function transportGroup\(value: unknown\): TransportPreferences \{[\s\S]*FOLLOW_TRIGGER_POINTS\.includes\(doc\.autoScrollTriggerPoint\)[\s\S]*oneOf\(FOLLOW_MODES, doc\.autoScrollMode, DEFAULT_SETTINGS\.transport\.autoScrollMode\),/.test(SET) &&
   /transport: \{ \.\.\.s\.transport \},/.test(SET) &&
   /setTransportSwitch\(key: TransportSwitchKey, on: boolean\): void \{[\s\S]*if \(!TRANSPORT_SWITCH_KEYS\.includes\(key\)\) throw new Error\(`unknown transport switch: \$\{key\}`\);/.test(SET));
-check("the Settings screen: the fifth panel with the two selectors and the five switches, the approved controls only",
-  count(SS, /<ScreenPanel /g) === 5 &&
+check("the Settings screen: the panels — Task 10.1's transport & playhead, Task 11.1's project rate (sixth) — the approved controls only",
+  count(SS, /<ScreenPanel /g) === 6 &&
   /<ScreenPanel title="Transport & playhead" id="settings-transport-title"/.test(SS) &&
   /hook="follow-mode"/.test(SS) &&
   /hook="follow-trigger"/.test(SS) &&
-  count(SS, /<ScribbleSelect/g) === 4 &&
+  count(SS, /<ScribbleSelect/g) === 4 && /<ScreenPanel title="Project rate" id="settings-rate-title"/.test(SS) &&
   /data-settings-transport=\{sw\.key\}/.test(SS) &&
   /\{#each TRANSPORT_SWITCHES as sw \(sw\.key\)\}/.test(SS) &&
   count(SS, /data-settings-transport=\{sw\.key\}/g) === 1 &&

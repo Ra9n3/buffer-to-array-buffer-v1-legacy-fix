@@ -7,6 +7,7 @@
   import ArrangePlayhead from "../components/playhead/ArrangePlayhead.svelte";
   import RoomShell from "../components/RoomShell.svelte";
   import { assets } from "../lib/project/assets.svelte";
+  import { audioSeconds, type TrackAudio } from "../lib/project/model";
   import { arrangeTrackOf, project, trackMeta } from "../lib/project/store.svelte";
 
   /* Task 3.1: the room reads the one project store — the same tracks the
@@ -25,9 +26,9 @@
      PADDED is the project's reading: shorter than its longest stem. */
   const tracks = $derived(project.tracks);
   const arrangement = $derived(project.arrangement);
-  const longestSeconds = $derived(tracks.reduce((m, t) => (t.audio ? Math.max(m, t.audio.frames / t.audio.sampleRate) : m), 0));
-  function isPadded(audio: { frames: number; sampleRate: number } | null): boolean {
-    return audio !== null && longestSeconds - audio.frames / audio.sampleRate > 1 / audio.sampleRate;
+  const longestSeconds = $derived(tracks.reduce((m, t) => (t.audio ? Math.max(m, audioSeconds(t.audio)) : m), 0));
+  function isPadded(audio: TrackAudio | null): boolean {
+    return audio !== null && longestSeconds - audioSeconds(audio) > 1 / audio.sampleRate;
   }
 </script>
 

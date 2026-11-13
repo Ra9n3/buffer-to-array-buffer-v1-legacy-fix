@@ -42,6 +42,7 @@
  */
 
 import { indexedDbAssetStore, type AssetStore } from "../audio/asset-store";
+import { createWorkerConverter } from "../audio/convert-worker";
 import { installPlaybackShell } from "../playback/shell";
 import { transport } from "../playback/store.svelte";
 import { attachSettings, detachSettings, settings, type AppSettings } from "../settings.svelte";
@@ -234,10 +235,14 @@ export function installProjectShell(win: Window, options: ShellOptions = {}): ()
     yieldBetween,
   });
   if (assetStore) {
+    /* Task 11.1: the conversion stage runs in a Worker where the platform has
+       one (a failed birth falls back to the in-thread stage per call, so the
+       Node tests and SSR are unchanged). */
     assets.attach(assetStore, {
       newId: () => newAssetId(win),
       now,
       yieldBetween,
+      convert: createWorkerConverter(),
       afterImport: (ids) => {
         analysis.enqueue(ids);
       },

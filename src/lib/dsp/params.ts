@@ -40,20 +40,28 @@
  * each, so a later tuning task moves them in one place (the D5.2.5 / D5.2.8
  * convention).
  *
- * Conventions, the project's (D5.1.1, D5.1.3, Task 5.2):
- *   - the session rate is 48 kHz, the one rate Task 5.1 admits, no resampling;
- *   - a sample is a 32-bit float; the modules neither clip, scale nor dither,
- *     and they assume the samples are finite (the import path counts
+ * Conventions, the project's (D5.1.1, D5.1.3, Task 5.2, Task 11.1):
+ *   - every sample is a 32-bit float; the modules neither clip, scale nor
+ *     dither, and they assume the samples are finite (the import path counts
  *     non-finite samples as integrity findings). Sanitising belongs where the
  *     bytes are read, not in every filter;
+ *   - a module is built at the rate its caller names (a project's rate is
+ *     44100 or 48000, lib/audio/rates.ts); nothing here assumes 48 kHz;
  *   - a value that is not a finite number is a caller bug and THROWS; a
  *     finite value outside a documented range is CLAMPED, as the console's
  *     controls already do (`fromPosition` / `setParamValue`, mixer-chain.ts);
  *   - nothing here reads the browser, allocates per sample, or keeps state.
  */
 
-/** The session rate — the one rate Task 5.1 admits (`ACCEPTED_SAMPLE_RATE`). */
-export const DSP_SAMPLE_RATE = 48000;
+import { DEFAULT_PROJECT_RATE } from "../audio/rates";
+
+/**
+ * The default session rate: the rate a project carries when nothing names
+ * another one (Task 11.1: the project's own rate may be 44100 or 48000; the
+ * engine takes the rate per project, and this is the default it falls back
+ * to — the same home as every other rate decision, lib/audio/rates.ts).
+ */
+export const DSP_SAMPLE_RATE: number = DEFAULT_PROJECT_RATE;
 
 /** A closed interval, both ends included. */
 export interface DspRange {
