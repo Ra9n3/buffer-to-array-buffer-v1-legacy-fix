@@ -36,6 +36,12 @@
  *     resumes exactly where it stopped instead of jumping.
  *   - **No allocation while processing.** Every buffer is sized once, in the
  *     constructor, from `maxFramesPerBlock`.
+ *
+ *   - **Mute and solo cross as fades (Stage 0b).** A path that stopped passing runs
+ *     one last block, its contribution multiplied by a 10 ms fade-out; a path that
+ *     started passing runs its first block multiplied by the matching fade-in. A
+ *     path whose pass did not move is exactly today's sample, so a block with no
+ *     transition anywhere is bit-identical to the pre-Stage-0b engine.
  */
 
 import { SafetyLimiter } from "../dsp/limiter";
@@ -73,6 +79,17 @@ export interface MixTaps {
 /** The buffer the engine may be handed less of than it has: absent means silence. */
 export type TrackInputs = ReadonlyMap<TrackId, StereoBlock>;
 
+/**
+ * One track's Stage 0b fade state: its dry output path, and each send path by the
+ * Return it feeds. A bus or a Return has the one path, so each keeps a bare
+ * boolean. All of it is built once in the constructor; `process` only writes
+ * values into existing entries, so a block allocates nothing.
+ */
+interface TrackPassState {
+  output: boolean;
+  sends: Map<ReturnBusId, boolean>;
+}
+
 const CHANNELS = 2;
 
 function zeroPair(frames: number): [Float32Array, Float32Array] {
@@ -93,6 +110,75 @@ function copyInto(destination: StereoBlock, source: StereoBlock | null, frames: 
     const to = destination[c];
     if (source === null) to.fill(0, 0, frames);
     else to.set(source[c].subarray(0, frames));
+  }
+}
+
+/* --- Stage 0b: the mute/solo fades ------------------------------------------------------- */
+
+/** A path's fade across one block: steady, or crossing out / in. */
+const RAMP_STEADY = 0;
+const RAMP_OUT = 1;
+const RAMP_IN = 2;
+type RampDirection = 0 | 1 | 2;
+
+/** Which way one path's pass moved since the block it last contributed to. */
+function rampOf(wasPassing: boolean, passing: boolean): RampDirection {
+  if (wasPassing === passing) return RAMP_STEADY;
+  return wasPassing ? RAMP_OUT : RAMP_IN;
+}
+
+/** The fade of sample `i` for one crossing: out lands on exactly 0, in on exactly 1. */
+function fadeAt(i: number, rampFrames: number, fadingOut: boolean): number {
+  if (i >= rampFrames) return fadingOut ? 0 : 1;
+  return fadingOut ? 1 - (i + 1) / rampFrames : (i + 1) / rampFrames;
+}
+
+/**
+ * `destination += source · gain · fade` — the Stage 0b variant of `addInto`, for a
+ * path whose pass moved since its last block.
+ *
+ * Fading OUT, the contribution is `1 − (i + 1) / rampFrames` for the first
+ * `rampFrames` samples and exactly 0 for the rest of the block, so it is silent by
+ * the ramp's end. Fading IN, it is `(i + 1) / rampFrames` and then exactly 1.
+ * Steady, it is today's plain add, sample for sample. The chain's own output
+ * buffer is never modified: the fade is applied at the destination, so two paths
+ * of one channel (its dry output and a send, say) each fade by themselves.
+ */
+function addIntoRamped(
+  destination: StereoBlock,
+  source: StereoBlock,
+  gain: number,
+  direction: RampDirection,
+  rampFrames: number,
+  frames: number,
+): void {
+  if (direction === RAMP_STEADY) {
+    addInto(destination, source, gain, frames);
+    return;
+  }
+  const fadingOut = direction === RAMP_OUT;
+  for (let c = 0; c < CHANNELS; c++) {
+    const to = destination[c];
+    const from = source[c];
+    for (let i = 0; i < frames; i++) to[i] += from[i] * gain * fadeAt(i, rampFrames, fadingOut);
+  }
+}
+
+/**
+ * The tap copy of one path's contribution after its fade (Stage 0b): `copyInto`
+ * with the same envelope `addIntoRamped` applies at the destination. Steady, it is
+ * today's plain copy, so a tap is unchanged without a transition.
+ */
+function copyIntoRamped(tap: StereoBlock, source: StereoBlock, direction: RampDirection, rampFrames: number, frames: number): void {
+  if (direction === RAMP_STEADY) {
+    copyInto(tap, source, frames);
+    return;
+  }
+  const fadingOut = direction === RAMP_OUT;
+  for (let c = 0; c < CHANNELS; c++) {
+    const to = tap[c];
+    const from = source[c];
+    for (let i = 0; i < frames; i++) to[i] = from[i] * fadeAt(i, rampFrames, fadingOut);
   }
 }
 
@@ -123,6 +209,16 @@ export class MixEngine {
    * bundle object is reused every block, so the block loop allocates nothing.
    */
   private keyBundles: ReadonlyMap<ChannelId, DetectorKeys>;
+  /**
+   * Stage 0b: each path's pass at the end of the block it last contributed to,
+   * seeded from the construction reading so the first block is steady everywhere
+   * and fades nothing in (an engine built with a muted track does not fade in).
+   */
+  private readonly trackPasses: ReadonlyMap<TrackId, TrackPassState>;
+  private readonly busPasses: Map<BusId, boolean>;
+  private readonly returnPasses: Map<ReturnBusId, boolean>;
+  /** Stage 0b: the fade, frames — round(0.010 × the rate), at least one. Capped at each block's own length. */
+  private readonly rampFrames: number;
 
   constructor(project: Project, options: MixEngineOptions = {}) {
     const verdict = validateGraph(project);
@@ -136,6 +232,8 @@ export class MixEngine {
       throw new Error(`Alloy Mix Engine: maxFramesPerBlock must be a whole number ≥ 1, not ${String(maxFrames)}`);
     }
     this.maxFramesPerBlock = maxFrames;
+    // Stage 0b: the 10 ms fade, at least one frame, so no rate can make it a division by zero.
+    this.rampFrames = Math.max(1, Math.round(0.01 * this.sampleRate));
 
     const dspOptions = { channels: CHANNELS, sampleRate: this.sampleRate } as const;
     this.trackOrder = project.tracks;
@@ -164,6 +262,21 @@ export class MixEngine {
     for (const ret of project.returns) returnBuffers.set(ret.id, zeroPair(maxFrames));
     this.returnBuffers = returnBuffers;
     this.masterBuffer = zeroPair(maxFrames);
+
+    // Stage 0b: the per-path pass state, seeded from the construction reading.
+    const trackPasses = new Map<TrackId, TrackPassState>();
+    for (const track of project.tracks) {
+      const sendPasses = new Map<ReturnBusId, boolean>();
+      for (const send of track.channel.sends) {
+        if (send.to !== null) sendPasses.set(send.to, this.currentAudibility.sendPasses(track.id, send.to));
+      }
+      trackPasses.set(track.id, { output: this.currentAudibility.outputPasses(track.id), sends: sendPasses });
+    }
+    this.trackPasses = trackPasses;
+    this.busPasses = new Map<BusId, boolean>();
+    for (const bus of project.buses) this.busPasses.set(bus.id, this.currentAudibility.outputPasses(bus.id));
+    this.returnPasses = new Map<ReturnBusId, boolean>();
+    for (const ret of project.returns) this.returnPasses.set(ret.id, this.currentAudibility.outputPasses(ret.id));
 
     this.limiter = new SafetyLimiter({ ...MASTER_LIMITER }, dspOptions);
     this.latencyFrames = this.limiter.latencyFrames;
@@ -310,6 +423,8 @@ export class MixEngine {
     for (let c = 0; c < CHANNELS; c++) this.masterBuffer[c].fill(0, 0, blockFrames);
 
     const scratch = this.scratch;
+    // Stage 0b: the fade is 10 ms, never longer than the block it has to cross.
+    const rampFrames = Math.min(this.rampFrames, blockFrames);
 
     // 0. Sidechain keys, from THIS block and before any chain runs: a key is always
     //    sample-aligned with the audio it drives and can never be a previous block's.
@@ -318,13 +433,14 @@ export class MixEngine {
     // 1. Tracks, in project order.
     for (const track of this.trackOrder) {
       const sends = track.channel.sends;
+      const state = this.trackPasses.get(track.id) as TrackPassState;
       let sendActive = false;
       for (const send of sends) {
-        if (send.to !== null && this.audibility.sendPasses(track.id, send.to)) sendActive = true;
+        if (send.to !== null && (this.audibility.sendPasses(track.id, send.to) || state.sends.get(send.to) === true)) sendActive = true;
       }
-      const outputActive = this.audibility.outputPasses(track.id);
+      const outputActive = this.audibility.outputPasses(track.id) || state.output;
       const trackTap = taps?.tracks?.get(track.id);
-      // Nothing passes: the chain is skipped and its state frozen (the 6.x bypass rule).
+      // Nothing passes and nothing is mid-fade: the chain is skipped and its state frozen (the 6.x bypass rule).
       if (!sendActive && !outputActive) {
         if (trackTap) copyInto(trackTap, null, blockFrames);
         continue;
@@ -333,45 +449,69 @@ export class MixEngine {
       copyInto(scratch, trackInputs.get(track.id) ?? null, blockFrames);
       const chain = this.trackChains.get(track.id) as TrackChain;
       chain.process(scratch, blockFrames, this.keyBundles.get(track.id));
-      if (trackTap) copyInto(trackTap, scratch, blockFrames);
 
-      // Post-fader sends (plan §8a): the same post-pan signal into each Return.
+      // The dry path's own fade (Stage 0b): the tap receives the signal after it, and
+      // the contribution into the bus / master sum carries the same envelope. A bus
+      // or Master destination both take it here, at the add.
+      const dryNow = this.audibility.outputPasses(track.id);
+      const dryWas = state.output;
+      const dryDirection = rampOf(dryWas, dryNow);
+      state.output = dryNow;
+      if (trackTap) copyIntoRamped(trackTap, scratch, dryDirection, rampFrames, blockFrames);
+
+      // Post-fader sends (plan §8a): the same post-pan signal into each Return, each
+      // send path fading by itself (Stage 0b).
       for (const send of sends) {
         if (send.to === null) continue;
-        if (!this.audibility.sendPasses(track.id, send.to)) continue;
+        const passing = this.audibility.sendPasses(track.id, send.to);
+        const wasPassing = state.sends.get(send.to) === true;
+        if (!passing && !wasPassing) continue;
+        const direction = rampOf(wasPassing, passing);
+        state.sends.set(send.to, passing);
         const gain = send.level <= -60 ? 0 : 10 ** (send.level / 20);
         if (gain === 0) continue;
         const buffer = this.returnBuffers.get(send.to);
-        if (buffer) addInto(buffer, scratch, gain, blockFrames);
+        if (buffer) addIntoRamped(buffer, scratch, gain, direction, rampFrames, blockFrames);
       }
 
-      if (outputActive) {
+      if (dryNow || dryWas) {
         const destination = track.output === "master" ? this.masterBuffer : this.busBuffers.get(track.output);
-        if (destination) addInto(destination, scratch, 1, blockFrames);
+        if (destination) addIntoRamped(destination, scratch, 1, dryDirection, rampFrames, blockFrames);
       }
     }
 
     // 2. Buses, sources first, so a bus that feeds another is complete before use.
+    // A bus whose output path stopped passing still runs this block, its
+    // contribution faded out; from the next block it is skipped as before (Stage 0b).
     for (const bus of this.busOrder) {
       const buffer = this.busBuffers.get(bus.id) as StereoBlock;
-      if (!this.audibility.outputPasses(bus.id)) continue;
+      const now = this.audibility.outputPasses(bus.id);
+      const was = this.busPasses.get(bus.id) === true;
+      if (!now && !was) continue;
+      const direction = rampOf(was, now);
+      this.busPasses.set(bus.id, now);
       const chain = this.busChains.get(bus.id) as BusChain;
       chain.process(buffer, blockFrames, this.keyBundles.get(bus.id));
       const tap = taps?.buses?.get(bus.id);
-      if (tap) copyInto(tap, buffer, blockFrames);
+      if (tap) copyIntoRamped(tap, buffer, direction, rampFrames, blockFrames);
       const destination = bus.output === "master" ? this.masterBuffer : this.busBuffers.get(bus.output);
-      if (destination && destination !== buffer) addInto(destination, buffer, 1, blockFrames);
+      if (destination && destination !== buffer) addIntoRamped(destination, buffer, 1, direction, rampFrames, blockFrames);
     }
 
-    // 3. Returns: the effect on the summed sends, then the Return's level.
+    // 3. Returns: the effect on the summed sends, then the Return's level. The same
+    // fade rule applies to a Return whose output path moved (Stage 0b).
     for (const ret of this.project.returns) {
       const buffer = this.returnBuffers.get(ret.id) as StereoBlock;
-      if (!this.audibility.outputPasses(ret.id)) continue;
+      const now = this.audibility.outputPasses(ret.id);
+      const was = this.returnPasses.get(ret.id) === true;
+      if (!now && !was) continue;
+      const direction = rampOf(was, now);
+      this.returnPasses.set(ret.id, now);
       const chain = this.returnChains.get(ret.id) as ReturnChain;
       chain.process(buffer, blockFrames);
       const tap = taps?.returns?.get(ret.id);
-      if (tap) copyInto(tap, buffer, blockFrames);
-      addInto(this.masterBuffer, buffer, 1, blockFrames);
+      if (tap) copyIntoRamped(tap, buffer, direction, rampFrames, blockFrames);
+      addIntoRamped(this.masterBuffer, buffer, 1, direction, rampFrames, blockFrames);
     }
 
     // 4. The master stage: the approved safety limiter, always in circuit.
@@ -396,6 +536,9 @@ export class MixEngine {
    * rule: rebuild only when the graph itself changes).
    */
   refreshAudibility(): Audibility {
+    // Stage 0b: only the reading is refreshed here. Each path compares it against
+    // its own wasPassing at the NEXT process call, where the change crosses that
+    // block as a fade. Nothing is rebuilt and no chain is touched.
     this.currentAudibility = computeAudibility(this.project);
     return this.currentAudibility;
   }

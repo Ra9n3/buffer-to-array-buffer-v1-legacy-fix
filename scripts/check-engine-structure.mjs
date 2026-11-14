@@ -222,7 +222,9 @@ const pinned = {
   "src/lib/engine/audibility.ts": "d161c11ac94a4b188490ca8655b163380bbfda97b06f504e131a224706f0d8b5",
   // Stage 0 re-pin (live gains and block ramps): the chain file changed knowingly.
   "src/lib/engine/chains.ts": "47431566bffd3da263fe54d9848d25fc30d759b1e5ac329706a2ccd383cac629",
-  "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
+  // Stage 0b re-pin (the mute/solo fade ramps): the engine file changed knowingly;
+  // the checks around this pin still assert the file's real contract.
+  "src/lib/engine/mix-engine.ts": "60486d55765c7f102c452299ba996601cd86c24ca36f9cfc730506989b7da30b",
   "src/lib/engine/sidechain.ts": "5ef6f3c2853ce37f4a1f75ee92242f68ffbd8e728a736ed9f8de040326641881",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

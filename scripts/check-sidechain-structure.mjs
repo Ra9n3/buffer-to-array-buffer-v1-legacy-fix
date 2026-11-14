@@ -246,7 +246,9 @@ const pinned = {
   "src/lib/dsp/compressor.ts": "bac2cbc5a7894abde0bb1593a6bdf2ecb6d6aa276d9cba38d2cef73fe087503b",
   // Stage 0 re-pin (live gains and block ramps): the chain file changed knowingly.
   "src/lib/engine/chains.ts": "47431566bffd3da263fe54d9848d25fc30d759b1e5ac329706a2ccd383cac629",
-  "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
+  // Stage 0b re-pin (the mute/solo fade ramps): the engine file changed knowingly;
+  // the checks around this pin still assert the file's real contract.
+  "src/lib/engine/mix-engine.ts": "60486d55765c7f102c452299ba996601cd86c24ca36f9cfc730506989b7da30b",
   "src/lib/project/model.ts": "6bc7373e2ce155f67f5fd4065da57e6d34a316828bdbd55e79edb5f8e9bcefc4",
 };
   // Task 11.1 re-pin (rates, conversion, the export dialog): every changed

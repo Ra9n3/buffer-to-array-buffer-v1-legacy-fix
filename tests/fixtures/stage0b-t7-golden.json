@@ -1,0 +1,12 @@
+{
+  "note": "produced by scripts/stage0b-t7-golden.mjs from the engine BEFORE the Stage 0b mute/solo fade changes (commit 5857fec)",
+  "sampleRate": 48000,
+  "chunkFrames": 2400,
+  "inputFrames": 24000,
+  "frames": 24000,
+  "tailFrames": 0,
+  "blocks": 10,
+  "channels": 2,
+  "layout": "planar float32: frames L samples, then frames R samples",
+  "sha256": "74a2311d814a9e86ab4942c84ebdf32e361b2737caf10b9afb71e54d696f0c2c"
+}

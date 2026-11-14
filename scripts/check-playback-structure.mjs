@@ -116,7 +116,9 @@ check("no new dependency", Object.keys(pkg.dependencies ?? {}).length === 0 && J
 // --- 8. The 7.x engine/renderer are unchanged --------------------------------
 const pinned = {
   "src/lib/engine/render.ts": "a08c6d127bf2943bd1954e0f81f97f36e110f70b9b5b3d263b70c0ef9255b72a", // re-pinned by 8.2: bus monitor taps
-  "src/lib/engine/mix-engine.ts": "df267eaaea46eebada03861aae3e1a54bba88e9c0b315580c8efc2acaa78b097",
+  // Stage 0b re-pin (the mute/solo fade ramps): the engine file changed knowingly;
+  // the checks around this pin still assert the file's real contract.
+  "src/lib/engine/mix-engine.ts": "60486d55765c7f102c452299ba996601cd86c24ca36f9cfc730506989b7da30b",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`reviewed 7.x file unchanged: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");

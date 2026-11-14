@@ -140,13 +140,26 @@ test("mute silences a channel and freezes its state, so unmuting resumes instead
   mutedEngine.refreshAudibility();
   mutedEngine.process(new Map([["track-a", block2]]), resumed, frames);
 
-  // A fresh engine that never saw block 1 must produce exactly the same block 2: the
-  // muted block neither passed audio nor advanced the processor.
+  // A fresh engine that never saw block 1 has the same chain state, so its first
+  // block is the same contribution without the fade. The resumed block equals it
+  // multiplied sample by sample by the Stage 0b fade-in envelope — ((i + 1) /
+  // RAMP_FRAMES for i < RAMP_FRAMES, else 1), within 1e-6. The envelope is indexed
+  // at each sample's own position in the contribution, which the master limiter's
+  // 240-frame lookahead shifts in the output domain; the limiter stays linear for
+  // this signal (its reduction held at 0 dB throughout), so the comparison stands
+  // where it is, after the limiter.
   const freshEngine = engineOf(project(false));
   const fresh = emptyMaster(frames);
   freshEngine.process(new Map([["track-a", block2]]), fresh, frames);
+  const ramp = Math.round(0.01 * RATE);
+  const latency = freshEngine.latencyFrames;
   for (let i = 0; i < frames; i++) {
-    if (resumed[0][i] !== fresh[0][i]) assert.fail(`frame ${i}: the muted block advanced the chain`);
+    const at = i - latency; // this output sample's own position in the contribution
+    const envelope = at < 0 ? 0 : at < ramp ? (at + 1) / ramp : 1;
+    const expected = fresh[0][i] * envelope;
+    if (Math.abs(resumed[0][i] - expected) > 1e-6) {
+      assert.fail(`frame ${i}: the resumed block is ${resumed[0][i]}, not the faded contribution ${expected}`);
+    }
   }
   // And a channel that was never muted does differ — the test can tell them apart.
   const running = engineOf(project(false));
