@@ -57,6 +57,9 @@ const FILES = [
   "src/lib/engine/masking.ts",
   // Task 7.4 added bounded render orchestration over the same engine.
   "src/lib/engine/render.ts",
+  // Stage 1 added real-time metering (the detector, the ring, the set) as its
+  // own engine module — pure, allocation-free in process, optional at build.
+  "src/lib/engine/metering.ts",
 ];
 for (const rel of FILES) {
   check(`exists: ${rel}`, exists(rel));
@@ -222,9 +225,11 @@ const pinned = {
   "src/lib/engine/audibility.ts": "d161c11ac94a4b188490ca8655b163380bbfda97b06f504e131a224706f0d8b5",
   // Stage 0 re-pin (live gains and block ramps): the chain file changed knowingly.
   "src/lib/engine/chains.ts": "47431566bffd3da263fe54d9848d25fc30d759b1e5ac329706a2ccd383cac629",
-  // Stage 0b re-pin (the mute/solo fade ramps): the engine file changed knowingly;
-  // the checks around this pin still assert the file's real contract.
-  "src/lib/engine/mix-engine.ts": "60486d55765c7f102c452299ba996601cd86c24ca36f9cfc730506989b7da30b",
+  // Stage 0b re-pin (the mute/solo fade ramps): the engine file changed knowingly.
+  // Stage 1 re-pin (the optional MeterSet and its tap-point feeds): the engine
+  // changed knowingly again — metering only reads, T10 pins bit-identity; the
+  // checks around this pin still assert the file's real contract.
+  "src/lib/engine/mix-engine.ts": "5f4a799e47bf3a8119c72a60defa153b35818eaeb7610433daa3bf99fe3e5917",
   "src/lib/engine/sidechain.ts": "5ef6f3c2853ce37f4a1f75ee92242f68ffbd8e728a736ed9f8de040326641881",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

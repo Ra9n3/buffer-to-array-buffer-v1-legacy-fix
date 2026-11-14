@@ -92,6 +92,13 @@ export interface PlaybackOutput {
    * counted since the last `begin`. Optional so test doubles need not implement it.
    */
   readonly underruns?: number;
+  /**
+   * Stage 1: frames of the CURRENT attempt that have reached the speakers —
+   * attempt frame 0 is the first frame delivered to the output, after the
+   * engine's lookahead was dropped. Frozen after a stop or pause. Optional so
+   * test doubles need not implement it; metering reads it.
+   */
+  playedFrames?(): number;
 }
 
 export interface PlaybackClock {

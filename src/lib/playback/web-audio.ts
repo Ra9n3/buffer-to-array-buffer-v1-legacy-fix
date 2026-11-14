@@ -40,6 +40,14 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
   let epoch: number | null = null;
   let generation = 0;
   let scheduledUntil = 0;
+  // Stage 1: the played-frames clock of the CURRENT attempt. `attemptStartFrame`
+  // is the frame the attempt began at (attempt frame 0), `firstChunkAt` the
+  // context time the attempt's first chunk was actually scheduled for, and
+  // `frozenPlayed` the value playedFrames() froze at when the attempt was
+  // stopped or paused — it stays frozen until the next begin resets it.
+  let attemptStartFrame = 0;
+  let firstChunkAt: number | null = null;
+  let frozenPlayed: number | null = null;
   const nodes = new Set<AudioBufferSourceNode>();
 
   const ensureContext = (): AudioContext => {
@@ -67,7 +75,33 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
     return Math.max(0, Math.round((context.currentTime - epoch) * sampleRate));
   };
 
+  /**
+   * Stage 1: frames of the CURRENT attempt that have reached the speakers —
+   * attempt frame 0 is the first frame delivered to the output (the producer
+   * has already dropped the engine's lookahead by then). The sample clock the
+   * playhead already uses (`epoch`, the first chunk's intended time) is reused
+   * with the attempt-relative offset, the output latency subtracted, and the
+   * result clamped to [0, frames scheduled so far]. After a stop or pause it
+   * stays frozen at the value it had at that moment; every new `begin` resets
+   * the clock for the new attempt.
+   */
+  const playedFrames = (): number => {
+    if (frozenPlayed !== null) return frozenPlayed;
+    if (!context || epoch === null || firstChunkAt === null) return 0;
+    // outputLatency when the browser reports it, otherwise baseLatency, otherwise 0.
+    const ctx = context as AudioContext & { outputLatency?: number; baseLatency?: number };
+    const latencySeconds = typeof ctx.outputLatency === "number" ? ctx.outputLatency : typeof ctx.baseLatency === "number" ? ctx.baseLatency : 0;
+    const played = (context.currentTime - firstChunkAt) * sampleRate - latencySeconds * sampleRate;
+    const scheduled = Math.max(0, scheduledUntil - attemptStartFrame);
+    return Math.max(0, Math.min(played, scheduled));
+  };
+
   const stop = (): void => {
+    // Stage 1: freeze the played-frames clock at the value it has at this
+    // moment — the attempt is over, and playedFrames() must not move again
+    // until the next begin resets it. (A stop with no attempt behind it freezes
+    // nothing: there is no clock to freeze.)
+    if (epoch !== null || firstChunkAt !== null) frozenPlayed = playedFrames();
     generation++;
     epoch = null;
     scheduledUntil = 0;
@@ -100,6 +134,12 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
       underrunCount = 0;
       epoch = ctx.currentTime + LEAD_SECONDS - startFrame / sampleRate;
       scheduledUntil = startFrame;
+      // Stage 1: the new attempt's played-frames clock starts here — frame 0 is
+      // the first frame delivered to the output, and the frozen value of the
+      // attempt before this one is discarded.
+      attemptStartFrame = startFrame;
+      firstChunkAt = null;
+      frozenPlayed = null;
     },
     async write(chunk) {
       const ctx = ensureContext();
@@ -119,6 +159,9 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
       // earlier than the clock when it is scheduled.
       if (intended < ctx.currentTime) underrunCount++;
       const at = Math.max(ctx.currentTime, intended);
+      // Stage 1: the first chunk actually scheduled defines the attempt's
+      // audible start; playedFrames() measures from it.
+      if (firstChunkAt === null) firstChunkAt = at;
       nodes.add(node);
       node.onended = () => {
         nodes.delete(node);
@@ -128,6 +171,7 @@ export function createWebAudioOutput(options: WebAudioOutputOptions = {}): Playb
       scheduledUntil = Math.max(scheduledUntil, end);
     },
     positionFrames,
+    playedFrames,
     setQueueSeconds(seconds: number): void {
       queueSeconds = seconds;
       maxQueueFrames = Math.ceil(sampleRate * seconds);

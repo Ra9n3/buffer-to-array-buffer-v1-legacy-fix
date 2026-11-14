@@ -1,6 +1,7 @@
 import { mount } from "svelte";
 import App from "./App.svelte";
 import { installProjectShell } from "./lib/project/shell";
+import { mountMeterDebugTable } from "./lib/metering/debug-table";
 import "./lib/tokens.css";
 import "./app.css";
 import "./lib/preferences.css";
@@ -17,3 +18,11 @@ if (!target) {
 installProjectShell(window);
 
 mount(App, { target });
+
+// Stage 1: the ?debug=meters numeric meter table. Mounted only when the URL
+// asks for it (the rAF redraw loop does not exist otherwise), and it adds
+// nothing to window.alloy. The module is imported statically — the one-file
+// build keeps it inline — but nothing in it runs until it is mounted.
+if (new URLSearchParams(window.location.search).get("debug") === "meters") {
+  mountMeterDebugTable(document);
+}

@@ -299,7 +299,10 @@ const pinned = {
   // Task 10.2 re-pinned (the shared transport deck, decisions-log D10.2.1/D10.2.2):
   // the shell gained the deck's row. The checks around this pin still assert the file's real contract.
   "src/App.svelte": "05b529f1000bdf56440dda2e83eb238f129030f347e6a9f11c9b93875f99e226",
-  "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
+  // Stage 1 re-pin (the ?debug=meters table mount): main.ts gained the one
+  // conditional mount after the app; the checks around this pin still assert
+  // the file's real contract.
+  "src/main.ts": "67ac9f0f856acafd23cd7e40d51672571dcaff5b04261597291c8f68dfefb5ed",
   // Task 10.1 re-pinned (isTextEntry moved to lib/text-entry.ts, D10.1.6): a
   // re-export keeps the shell's public surface; the wiring is unchanged.
   "src/lib/project/shell.ts": "f5048e9e29ef12318ce85b6508b6d84381c74fed98099ffa62eef7f43fb0a6d4",

@@ -51,6 +51,7 @@ import { validateGraph } from "../project/routing";
 import type { Bus, BusId, ChannelId, Project, ReturnBusId, SidechainEdge, Track, TrackId } from "../project/model";
 import { computeAudibility, busProcessingOrder, type Audibility } from "./audibility";
 import { BusChain, ReturnChain, TrackChain, type DetectorKeys, type MaskingDynamicBand } from "./chains";
+import type { MeterPoint, MeterSet } from "./metering";
 import { validateSidechains, type SidechainVerdict } from "./sidechain";
 import { MASTER_LIMITER } from "./constants";
 
@@ -67,6 +68,13 @@ export interface MixEngineOptions {
    * keeps that configured depth, and an overlay never replaces it.
    */
   readonly maskingDynamicBands?: ReadonlyMap<TrackId, readonly MaskingDynamicBand[]>;
+  /**
+   * Stage 1: optional real-time metering. When absent (render, and any engine
+   * built without meters) no metering code runs at all; when present the
+   * engine feeds the detectors at the tap points below without touching the
+   * audio — the output is bit-identical either way.
+   */
+  readonly meters?: MeterSet;
 }
 
 /** Optional monitor taps — what a track, bus or Return produced this block, for meters and tests. */
@@ -219,6 +227,14 @@ export class MixEngine {
   private readonly returnPasses: Map<ReturnBusId, boolean>;
   /** Stage 0b: the fade, frames — round(0.010 × the rate), at least one. Capped at each block's own length. */
   private readonly rampFrames: number;
+  /**
+   * Stage 1: the meter set, or null when the engine was built without one. The
+   * shared copy buffer and the never-written zero block are allocated once
+   * here, alongside every other buffer, so `process` allocates nothing.
+   */
+  private readonly meters: MeterSet | null;
+  private readonly meterCopyBuffer: [Float32Array, Float32Array] | null;
+  private readonly meterZeroBlock: [Float32Array, Float32Array] | null;
 
   constructor(project: Project, options: MixEngineOptions = {}) {
     const verdict = validateGraph(project);
@@ -281,6 +297,16 @@ export class MixEngine {
     this.limiter = new SafetyLimiter({ ...MASTER_LIMITER }, dspOptions);
     this.latencyFrames = this.limiter.latencyFrames;
 
+    // Stage 1: metering is optional — no MeterSet, no buffers, no per-block cost.
+    this.meters = options.meters ?? null;
+    if (this.meters !== null) {
+      this.meterCopyBuffer = zeroPair(maxFrames);
+      this.meterZeroBlock = zeroPair(maxFrames);
+    } else {
+      this.meterCopyBuffer = null;
+      this.meterZeroBlock = null;
+    }
+
     this.currentSidechains = validateSidechains(project);
     this.keyBundles = this.buildKeyBundles(this.currentSidechains, maxFrames);
   }
@@ -331,6 +357,30 @@ export class MixEngine {
   /** The master limiter's current gain reduction, dB ≥ 0 — a readout, not a control. */
   get masterReductionDb(): number {
     return this.limiter.gainReductionDb;
+  }
+
+  /* --- Stage 1: the meter feeds ------------------------------------------------------------- */
+
+  /**
+   * One point's post-ramp signal into its detector. The copy is needed because
+   * the Stage 0b fade is applied at destinations (and taps), never to a chain's
+   * own buffer; the shared buffer is reused by every point in turn — a detector
+   * consumes its block synchronously.
+   */
+  private meterRamped(point: MeterPoint | undefined, source: StereoBlock, direction: RampDirection, rampFrames: number, frames: number): void {
+    if (point === undefined || this.meterCopyBuffer === null) return;
+    copyIntoRamped(this.meterCopyBuffer, source, direction, rampFrames, frames);
+    point.meter.process(this.meterCopyBuffer, frames);
+  }
+
+  /**
+   * A skipped point still meters: a block of zeros of the same length, so its
+   * VU decays through its own ballistics and its frame count stays aligned with
+   * the engine's. The zero block is allocated once and never written.
+   */
+  private meterZeros(point: MeterPoint | undefined, frames: number): void {
+    if (point === undefined || this.meterZeroBlock === null) return;
+    point.meter.process(this.meterZeroBlock, frames);
   }
 
   private fillKeys(trackInputs: TrackInputs, frames: number): void {
@@ -425,6 +475,8 @@ export class MixEngine {
     const scratch = this.scratch;
     // Stage 0b: the fade is 10 ms, never longer than the block it has to cross.
     const rampFrames = Math.min(this.rampFrames, blockFrames);
+    // Stage 1: the meter set, when the engine was built with one.
+    const meters = this.meters;
 
     // 0. Sidechain keys, from THIS block and before any chain runs: a key is always
     //    sample-aligned with the audio it drives and can never be a previous block's.
@@ -443,6 +495,7 @@ export class MixEngine {
       // Nothing passes and nothing is mid-fade: the chain is skipped and its state frozen (the 6.x bypass rule).
       if (!sendActive && !outputActive) {
         if (trackTap) copyInto(trackTap, null, blockFrames);
+        if (meters !== null) this.meterZeros(meters.tracks.get(track.id), blockFrames);
         continue;
       }
 
@@ -458,6 +511,9 @@ export class MixEngine {
       const dryDirection = rampOf(dryWas, dryNow);
       state.output = dryNow;
       if (trackTap) copyIntoRamped(trackTap, scratch, dryDirection, rampFrames, blockFrames);
+      // Stage 1: the track's meter at the tap's own point — the full chain, the
+      // Stage 0b fade behind it, before the sends are distributed.
+      if (meters !== null) this.meterRamped(meters.tracks.get(track.id), scratch, dryDirection, rampFrames, blockFrames);
 
       // Post-fader sends (plan §8a): the same post-pan signal into each Return, each
       // send path fading by itself (Stage 0b).
@@ -487,13 +543,19 @@ export class MixEngine {
       const buffer = this.busBuffers.get(bus.id) as StereoBlock;
       const now = this.audibility.outputPasses(bus.id);
       const was = this.busPasses.get(bus.id) === true;
-      if (!now && !was) continue;
+      if (!now && !was) {
+        if (meters !== null) this.meterZeros(meters.buses.get(bus.id), blockFrames);
+        continue;
+      }
       const direction = rampOf(was, now);
       this.busPasses.set(bus.id, now);
       const chain = this.busChains.get(bus.id) as BusChain;
       chain.process(buffer, blockFrames, this.keyBundles.get(bus.id));
       const tap = taps?.buses?.get(bus.id);
       if (tap) copyIntoRamped(tap, buffer, direction, rampFrames, blockFrames);
+      // Stage 1: the bus's meter at the tap's own point — after BusChain, before
+      // the add into its destination.
+      if (meters !== null) this.meterRamped(meters.buses.get(bus.id), buffer, direction, rampFrames, blockFrames);
       const destination = bus.output === "master" ? this.masterBuffer : this.busBuffers.get(bus.output);
       if (destination && destination !== buffer) addIntoRamped(destination, buffer, 1, direction, rampFrames, blockFrames);
     }
@@ -504,18 +566,29 @@ export class MixEngine {
       const buffer = this.returnBuffers.get(ret.id) as StereoBlock;
       const now = this.audibility.outputPasses(ret.id);
       const was = this.returnPasses.get(ret.id) === true;
-      if (!now && !was) continue;
+      if (!now && !was) {
+        if (meters !== null) this.meterZeros(meters.returns.get(ret.id), blockFrames);
+        continue;
+      }
       const direction = rampOf(was, now);
       this.returnPasses.set(ret.id, now);
       const chain = this.returnChains.get(ret.id) as ReturnChain;
       chain.process(buffer, blockFrames);
       const tap = taps?.returns?.get(ret.id);
       if (tap) copyIntoRamped(tap, buffer, direction, rampFrames, blockFrames);
+      // Stage 1: the Return's meter at the tap's own point — after the effect
+      // and the Return level, before the add into the master sum.
+      if (meters !== null) this.meterRamped(meters.returns.get(ret.id), buffer, direction, rampFrames, blockFrames);
       addIntoRamped(this.masterBuffer, buffer, 1, direction, rampFrames, blockFrames);
     }
 
     // 4. The master stage: the approved safety limiter, always in circuit.
     this.limiter.process(this.masterBuffer, master, blockFrames);
+    // Stage 1: the master meter on the output block, its stamps shifted by the
+    // limiter's lookahead so they line up with the audible stream once the
+    // session drops it; readings that would start before the stream are
+    // discarded inside the detector.
+    if (meters !== null) meters.master.meter.process(master, blockFrames, -this.latencyFrames);
   }
 
   /** Let the limiter's lookahead run out — the tail Task 7.4 flushes at a stop. */

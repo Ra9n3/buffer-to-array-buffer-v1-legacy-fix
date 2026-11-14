@@ -15,6 +15,7 @@
  */
 
 import { MixEngine } from "../engine/mix-engine";
+import { clearAttempt } from "../metering/meter-bus";
 import {
   RenderCancelledError,
   renderProject,
@@ -327,6 +328,10 @@ export class PlaybackController {
     this.abort?.abort();
     this.abort = null;
     this.output.stop();
+    // Stage 1: the attempt's live meter registration ends with the attempt —
+    // raw and render attempts never register one, so there is nothing to
+    // replace until the next preview session registers its own.
+    clearAttempt();
   }
 
   /**
@@ -399,7 +404,7 @@ export class PlaybackController {
   ): Promise<void> {
     const session: PlaybackSession = source === "raw"
       ? createRawSession(project, sources, start, this.chunkFrames)
-      : createPreviewSession(project, sources, start, this.chunkFrames, this.tailSeconds);
+      : createPreviewSession(project, sources, start, this.chunkFrames, this.tailSeconds, this.output);
     this.set({ durationFrames: session.durationFrames });
     try {
       for (;;) {

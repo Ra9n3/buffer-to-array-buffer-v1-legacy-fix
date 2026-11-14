@@ -15,7 +15,9 @@
  */
 
 import { computeAudibility } from "../engine/audibility";
+import { MeterSet } from "../engine/metering";
 import { MixEngine, type StereoBlock, type TrackInputs } from "../engine/mix-engine";
+import { clearAttempt, registerAttempt, type MeterClockOutput } from "../metering/meter-bus";
 import type { RenderSource } from "../engine/render";
 import type { Project, TrackId } from "../project/model";
 import type { PcmChunk } from "./types";
@@ -85,15 +87,27 @@ export function createRawSession(
   };
 }
 
+/**
+ * PREVIEW (Stage 1): when an `output` is given the session meters — a fresh
+ * MeterSet per attempt, passed to the engine (which feeds it from the same
+ * process calls; the audio is untouched) and registered on the meter bus with
+ * that output, so live readers can ask for the reading at
+ * `output.playedFrames()`. Without an output there is nothing to read live,
+ * so no MeterSet is built and the engine runs exactly as before. Render never
+ * passes meters; raw has no engine at all.
+ */
 export function createPreviewSession(
   project: Project,
   sources: ReadonlyMap<TrackId, RenderSource>,
   startFrame: number,
   chunkFrames: number,
   tailSeconds?: number,
+  output?: MeterClockOutput,
 ): PlaybackSession {
   const sampleRate = project.sampleRate; // Task 11.1: the session runs at the project's own rate
-  const engine = new MixEngine(project, { sampleRate, maxFramesPerBlock: chunkFrames });
+  const meters = output === undefined ? undefined : new MeterSet(project, sampleRate);
+  const engine = new MixEngine(project, { sampleRate, maxFramesPerBlock: chunkFrames, meters });
+  if (meters !== undefined && output !== undefined) registerAttempt(meters, output);
   const inputFrames = inputFramesOf(sources);
   const start = Math.max(0, Math.min(Math.floor(startFrame), inputFrames));
   const tailFrames = Math.ceil(Math.max(0, tailSeconds ?? engine.tailSeconds) * sampleRate);
@@ -193,6 +207,9 @@ export function createPreviewSession(
     },
     async close() {
       engine.reset();
+      // Stage 1: this attempt's registration goes with it — unless a newer
+      // attempt already replaced it, which the guarded clear leaves alone.
+      if (meters !== undefined) clearAttempt(meters);
       for (const buffer of inputBuffers.values()) for (let c = 0; c < 2; c++) buffer[c].fill(0);
       for (let c = 0; c < 2; c++) {
         raw[c].fill(0);

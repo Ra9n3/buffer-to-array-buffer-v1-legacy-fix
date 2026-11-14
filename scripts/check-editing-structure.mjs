@@ -224,7 +224,9 @@ const REQUIRED_TEST_FILES = [
 // Stage 0: the live-gain suite (T1/T2 ramps, the T6 render-identity golden).
 // The VU face re-geometry stage adds the pure geometry suite (no DOM, the
 // scale's law and geometry importable from src/).
-const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs", "tests/resample.test.mjs", "tests/engine-live-gains.test.mjs", "tests/vu-geometry.test.mjs"];
+// Stage 1: the metering suite (the detector laws, the engine tap points,
+// bit-identity, the ring).
+const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs", "tests/resample.test.mjs", "tests/engine-live-gains.test.mjs", "tests/vu-geometry.test.mjs", "tests/metering.test.mjs"];
 const testCommand = pkg.scripts.test ?? "";
 const namedSuites = testCommand.split(/\s+/).filter((part) => part.startsWith("tests/"));
 check(
@@ -264,7 +266,10 @@ const pinned = {
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
   "src/lib/project/store.svelte.ts": "9814f3f455e34463f7e54f33d039fe9a152f25b8bf67f41ce6db861f1c0e523d",
-  "src/main.ts": "8942e47f95fabfcabc09534ff86d0b4abff1cf946c94c32a466631f535cc3e70",
+  // Stage 1 re-pin (the ?debug=meters table mount): main.ts gained the one
+  // conditional mount after the app mount; the checks around this pin still
+  // assert the file's real contract.
+  "src/main.ts": "67ac9f0f856acafd23cd7e40d51672571dcaff5b04261597291c8f68dfefb5ed",
     // Task 9.2 re-pinned (owner's top-bar overhaul). The change to this file is
   // part of the approved removals/additions — see decisions-log D9.2.1 — and the
   // checks around this pin still assert the file's real contract.

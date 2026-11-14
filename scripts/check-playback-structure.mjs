@@ -66,7 +66,10 @@ check("raw playback is a bounded unity sum with shared mute/solo audibility", /c
 check("raw reads are frame-range reads into reused buffers, never a whole stem", /source\.read\(at, target, take\)/.test(P) && /zeroPair\(chunkFrames\)/.test(P));
 
 // --- 3. Live preview ----------------------------------------------------------
-check("live preview reuses MixEngine, not a second DSP path", /new MixEngine\(project, \{ sampleRate, maxFramesPerBlock: chunkFrames \}\)/.test(P) && /engine\.process\(inputBuffers as TrackInputs, raw, count\)/.test(P));
+// Stage 1: the call gained the optional `meters` option (a fresh MeterSet per
+// attempt, only when an output was given) — still the ONE engine, built at the
+// session's own rate and chunk, never a second DSP path.
+check("live preview reuses MixEngine, not a second DSP path", /new MixEngine\(project, \{ sampleRate, maxFramesPerBlock: chunkFrames, meters \}\)/.test(P) && /engine\.process\(inputBuffers as TrackInputs, raw, count\)/.test(P));
 const previewBody = P.slice(P.indexOf("export function createPreviewSession"));
 check("preview refreshes audibility without rebuilding chains", /engine\.refreshAudibility\(\)/.test(previewBody) && !/new MixEngine/.test(previewBody.slice(previewBody.indexOf("async next"))));
 check("preview compensates the master limiter latency and flushes the tail", /latencyToDrop = engine\.latencyFrames/.test(P) && /engine\.flush\(raw, count\)/.test(P));
@@ -116,9 +119,11 @@ check("no new dependency", Object.keys(pkg.dependencies ?? {}).length === 0 && J
 // --- 8. The 7.x engine/renderer are unchanged --------------------------------
 const pinned = {
   "src/lib/engine/render.ts": "a08c6d127bf2943bd1954e0f81f97f36e110f70b9b5b3d263b70c0ef9255b72a", // re-pinned by 8.2: bus monitor taps
-  // Stage 0b re-pin (the mute/solo fade ramps): the engine file changed knowingly;
-  // the checks around this pin still assert the file's real contract.
-  "src/lib/engine/mix-engine.ts": "60486d55765c7f102c452299ba996601cd86c24ca36f9cfc730506989b7da30b",
+  // Stage 0b re-pin (the mute/solo fade ramps): the engine file changed knowingly.
+  // Stage 1 re-pin (the optional MeterSet and its tap-point feeds): the engine
+  // changed knowingly again — metering only reads, T10 pins bit-identity; the
+  // checks around this pin still assert the file's real contract.
+  "src/lib/engine/mix-engine.ts": "5f4a799e47bf3a8119c72a60defa153b35818eaeb7610433daa3bf99fe3e5917",
 };
 for (const [rel, hash] of Object.entries(pinned)) {
   check(`reviewed 7.x file unchanged: ${rel}`, exists(rel) && sha256(read(rel)) === hash, exists(rel) ? `sha256 ${sha256(read(rel)).slice(0, 16)}…` : "missing");
