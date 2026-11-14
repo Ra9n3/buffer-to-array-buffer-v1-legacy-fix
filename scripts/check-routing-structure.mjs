@@ -191,7 +191,11 @@ const pinned = {
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
   // Task 10.1 re-pinned: 9.9's re-pin missed this guard; the file is 9.9's.
-  "src/components/hardware/VUMeter.svelte": "08bb01a2cc7b173d1c7cfa37182b516afd40dc8fc4071b2e539bbb974e8d6bd0",
+  // VU face re-geometry re-pin (the stretched-card fix): the print now SPANS the
+  // whole face — one pure geometry module (vu-geometry.ts) beside the component,
+  // the needle a computed line, no CSS rotation; the law itself unchanged. The
+  // checks around this pin still assert the file's real contract.
+  "src/components/hardware/VUMeter.svelte": "3764656a4263a18fd19f0c9689be0c6668cc818ee606694c398a22f747e0b553",
   // Task 3.1 UI and shapes this task leaves alone (no UI in 3.2)
   "src/components/channel-strip/strip-live.ts": "99603dc16c898e0887c24b5f821b8547ee747342138e8a8b0ebc63e48fa66c7b",
   "src/components/channel-strip/return-live.ts": "837066bc8807932864997db3853d94c70eb6f3f23ec15c15efdb5526f46dfdab",

@@ -102,6 +102,10 @@ const eq = read(files.eq);
 const comp = read(files.comp);
 const wc = read(files.wc);
 const vu = read(files.vu);
+// The VU face re-geometry: the scale's law and geometry moved to one pure
+// module beside the component (importable by the tests); VUMeter.svelte
+// re-exports every name, so every existing import is unchanged.
+const vuGeo = read("src/components/hardware/vu-geometry.ts");
 const room = read("src/rooms/MixerRoom.svelte");
 const mixerData = read("src/lib/mixer.ts");
 const pkg = JSON.parse(read("package.json"));
@@ -200,10 +204,10 @@ check("the explanation is the plan's name for it", /<EngravedLabel text="What ch
 check("the module tags are the plan's modules: EQ, DYN EQ, COMP, CLEANUP", /eq: "EQ",\s*dyn: "DYN EQ",\s*comp: "COMP",\s*cleanup: "CLEANUP"/.test(model.replace(/\s+/g, " ")));
 
 // --- 8. The shared-component change (VUMeter face). --------------------------------
-check("VUMeter: `face` is an OPTIONAL prop defaulting to the VU face — every existing use is unchanged", /export type MeterFace = "vu" \| "gr";/.test(vu) && /face\?: MeterFace;/.test(J.vu) && /face = "vu" as MeterFace,/.test(J.vu));
-check("the VU face is intact: law, range, red band, marks and exports", /export const VU_MIN = -20;/.test(vu) && /export const VU_MAX = 3;/.test(vu) && /export const VU_RED_FROM = 0;/.test(vu) && /export const VU_MARKS: readonly VUMark\[\]/.test(vu) && /100 \* Math\.pow\(10, db \/ 20\)/.test(vu));
-check("the GR face is a DEDICATED gain-reduction scale: 0 at the right, 20 dB at the left, numerals 0 1 3 5 10 20, no red band, \"GR\" legend", /export const GR_MIN = 0;/.test(vu) && /export const GR_MAX = 20;/.test(vu) && [0, 1, 3, 5, 10, 20].every((db) => new RegExp(`\\{ db: ${db}, weight: "major", numeral: true \\}`).test(vu.slice(vu.indexOf("GR_MARKS")))) && /\{#if !isGr\}/.test(T.vu) && /\{isGr \? "GR" : "VU"\}/.test(T.vu) && /const overload = \$derived\(!isGr && /.test(J.vu));
-check("the GR needle rests at the right (0 dB) and swings left as reduction grows", /export function grPosition\(db: number\): number \{\s*const clamped = Math\.min\(GR_MAX, Math\.max\(GR_MIN, db\)\);\s*return \(modulation\(-clamped\) - modulation\(-GR_MAX\)\) \/ \(modulation\(0\) - modulation\(-GR_MAX\)\);/.test(vu) && /export function grAngle\(db: number\): number \{\s*return -VU_SWEEP \/ 2 \+ VU_SWEEP \* grPosition\(db\);/.test(vu));
+check("VUMeter: `face` is an OPTIONAL prop defaulting to the VU face — every existing use is unchanged (the type lives in vu-geometry.ts since the re-geometry; the component re-exports it)", /export type MeterFace = "vu" \| "gr";/.test(vuGeo) && /export type \{ MeterFace, VUMark \} from "\.\/vu-geometry";/.test(vu) && /face\?: MeterFace;/.test(J.vu) && /face = "vu" as MeterFace,/.test(J.vu));
+check("the VU face is intact: law, range, red band, marks and exports (moved verbatim to vu-geometry.ts by the re-geometry; the component re-exports them)", /export const VU_MIN = -20;/.test(vuGeo) && /export const VU_MAX = 3;/.test(vuGeo) && /export const VU_RED_FROM = 0;/.test(vuGeo) && /export const VU_MARKS: readonly VUMark\[\]/.test(vuGeo) && /100 \* Math\.pow\(10, db \/ 20\)/.test(vuGeo) && /\} from "\.\/vu-geometry";/.test(vu));
+check("the GR face is a DEDICATED gain-reduction scale: 0 at the right, 20 dB at the left, numerals 0 1 3 5 10 20, no red band, \"GR\" legend (the tables live in vu-geometry.ts since the re-geometry; the band is drawn only when the geometry returns one)", /export const GR_MIN = 0;/.test(vuGeo) && /export const GR_MAX = 20;/.test(vuGeo) && [0, 1, 3, 5, 10, 20].every((db) => new RegExp(`\\{ db: ${db}, weight: "major", numeral: true \\}`).test(vuGeo.slice(vuGeo.indexOf("GR_MARKS")))) && /\{#if redBand\}/.test(T.vu) && /redFrom: isGr \? null : VU_RED_FROM,/.test(J.vu) && /\{isGr \? "GR" : "VU"\}/.test(T.vu) && /const overload = \$derived\(!isGr && /.test(J.vu));
+check("the GR needle rests at the right (0 dB) and swings left as reduction grows (the law unchanged; the sweep re-cut to ±70° with the re-geometry)", /export function grPosition\(db: number\): number \{\s*const clamped = Math\.min\(GR_MAX, Math\.max\(GR_MIN, db\)\);\s*return \(modulation\(-clamped\) - modulation\(-GR_MAX\)\) \/ \(modulation\(0\) - modulation\(-GR_MAX\)\);/.test(vuGeo) && /export function grAngle\(db: number\): number \{\s*return -SWEEP_DEG \+ 2 \* SWEEP_DEG \* grPosition\(db\);/.test(vuGeo));
 check("the GR face reads as a meter to assistive tech: 0–20 dB, \"<n> dB gain reduction\"", /aria-valuemin=\{faceMin\}/.test(T.vu) && /aria-valuemax=\{faceMax\}/.test(T.vu) && /dB gain reduction/.test(J.vu));
 check("no Console or dev file passes `face` — the Console's meters are the VU face as approved", ["src/rooms/ConsoleRoom.svelte", "src/components/ChannelBank.svelte", "src/components/console/MeterBridge.svelte", "src/components/channel-strip/TrackStrip.svelte", "src/components/channel-strip/ReturnStrip.svelte", "src/components/channel-strip/BusMasterStrip.svelte", "src/dev/ComponentsPage.svelte"].filter(exists).every((rel) => !/face=/.test(read(rel))));
 
@@ -266,7 +270,11 @@ const pinned = {
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
   // Task 10.1 re-pinned: 9.9's re-pin missed this guard; the file is 9.9's.
-  "src/components/hardware/VUMeter.svelte": "08bb01a2cc7b173d1c7cfa37182b516afd40dc8fc4071b2e539bbb974e8d6bd0",
+  // VU face re-geometry re-pin (the stretched-card fix): the print now SPANS the
+  // whole face — one pure geometry module (vu-geometry.ts) beside the component,
+  // the needle a computed line, no CSS rotation; the law itself unchanged. The
+  // checks around this pin still assert the file's real contract.
+  "src/components/hardware/VUMeter.svelte": "3764656a4263a18fd19f0c9689be0c6668cc818ee606694c398a22f747e0b553",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
 };
 for (const [rel, hash] of Object.entries(pinned)) {

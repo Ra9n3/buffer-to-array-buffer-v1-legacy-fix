@@ -2,99 +2,27 @@
   /** Unique per-instance id prefix, so SVG defs never collide across meters. */
   let nextId = 0;
 
-  /** One mark on the VU face: a dB value relative to 0 VU and its weight. */
-  export interface VUMark {
-    readonly db: number;
-    readonly weight: "major" | "medium" | "minor";
-    /** Numerals at the key points only (hardware spec §4a). */
-    readonly numeral?: boolean;
-  }
-
-  /** The scale's two end stops and the start of the red overload band. */
-  export const VU_MIN = -20;
-  export const VU_MAX = 3;
-  export const VU_RED_FROM = 0;
-
-  /**
-   * The standard VU face. Numerals at the key points; the one-dB marks either
-   * side of 0 as unnumbered ticks; a few minors in the crowded lower range.
-   * The face is linear in modulation percentage (0 VU = 100%), which is why
-   * the dB marks bunch toward the left and the red third is only 3 dB wide.
-   */
-  export const VU_MARKS: readonly VUMark[] = [
-    { db: -20, weight: "major", numeral: true },
-    { db: -15, weight: "minor" },
-    { db: -12, weight: "minor" },
-    { db: -10, weight: "major", numeral: true },
-    { db: -8, weight: "minor" },
-    { db: -7, weight: "major", numeral: true },
-    { db: -6, weight: "minor" },
-    { db: -5, weight: "major", numeral: true },
-    { db: -4, weight: "minor" },
-    { db: -3, weight: "major", numeral: true },
-    { db: -2, weight: "medium" },
-    { db: -1, weight: "medium" },
-    { db: 0, weight: "major", numeral: true },
-    { db: 1, weight: "medium" },
-    { db: 2, weight: "medium" },
-    { db: 3, weight: "major", numeral: true },
-  ];
-
-  /** The needle's sweep, in degrees, centred on vertical: −45° … +45°. */
-  export const VU_SWEEP = 90;
-
-  const modulation = (db: number): number => 100 * Math.pow(10, db / 20);
-
-  /**
-   * Where a dB value sits along the arc: 0 at the left stop (−20), 1 at the
-   * right stop (+3). Values past the stops rest on them — the needle never
-   * leaves the printed scale.
-   */
-  export function vuPosition(db: number): number {
-    const clamped = Math.min(VU_MAX, Math.max(VU_MIN, db));
-    return (modulation(clamped) - modulation(VU_MIN)) / (modulation(VU_MAX) - modulation(VU_MIN));
-  }
-
-  /** The needle's angle from vertical for a dB value, in degrees (clockwise positive). */
-  export function vuAngle(db: number): number {
-    return -VU_SWEEP / 2 + VU_SWEEP * vuPosition(db);
-  }
-
-  /**
-   * TWO FACES (Task 2.8). The instrument is the same; only the printed card
-   * differs. `"vu"` is the face above. `"gr"` is a dedicated gain-reduction
-   * scale: 0 dB of reduction at the RIGHT stop, 20 dB at the left, the
-   * needle falling leftward as reduction increases — a VU meter switched to
-   * read gain reduction, with the card printed for that job. No red band,
-   * no signed numerals, "GR" for the legend. It keeps the movement's own law
-   * (linear in modulation from the 0 stop), so the first few dB take most of
-   * the arc exactly as they do on the VU face.
-   */
-  export type MeterFace = "vu" | "gr";
-  export const GR_MIN = 0;
-  export const GR_MAX = 20;
-  export const GR_MARKS: readonly VUMark[] = [
-    { db: 0, weight: "major", numeral: true },
-    { db: 1, weight: "major", numeral: true },
-    { db: 2, weight: "medium" },
-    { db: 3, weight: "major", numeral: true },
-    { db: 4, weight: "minor" },
-    { db: 5, weight: "major", numeral: true },
-    { db: 7, weight: "minor" },
-    { db: 10, weight: "major", numeral: true },
-    { db: 15, weight: "minor" },
-    { db: 20, weight: "major", numeral: true },
-  ];
-
-  /** Where a gain-reduction value sits along the arc: 0 at the left stop (20 dB), 1 at the right (0 dB). */
-  export function grPosition(db: number): number {
-    const clamped = Math.min(GR_MAX, Math.max(GR_MIN, db));
-    return (modulation(-clamped) - modulation(-GR_MAX)) / (modulation(0) - modulation(-GR_MAX));
-  }
-
-  export function grAngle(db: number): number {
-    return -VU_SWEEP / 2 + VU_SWEEP * grPosition(db);
-  }
+  /* The scale's LAW and its GEOMETRY live in ./vu-geometry — one pure module,
+     no DOM, importable by the tests — and are re-exported here unchanged, so
+     every existing import from this component keeps working. The law is the
+     approved one, nothing about which dB sits where has moved; the geometry
+     is this stage's re-cut: the print spans the whole face it is drawn on. */
+  export {
+    GR_MARKS,
+    GR_MAX,
+    GR_MIN,
+    SWEEP_DEG,
+    VU_MARKS,
+    VU_MAX,
+    VU_MIN,
+    VU_RED_FROM,
+    grAngle,
+    grPosition,
+    vuAngle,
+    vuGeometry,
+    vuPosition,
+  } from "./vu-geometry";
+  export type { MeterFace, VUMark } from "./vu-geometry";
 </script>
 <script lang="ts">
   /**
@@ -103,9 +31,10 @@
    * One instrument, drawn as one SVG at 1 px = 1 unit and scaled as a whole
    * by `--vu-width` (7.5rem = 120 px = 1×), the way the fader scales from
    * `--fader-width`. In its `fill` mode (Task 9.8) the drawing is instead
-   * re-cut to the measured box, and since Task 9.9 the print GROWS with
-   * the card — bounded by the card's fixed height, the needle never
-   * growing (D9.9.2, the owner: "not just the frame, the content too").
+   * re-cut to the measured box — and the print now SPANS THE WHOLE FACE
+   * whatever its shape (this stage's re-geometry): an elliptical scale from
+   * end to end, its sizes riding the card's height, the old capped stretch
+   * and print-growth machinery gone with it.
    * From the back forward:
    *
    *   THE HOUSING   a dark walnut frame, bevelled, with a thin brass bead
@@ -121,18 +50,23 @@
    *                 off-centre vignette make the falloff uneven. A slow,
    *                 barely perceptible brightness drift on two different
    *                 periods suggests a filament, never a steady backlight.
-   *   THE FACE      printed on top of the light: the arc, the tick marks
-   *                 radiating from a pivot below the centre, numerals at the
-   *                 key points, the red overload band from 0 to +3, "VU".
-   *   THE NEEDLE    a thin black blade pivoting on a small hub, with a soft
-   *                 drop shadow on the card beneath it; it swings with a VU
-   *                 meter's ballistics (a 360 ms rise with a slight overshoot).
+   *   THE FACE      printed on top of the light: the elliptical arc from
+   *                 end to end of the card, the tick marks running inward
+   *                 from it, numerals at the key points, the red overload
+   *                 band from 0 to +3, "VU".
+   *   THE NEEDLE    a thin black line from the pivot to the scale, with a
+   *                 soft drop shadow on the card beneath it; it follows the
+   *                 level directly — the ballistics arrive with the audio
+   *                 detector in a later stage.
    *
    * Every tone is a token or a neutral black/white alpha: the cream and lamp
    * material tokens, the amber family round the lamp, the red family for the
    * band, the wood/recess/metal tokens for the housing. Nothing here measures
    * anything: `level` is whatever the host passes in.
    */
+  import { GR_MARKS, GR_MAX, GR_MIN, VU_MARKS, VU_MAX, VU_MIN, VU_RED_FROM, grAngle, grPosition, vuAngle, vuGeometry, vuPosition } from "./vu-geometry";
+  import type { MeterFace } from "./vu-geometry";
+
   let {
     /** Engraved under the housing: "L", "MASTER", … Optional. */
     label = null,
@@ -149,15 +83,11 @@
     /** Task 9.8 (D9.8.3, the owner: "the vu meters should be extended with
      *  their content"): stretch the card horizontally to fill its host's
      *  box. The window takes the host's width and height, the drawing is
-     *  re-cut to the measured box so the card fills it exactly and the
-     *  scale spreads with it — the sweep widening, capped — and since Task
-     *  9.9 (D9.9.2, the owner: "not just the frame, the content too — the
-     *  name, the numbers, the arc") the print GROWS with the card: the
-     *  numerals, the legend and the arc as far as the card's fixed height
-     *  allows, the needle kept at its 1× size (the owner: "the needles
-     *  need to be smaller"). Off (the default everywhere else) the meter
-     *  keeps its one written-down size, `--vu-width`, and the approved
-     *  drawing as a whole. */
+     *  re-cut to the measured box so the card fills it exactly — and the
+     *  scale SPANS the whole of it (this stage's re-geometry): an elliptical
+     *  arc from end to end, its sizes riding the card's fixed height. Off
+     *  (the default everywhere else) the meter keeps its one written-down
+     *  size, `--vu-width`, and the drawing as a whole. */
     fill = false,
   }: {
     label?: string | null;
@@ -181,24 +111,6 @@
   const FACE_W = 106;
   const FACE_H = 68;
   const FACE_RX = 2.5;
-  /** The needle's pivot: below the centre of the face (spec §4a). */
-  const PIVOT_X = 60;
-  const PIVOT_Y = 68;
-  /** The arc the ticks radiate from, and the numerals outside it. */
-  const ARC_R = 46;
-  const NUMERAL_R = 55.5;
-  const TICK = { major: 5, medium: 3.6, minor: 2.3 } as const;
-  const RED_BAND_W = 2.4;
-  /** The blade: tapered, its tip just past the ticks, its tail under the hub. */
-  const NEEDLE_TIP_R = 53;
-  const NEEDLE_TAIL = 2.5;
-  const NEEDLE_BASE_W = 1.7;
-  const NEEDLE_TIP_W = 0.5;
-  const HUB_R = 3.2;
-  /** The needle's shadow falls down and to the right onto the card. */
-  const SHADOW_DX = 1.1;
-  const SHADOW_DY = 1.6;
-
   const isGr = $derived(face === "gr");
   const faceMin = $derived(isGr ? GR_MIN : VU_MIN);
   const faceMax = $derived(isGr ? GR_MAX : VU_MAX);
@@ -206,112 +118,41 @@
   /** The red zone belongs to the VU face only. */
   const overload = $derived(!isGr && clampedLevel >= VU_RED_FROM);
 
-  /* --- the horizontal stretch (Task 9.8, D9.8.3) --------------------------
-     The window's measured box, in px. The drawing is re-cut to it so the
-     card fills its box exactly at any width: the height sets the unit scale
-     (px per unit = winH / H), the width sets the drawing's width in units.
-     At the default box (`--vu-width`, the 1× card's 120/84 ratio) SW is
-     exactly W and the drawing is the approved face, value for value. */
+  /* --- the face's own box (the fill mode measures it; Task 9.8, D9.8.3) ----
+     The window's measured box, in px. The drawing keeps its one unit scale
+     (px per unit = winH / H) and its width in units follows the window's, so
+     at the default box (`--vu-width`, the 1× card's 120/84 ratio) SW is
+     exactly W and the housing is the approved one, value for value. */
   let winW = $state(0);
   let winH = $state(0);
   const SW = $derived(winW > 0 && winH > 0 ? Math.max(W, (winW * H) / winH) : W);
-  /** How far the card has been stretched: 1 = the approved face. */
-  const stretch = $derived(SW / W);
-
-  /* --- the print's growth (Task 9.9, D9.9.2) -----------------------------
-     The owner: "not just the frame, the content too — the name, the
-     numbers, the arc". The print grows with the card in the fill mode —
-     and only there, so a meter at its written-down width keeps the
-     approved drawing as a whole whatever a host sets. At the 1× box the
-     scale is exactly 1 (the fill floor IS the 1× card), so what D9.8.3
-     wrote down still holds: the drawing there is the approved face value
-     for value. The growth rises with the stretch and is full (1.35) by the
-     time the card is ~1.7× the 1× width — a little before the sweep's
-     own cap, the content leading the mechanism. */
-  const PRINT_MAX = 1.35;
-  const print = $derived(fill ? 1 + Math.min(PRINT_MAX - 1, Math.max(0, stretch - 1) * 0.5) : 1);
-  /** The radii's own bound: the card's fixed height. The 1× print's stack
-      over the pivot — arc, major tick, numeral — already spends the card's
-      whole budget (PIVOT_Y − FACE_Y = 61 units), and the −3 mark sits
-      nearest straight up, so ITS numeral is the one that has to clear the
-      card's top edge: with the numerals at their widest (8.5 units) the
-      whole stack clears it only to ≈ 1.02× the approved radii (measured,
-      D9.9.2). The visible growth of the print is therefore carried by what
-      has room — the numerals and the legend — while the arc, the ticks and
-      the numeral ring nudge as far as the card allows and no further. */
-  const RADIUS_FIT = 1.02;
-  const radiusScale = $derived(Math.max(1, Math.min(print, RADIUS_FIT)));
-  /** The numerals: 6.6 units at 1× toward 8.5 at the fullest growth (never below 6.6, never over 9). */
-  const numeralSize = $derived(6.6 * Math.min(print, 8.5 / 6.6));
-  /** The legend: 9 units at 1× toward 11. */
-  const legendSize = $derived(9 * Math.min(print, 11 / 9));
-  /** The stretched face: the pivot and the window keep to the card's centre
-      line; the sweep widens with the card, capped at +24° (±57° — wider
-      would read as a tuning meter, not a VU); the radii grow with the
-      print (Task 9.9) as far as the card's fixed height allows, never
-      crowding it — the print block above carries the bound. */
-  const S_PIVOT_X = $derived(PIVOT_X + (SW - W) / 2);
   const S_FACE_W = $derived(FACE_W + (SW - W));
-  const S_SWEEP = $derived(VU_SWEEP + Math.min(24, Math.max(0, (stretch - 1) * 18)));
-  /** The drawing angle of a dB value on the (possibly widened) sweep. The
-      position law is the approved one — linear in modulation, clamped to
-      the end stops — only its angular spread widens. */
-  const angleOf = (db: number): number => -S_SWEEP / 2 + S_SWEEP * (isGr ? grPosition(db) : vuPosition(db));
-  const angle = $derived(angleOf(level));
 
-  /** Point at radius r from the pivot, deg clockwise from straight up. The
-      radius arrives in 1× print units and is drawn at the print's grown
-      scale (Task 9.9), so the calls keep naming the approved constants. */
-  const polar = (r: number, deg: number): [number, number] => {
-    const a = (deg * Math.PI) / 180;
-    const rr = r * radiusScale;
-    return [S_PIVOT_X + rr * Math.sin(a), PIVOT_Y - rr * Math.cos(a)];
-  };
-  const f = (n: number): string => n.toFixed(2).replace(/\.?0+$/, "");
-
-  /** Arc from one dB value to another at radius r (clockwise, never more
-      than the sweep), its curve drawn at the print's grown scale like
-      every radius (Task 9.9). */
-  const arc = (r: number, fromDb: number, toDb: number): string => {
-    const [x0, y0] = polar(r, angleOf(fromDb));
-    const [x1, y1] = polar(r, angleOf(toDb));
-    const rr = f(r * radiusScale);
-    return `M ${f(x0)} ${f(y0)} A ${rr} ${rr} 0 0 1 ${f(x1)} ${f(y1)}`;
-  };
-
-  const numeral = (db: number): string => (db < 0 ? `\u2212${-db}` : db > 0 ? `+${db}` : "0");
-
-  const marks = $derived(
-    (isGr ? GR_MARKS : VU_MARKS).map((mark) => {
-      const a = isGr ? grAngle(mark.db) : vuAngle(mark.db);
-      const [x1, y1] = polar(ARC_R, a);
-      const [x2, y2] = polar(ARC_R + TICK[mark.weight], a);
-      const [nx, ny] = polar(NUMERAL_R, a);
-      return {
-        ...mark,
-        x1,
-        y1,
-        x2,
-        y2,
-        nx,
-        ny,
-        red: !isGr && mark.db > VU_RED_FROM,
-        text: isGr ? String(mark.db) : numeral(mark.db),
-      };
+  /* --- the print, cut to the face (this stage's re-geometry) ----------------
+     The scale SPANS the whole face: one pure function, vuGeometry (see
+     ./vu-geometry), cuts the arc, the ticks, the numerals, the red band, the
+     legend, the needle and the pivot screw to the face's own box — drawn
+     through a nested SVG whose viewport IS the card and whose viewBox is the
+     card's own shape, so the print maps onto it with the drawing's one
+     uniform scale: no letterboxing, no distortion, every 1× size riding the
+     card's height (scaled by H / 68). The needle is a straight line from
+     computed coordinates — no CSS rotation, no transition; it follows the
+     level directly, and the audio detector's real ballistics arrive with a
+     later stage. */
+  const geo = $derived(
+    vuGeometry(S_FACE_W, FACE_H, {
+      level,
+      marks: isGr ? GR_MARKS : VU_MARKS,
+      position: isGr ? grPosition : vuPosition,
+      redFrom: isGr ? null : VU_RED_FROM,
     }),
   );
+  const redBand = $derived(geo.redBand);
+  /** The needle's angle from vertical, the geometry's own law, for the data attribute. */
+  const angle = $derived((isGr ? grAngle : vuAngle)(level));
 
-  const needlePoints = $derived([
-    [S_PIVOT_X - NEEDLE_BASE_W / 2, PIVOT_Y + NEEDLE_TAIL],
-    [S_PIVOT_X - NEEDLE_TIP_W / 2, PIVOT_Y - NEEDLE_TIP_R],
-    [S_PIVOT_X + NEEDLE_TIP_W / 2, PIVOT_Y - NEEDLE_TIP_R],
-    [S_PIVOT_X + NEEDLE_BASE_W / 2, PIVOT_Y + NEEDLE_TAIL],
-  ]
-    .map(([x, y]) => `${f(x)},${f(y)}`)
-    .join(" "));
-
-  /** The pivot as a transform origin, as fractions of the drawing so it survives any scale. */
-  const pivotOrigin = $derived(`${f((S_PIVOT_X / SW) * 100)}% ${f((PIVOT_Y / H) * 100)}%`);
+  const numeral = (db: number): string => (db < 0 ? `\u2212${-db}` : db > 0 ? `+${db}` : "0");
+  const f = (n: number): string => n.toFixed(2).replace(/\.?0+$/, "");
 
   const valueText = $derived(
     isGr
@@ -327,12 +168,8 @@
   class:is-drifting={lamp && lampDrift}
   class:is-overload={overload}
   class:is-fill={fill}
-  style:--vu-angle={`${f(angle)}deg`}
-  style:--vu-pivot={pivotOrigin}
-  style:--vu-shadow-dx={`${SHADOW_DX}px`}
-  style:--vu-shadow-dy={`${SHADOW_DY}px`}
-  style:--vu-numeral-size={`${f(numeralSize)}px`}
-  style:--vu-legend-size={`${f(legendSize)}px`}
+  style:--vu-numeral-size={`${f(geo.sizes.numeral)}px`}
+  style:--vu-legend-size={`${f(geo.sizes.legend)}px`}
   data-vu
   data-vu-face={face}
   data-vu-level={f(clampedLevel)}
@@ -513,48 +350,67 @@
         <rect class="vu__lip" x={FACE_X + S_FACE_W - 4} y={FACE_Y} width="4" height={FACE_H} fill={`url(#${uid}-lip-right)`} />
 
         <!-- ==============================================================
-             THE PRINT: arc, ticks radiating from the pivot, numerals at
-             the key points, the red overload band, "VU".
+             THE FACE: the print cut to the card's own box — the elliptical
+             arc from end to end, the ticks running inward from it, the
+             numerals at the key points, the red overload band, "VU", the
+             needle and its screw — drawn through a nested SVG whose viewport
+             IS the card and whose viewBox is the card's own shape, so the
+             scale spans it at every size (this stage's re-geometry).
              ============================================================== -->
-        <g class="vu__scale" data-part="scale">
-          <path class="vu__arc" d={arc(ARC_R, VU_MIN, VU_MAX)} />
-          {#if !isGr}
-            <path
-              class="vu__arc-red"
-              data-part="red-band"
-              d={arc(ARC_R + 0.35 + RED_BAND_W / 2, VU_RED_FROM, VU_MAX)}
-              style:stroke-width={RED_BAND_W}
-            />
-          {/if}
-          {#each marks as mark (mark.db)}
-            <line
-              class={`vu__tick is-${mark.weight}`}
-              class:is-red={mark.red}
-              x1={f(mark.x1)}
-              y1={f(mark.y1)}
-              x2={f(mark.x2)}
-              y2={f(mark.y2)}
-            />
-          {/each}
-          {#each marks.filter((m) => m.numeral) as mark (mark.db)}
-            <text class="vu__numeral" class:is-red={mark.red} x={f(mark.nx)} y={f(mark.ny)}>{mark.text}</text>
-          {/each}
-          <text class="vu__legend" data-part="legend" x={S_PIVOT_X} y={PIVOT_Y - 15.5}>{isGr ? "GR" : "VU"}</text>
-        </g>
+        <svg
+          class="vu__face"
+          x={FACE_X}
+          y={FACE_Y}
+          width={S_FACE_W}
+          height={FACE_H}
+          viewBox={`0 0 ${S_FACE_W} ${FACE_H}`}
+        >
+          <g class="vu__scale" data-part="scale">
+            <path class="vu__arc" d={geo.arc.d} />
+            {#if redBand}
+              <path
+                class="vu__arc-red"
+                data-part="red-band"
+                d={redBand.d}
+                style:stroke-width={f(redBand.strokeWidth)}
+              />
+            {/if}
+            {#each geo.ticks as tick (tick.db)}
+              <line
+                class={`vu__tick is-${tick.weight}`}
+                class:is-red={tick.red}
+                x1={f(tick.x1)}
+                y1={f(tick.y1)}
+                x2={f(tick.x2)}
+                y2={f(tick.y2)}
+              />
+            {/each}
+            {#each geo.ticks.filter((t) => t.numeral) as tick (tick.db)}
+              <text class="vu__numeral" class:is-red={tick.red} x={f(tick.nx)} y={f(tick.ny)}>{isGr ? String(tick.db) : numeral(tick.db)}</text>
+            {/each}
+            <text class="vu__legend" data-part="legend" x={f(geo.legend.x)} y={f(geo.legend.y)}>{isGr ? "GR" : "VU"}</text>
+          </g>
 
-        <!-- ==============================================================
-             THE NEEDLE: its shadow on the card, then the blade, both
-             rotating about the pivot; the hub on top.
-             ============================================================== -->
-        <g class="vu__needle-shadow" data-part="needle-shadow">
-          <polygon points={needlePoints} filter={`url(#${uid}-needle-shadow)`} />
-        </g>
-        <g class="vu__needle" data-part="needle">
-          <polygon points={needlePoints} />
-        </g>
-        <circle class="vu__hub-shadow" cx={S_PIVOT_X + 0.8} cy={PIVOT_Y + 1.1} r={HUB_R} />
-        <circle class="vu__hub" data-part="hub" cx={S_PIVOT_X} cy={PIVOT_Y} r={HUB_R} />
-        <circle class="vu__hub-pin" cx={S_PIVOT_X} cy={PIVOT_Y} r="1.1" />
+          <!-- ==============================================================
+               THE NEEDLE: its shadow on the card, then the line — both from
+               computed coordinates, no rotation — then the screw on top.
+               ============================================================== -->
+          <g class="vu__needle-shadow" data-part="needle-shadow">
+            <polygon points={geo.needle.shadow.points} filter={`url(#${uid}-needle-shadow)`} />
+          </g>
+          <g class="vu__needle" data-part="needle">
+            <line
+              x1={f(geo.needle.x1)}
+              y1={f(geo.needle.y1)}
+              x2={f(geo.needle.x2)}
+              y2={f(geo.needle.y2)}
+              style:stroke-width={f(geo.sizes.needle)}
+            />
+          </g>
+          <circle class="vu__hub-shadow" cx={f(geo.hub.cx + geo.hub.shadowDx)} cy={f(geo.hub.cy + geo.hub.shadowDy)} r={f(geo.hub.r)} />
+          <circle class="vu__hub" data-part="hub" cx={f(geo.hub.cx)} cy={f(geo.hub.cy)} r={f(geo.hub.r)} />
+          <circle class="vu__hub-pin" cx={f(geo.hub.cx)} cy={f(geo.hub.cy)} r={f(geo.hub.pinR)} />
+        </svg>
 
         <!-- The glass. -->
         <rect class="vu__sheen" data-part="sheen" x={FACE_X} y={FACE_Y} width={S_FACE_W} height={FACE_H} fill={`url(#${uid}-sheen)`} />
@@ -791,9 +647,9 @@
   .vu__numeral {
     fill: var(--v-ink);
     font-family: var(--al-font-label);
-    /* 6.6 units at 1×; the fill mode grows it toward 8.5 with the card
-       (Task 9.9, D9.9.2) — the var written by the instance, the approved
-       size the fallback. */
+    /* 6.6 units at 1×; the geometry writes the size the card's height gives
+       it (this stage's re-geometry) — the var written by the instance, the
+       1× size the fallback. */
     font-size: var(--vu-numeral-size, 6.6px);
     font-weight: var(--al-font-weight-bold);
     letter-spacing: 0.02em;
@@ -808,8 +664,8 @@
   .vu__legend {
     fill: var(--v-ink);
     font-family: var(--al-font-label);
-    /* 9 units at 1×; the fill mode grows it toward 11 with the card
-       (Task 9.9, D9.9.2). */
+    /* 9 units at 1×; the geometry writes the size the card's height gives
+       it — the var written by the instance, the 1× size the fallback. */
     font-size: var(--vu-legend-size, 9px);
     font-weight: var(--al-font-weight-black);
     letter-spacing: 0.1em;
@@ -819,23 +675,13 @@
 
   /* --- needle ------------------------------------------------------------- */
 
-  /* Both rotate about the pivot. The origin is given as fractions of the
-     drawing, resolved against the viewBox, so it holds at any --vu-width. The
-     swing is a VU meter's: a 360 ms rise that overshoots a hair and settles. */
-  .vu__needle,
-  .vu__needle-shadow {
-    transform-box: view-box;
-    transform-origin: var(--vu-pivot);
-    transform: rotate(var(--vu-angle));
-    transition: transform 360ms cubic-bezier(0.22, 1.16, 0.4, 1);
-  }
-
-  .vu__needle-shadow {
-    transform: translate(var(--vu-shadow-dx), var(--vu-shadow-dy)) rotate(var(--vu-angle));
-  }
-
-  .vu__needle polygon {
-    fill: var(--v-needle);
+  /* A straight line from the pivot to the scale, drawn from its computed
+     endpoints — no rotation, no transition: it follows the level directly,
+     and the audio detector's real ballistics arrive with a later stage. Its
+     width comes from the geometry (the 1× stroke scaled by the card's
+     height); only its colour lives here. */
+  .vu__needle line {
+    stroke: var(--v-needle);
   }
 
   .vu__needle-shadow polygon {
@@ -900,11 +746,6 @@
     .vu.is-drifting .vu__bulb,
     .vu.is-drifting .vu__bulb-core {
       animation: none;
-    }
-
-    .vu__needle,
-    .vu__needle-shadow {
-      transition: transform 120ms ease-out;
     }
 
     .vu__lamp {

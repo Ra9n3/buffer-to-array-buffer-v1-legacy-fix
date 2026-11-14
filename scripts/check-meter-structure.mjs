@@ -17,10 +17,13 @@
  *      plus neutral black/white alphas.
  *   2. The analog meter (§4a): a dark walnut housing with a brass trim bead
  *      and a near-black bezel; a cream card that is never pure white; an
- *      arc-shaped scale whose ticks radiate from a pivot BELOW the card's
- *      centre; numerals at key points only; a red band from 0 to +3; "VU" at
- *      the bottom centre; a thin black needle with a blurred drop shadow,
- *      rotating about the pivot with a smooth transition and never past the
+ *      elliptical scale spanning the card's full width, its ticks running
+ *      inward from it (this stage's re-geometry — one pure module,
+ *      vu-geometry.ts, cuts the whole print to the face; VUMeter.svelte
+ *      re-exports it, and the pure tests pin its contract); numerals at key
+ *      points only; a red band from 0 to +3; "VU" at the bottom centre; a
+ *      thin black needle line with a blurred drop shadow, drawn from its
+ *      computed endpoints — no rotation, no transition — and never past the
  *      end stops; the standard VU law (linear in modulation percentage).
  *   3. The illumination (§4a, critical): the lamp token, inside the spec's
  *      amber/gold range; drawn as blurred irregular shapes with LARGE blur
@@ -68,6 +71,11 @@ if (!exists(vuPath) || !exists(ledPath)) {
 }
 
 const vu = read(vuPath);
+// This stage's re-geometry: the scale's law and its geometry live in one
+// pure module beside the component (importable by the tests — the old law
+// moved there verbatim), and VUMeter.svelte re-exports every name, so the
+// component's public face is unchanged. The law checks below read it there.
+const vuGeo = read("src/components/hardware/vu-geometry.ts");
 const led = read(ledPath);
 const split = (src) => {
   const moduleScript = src.slice(0, src.indexOf("</script>"));
@@ -144,81 +152,99 @@ check(
 );
 const FACE_Y = num(V.script, "FACE_Y");
 const FACE_H = num(V.script, "FACE_H");
-const PIVOT_Y = num(V.script, "PIVOT_Y");
-const PIVOT_X = num(V.script, "PIVOT_X");
 const W = num(V.script, "W");
+// The card's centre line at 1\u00d7, where the old PIVOT_X sat (60): the lamp
+// checks below judge the blobs against it (this stage's re-geometry moved the
+// pivot itself into vuGeometry, x = W/2 of the face).
+const CARD_CENTRE_X = num(V.script, "FACE_X") + num(V.script, "FACE_W") / 2;
 check(
-  "the needle's pivot is below the centre of the card and on its axis (and rides the centre line at any stretch: S_PIVOT_X is the 1\u00d7 pivot translated by half the extra width — Task 9.8)",
-  PIVOT_Y > FACE_Y + FACE_H / 2 && PIVOT_Y < FACE_Y + FACE_H && PIVOT_X === W / 2 && /const S_PIVOT_X = \$derived\(PIVOT_X \+ \(SW - W\) \/ 2\);/.test(V.script) && /const S_FACE_W = \$derived\(FACE_W \+ \(SW - W\)\);/.test(V.script),
-  `pivot y ${PIVOT_Y}, card centre ${FACE_Y + FACE_H / 2}`,
+  "the needle's pivot is below the centre of the card and on its axis (this stage's re-geometry: vuGeometry puts it at x = W/2, y = H \u2212 0.10\u00b7H of the face, so it rides the centre line at any stretch; the card's own width S_FACE_W still follows the window, and the print is drawn through a nested SVG whose viewport IS the card)",
+  /const pivot = \{ x: W \/ 2, y: H - 0\.1 \* H \};/.test(vuGeo) &&
+    /const S_FACE_W = \$derived\(FACE_W \+ \(SW - W\)\);/.test(V.script) &&
+    /viewBox=\{`0 0 \$\{S_FACE_W\} \$\{FACE_H\}`\}/.test(V.markup) &&
+    /x=\{FACE_X\}\s*\n\s*y=\{FACE_Y\}\s*\n\s*width=\{S_FACE_W\}\s*\n\s*height=\{FACE_H\}/.test(V.markup),
+  `card centre ${FACE_Y + FACE_H / 2}`,
 );
-check("the scale is an arc about that pivot, with ticks radiating from it", /const arc = \(r: number, fromDb: number, toDb: number\)/.test(V.script) && /polar\(ARC_R, a\)/.test(V.script) && /polar\(ARC_R \+ TICK\[mark\.weight\], a\)/.test(V.script) && /class="vu__arc"/.test(V.markup));
 check(
-  "the scale is the standard VU law: linear in modulation percentage, −20 to +3, red from 0",
-  /export const VU_MIN = -20;/.test(V.moduleScript) && /export const VU_MAX = 3;/.test(V.moduleScript) && /export const VU_RED_FROM = 0;/.test(V.moduleScript) && /100 \* Math\.pow\(10, db \/ 20\)/.test(V.moduleScript),
+  "the scale is an ellipse about that pivot, spanning the card's full width (its ends 6% in from either side, its top 14% down), with the ticks running inward from it along the ellipse normal (this stage's re-geometry; the old circular arc and its fixed radii are gone)",
+  /const arcPath = \(arx: number, ary: number, a0: number, a1: number\): string =>/.test(vuGeo) &&
+    /const rx = \(W \/ 2 - 0\.06 \* W\) \/ Math\.sin\(\(SWEEP_DEG \* Math\.PI\) \/ 180\);/.test(vuGeo) &&
+    /const ry = pivot\.y - 0\.14 \* H;/.test(vuGeo) &&
+    /x2: p\.x - n\.x \* len,/.test(vuGeo) &&
+    /class="vu__arc" d=\{geo\.arc\.d\}/.test(V.markup),
+);
+check(
+  "the scale is the standard VU law: linear in modulation percentage, −20 to +3, red from 0 (the law moved verbatim to vu-geometry.ts with this re-geometry; VUMeter.svelte re-exports every name)",
+  /export const VU_MIN = -20;/.test(vuGeo) && /export const VU_MAX = 3;/.test(vuGeo) && /export const VU_RED_FROM = 0;/.test(vuGeo) && /100 \* Math\.pow\(10, db \/ 20\)/.test(vuGeo) && /\} from "\.\/vu-geometry";/.test(V.moduleScript),
 );
 check(
   "numerals are printed at key points only: a subset of the marks, with −20, 0 and +3 among them",
   (() => {
-    // Task 2.8 added a second mark table (GR_MARKS, the gain-reduction face); this check reads the VU face only.
-    const vuTable = V.moduleScript.slice(V.moduleScript.indexOf("export const VU_MARKS"), V.moduleScript.indexOf("];", V.moduleScript.indexOf("export const VU_MARKS")));
+    // Task 2.8 added a second mark table (GR_MARKS, the gain-reduction face); this check reads the VU face only — from vu-geometry.ts since this re-geometry moved the tables there.
+    const vuTable = vuGeo.slice(vuGeo.indexOf("export const VU_MARKS"), vuGeo.indexOf("];", vuGeo.indexOf("export const VU_MARKS")));
     const marks = [...vuTable.matchAll(/\{ db: (-?\d+), weight: "(\w+)"(, numeral: true)? \}/g)];
     const numerals = marks.filter((m) => m[3]).map((m) => Number(m[1]));
     return marks.length >= 12 && numerals.length < marks.length && numerals.length <= 8 && [-20, 0, 3].every((v) => numerals.includes(v));
   })(),
 );
 check(
-  "the overload band is red (the red family) from 0 to +3 and the numerals past 0 are red; the rest of the print is dark ink on cream",
-  /d=\{arc\(ARC_R \+ 0\.35 \+ RED_BAND_W \/ 2, VU_RED_FROM, VU_MAX\)\}/.test(V.markup) &&
+  "the overload band is red (the red family) from 0 to +3, drawn just outside the main arc as it always sat — the same gap and thickness, scaled by the card's height (this re-geometry) — and the numerals past 0 are red; the rest of the print is dark ink on cream",
+  /const bandOffset = \(RED_BAND_GAP \+ RED_BAND_W \/ 2\) \* s;/.test(vuGeo) &&
+    /d=\{redBand\.d\}/.test(V.markup) &&
+    /style:stroke-width=\{f\(redBand\.strokeWidth\)\}/.test(V.markup) &&
     /--v-red: color-mix\(in srgb, var\(--al-function-red-base\)/.test(V.style) &&
-    /red: (?:!isGr && )?mark\.db > VU_RED_FROM/.test(V.script) && // Task 2.8: the GR face has no red band
+    /red: redFrom !== null && mark\.db > redFrom/.test(vuGeo) && // Task 2.8: the GR face has no red band
     /--v-ink: var\(--al-text-on-cream\)/.test(V.style) &&
     /\.vu__numeral\.is-red \{[^}]*fill: var\(--v-red\)/.test(V.style),
 );
-check('"VU" is printed at the bottom centre of the arc, above the hub (Task 2.8: "GR" on the gain-reduction face; x rides the stretched pivot since Task 9.8)', /data-part="legend" x=\{S_PIVOT_X\} y=\{PIVOT_Y - 15\.5\}>(?:VU|\{isGr \? "GR" : "VU"\})</.test(V.markup));
+check('"VU" is printed at the bottom centre of the arc, above the hub (Task 2.8: "GR" on the gain-reduction face; the position comes from the geometry — centred across the face, the old relative height of 45.5/68 — since this re-geometry)', /data-part="legend" x=\{f\(geo\.legend\.x\)\} y=\{f\(geo\.legend\.y\)\}>\{isGr \? "GR" : "VU"\}</.test(V.markup) && /const LEGEND_Y_FRACTION = 45\.5 \/ OLD_FACE_H;/.test(vuGeo));
 check(
-  "the needle is a thin tapered black blade pivoting on a small circular hub",
-  /const NEEDLE_TIP_W = 0\.5;/.test(V.script) && /const NEEDLE_BASE_W = 1\.7;/.test(V.script) && /--v-needle: color-mix\(in srgb, var\(--al-text-on-cream\) \d+%, black\)/.test(V.style) && /class="vu__hub" data-part="hub" cx=\{S_PIVOT_X\} cy=\{PIVOT_Y\} r=\{HUB_R\}/.test(V.markup) && num(V.script, "HUB_R") <= 4,
+  "the needle is a thin black line from the pivot to the scale, on a small circular hub (this re-geometry: drawn from computed x1/y1/x2/y2, its tip 97% of the way to the ellipse — the old tapered blade and its CSS rotation are gone)",
+  /--v-needle: color-mix\(in srgb, var\(--al-text-on-cream\) \d+%, black\)/.test(V.style) &&
+    /\.vu__needle line \{[^}]*stroke: var\(--v-needle\);/.test(V.style) &&
+    /x2=\{f\(geo\.needle\.x2\)\}/.test(V.markup) &&
+    /y2=\{f\(geo\.needle\.y2\)\}/.test(V.markup) &&
+    /class="vu__hub" data-part="hub" cx=\{f\(geo\.hub\.cx\)\} cy=\{f\(geo\.hub\.cy\)\} r=\{f\(geo\.hub\.r\)\}/.test(V.markup) &&
+    num(vuGeo, "HUB_R") <= 4,
 );
 check(
-  "the needle has a soft drop shadow on the card: the same blade, blurred, offset down and right, under the needle in paint order",
+  "the needle has a soft drop shadow on the card: the same blade as a thin quad (a bare line's filter region degenerates the day the blade stands exactly vertical), blurred, offset down and right, under the needle in paint order",
   /data-part="needle-shadow"/.test(V.markup) &&
+    /<polygon points=\{geo\.needle\.shadow\.points\} filter=\{`url\(#\$\{uid\}-needle-shadow\)`\} \/>/.test(V.markup) &&
     /id=\{`\$\{uid\}-needle-shadow`\}[\s\S]*?<feGaussianBlur stdDeviation="0\.9"/.test(V.markup) &&
-    /translate\(var\(--vu-shadow-dx\), var\(--vu-shadow-dy\)\) rotate\(var\(--vu-angle\)\)/.test(V.style) &&
     V.markup.indexOf('data-part="needle-shadow"') < V.markup.indexOf('data-part="needle"') &&
-    num(V.script, "SHADOW_DX") > 0 && num(V.script, "SHADOW_DY") > 0,
+    num(vuGeo, "NEEDLE_SHADOW_DX") > 0 && num(vuGeo, "NEEDLE_SHADOW_DY") > 0,
 );
 check(
-  "the needle rotates about the pivot — origin given as fractions of the drawing against the viewBox — with a smooth, slightly overshooting transition",
-  /transform-box: view-box;/.test(V.style) && /transform-origin: var\(--vu-pivot\);/.test(V.style) && /style:--vu-pivot=\{pivotOrigin\}/.test(V.markup) && /transition: transform 360ms cubic-bezier\(0\.22, 1\.16, 0\.4, 1\);/.test(V.style),
+  "the needle is drawn from its computed endpoints — no CSS rotation, no transition (this re-geometry): it follows the level directly, and the audio detector's real ballistics arrive with a later stage",
+  !/transform-box: view-box;/.test(V.style) &&
+    !/rotate\(var\(--vu-angle\)\)/.test(V.style) &&
+    !/\.vu__needle,[\s\S]{0,400}?transition/.test(V.style) &&
+    /x1=\{f\(geo\.needle\.x1\)\}/.test(V.markup) &&
+    /y1=\{f\(geo\.needle\.y1\)\}/.test(V.markup) &&
+    /data-vu-angle=\{f\(angle\)\}/.test(V.markup),
 );
-check("the needle never leaves the scale: the position law clamps to the end stops, and the drawing's angle rides it (Task 9.8: angleOf spreads the sweep with the card — capped at +24\u00b0 — but keeps the approved position law, clamped, unchanged)", /const clamped = Math\.min\(VU_MAX, Math\.max\(VU_MIN, db\)\);/.test(V.moduleScript) && /const S_SWEEP = \$derived\(VU_SWEEP \+ Math\.min\(24, Math\.max\(0, \(stretch - 1\) \* 18\)\)\);/.test(V.script) && /const angleOf = \(db: number\): number => -S_SWEEP \/ 2 \+ S_SWEEP \* \(isGr \? grPosition\(db\) : vuPosition\(db\)\);/.test(V.script) && /angleOf\(level\)/.test(V.script));
-check("the needle's tip stays inside the card at both stops", (() => {
-  const tip = num(V.script, "NEEDLE_TIP_R");
-  const half = Math.SQRT1_2;
-  const x = PIVOT_X + tip * half;
-  const y = PIVOT_Y - tip * half;
-  return x < num(V.script, "FACE_X") + num(V.script, "FACE_W") && y > FACE_Y && PIVOT_Y - tip > FACE_Y;
-})());
+check("the needle never leaves the scale: the position law clamps to the end stops, and the drawing's angle rides it (this re-geometry: a = \u221270\u00b0 + 140\u00b0 \u00d7 vuPosition — a straight \u00b170\u00b0 either side of vertical, the old capped widening gone; the law itself unchanged, and the component's data-vu-angle carries the same value)", /const clamped = Math\.min\(VU_MAX, Math\.max\(VU_MIN, db\)\);/.test(vuGeo) && /export const SWEEP_DEG = 70;/.test(vuGeo) && /return -SWEEP_DEG \+ 2 \* SWEEP_DEG \* vuPosition\(db\);/.test(vuGeo) && /const angle = \$derived\(\(isGr \? grAngle : vuAngle\)\(level\)\);/.test(V.script));
+check("the needle's tip stays inside the card at both stops (the tip is 97% of the way from the pivot to the scale — inside the ellipse by construction; tests/vu-geometry.test.mjs T2/T3 pin it numerically at the measured face)", num(vuGeo, "NEEDLE_REACH") === 0.97);
 
-// --- 2b. Task 9.9 (D9.9.2, the owner: "not just the frame, the content too —
-// the name, the numbers, the arc"): the fill-mode print grows with the card,
-// bounded by the card's fixed height; the needle does not grow.
+// --- 2b. This stage's re-geometry replaces the 9.9 print-growth machinery:
+// the print is no longer nudged by a bounded scale — one pure function,
+// vuGeometry, cuts it to the whole face, so a stretched card carries a
+// stretched scale. What survives 9.9 is its spirit ("not just the frame,
+// the content too") and its plumbing: the sizes still ride the size vars,
+// every one the 1\u00d7 value scaled by the card's height (H / 68).
 check(
-  "the fill-mode print GROWS with the card, bounded by the card: a print scale (fill-gated, so a non-fill meter keeps the approved drawing as a whole at any width; exactly 1 at the 1\u00d7 box \u2014 the fill floor IS the 1\u00d7 card, D9.8.3's invariant; rising with the stretch, capped at 1.35) scales the radii inside polar/arc, itself bounded by the card's height budget (RADIUS_FIT \u2014 the \u22123 numeral, nearest straight up, is the binding mark), the numerals run 6.6 \u2192 8.5 (never below 6.6, never over 9) and the legend 9 \u2192 11 through the size vars with the approved sizes as fallbacks, and the NEEDLE is unchanged at its 1\u00d7 tip radius \u2014 the owner: \"the needles need to be smaller\", i.e. never grown with the card",
-  /const PRINT_MAX = 1\.35;/.test(V.script) &&
-    /const print = \$derived\(fill \? 1 \+ Math\.min\(PRINT_MAX - 1, Math\.max\(0, stretch - 1\) \* 0\.5\) : 1\);/.test(V.script) &&
-    /const RADIUS_FIT = 1\.02;/.test(V.script) &&
-    /const radiusScale = \$derived\(Math\.max\(1, Math\.min\(print, RADIUS_FIT\)\)\);/.test(V.script) &&
-    /const numeralSize = \$derived\(6\.6 \* Math\.min\(print, 8\.5 \/ 6\.6\)\);/.test(V.script) &&
-    /const legendSize = \$derived\(9 \* Math\.min\(print, 11 \/ 9\)\);/.test(V.script) &&
-    /const rr = r \* radiusScale;/.test(V.script) &&
-    /const rr = f\(r \* radiusScale\);/.test(V.script) &&
+  "the print SPANS the face it is drawn on (one pure function, vuGeometry, cuts arc, ticks, numerals, band, legend, needle and hub to the face's own box \u2014 the old stretch/print-growth constants are gone), and every size is the 1\u00d7 value scaled by the card's height: the numerals 6.6 and the legend 9 through the size vars with the 1\u00d7 sizes as fallbacks, the needle's stroke and the band's width from the geometry",
+  /export function vuGeometry\(W: number, H: number, options: VuGeometryOptions = \{\}\): VuGeometry \{/.test(vuGeo) &&
+    /const s = H \/ OLD_FACE_H;/.test(vuGeo) &&
+    /const OLD_FACE_H = 68;/.test(vuGeo) &&
+    /const NUMERAL_SIZE = 6\.6;/.test(vuGeo) &&
+    /const LEGEND_SIZE = 9;/.test(vuGeo) &&
+    !/PRINT_MAX|RADIUS_FIT|radiusScale/.test(V.script) &&
     /font-size: var\(--vu-numeral-size, 6\.6px\);/.test(V.style) &&
     /font-size: var\(--vu-legend-size, 9px\);/.test(V.style) &&
-    /style:--vu-numeral-size=\{`\$\{f\(numeralSize\)\}px`\}/.test(V.markup) &&
-    /style:--vu-legend-size=\{`\$\{f\(legendSize\)\}px`\}/.test(V.markup) &&
-    num(V.script, "NEEDLE_TIP_R") === 53,
+    /style:--vu-numeral-size=\{`\$\{f\(geo\.sizes\.numeral\)\}px`\}/.test(V.markup) &&
+    /style:--vu-legend-size=\{`\$\{f\(geo\.sizes\.legend\)\}px`\}/.test(V.markup),
 );
 
 // --- 3. The illumination. ---------------------------------------------------------------
@@ -247,10 +273,10 @@ const far = blobs.find((b) => b.part === "far");
 check("the glow shapes are irregular paths (Bézier blobs), each a different size, not circles", blobs.length === 3 && blobs.every((b) => b.curves >= 3) && new Set(blobs.map((b) => Math.round(b.w))).size === 3 && !blobs.every((b) => Math.abs(b.w - b.h) < 1));
 check(
   "the brightest region is a lower-centre point: the pool and the core sit low on the card, the core a little off the axis",
-  !!pool && !!core && pool.cy > FACE_Y + FACE_H / 2 && core.cy > FACE_Y + FACE_H / 2 && Math.abs(pool.cx - PIVOT_X) < 8 && core.cx !== PIVOT_X && Math.abs(core.cx - PIVOT_X) < 10,
+  !!pool && !!core && pool.cy > FACE_Y + FACE_H / 2 && core.cy > FACE_Y + FACE_H / 2 && Math.abs(pool.cx - CARD_CENTRE_X) < 8 && core.cx !== CARD_CENTRE_X && Math.abs(core.cx - CARD_CENTRE_X) < 10,
   blobs.map((b) => `${b.part}@${b.cx},${b.cy}`).join(" "),
 );
-check("the falloff is asymmetric: a third, fainter pool is off in the upper right, not mirrored", !!far && far.cx > PIVOT_X + 10 && far.cy < FACE_Y + FACE_H / 2 && /\.vu__glow-far \{[^}]*fill-opacity: 0\.[1-3]\d*/.test(V.style));
+check("the falloff is asymmetric: a third, fainter pool is off in the upper right, not mirrored", !!far && far.cx > CARD_CENTRE_X + 10 && far.cy < FACE_Y + FACE_H / 2 && /\.vu__glow-far \{[^}]*fill-opacity: 0\.[1-3]\d*/.test(V.style));
 check("the vignette is off-centre and transparent across the middle, darkening only toward the corners", /id=\{`\$\{uid\}-vignette`\} cx="0\.5" cy="0\.7" r="0\.78" fx="0\.46" fy="0\.76"/.test(V.markup) && /<stop offset="46%" stop-color="#000000" stop-opacity="0" \/>/.test(V.markup));
 check("the card has a frosted grain over the light (feTurbulence, monochrome, faint)", /<feTurbulence type="fractalNoise"/.test(V.markup) && /<feColorMatrix type="saturate" values="0" \/>/.test(V.markup) && /\.vu__grain \{[^}]*opacity: 0\.0\d+/.test(V.style));
 check(
@@ -268,8 +294,8 @@ check(
   JSON.stringify(driftStops),
 );
 check(
-  "the drift is a prop (lampDrift), off with the lamp, and off under prefers-reduced-motion, where the needle also shortens its swing",
-  /lampDrift = true,/.test(V.script) && /class:is-drifting=\{lamp && lampDrift\}/.test(V.markup) && /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*animation: none;[\s\S]*transition: transform 120ms ease-out;/.test(V.style),
+  "the drift is a prop (lampDrift), off with the lamp, and off under prefers-reduced-motion (the needle has no swing to shorten since this re-geometry \u2014 no transition at all; the lamp drift still stops)",
+  /lampDrift = true,/.test(V.script) && /class:is-drifting=\{lamp && lampDrift\}/.test(V.markup) && /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*animation: none;[\s\S]*\.vu__lamp \{[\s\S]*transition: none;/.test(V.style) && !/\.vu__needle[\s\S]{0,300}?transition/.test(V.style),
 );
 check("there is no LED language in the VU meter: no segments, no crisp edges, no cool colours", !/crispEdges|segment|--al-function-(green|bluegrey)/.test(vu));
 
