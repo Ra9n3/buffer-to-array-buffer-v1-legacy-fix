@@ -249,7 +249,8 @@ const pinned = {
   // white phase meter off the row, the correlation strip restored and stretched,
   // the VU cards extended horizontally with their content).
   // Task 10.1 re-pinned: 9.9's re-pin missed this guard; the file is 9.9's.
-  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "28f8fc521dd83270426384f24469b41bded24b2fd2b582ad46919b001719a039",
+  // Stage 2 re-pin (the live meter wiring): the meter values now come from the meter display store — only where each value comes from changed; the checks around this pin still assert the file's real contract.
+  "src/components/meter-bridge/ConsoleMeterBridge.svelte": "316cb766e2d1eb63ebee301d4b849552dd42e1b712071ce3a54171fb40e4e951",
   // (Task 2.7: TrackStrip gained the optional `identity` snippet — re-pinned at that state.)
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the
@@ -262,7 +263,8 @@ const pinned = {
   // real contract.
   // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
   // the paging rails, the bare scope, the re-spread bridge, the contained windows).
-  "src/components/channel-strip/TrackStrip.svelte": "2a9434fbd1bd46d6e026d8ea26b2d4d30ce90227fb62a1f6a777fbaf32627333",
+  // Stage 2 re-pin (the live meter wiring): the meter values now come from the meter display store — only where each value comes from changed; the checks around this pin still assert the file's real contract.
+  "src/components/channel-strip/TrackStrip.svelte": "a77a0e18fbdcfaa1d30ebb07f9b2092ce5c055e13a99db62b040a0385650c167",
   "src/components/channel-strip/SendSlot.svelte": "67dbb6647329fc2354fae93b8e822c6df03e82e8674169a6a2e8ca3f2f009a60",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.1/D9.5.2/D9.5.3): the compact strip geometry, the meter beside the

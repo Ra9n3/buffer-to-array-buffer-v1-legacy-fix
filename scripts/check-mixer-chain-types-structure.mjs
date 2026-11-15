@@ -227,7 +227,8 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/channel-strip/BusMasterStrip.svelte": "09c7673329ce60d3b86859845fb3592527e9a1bae5c50e5e78b41a374e9f9826",
+  // Stage 2 re-pin (the live meter wiring): the meter values now come from the meter display store — only where each value comes from changed; the checks around this pin still assert the file's real contract.
+  "src/components/channel-strip/BusMasterStrip.svelte": "26dd69b3ddce17ffbaaca55f951ccee3684b92993299b41c1f3426e52bbd27df",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
@@ -259,7 +260,8 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/channel-strip/ReturnStrip.svelte": "d5240fa41c0a0057fcf4ed8de7c0239a6cb4f9633aa127d9eb8187c2950dcb0c",
+  // Stage 2 re-pin (the live meter wiring): the meter values now come from the meter display store — only where each value comes from changed; the checks around this pin still assert the file's real contract.
+  "src/components/channel-strip/ReturnStrip.svelte": "b29dff15ef56f9da0f8d9b60864d79f2741b3c6c36942563d4856d41b41dea80",
   "src/components/channel-strip/return-live.ts": "837066bc8807932864997db3853d94c70eb6f3f23ec15c15efdb5526f46dfdab",
   "src/components/mixer/ReturnDetail.svelte": "93780c268e6c428110acc0595186e0871d062ba5a4653584da4eba87500ab628",
   "src/components/mixer/BusDetail.svelte": "71c5ca0d04290da8b23f919fd1af00818adaf3617e34589524d4fb222ea5e77f",

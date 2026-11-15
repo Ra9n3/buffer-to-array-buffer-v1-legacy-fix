@@ -9,6 +9,8 @@
   import Knob from "../hardware/Knob.svelte";
   import StripMeter from "../hardware/StripMeter.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
+  import { meterView } from "../../lib/metering/meter-store.svelte";
+  import { trackId } from "../../lib/project/model";
   import SendSlot from "./SendSlot.svelte";
   import type { TrackStripLive } from "./strip-live";
   import {
@@ -18,7 +20,6 @@
     TRIM_RANGE,
     formatPan,
     formatSignedDb,
-    meterLevelOf,
     orgToken,
   } from "./track-strip-fixtures";
 
@@ -87,9 +88,15 @@
      level the track loaded with for that return, if it has one. */
   const takenBy = (i: number): string | null => track.sends.find((_, j) => j !== i)?.to ?? null;
 
-  /* The meter's fixture reading (Task 9.5): the typed table's level for the
-     track's code — SIMULATED, like every reading on the fixture bridge. */
-  const meterLevel = $derived(meterLevelOf(track.code));
+  /* Stage 2: the meter column and the PEAK lamp read the meter display
+     store — the live LED level and clip latch of the track's real point
+     (the id the model builds from this strip's printed code), falling to
+     rest when the transport stops. The fixture table no longer feeds it.
+     The id is read once: the bank keys a strip by its track, and a track's
+     code never changes — the point is the strip's own for its whole life. */
+  // svelte-ignore state_referenced_locally
+  const meter = meterView("track", trackId(track.code));
+  const meterLevel = $derived(meter.led);
 </script>
 
 <li
@@ -179,7 +186,7 @@
         <Fader label="Level" bind:value={() => track.level, (v) => (track.level = v)} />
         <StripMeter
           level={meterLevel}
-          peak={track.peak}
+          peak={meter.clip}
           name={`Level and peak, ${track.name}, ${SIMULATED}`}
         />
       </div>

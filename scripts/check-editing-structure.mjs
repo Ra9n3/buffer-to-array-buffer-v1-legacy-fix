@@ -226,7 +226,9 @@ const REQUIRED_TEST_FILES = [
 // scale's law and geometry importable from src/).
 // Stage 1: the metering suite (the detector laws, the engine tap points,
 // bit-identity, the ring).
-const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs", "tests/resample.test.mjs", "tests/engine-live-gains.test.mjs", "tests/vu-geometry.test.mjs", "tests/metering.test.mjs"];
+// Stage 2: the meter display suite (the display ballistics, the store's
+// write-on-change, idle and latch-clear rules).
+const SANCTIONED_TEST_FILES = ["tests/integration.test.mjs", "tests/playhead.test.mjs", "tests/resample.test.mjs", "tests/engine-live-gains.test.mjs", "tests/vu-geometry.test.mjs", "tests/metering.test.mjs", "tests/meter-display.test.mjs"];
 const testCommand = pkg.scripts.test ?? "";
 const namedSuites = testCommand.split(/\s+/).filter((part) => part.startsWith("tests/"));
 check(

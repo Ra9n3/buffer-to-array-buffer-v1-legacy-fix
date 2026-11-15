@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
   import Knob from "../hardware/Knob.svelte";
+  import { meterView } from "../../lib/metering/meter-store.svelte";
+  import { busId } from "../../lib/project/model";
   import StripModule from "./StripModule.svelte";
   import {
     BALANCE_RANGE,
@@ -56,6 +58,14 @@
   // svelte-ignore state_referenced_locally
   const own = $state<BusLive>({ trim: bus.trim, balance: bus.balance, level: bus.level, mute: bus.mute, solo: bus.solo });
   const model = $derived(live ?? own);
+
+  /* Stage 2: the meter column and the PEAK lamp read the meter display
+     store — the live LED level and clip latch of the bus's real point (the
+     id the model builds from this strip's printed code). The fixture table
+     no longer feeds them. The id is read once — a bus's code never changes,
+     the point is the strip's own for its whole life. */
+  // svelte-ignore state_referenced_locally
+  const meter = meterView("bus", busId(bus.id));
 </script>
 
 <StripModule
@@ -69,12 +79,12 @@
   sectionA="trim"
   sectionB="balance"
   {identity}
-  meterLevel={bus.meter}
+  meterLevel={meter.led}
   faderLabel="Master"
   bind:faderValue={() => model.level, (v) => (model.level = v)}
   bind:mute={() => model.mute, (on) => (model.mute = on)}
   bind:solo={() => model.solo, (on) => (model.solo = on)}
-  peak={bus.peak}
+  peak={meter.clip}
 >
   {#snippet knobA()}
     <Knob

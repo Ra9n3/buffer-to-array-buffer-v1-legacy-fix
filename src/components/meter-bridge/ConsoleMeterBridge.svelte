@@ -75,9 +75,15 @@
   import VUMeter from "../hardware/VUMeter.svelte";
   import Goniometer from "./Goniometer.svelte";
   import SpectrumLadder from "./SpectrumLadder.svelte";
-  import { MASTER_FIXTURE, SIMULATED } from "./bridge-fixtures";
+  import { meterView } from "../../lib/metering/meter-store.svelte";
+  import { SIMULATED } from "./bridge-fixtures";
 
   const uid = `bridge${++nextId}`;
+
+  /* Stage 2: the master pair's needles read the meter display store — the
+     live VU of the engine's master output (falling to rest when the transport
+     stops). The rest of the bridge keeps its fixtures for now. */
+  const masterMeter = meterView("master", "master");
 </script>
 
 <div class="bridge" data-meter-bridge data-simulated={SIMULATED}>
@@ -129,8 +135,8 @@
         </div>
         <div class="master" data-master-meters>
           <div class="master__pair">
-            <VUMeter label={null} fill level={MASTER_FIXTURE.left} name={`Master left, ${SIMULATED}`} />
-            <VUMeter label={null} fill level={MASTER_FIXTURE.right} name={`Master right, ${SIMULATED}`} />
+            <VUMeter label={null} fill level={masterMeter.vuL} name={`Master left, ${SIMULATED}`} />
+            <VUMeter label={null} fill level={masterMeter.vuR} name={`Master right, ${SIMULATED}`} />
           </div>
         </div>
       </section>

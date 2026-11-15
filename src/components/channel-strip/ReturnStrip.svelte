@@ -2,6 +2,8 @@
   import type { Snippet } from "svelte";
   import Knob from "../hardware/Knob.svelte";
   import TactileSwitch from "../hardware/TactileSwitch.svelte";
+  import { meterView } from "../../lib/metering/meter-store.svelte";
+  import { returnBusId } from "../../lib/project/model";
   import StripModule from "./StripModule.svelte";
   import { RETURN_PARAMS, TONE_PARAM, type ReturnStripFixture } from "./bus-return-fixtures";
   import type { ReturnLive } from "./return-live";
@@ -78,6 +80,15 @@
     solo: ret.solo,
   });
   const model = $derived(live ?? own);
+
+  /* Stage 2: the meter column and the PEAK lamp read the meter display
+     store — the live LED level and clip latch of the Return's real point
+     (the id the model builds from the shared return id this strip carries).
+     The fixture table no longer feeds them. The id is read once — a
+     Return's identity never changes, the point is the strip's own for its
+     whole life. */
+  // svelte-ignore state_referenced_locally
+  const meter = meterView("return", returnBusId(ret.returnId));
 </script>
 
 <StripModule
@@ -93,12 +104,12 @@
   {identity}
   baySection="effect"
   bayLabel={`Effect, ${ret.name}`}
-  meterLevel={ret.meter}
+  meterLevel={meter.led}
   faderLabel="Return"
   bind:faderValue={() => model.level, (v) => (model.level = v)}
   bind:mute={() => model.mute, (on) => (model.mute = on)}
   bind:solo={() => model.solo, (on) => (model.solo = on)}
-  peak={ret.peak}
+  peak={meter.clip}
 >
   {#snippet knobA()}
     <Knob

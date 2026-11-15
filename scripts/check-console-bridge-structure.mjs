@@ -180,18 +180,24 @@ check(
   "the fixture file takes its ladder scale from the approved ladder",
   /import { LED_LADDER_SCALE, type LedSegment } from "\.\.\/hardware\/LedLadder\.svelte"/.test(fixtures),
 );
+// Stage 2 re-cut: the bridge's master module reads the meter display store — the
+// one sanctioned lib import (the master pair's live VU); everything else still
+// comes from the approved hardware library and the bridge's own folder.
 check(
-  "bridge files import nothing but the approved library, each other and svelte types",
-  [...allBridgeSource.matchAll(/from "([^"]+)"/g)].every(([, spec]) => /^(\.\.\/hardware\/|\.\/)/.test(spec)),
+  "bridge files import nothing but the approved library, each other, svelte types and the meter display store",
+  [...allBridgeSource.matchAll(/from "([^"]+)"/g)].every(([, spec]) => /^(\.\.\/hardware\/|\.\.\/\.\.\/lib\/metering\/|\.\/)/.test(spec)),
 );
 
 {
   const tpl = templateOf(bridge);
   const masterBlock = tpl.slice(tpl.indexOf('data-master-meters'), tpl.lastIndexOf("</section>"));
   check("master: exactly two VUMeters, bare — no LEFT/RIGHT print on the row (D9.6.3, the owner: people know a VU when they see one), named as simulated", (masterBlock.match(/<VUMeter /g) ?? []).length === 2 && (masterBlock.match(/<VUMeter label=\{null\}/g) ?? []).length === 2 && /name=\{`Master left, \$\{SIMULATED\}`\}/.test(masterBlock) && /name=\{`Master right, \$\{SIMULATED\}`\}/.test(masterBlock));
+  // Stage 2 re-cut: the master pair reads the meter display store — the live VU of
+  // the engine's master output, left and right independently — and the fixture
+  // constants are no longer read by the bridge at all.
   check(
-    "master: independent fixture values",
-    /level={MASTER_FIXTURE\.left}/.test(masterBlock) && /level={MASTER_FIXTURE\.right}/.test(masterBlock),
+    "master: independent live values — the meter display store's left and right (Stage 2)",
+    /level={masterMeter\.vuL}/.test(masterBlock) && /level={masterMeter\.vuR}/.test(masterBlock) && !/MASTER_FIXTURE/.test(masterBlock) && !/MASTER_FIXTURE/.test(bridge),
   );
   check(
     "the white needle PHASE meter is off the row and its component deleted (Task 9.8, D9.8.1, the owner: 'you should remove the phase meter not the correlation meter' — the needle meter that sat between the goniometer and the VUs since 9.5; the 9.7 pass had it backwards)",

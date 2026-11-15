@@ -1,33 +1,12 @@
 <script module lang="ts">
-  /**
-   * The strip meter's compact scale, bottom to top: twelve segments, eight
-   * green through −6, three amber through −1, one red at 0 — the same band
-   * philosophy as the ladder's sixteen (hardware spec §4b), thinned for the
-   * narrow column beside a fader. Demonstration scale only — plan §9 defers
-   * every numeric audio value to listening tests.
-   */
-  export const STRIP_METER_SCALE: readonly { readonly db: number; readonly band: "green" | "amber" | "red" }[] = [
-    { db: -40, band: "green" },
-    { db: -34, band: "green" },
-    { db: -28, band: "green" },
-    { db: -22, band: "green" },
-    { db: -17, band: "green" },
-    { db: -13, band: "green" },
-    { db: -9, band: "green" },
-    { db: -6, band: "green" },
-    { db: -4, band: "amber" },
-    { db: -2, band: "amber" },
-    { db: -1, band: "amber" },
-    { db: 0, band: "red" },
-  ];
-
-  /** How many segments a level lights: every threshold reached, counted from
-   *  the bottom — the lit run is contiguous, never a lone segment. */
-  export function stripMeterLit(segments: readonly { readonly db: number }[], level: number): number {
-    let lit = 0;
-    while (lit < segments.length && level >= segments[lit].db) lit += 1;
-    return lit;
-  }
+  /* The scale and its lit-count law live in ./strip-meter-scale — one pure
+     module, no DOM, importable by the meter display store and the tests
+     (Stage 2; the vu-geometry pattern) — and are re-exported here unchanged,
+     so every existing import from this component keeps working. The values
+     are the approved Task 9.5 scale exactly; nothing about which dB sits
+     where has moved. */
+  export { STRIP_METER_SCALE, stripMeterLit } from "./strip-meter-scale";
+  export type { StripMeterSegment } from "./strip-meter-scale";
 </script>
 <script lang="ts">
   /**
@@ -49,6 +28,8 @@
    * Nothing here measures anything: `level` and `peak` are whatever the host
    * passes in (fixture data in the Console, SIMULATED).
    */
+  import { STRIP_METER_SCALE, stripMeterLit } from "./strip-meter-scale";
+
   let {
     /** Reading in dB. Below the first threshold nothing is lit. */
     level = -60,

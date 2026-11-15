@@ -211,7 +211,8 @@ const pinned = {
   // real contract.
   // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
   // the paging rails, the bare scope, the re-spread bridge, the contained windows).
-  "src/components/channel-strip/TrackStrip.svelte": "2a9434fbd1bd46d6e026d8ea26b2d4d30ce90227fb62a1f6a777fbaf32627333",
+  // Stage 2 re-pin (the live meter wiring): the meter values now come from the meter display store — only where each value comes from changed; the checks around this pin still assert the file's real contract.
+  "src/components/channel-strip/TrackStrip.svelte": "a77a0e18fbdcfaa1d30ebb07f9b2092ce5c055e13a99db62b040a0385650c167",
   "src/components/MixerDetailPanel.svelte": "5139693f9b7df182e4a65b62fc7138fb6d1eaaeb295fa25f67446f440e94b299",
   "src/components/mixer/BusDetail.svelte": "71c5ca0d04290da8b23f919fd1af00818adaf3617e34589524d4fb222ea5e77f",
   "src/lib/mixer-chain.ts": "95499fda3f1e5093bf58f0844136c052e38078ed488238ca340931af8f35531c",

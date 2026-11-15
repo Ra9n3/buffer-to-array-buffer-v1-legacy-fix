@@ -234,7 +234,8 @@ const pinned = {
   // real contract.
   // Task 9.7 re-pinned (the owner's third Console pass, decisions-log D9.7.1-D9.7.4:
   // the paging rails, the bare scope, the re-spread bridge, the contained windows).
-  "src/components/channel-strip/TrackStrip.svelte": "2a9434fbd1bd46d6e026d8ea26b2d4d30ce90227fb62a1f6a777fbaf32627333",
+  // Stage 2 re-pin (the live meter wiring): the meter values now come from the meter display store — only where each value comes from changed; the checks around this pin still assert the file's real contract.
+  "src/components/channel-strip/TrackStrip.svelte": "a77a0e18fbdcfaa1d30ebb07f9b2092ce5c055e13a99db62b040a0385650c167",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
@@ -251,12 +252,14 @@ const pinned = {
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/channel-strip/ReturnStrip.svelte": "d5240fa41c0a0057fcf4ed8de7c0239a6cb4f9633aa127d9eb8187c2950dcb0c",
+  // Stage 2 re-pin (the live meter wiring): the meter values now come from the meter display store — only where each value comes from changed; the checks around this pin still assert the file's real contract.
+  "src/components/channel-strip/ReturnStrip.svelte": "b29dff15ef56f9da0f8d9b60864d79f2741b3c6c36942563d4856d41b41dea80",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
   // around this pin still assert the file's real contract.
-  "src/components/channel-strip/BusMasterStrip.svelte": "09c7673329ce60d3b86859845fb3592527e9a1bae5c50e5e78b41a374e9f9826",
+  // Stage 2 re-pin (the live meter wiring): the meter values now come from the meter display store — only where each value comes from changed; the checks around this pin still assert the file's real contract.
+  "src/components/channel-strip/BusMasterStrip.svelte": "26dd69b3ddce17ffbaaca55f951ccee3684b92993299b41c1f3426e52bbd27df",
   // Task 9.5 re-pinned (owner's one-window Console redesign, decisions-log
   // D9.5.x): this file changed with the approved layout — the compact strip,
   // its meter, the three-rail bank, the bottom transport bar. The checks
