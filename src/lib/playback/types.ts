@@ -183,7 +183,9 @@ export interface PlaybackStats {
 export function initialPlaybackState(sampleRate: number): PlaybackState {
   return {
     status: "stopped",
-    source: "raw",
+    // Stage 1b, Step 2: the default listening source is PREVIEW — the mixed,
+    // metered stream (raw and render stay one selection away).
+    source: "preview",
     sampleRate,
     positionFrames: 0,
     startFrame: 0,

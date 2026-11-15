@@ -198,6 +198,7 @@ test("raw playback sums imported tracks on one timeline and pads shorter sources
   ]);
   const output = autoOutput();
   const controller = controllerFor(project, sources, output, { chunkFrames: 4 });
+  controller.setSource("raw");
   await controller.play();
   assert.equal(controller.getState().durationFrames, 10);
   assert.deepEqual(output.chunks.map((c) => c.startFrame), [0, 4, 8]);
@@ -220,6 +221,7 @@ test("raw playback respects mute and solo from the shared project model", async 
   project.tracks[1].channel.mute = true;
   let output = autoOutput();
   let controller = controllerFor(project, sources, output);
+  controller.setSource("raw");
   await controller.play();
   assert.ok(Math.abs(peak(joined(output.chunks)) - 0.25) < 1e-6);
   controller.dispose();
@@ -228,6 +230,7 @@ test("raw playback respects mute and solo from the shared project model", async 
   project.tracks[0].channel.solo = true;
   output = autoOutput();
   controller = controllerFor(project, sources, output);
+  controller.setSource("raw");
   await controller.play();
   assert.ok(Math.abs(peak(joined(output.chunks)) - 0.25) < 1e-6);
   controller.dispose();
@@ -237,6 +240,7 @@ test("raw playback respects mute and solo from the shared project model", async 
   project.tracks[1].channel.solo = true;
   output = autoOutput();
   controller = controllerFor(project, sources, output);
+  controller.setSource("raw");
   await controller.play();
   assert.ok(Math.abs(peak(joined(output.chunks)) - 0.5) < 1e-6);
   controller.dispose();
@@ -250,6 +254,7 @@ test("mono and stereo sources are both played as stereo without a project-sized 
   ]);
   const output = autoOutput();
   const controller = controllerFor(project, sources, output);
+  controller.setSource("raw");
   await controller.play();
   const audio = joined(output.chunks);
   assert.ok(Math.abs(audio[0][0] - 0.5) < 1e-6);
@@ -264,6 +269,7 @@ test("pause stops scheduled audio, keeps the playhead, and resume starts a clean
   const sources = new Map([["track-a", signalSource(64, (i) => i / 64)]]);
   const output = blockingOutput();
   const controller = controllerFor(project, sources, output, { chunkFrames: 4 });
+  controller.setSource("raw");
   const playing = controller.play();
   await new Promise((resolve) => setTimeout(resolve, 5));
   assert.equal(controller.getState().status, "playing");
@@ -288,6 +294,7 @@ test("seek while stopped moves the playhead; seek while playing restarts at the 
   const sources = new Map([["track-a", signalSource(64, (i) => i / 64)]]);
   const output = blockingOutput();
   const controller = controllerFor(project, sources, output, { chunkFrames: 4 });
+  controller.setSource("raw");
   controller.seek(12);
   assert.equal(controller.getState().positionFrames, 12);
   const playing = controller.play();
@@ -307,6 +314,7 @@ test("10.1 · stop leaves the playhead at the stopped position; the natural end 
   const sources = new Map([["track-a", signalSource(12, () => 0.1)]]);
   const output = autoOutput();
   const controller = controllerFor(project, sources, output);
+  controller.setSource("raw");
   await controller.play();
   // The natural end is a stop AT the project's end: the playhead stays
   // there, and `stoppedPosition` records it.
@@ -625,6 +633,7 @@ test("9.1 · a duration refresh never disturbs what the transport is doing", asy
   const sources = new Map([["track-a", signalSource(400, () => 0.1)]]);
   const output = blockingOutput();
   const controller = controllerFor(project, sources, output);
+  controller.setSource("raw");
   const playing = controller.play();
   output.release();
   await Promise.resolve();
